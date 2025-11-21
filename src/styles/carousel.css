@@ -1,0 +1,20 @@
+/* Fade lateral para carruseles */
+.carousel-fade-left,
+.carousel-fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.carousel-fade-left {
+  left: 0;
+  background: linear-gradient(to left, rgba(255,255,255,0) 0%, #ffffff 80%);
+}
+
+.carousel-fade-right {
+  right: 0;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, #ffffff 80%);
+}

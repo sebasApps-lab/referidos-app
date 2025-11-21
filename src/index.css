@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Oculta scrollbars sin afectar el scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;   /* IE/Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;              /* Chrome/Safari */
+}
+
+/* Layout base: evita scroll horizontal en toda la app */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+
+  /* Evita zoom por gestos en móvil */
+  touch-action: manipulation;
+}
+
+/* Permite que el navegador móvil oculte la URL bar automáticamente */
+html {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* Esta clase la usa MainLayout para ocultar la barra vertical */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
