@@ -90,11 +90,11 @@ export default function Login() {
     // NUEVAS RUTAS
     // ======================
     if (result.user.role === "admin") {
-      navigate("/inicio/admin");
+      navigate("/admin/inicio");
     } else if (result.user.role === "negocio") {
-      navigate("/inicio/negocio");
+      navigate("/negocio/inicio");
     } else {
-      navigate("/inicio/cliente");
+      navigate("/cliente/inicio");
     }
   };
 

@@ -252,7 +252,7 @@ export default function Registro() {
     }
 
     // CORRECCIÓN: enviar al home REAL del cliente
-    navigate("/inicio/cliente");
+    navigate("/cliente/inicio");
   };
 
   // Página 1 → siguiente
@@ -313,7 +313,7 @@ export default function Registro() {
     }
 
     // CORRECCIÓN: enviar al home REAL del negocio
-    navigate("/inicio/negocio");
+    navigate("/negocio/inicio");
   };
 
   // inputs css

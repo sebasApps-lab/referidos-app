@@ -1,4 +1,4 @@
-// src/pages/Scanner.jsx
+// src/pages/Escanear.jsx
 
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
  * - En versiones futuras integrará cámara real
  */
 
-export default function Scanner() {
+export default function Escanear() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedCode, setScannedCode] = useState(null);
 

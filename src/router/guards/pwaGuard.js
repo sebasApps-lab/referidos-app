@@ -15,13 +15,13 @@ export function pwaGuard(usuario, pathname) {
   // Redirigir al home correcto
   if (usuario) {
     if (usuario.role === "cliente" && !pathname.startsWith("/cliente")) {
-      return "/cliente/home";
+      return "/cliente/inicio";
     }
     if (usuario.role === "negocio" && !pathname.startsWith("/negocio")) {
-      return "/negocio/home";
+      return "/negocio/inicio";
     }
     if (usuario.role === "admin" && !pathname.startsWith("/admin")) {
-      return "/admin/home";
+      return "/admin/inicio";
     }
   }
 

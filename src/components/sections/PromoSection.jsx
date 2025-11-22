@@ -32,7 +32,7 @@ export default function PromoSection({ title, promos, ratings }) {
 
       <div
         ref={ref}
-        className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth"
+        className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth px-2"
       >
         {promos.map((p) => (
           <PromoCard key={p.id} promo={p} rating={ratings[p.id]} />

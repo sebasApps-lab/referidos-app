@@ -15,11 +15,11 @@ export default function Bienvenido() {
     if (!usuario) return;
 
     if (usuario.role === "cliente") {
-      navigate("/inicio/cliente");
+      navigate("/cliente/inicio");
     } else if (usuario.role === "negocio") {
-      navigate("/inicio/negocio");
+      navigate("/negocio/inicio");
     } else if (usuario.role === "admin") {
-      navigate("/inicio/admin");
+      navigate("/admin/inicio");
     }
   }, [usuario, navigate]);
 

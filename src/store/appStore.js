@@ -18,6 +18,21 @@ export const useAppStore = create(
   persist(
     (set, get) => ({
       usuario: null,
+      ratings: {},
+
+      initRatings: (promos) => {
+        const current = get().ratings;
+        if (Object.keys(current).length > 0) return; // ya existen, no recalcular
+ 
+        const map = {};
+        promos.forEach((p) => {
+          map[p.id] =
+            p.rating ||
+            Math.round((3 + Math.random() * 2) * 10) / 10;
+        });
+ 
+        set({ ratings: map });
+      },
 
       // ======================================================
       // SET USER (global)

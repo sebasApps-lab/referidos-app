@@ -13,13 +13,13 @@ export default function RequireRole({ children, role }) {
   // Verificar rol correcto
   if (usuario.role !== role) {
     if (usuario.role === "cliente")
-      return <Navigate to="/cliente/home" replace />;
+      return <Navigate to="/cliente/inicio" replace />;
 
     if (usuario.role === "negocio")
-      return <Navigate to="/negocio/home" replace />;
+      return <Navigate to="/negocio/inicio" replace />;
 
     if (usuario.role === "admin")
-      return <Navigate to="/admin/home" replace />;
+      return <Navigate to="/admin/inicio" replace />;
   }
 
   return children;

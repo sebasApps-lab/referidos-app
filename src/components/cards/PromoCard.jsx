@@ -18,7 +18,7 @@ export default function PromoCard({ promo, rating }) {
     <div
       onClick={goDetalle}
       style={{
-        width: "94%",
+        width: "99%",
         maxWidth: 400,
         marginRight: 16,
         cursor: "pointer",

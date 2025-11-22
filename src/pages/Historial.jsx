@@ -1,4 +1,4 @@
-// src/pages/QRValidos.jsx
+// src/pages/Historial.jsx
 
 import React, { useContext } from "react";
 import { AppContext } from "../context/AppContext";
@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
  * En esta versión se simula la data (desde el contexto global).
  */
 
-export default function QRValidos() {
+export default function Historial() {
   const { usuario, data } = useContext(AppContext);
 
   if (!usuario) {

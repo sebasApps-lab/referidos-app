@@ -24,9 +24,9 @@ export default function Footer() {
 
   // RUTAS INICIO POR ROL
   const HOME_PATHS = {
-    cliente: "/inicio/cliente",
-    negocio: "/inicio/negocio",
-    admin: "/inicio/admin",
+    cliente: "/cliente/inicio",
+    negocio: "/negocio/inicio",
+    admin: "/admin/inicio",
   };
 
   // Marca activo cuando coincide EXACTO o empieza por el home real
@@ -40,27 +40,27 @@ export default function Footer() {
 
   if (role === "cliente") {
     linksMobile = [
-      { path: "/inicio/cliente", label: "Inicio", Icon: Home },
-      { path: "/qr-validos", label: "Escanear", Icon: QrCode },
-      { path: "/nuevo", label: "Nuevo", Icon: Tag, badge: notiCount },
-      { path: "/perfil", label: "Perfil", Icon: User },
+      { path: "/cliente/inicio", label: "Inicio", Icon: Home },
+      { path: "/cliente/escanear", label: "Escanear", Icon: QrCode },
+      { path: "/cliente/historial", label: "Historial", Icon: Tag, badge: notiCount },
+      { path: "/cliente/perfil", label: "Perfil", Icon: User },
     ];
   }
 
   if (role === "negocio") {
     linksMobile = [
-      { path: "/inicio/negocio", label: "Inicio", Icon: Home },
-      { path: "/scanner", label: "Escanear", Icon: Camera },
-      { path: "/mis-promos", label: "Promos", Icon: Tag },
-      { path: "/perfil", label: "Perfil", Icon: User },
+      { path: "/negocio/inicio", label: "Inicio", Icon: Home },
+      { path: "/negocio/escanear", label: "Escanear", Icon: Camera },
+      { path: "/negocio/mis-promos", label: "Promos", Icon: Tag },
+      { path: "/negocio/perfil", label: "Perfil", Icon: User },
     ];
   }
 
   if (role === "admin") {
     linksMobile = [
-      { path: "/inicio/admin", label: "Inicio", Icon: Home },
-      { path: "/promos", label: "Promos", Icon: Tag },
-      { path: "/qr-validos", label: "QR", Icon: QrCode },
+      { path: "/admin/inicio", label: "Inicio", Icon: Home },
+      { path: "/admin/promos", label: "Promos", Icon: Tag },
+      { path: "/admin/qr-validos", label: "QR", Icon: QrCode },
       { path: "/admin", label: "Admin", Icon: Shield },
     ];
   }

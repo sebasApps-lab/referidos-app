@@ -14,6 +14,10 @@ const Registro = lazy(() => import("./pages/Registro"));
 const ClienteHome = lazy(() => import("./pages/ClienteHome"));
 const NegocioHome = lazy(() => import("./pages/NegocioHome"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
+const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
+const Perfil = lazy(() => import("./pages/Perfil"));
+const Historial = lazy(() => import("./pages/Historial"));
+const Escanear = lazy(() => import("./pages/Escanear"));
 
 export default function AppRoutes() {
   return (
@@ -25,7 +29,7 @@ export default function AppRoutes() {
 
       {/* CLIENTE */}
       <Route
-        path="/inicio/cliente"
+        path="/cliente/inicio"
         element={
           <RequireAuth>
             <RequireRole role="cliente">
@@ -39,7 +43,7 @@ export default function AppRoutes() {
 
       {/* NEGOCIO */}
       <Route
-        path="/inicio/negocio"
+        path="/negocio/inicio"
         element={
           <RequireAuth>
             <RequireRole role="negocio">
@@ -53,12 +57,68 @@ export default function AppRoutes() {
 
       {/* ADMIN */}
       <Route
-        path="/inicio/admin"
+        path="/admin/inicio"
         element={
           <RequireAuth>
             <RequireRole role="admin">
               <MainLayout>
                 <AdminHome />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* DETALLE PROMO */}
+      <Route
+        path="/detalle/:id"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <PromoDetalle />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* ESCANEAR */}
+      <Route
+        path="/cliente/escanear"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <Escanear />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PERFIL */}
+      <Route
+        path="/cliente/perfil"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <Perfil />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* HISTORIAL */}
+      <Route
+        path="/cliente/historial"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <Historial />
               </MainLayout>
             </RequireRole>
           </RequireAuth>

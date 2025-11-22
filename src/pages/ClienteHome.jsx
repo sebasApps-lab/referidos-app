@@ -7,7 +7,6 @@ import {
   getPromosCercanas,
   getPromosNuevas,
   getPromosHot,
-  //populateCalificationsAndAverages,
 } from "../data/simulatedData";
 
 import PromoSection from "../components/sections/PromoSection";
@@ -18,28 +17,23 @@ import { usePromoSearch } from "../hooks/usePromoSearch";
 import MenuFilters from "../components/menus/MenuFilters"; // nuevo
 
 export default function ClienteHome() {
-  /* Ejecutar explícitamente
-  populateCalificationsAndAverages();*/
 
   const [showFiltros, setShowFiltros] = useState(false);
+
+  const initRatings = useAppStore((s) => s.initRatings);
+  const ratings = useAppStore((s) => s.ratings);
 
   const recomendadas = getRecomendadas();
   const hot = getPromosHot();
   const cercanas = getPromosNuevas();
 
-  const ratings = useMemo(() => {
-    const all = [...recomendadas, ...cercanas, ...hot];
-    const map = {};
-    all.forEach((p) => {
-      map[p.id] =
-        p.rating ||
-        Math.round((3 + Math.random() * 2) * 10) / 10;
-    });
-    return map;
+  const allPromos = [...recomendadas, ...cercanas, ...hot];
+
+  React.useEffect(() => {
+    initRatings(allPromos);
   }, []);
 
   const { query, setQuery, filterPromos } = usePromoSearch();
-  const allPromos = [...recomendadas, ...cercanas, ...hot];
   const searchResults = filterPromos(allPromos);
 
   const searching = query.trim().length > 0;
