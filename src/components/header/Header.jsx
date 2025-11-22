@@ -1,10 +1,13 @@
 // src/components/header/Header.jsx
-import React from "react";
+import React, { useRef, useLayoutEffect } from "react";
 
 const BRAND_PURPLE = "#5E30A5";
 const BRAND_YELLOW = "#FFF3CD";
 const REFERRAL_GREEN = "#A6F28F";
 const LOCAL_PURPLE = "#7C5CD6";
+
+const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
+const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
 
 export default function Header({
   usuario,
@@ -14,10 +17,25 @@ export default function Header({
   onOpenTier,
   onOpenGrupo,
   onOpenMenu,
+  onHeaderHeightChange,
 }) {
+  const headerRef = useRef(null);
+
+  const avatarSrc =
+    usuario?.genero === "f"
+      ? AVATAR_FEMALE
+      : usuario?.genero === "m"
+      ? AVATAR_MALE
+      : AVATAR_MALE;
+
+  useLayoutEffect(() => {
+    if (headerRef.current && onHeaderHeightChange) {
+      onHeaderHeightChange(headerRef.current.offsetHeight);
+    }
+  });
+
   return (
     <>
-      {/* BARRA AMARILLA DE UBICACIÓN */}
       {!hideLocationBar && locAllowed === false && (
         <div style={{ width: "100%", background: BRAND_YELLOW }}>
           <div
@@ -39,9 +57,9 @@ export default function Header({
                 background: "#FFF8D8",
               }}
             >
-              <div style={{ fontSize: 13 }}>
+              <span style={{ fontSize: 13 }}>
                 La app usa tu ubicación para mostrar promos cercanas.
-              </div>
+              </span>
 
               <button
                 onClick={onCloseLocationBar}
@@ -59,108 +77,175 @@ export default function Header({
         </div>
       )}
 
-      {/* FRANJA MORADA */}
       <header
+        ref={headerRef}
         style={{
           background: BRAND_PURPLE,
           color: "#fff",
-          paddingTop: hideLocationBar || locAllowed !== false ? 20 : 56,
-          paddingBottom: 20,
+          paddingTop: "10%",
+          paddingBottom: "4%",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          zIndex: 999,
         }}
       >
         <div
           style={{
             maxWidth: 960,
             margin: "0 auto",
-            padding: "0 16px",
+            paddingLeft: "4%",
+            paddingRight: "4%",
             display: "flex",
-            gap: 16,
-            alignItems: "flex-start",
+            flexDirection: "column",
+            width: "100%",
           }}
         >
-          {/* IZQUIERDA: tier + avatar */}
+          <div
+            style={{
+              marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                width: "88%",
+                fontSize: "clamp(20px, 6vw, 28px)",
+                fontWeight: 800,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              Bienvenido,{" "}
+              <span style={{ fontWeight: 900 }}>
+                {usuario?.nombre || "usuario"}
+              </span>
+            </div>
+
+            <button
+              onClick={() => onOpenMenu()}
+              style={{
+                width: "12%",
+                background: "transparent",
+                border: 0,
+                color: "#fff",
+                fontSize: "clamp(26px, 7vw, 36px)",
+                cursor: "pointer",
+                textAlign: "right",
+              }}
+            >
+              ☰
+            </button>
+          </div>
+
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              gap: 6,
+              gap: "6%",
+              marginTop: 6,
+              alignItems: "stretch",
             }}
           >
-            <button
-              onClick={onOpenTier}
+            <div
               style={{
-                background: "rgba(255,255,255,0.08)",
-                color: "#fff",
-                border: 0,
-                padding: "6px 10px",
-                borderRadius: 8,
-                fontWeight: 700,
-                cursor: "pointer",
+                width: "30%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
               }}
             >
-              {usuario?.tier ? usuario.tier : "Tier 1 — Explorador"}
-            </button>
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div
                 style={{
-                  width: 84,
-                  height: 84,
-                  borderRadius: 12,
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 16,
                   overflow: "hidden",
                   border: `3px solid ${LOCAL_PURPLE}`,
                   background: "#fff",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-              />
-            </div>
-          </div>
+              >
+                <button
+                  onClick={onOpenTier}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: 4,
+                    background: "rgba(0,0,0,0.45)",
+                    color: "#fff",
+                    border: 0,
+                    padding: "4px 8px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  {usuario?.tier || "Explorador"}
+                </button>
 
-          {/* CENTRO: textos */}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 22, fontWeight: 800 }}>
-              Bienvenido, {usuario?.nombre || "usuario"}
+                <img
+                  src={avatarSrc}
+                  alt="avatar"
+                  style={{
+                    width: "80%",
+                    height: "80%",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
             </div>
 
-            <div style={{ marginTop: 6, opacity: 0.95 }}>
-              Encuentra las mejores promos cerca de ti.
-            </div>
-
-            {/* REFERIDOS + GRUPO */}
             <div
               style={{
-                marginTop: 10,
+                width: "65%",
                 display: "flex",
-                alignItems: "center",
-                gap: 12,
+                flexDirection: "column",
+                justifyContent: "space-between",
+                paddingTop: "2px",
               }}
             >
               <div
                 style={{
-                  color: REFERRAL_GREEN,
-                  fontWeight: 800,
+                  fontSize: 14,
+                  opacity: 0.95,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
                 }}
               >
-                {usuario?.referidosCount
-                  ? `${usuario.referidosCount} referidos`
-                  : "0 referidos"}
+                Encuentra las mejores promos cerca de ti.
               </div>
+
+              <div style={{ flexGrow: 1 }} />
 
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: -12,
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
                 }}
               >
-                <div
+                <span
                   style={{
-                    fontSize: 13,
-                    marginRight: 8,
+                    color: REFERRAL_GREEN,
+                    fontWeight: 800,
+                    fontSize: "clamp(14px, 4vw, 17px)",
                   }}
                 >
-                  grupo::
-                </div>
+                  {usuario?.referidosCount
+                    ? `${usuario.referidosCount} referidos`
+                    : "0 referidos"}
+                </span>
 
                 <div
                   style={{
@@ -170,45 +255,28 @@ export default function Header({
                   }}
                   onClick={onOpenGrupo}
                 >
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      background: "#E6E6E6",
-                      border: "2px solid #ffffff",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      background: "#E6E6E6",
-                      border: "2px solid #ffffff",
-                      transform: "translateX(-12px)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      background: "#E6E6E6",
-                      border: "2px solid #ffffff",
-                      transform: "translateX(-24px)",
-                    }}
-                  />
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 8,
+                        background: "#E6E6E6",
+                        border: "2px solid #fff",
+                        marginLeft: i === 0 ? 0 : -10,
+                      }}
+                    />
+                  ))}
 
-                  {/* botón + */}
                   <div
                     style={{
-                      width: 36,
-                      height: 36,
+                      width: 26,
+                      height: 26,
                       borderRadius: 8,
                       background: "#ffffff",
                       border: "2px dashed #CFCFCF",
-                      transform: "translateX(-36px)",
+                      marginLeft: -10,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -221,22 +289,6 @@ export default function Header({
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* DERECHA: hamburguesa */}
-          <div style={{ display: "flex", alignItems: "start" }}>
-            <button
-              onClick={onOpenMenu}
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "#fff",
-                fontSize: 24,
-                cursor: "pointer",
-              }}
-            >
-              ☰
-            </button>
           </div>
         </div>
       </header>

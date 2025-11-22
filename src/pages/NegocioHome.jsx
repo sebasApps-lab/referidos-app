@@ -1,11 +1,12 @@
 // src/pages/NegocioHome.jsx
-import React, { useContext } from "react";
-import { AppContext } from "../context/AppContext";
+import React from "react";
+import { useAppStore } from "../store/appStore";
 import { Link } from "react-router-dom";
 
 export default function NegocioHome() {
-  const { usuario, data } = useContext(AppContext);
-
+  const usuario = useAppStore((s) => s.usuario);
+  const data = useAppStore((s) => s.data);
+  
   return (
     <div className="min-h-screen p-4 bg-white">
       <header className="mb-6">

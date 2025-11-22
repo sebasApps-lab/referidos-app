@@ -4,30 +4,21 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { 
+  EMAIL_RE, 
+  PHONE_RE, 
+  CODE_RE,
+  validarCedula,
+  validateEmail,
+  validatePhone 
+} from "../utils/validators";
+
+import { safeGetItem, safeSetItem } from "../utils/storage";
+
 // CONSTANTES
 const STORAGE_KEY = "referidos_demo_v0";
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
-const EMAIL_RE = /\S+@\S+\.\S+/;
-const PHONE_RE = /^09\d{8}$/;
-const CODE_RE = /^REF-\d{6}$/;
-
-// validar cédula (Ecuador)
-function validarCedula(cedula) {
-  if (!/^\d{10}$/.test(cedula)) return false;
-  const provincia = parseInt(cedula.slice(0, 2), 10);
-  if (provincia < 1 || provincia > 24) return false;
-  const dig = cedula.split("").map((d) => parseInt(d, 10));
-  const coef = [2, 1, 2, 1, 2, 1, 2, 1, 2];
-  let suma = 0;
-  for (let i = 0; i < 9; i++) {
-    let prod = dig[i] * coef[i];
-    if (prod >= 10) prod -= 9;
-    suma += prod;
-  }
-  const verificador = (10 - (suma % 10)) % 10;
-  return verificador === dig[9];
-}
 
 // storage helpers
 function getData() {
@@ -261,7 +252,7 @@ export default function Registro() {
     }
 
     // CORRECCIÓN: enviar al home REAL del cliente
-    navigate("/cliente/home");
+    navigate("/inicio/cliente");
   };
 
   // Página 1 → siguiente
@@ -322,7 +313,7 @@ export default function Registro() {
     }
 
     // CORRECCIÓN: enviar al home REAL del negocio
-    navigate("/negocio/home");
+    navigate("/inicio/negocio");
   };
 
   // inputs css

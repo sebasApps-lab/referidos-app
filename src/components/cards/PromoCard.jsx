@@ -3,20 +3,15 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 
-const LOCAL_PURPLE = "#7C5CD6";
+import { COLORS } from "../../constants/branding";
 
 export default function PromoCard({ promo, rating }) {
   const navigate = useNavigate();
 
   const goDetalle = () => navigate(`/detalle/${promo.id}`);
 
-  const localName =
-    promo.localName || // ESTA es la correcta proveniente de simulatedData.js
+  const nombreLocal =
     promo.nombreLocal ||
-    promo.local ||
-    promo.negocio ||
-    promo.nombre ||
-    promo.restaurant ||
     "Local";
 
   return (
@@ -112,12 +107,12 @@ export default function PromoCard({ promo, rating }) {
           <div
             style={{
               fontWeight: 600,
-              color: LOCAL_PURPLE,
+              color: COLORS.LOCAL_PURPLE,
               marginBottom: 8,
               fontSize: 14,
             }}
           >
-            {localName}
+            {nombreLocal}
           </div>
 
           {/* Sector + Fecha */}

@@ -1,29 +1,32 @@
-// src/components/MenuLateral.jsx
+// src/components/menus/MenuLateral.jsx
 
 import { Link } from "react-router-dom";
 
 export default function MenuLateral({ visible, onClose, usuario, logout }) {
-  const base = usuario?.role === "cliente"
-    ? "/cliente"
-    : usuario?.role === "negocio"
-    ? "/negocio"
-    : "/admin";
+  const base =
+    usuario?.role === "cliente"
+      ? "/cliente"
+      : usuario?.role === "negocio"
+      ? "/negocio"
+      : "/admin";
 
   return (
-    <div>
-      {/* BACKDROP */}
+    <>
+      {/* BACKDROP + BLUR */}
       <div
         onClick={onClose}
-        className={`fixed inset-0 bg-black/40 transition-opacity ${
+        className={`fixed inset-0 backdrop-blur-sm bg-black/40 transition-opacity ${
           visible ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
+        style={{ zIndex: 2000 }}
       />
 
-      {/* MENU */}
+      {/* MENÚ DESDE LA DERECHA */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl p-6 transition-transform ${
-          visible ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl p-6 transition-transform ${
+          visible ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ zIndex: 2100 }}
       >
         <h2 className="text-lg font-bold text-[#5E30A5] mb-4">
           {usuario?.nombre || "Usuario"}
@@ -49,6 +52,6 @@ export default function MenuLateral({ visible, onClose, usuario, logout }) {
           Cerrar sesión
         </button>
       </div>
-    </div>
+    </>
   );
 }

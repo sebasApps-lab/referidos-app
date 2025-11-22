@@ -1,7 +1,14 @@
 // src/pages/Admin.jsx
 
 import React, { useContext, useState, useEffect } from "react";
-import { AppContext } from "../context/AppContext";
+import { useAppStore } from "../store/appStore";
+
+// Dividir en subcomponentes:
+// - AdminUsuariosTable
+// - AdminNegociosTable
+// - AdminPromosTable
+// - AdminQRTable
+
 
 /**
  * Admin screen (ALPHA v0.0.1)

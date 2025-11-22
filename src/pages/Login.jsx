@@ -5,6 +5,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 
+import { TEMP_USERS } from "../constants/tempUsers";
+import { validateEmail } from "../utils/validators";
+
 export default function Login() {
   const loginLocal = useAppStore((state) => state.loginLocal);
   const setUser = useAppStore((state) => state.setUser);
@@ -31,27 +34,7 @@ export default function Login() {
   //      pass:  admin
   //
   // ==========================================================
-  const TEMP_USERS = [
-    {
-      email: "user@gmail.com",
-      password: "user",
-      role: "cliente",
-      nombre: "Usuario Demo"
-    },
-    {
-      email: "tienda@gmail.com",
-      password: "tienda",
-      role: "negocio",
-      nombre: "Negocio Demo"
-    },
-    {
-      email: "admin@gmail.com",
-      password: "admin",
-      role: "admin",
-      nombre: "Admin Demo"
-    },
-  ];
-
+  
   // Fake serverless login real o temporal
   const fakeServerlessLogin = async (email, password) => {
     return new Promise((resolve) => {
@@ -74,8 +57,7 @@ export default function Login() {
     });
   };
 
-  const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
-
+  
   const handleLogin = async () => {
     setError("");
 

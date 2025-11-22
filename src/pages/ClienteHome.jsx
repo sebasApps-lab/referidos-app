@@ -7,16 +7,20 @@ import {
   getPromosCercanas,
   getPromosNuevas,
   getPromosHot,
+  //populateCalificationsAndAverages,
 } from "../data/simulatedData";
 
 import PromoSection from "../components/sections/PromoSection";
 import SearchBar from "../components/ui/SearchBar";
-import PromoCard from "../components/cards/PromoCard"; // ← FIX IMPORTANTE
+import PromoCard from "../components/cards/PromoCard";
 import { usePromoSearch } from "../hooks/usePromoSearch";
 
 import MenuFilters from "../components/menus/MenuFilters"; // nuevo
 
 export default function ClienteHome() {
+  /* Ejecutar explícitamente
+  populateCalificationsAndAverages();*/
+
   const [showFiltros, setShowFiltros] = useState(false);
 
   const recomendadas = getRecomendadas();

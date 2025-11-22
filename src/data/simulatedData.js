@@ -231,6 +231,11 @@ export const initialData = {
   });
 })();
 
+//Dejar funcion así para llamar despues explicitamente
+/* function populateCalificationsAndAverages() {
+   código...
+}*/
+
 // ---------------- Extractores ----------------
 function flattenPromos() {
   const out = [];
@@ -239,7 +244,7 @@ function flattenPromos() {
       out.push({
         ...p,
         negocioId: neg.id,
-        localName: neg.nombre,
+        nombreLocal: neg.nombre,
         categoria: neg.categoria,
         sector: neg.sector,
         lat: neg.lat,
@@ -257,7 +262,7 @@ export function getRecomendadas() {
     n.promociones.slice(0, 1).map((p) => ({
       ...p,
       negocioId: n.id,
-      localName: n.nombre,
+      nombreLocal: n.nombre,
       categoria: n.categoria,
       sector: n.sector,
       lat: n.lat,
