@@ -6,6 +6,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import RequireAuth from "./router/guards/RequireAuth";
 import RequireRole from "./router/guards/RequireRole";
 import MainLayout from "./layouts/MainLayout";
+import HistorialCliente from "./pages/HistorialCliente";
 
 // Lazy pages
 const Bienvenido = lazy(() => import("./pages/Bienvenido"));
@@ -16,7 +17,7 @@ const NegocioHome = lazy(() => import("./pages/NegocioHome"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
-const Historial = lazy(() => import("./pages/Historial"));
+const Historial = lazy(() => import("./pages/HistorialCliente"));
 const Escanear = lazy(() => import("./pages/Escanear"));
 
 export default function AppRoutes() {
@@ -118,7 +119,7 @@ export default function AppRoutes() {
           <RequireAuth>
             <RequireRole role="cliente">
               <MainLayout>
-                <Historial />
+                <HistorialCliente />
               </MainLayout>
             </RequireRole>
           </RequireAuth>

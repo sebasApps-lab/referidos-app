@@ -18,29 +18,37 @@ export const useAppStore = create(
   persist(
     (set, get) => ({
       usuario: null,
+
+      // Ratings precalculados
       ratings: {},
 
+      // Nuevo: historial de QR escaneados
+      qrEscaneados: [],
+
+      // ======================================================
+      // Inicializar ratings (solo una vez)
+      // ======================================================
       initRatings: (promos) => {
         const current = get().ratings;
-        if (Object.keys(current).length > 0) return; // ya existen, no recalcular
- 
+        if (Object.keys(current).length > 0) return;
+
         const map = {};
         promos.forEach((p) => {
           map[p.id] =
             p.rating ||
             Math.round((3 + Math.random() * 2) * 10) / 10;
         });
- 
+
         set({ ratings: map });
       },
 
       // ======================================================
-      // SET USER (global)
+      // SET USER
       // ======================================================
       setUser: (user) => set({ usuario: user }),
 
       // ======================================================
-      // LOGIN LOCAL (fake serverless)
+      // LOGIN LOCAL (fake)
       // ======================================================
       loginLocal: (email, password) => {
         const db = getDB();
@@ -79,13 +87,15 @@ export const useAppStore = create(
       logout: () => set({ usuario: null }),
 
       // ======================================================
-      // NOTA:
-      // Para SUPABASE / NETLIFY haremos login real aquí,
-      // pero esta estructura ya está lista.
+      // NUEVO: Registrar QR escaneado
       // ======================================================
+      addQR: (qrObject) => {
+        const current = get().qrEscaneados;
+        set({ qrEscaneados: [...current, qrObject] });
+      },
     }),
     {
-      name: "referidos_app_user", // nombre del localStorage para ZUSTAND
+      name: "referidos_app_user",
     }
   )
 );
