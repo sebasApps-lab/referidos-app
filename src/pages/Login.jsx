@@ -66,7 +66,7 @@ export default function Login() {
       setError("Ingrese su email");
       return;
     }
-    if (!isValidEmail(email)) {
+    if (!validateEmail(email)) {
       setError("Formato de email inválido");
       return;
     }

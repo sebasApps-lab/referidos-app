@@ -1,59 +1,161 @@
-// src/pages/NegocioHome.jsx
-import React from "react";
+import React, { useState } from "react";
 import { useAppStore } from "../store/appStore";
-import { Link } from "react-router-dom";
+
+// cuando hagamos las cards reales
+// import NegocioPromoCard from "../components/cards/NegocioPromoCard";
 
 export default function NegocioHome() {
   const usuario = useAppStore((s) => s.usuario);
-  const data = useAppStore((s) => s.data);
-  
+
+  // Ejemplos provisionales de promos del negocio
+  // Cuando conectemos backend, reemplazamos esto
+  const promosActivas = [];
+  const promosInactivas = [];
+  const promosPendientes = [];
+
+  const [tab, setTab] = useState("activas");
+
+  const renderEmptyMessage = () => {
+    if (tab === "activas") {
+      if (promosActivas.length === 0) {
+        const haCreadoAntes =
+          promosInactivas.length > 0 || promosPendientes.length > 0;
+
+        return (
+          <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>
+            {haCreadoAntes
+              ? "Publica una promo y no pierdas más clientes."
+              : "Añade tu primera promo y empieza a atraer nuevos clientes."}
+          </p>
+        );
+      }
+    }
+
+    if (tab === "inactivas" && promosInactivas.length === 0) {
+      return (
+        <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>
+          Tus promos INACTIVAS se verán aquí.
+        </p>
+      );
+    }
+
+    if (tab === "pendientes" && promosPendientes.length === 0) {
+      return (
+        <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>
+          Tus promos en cola se mostrarán en este espacio.
+        </p>
+      );
+    }
+
+    return null;
+  };
+
+  const renderPromos = () => {
+    let list = [];
+
+    if (tab === "activas") list = promosActivas;
+    if (tab === "inactivas") list = promosInactivas;
+    if (tab === "pendientes") list = promosPendientes;
+
+    if (list.length === 0) return renderEmptyMessage();
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {list.map((promo) => (
+          // <NegocioPromoCard key={promo.id} promo={promo} />
+          <div
+            key={promo.id}
+            style={{
+              background: "#fafafa",
+              borderRadius: 14,
+              padding: 20,
+              border: "1px solid #eee",
+            }}
+          >
+            CARD DEMO — reemplazar por NegocioPromoCard.jsx
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen p-4 bg-white">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-[#5E30A5]">Área del negocio</h1>
-        <p className="text-sm text-gray-600">Bienvenido{usuario?.nombre ? `, ${usuario.nombre}` : ""} — panel de promociones.</p>
-      </header>
+    <div
+      style={{
+        padding: "16px 16px 120px",
+      }}
+    >
+      {/* Título principal */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        <h2
+          style={{
+            fontWeight: 700,
+            fontSize: 22,
+            color: "#5E30A5",
+          }}
+        >
+          Mis Promos
+        </h2>
 
-      <main className="space-y-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="font-semibold mb-2">Acciones rápidas</h2>
-          <div className="flex gap-2">
-            <Link to="/scanner" className="flex-1 text-center bg-[#5E30A5] text-white py-2 rounded">Escanear QR</Link>
-            <Link to="/promos" className="flex-1 text-center bg-yellow-400 text-black py-2 rounded">Mis promos</Link>
-          </div>
-        </div>
+        <button
+          style={{
+            background: "#5E30A5",
+            color: "#fff",
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "none",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+          onClick={() => console.log("Añadir promo")}
+        >
+          Añadir
+        </button>
+      </div>
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="font-semibold mb-2">Tus promociones</h2>
-          <div className="space-y-3">
-            {/* Si el usuario es negocio, mostramos sus promos; si no, una lista vacía */}
-            {usuario && usuario.role === "negocio" ? (
-              (usuario.promociones || data.negocios.find(n => n.id === usuario.id)?.promociones || []).map(p => (
-                <div key={p.id} className="border rounded p-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">{p.titulo}</div>
-                      <div className="text-xs text-gray-500">{p.inicio} → {p.fin}</div>
-                    </div>
-                    <div className="text-sm">
-                      <span className={`px-2 py-1 rounded text-xs ${p.activo ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
-                        {p.activo ? "Activo" : "Inactivo"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-600">No hay promociones para mostrar. Inicia sesión como negocio para ver y gestionar tus promociones.</p>
-            )}
-          </div>
-        </div>
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-around",
+          marginBottom: 24,
+          borderBottom: "1px solid #ddd",
+          paddingBottom: 10,
+        }}
+      >
+        {["activas", "inactivas", "pendientes"].map((t) => {
+          const active = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: "6px 8px",
+                fontSize: 15,
+                fontWeight: active ? 700 : 500,
+                color: active ? "#5E30A5" : "#666",
+                borderBottom: active ? "2px solid #5E30A5" : "2px solid transparent",
+                cursor: "pointer",
+              }}
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="text-center text-sm text-gray-500 mt-6">
-          <div className="mb-2">Número de soporte: <strong className="text-[#5E30A5]">{data.soporteNumero}</strong></div>
-          <div className="opacity-60 text-xs">ALPHA v0.0.1</div>
-        </div>
-      </main>
+      {/* Contenido de la tab */}
+      {renderPromos()}
     </div>
   );
 }

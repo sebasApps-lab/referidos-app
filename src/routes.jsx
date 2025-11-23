@@ -19,6 +19,7 @@ const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const Historial = lazy(() => import("./pages/HistorialCliente"));
 const Escanear = lazy(() => import("./pages/Escanear"));
+const Promos = lazy(() => import("./pages/Promos"));
 
 export default function AppRoutes() {
   return (
@@ -84,7 +85,7 @@ export default function AppRoutes() {
         }
       />
 
-      {/* ESCANEAR */}
+      {/* ESCANEAR CLIENTE*/}
       <Route
         path="/cliente/escanear"
         element={
@@ -98,12 +99,40 @@ export default function AppRoutes() {
         }
       />
 
-      {/* PERFIL */}
+      {/* ESCANEAR NEGOCIO*/}
+      <Route
+        path="/negocio/escanear"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
+              <MainLayout>
+                <Escanear />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PERFIL CLIENTE*/}
       <Route
         path="/cliente/perfil"
         element={
           <RequireAuth>
             <RequireRole role="cliente">
+              <MainLayout>
+                <Perfil />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PERFIL NEGOCIO*/}
+      <Route
+        path="/negocio/perfil"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
               <MainLayout>
                 <Perfil />
               </MainLayout>
@@ -125,6 +154,21 @@ export default function AppRoutes() {
           </RequireAuth>
         }
       />
+
+      {/* PROMOS NEGOCIO */}
+      <Route
+        path="/negocio/mis-promos"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
+              <MainLayout>
+                <Promos />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
 
       {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />
