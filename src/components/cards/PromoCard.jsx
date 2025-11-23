@@ -2,7 +2,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
-
 import { COLORS } from "../../constants/branding";
 
 export default function PromoCard({ promo, rating }) {
@@ -10,9 +9,10 @@ export default function PromoCard({ promo, rating }) {
 
   const goDetalle = () => navigate(`/detalle/${promo.id}`);
 
-  const nombreLocal =
-    promo.nombreLocal ||
-    "Local";
+  const nombreLocal = promo.nombreLocal || "Local";
+
+  // Detectar si es desktop
+  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
 
   return (
     <div
@@ -23,15 +23,25 @@ export default function PromoCard({ promo, rating }) {
         marginRight: 16,
         cursor: "pointer",
         flexShrink: 0,
+        paddingBottom: 16,
       }}
     >
       <div
         style={{
           background: "#fff",
           borderRadius: 16,
-          overflow: "hidden",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.07)",
-          border: "1px solid #E8E8E8",
+
+          // SOMBRA CORREGIDA (sin doble tarjeta)
+          boxShadow: isDesktop
+            ? "0 8px 19px rgba(0,0,0,0.20)" // fuerte en PC
+            : "0 4px 9px rgba(0,0,0,0.04)", // mucho más suave en móvil
+
+          // BORDE CORREGIDO
+          border: isDesktop
+            ? "1px solid rgba(0,0,0,0.12)" // visible en PC
+            : "1px solid rgba(0,0,0,0.03)", // más suave en móvil
+
+          overflow: "hidden", // evita la segunda tarjeta debajo
         }}
       >
         {/* Imagen */}
@@ -59,7 +69,7 @@ export default function PromoCard({ promo, rating }) {
             <h3
               style={{
                 fontWeight: 700,
-                color: "#484848ff", // gris oscuro
+                color: "#484848ff",
                 fontSize: 15,
                 lineHeight: "18px",
                 marginRight: 8,
@@ -124,11 +134,11 @@ export default function PromoCard({ promo, rating }) {
                 alignItems: "center",
                 color: "#6B6B6B",
                 marginBottom: 4,
-                fontSize: 12, // reducido
+                fontSize: 12,
               }}
             >
               <svg
-                width="13" // reducido
+                width="13"
                 height="13"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -148,11 +158,11 @@ export default function PromoCard({ promo, rating }) {
                 display: "flex",
                 alignItems: "center",
                 color: "#6B6B6B",
-                fontSize: 12, // reducido
+                fontSize: 12,
               }}
             >
               <svg
-                width="13" // reducido
+                width="13"
                 height="13"
                 viewBox="0 0 24 24"
                 fill="none"

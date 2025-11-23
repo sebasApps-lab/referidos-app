@@ -1,7 +1,7 @@
-// src/pages/cliente/HistorialCliente.jsx
+// src/pages/HistorialCliente.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { useAppStore } from "../../store/appStore";
+import { useAppStore } from "../store/appStore";
 
 export default function HistorialCliente() {
   const usuario = useAppStore((s) => s.usuario);
@@ -15,7 +15,7 @@ export default function HistorialCliente() {
         </p>
 
         <Link
-          to="/inicio/cliente"
+          to="/cliente/inicio"
           className="mt-4 bg-[#5E30A5] text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition"
         >
           Volver al inicio
@@ -60,7 +60,7 @@ export default function HistorialCliente() {
       )}
 
       <Link
-        to="/inicio/cliente"
+        to="/cliente/inicio"
         className="mt-6 bg-[#FFC21C] text-[#5E30A5] px-5 py-2 rounded-lg font-semibold shadow hover:bg-yellow-400 transition"
       >
         ⬅ Volver al inicio

@@ -1,7 +1,7 @@
 // src/pages/Perfil.jsx
 
 import React from "react";
-import { useAppStore } from "../../store/appStore";
+import { useAppStore } from "../store/appStore";
 
 export default function Perfil() {
   const usuario = useAppStore((s) => s.usuario);

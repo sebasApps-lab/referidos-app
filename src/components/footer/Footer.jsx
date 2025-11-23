@@ -61,7 +61,7 @@ export default function Footer() {
       { path: "/admin/inicio", label: "Inicio", Icon: Home },
       { path: "/admin/promos", label: "Promos", Icon: Tag },
       { path: "/admin/qr-validos", label: "QR", Icon: QrCode },
-      { path: "/admin", label: "Admin", Icon: Shield },
+      { path: "/admin/panel", label: "Admin", Icon: Shield },
     ];
   }
 

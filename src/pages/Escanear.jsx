@@ -29,7 +29,7 @@ export default function Escanear() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#5E30A5] text-white relative overflow-hidden">
       {/* Header */}
       <div className="absolute top-4 left-4 text-sm opacity-80">
-        <Link to="/" className="underline">
+        <Link to="/cliente/inicio" className="underline">
           ← Volver
         </Link>
       </div>

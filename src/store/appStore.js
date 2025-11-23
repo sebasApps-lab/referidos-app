@@ -22,7 +22,7 @@ export const useAppStore = create(
       // Ratings precalculados
       ratings: {},
 
-      // Nuevo: historial de QR escaneados
+      // Historial de QR escaneados
       qrEscaneados: [],
 
       // ======================================================
@@ -87,11 +87,62 @@ export const useAppStore = create(
       logout: () => set({ usuario: null }),
 
       // ======================================================
-      // NUEVO: Registrar QR escaneado
+      // NUEVO: Registrar QR escaneado (con agrupación)
       // ======================================================
       addQR: (qrObject) => {
         const current = get().qrEscaneados;
-        set({ qrEscaneados: [...current, qrObject] });
+
+        // Buscar si existe un registro con misma promoId y fechaExpira
+        // y escaneado dentro de 60 segundos para agrupar userIds
+        const foundIndex = current.findIndex((r) => {
+          return (
+            r.promoId === qrObject.promoId &&
+            r.fechaExpira === qrObject.fechaExpira &&
+            Math.abs(
+              new Date(r.fechaEscaneo).getTime() -
+                new Date(qrObject.fechaEscaneo).getTime()
+            ) <= 60000
+          );
+        });
+
+        if (foundIndex >= 0) {
+          const existing = current[foundIndex];
+          const merged = {
+            ...existing,
+            userIds: Array.from(
+              new Set([...(existing.userIds || []), ...(qrObject.userIds || [])])
+            ),
+          };
+
+          const next = [...current];
+          next[foundIndex] = merged;
+          set({ qrEscaneados: next });
+        } else {
+          // guardar nuevo QR
+          set({ qrEscaneados: [...current, qrObject] });
+        }
+      },
+
+      // ======================================================
+      // NUEVO: marcar QR como canjeado
+      // ======================================================
+      markQRAsCanjeado: (qrId, byUserId) => {
+        const current = get().qrEscaneados;
+        const idx = current.findIndex((r) => r.id === qrId);
+        if (idx === -1) return;
+
+        const target = { ...current[idx] };
+        target.canjeado = true;
+
+        // asegurar que el usuario está en userIds
+        target.userIds = Array.from(
+          new Set([...(target.userIds || []), byUserId])
+        );
+
+        const next = [...current];
+        next[idx] = target;
+
+        set({ qrEscaneados: next });
       },
     }),
     {
