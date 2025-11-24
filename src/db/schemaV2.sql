@@ -22,6 +22,10 @@ create table usuarios (
   cedula text,
   ruc text,
   role text not null,
+
+  -- agregado porque seed.sql lo usa
+  emailConfirmado boolean default false,
+
   fechaCreacion timestamptz default now()
 );
 
