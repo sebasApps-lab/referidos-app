@@ -1,6 +1,4 @@
 // src/pages/Login.jsx
-// Login funcional con rutas nuevas + credenciales temporales agregadas.
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
@@ -18,50 +16,20 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // ==========================================================
-  // CREDENCIALES TEMPORALES (BORRAR CUANDO YA NO SE NECESITE)
-  //
-  //   Cliente:
-  //      email: user@gmail.com
-  //      pass:  user
-  //
-  //   Negocio:
-  //      email: tienda@gmail.com
-  //      pass:  tienda
-  //
-  //   Admin:
-  //      email: admin@gmail.com
-  //      pass:  admin
-  //
-  // ==========================================================
-  
   // Fake serverless login real o temporal
   const fakeServerlessLogin = async (email, password) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
+    // 1) usuarios temporales
+    const tempUser = TEMP_USERS.find((u) => u.email === email && u.password === password);
+    if (tempUser) return { ok: true, user: tempUser };
 
-        // 1) PRIMERO revisar usuarios temporales
-        const tempUser = TEMP_USERS.find(
-          (u) => u.email === email && u.password === password
-        );
-        if (tempUser) {
-          resolve({ ok: true, user: tempUser });
-          return;
-        }
-
-        // 2) Si no coincide, revisar loginLocal de la fake DB
-        const result = loginLocal(email, password);
-        resolve(result);
-
-      }, 400);
-    });
+    // 2) loginLocal (supabase-backed via appStore)
+    const result = await loginLocal(email, password);
+    return result;
   };
 
-  
   const handleLogin = async () => {
     setError("");
 
-    // Validación
     if (!email) {
       setError("Ingrese su email");
       return;
@@ -75,7 +43,6 @@ export default function Login() {
       return;
     }
 
-    // LOGIN
     const result = await fakeServerlessLogin(email, password);
 
     if (!result || !result.ok) {
@@ -83,12 +50,8 @@ export default function Login() {
       return;
     }
 
-    // Guardar usuario global
     setUser(result.user);
 
-    // ======================
-    // NUEVAS RUTAS
-    // ======================
     if (result.user.role === "admin") {
       navigate("/admin/inicio");
     } else if (result.user.role === "negocio") {
@@ -100,20 +63,13 @@ export default function Login() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#5E30A5] p-6">
-
-      <h1 className="text-white text-3xl font-extrabold mb-8">
-        REFERIDOS APP
-      </h1>
+      <h1 className="text-white text-3xl font-extrabold mb-8">REFERIDOS APP</h1>
 
       <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6">
-
-        <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">
-          Inicio de Sesión
-        </h2>
+        <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Inicio de Sesión</h2>
 
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
 
-        {/* EMAIL */}
         <label className="text-sm text-gray-700">Email</label>
         <input
           type="email"
@@ -123,7 +79,6 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        {/* PASSWORD */}
         <label className="text-sm text-gray-700">Contraseña</label>
         <input
           type="password"
@@ -133,33 +88,20 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {/* BOTÓN INGRESAR */}
-        <button
-          onClick={handleLogin}
-          className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98]"
-        >
+        <button onClick={handleLogin} className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98]">
           INGRESAR
         </button>
 
-        <Link
-          to="/recuperar"
-          className="block text-center text-sm text-gray-200 mt-6 mb-3 underline"
-        >
+        <Link to="/recuperar" className="block text-center text-sm text-gray-200 mt-6 mb-3 underline">
           OLVIDASTE TU CONTRASEÑA?
         </Link>
 
-        <Link
-          to="/registro"
-          className="block text-center text-sm text-[#5E30A5] font-medium underline"
-        >
+        <Link to="/registro" className="block text-center text-sm text-[#5E30A5] font-medium underline">
           REGISTRARSE
         </Link>
-
       </div>
 
-      <div className="absolute bottom-2 right-2 text-xs text-white opacity-70">
-        ALPHA v0.0.1
-      </div>
+      <div className="absolute bottom-2 right-2 text-xs text-white opacity-70">ALPHA v0.0.1</div>
     </div>
   );
 }

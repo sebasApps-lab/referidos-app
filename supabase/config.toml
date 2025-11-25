@@ -1,0 +1,40 @@
+# -------------------------------------------------------------------
+# Supabase Project Config (para CLI)
+# Este archivo indica a Supabase CLI dónde están las migraciones,
+# el seed, y define ajustes del entorno local.
+# -------------------------------------------------------------------
+
+project_id = "mqgkukbognykqlwxmbli"
+# Ejemplo: project_id = "mqgkukbognykqlwxmbli"
+
+# -------------------------------------------------------------------
+# Rutas importantes
+# -------------------------------------------------------------------
+
+[migrations]
+dir = "supabase/migrations"
+
+[seed]
+file = "supabase/seed.sql"
+
+# -------------------------------------------------------------------
+# Configuración de base de datos local (no afecta a prod)
+# -------------------------------------------------------------------
+
+[local_db]
+enabled = true
+
+# Imagen usada por db diff / db reset / db start
+# Debe coincidir con la versión que ya descargó la CLI
+image = "public.ecr.aws/supabase/postgres:17.6.1.052"
+
+# -------------------------------------------------------------------
+# Opcional — mejoras CLI
+# -------------------------------------------------------------------
+
+[api]
+enabled = false
+
+[functions]
+dir = "supabase/functions"
+
