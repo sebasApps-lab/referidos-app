@@ -1,42 +1,48 @@
 // src/pages/ClienteHome.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAppStore } from "../store/appStore";
-
-import {
-  getRecomendadas,
-  getPromosCercanas,
-  getPromosNuevas,
-  getPromosHot,
-} from "../data/simulatedData";
-
 import PromoSection from "../components/sections/PromoSection";
 import SearchBar from "../components/ui/SearchBar";
 import PromoCard from "../components/cards/PromoCard";
 import { usePromoSearch } from "../hooks/usePromoSearch";
-
-import MenuFilters from "../components/menus/MenuFilters"; // nuevo
+import MenuFilters from "../components/menus/MenuFilters";
 
 export default function ClienteHome() {
-
   const [showFiltros, setShowFiltros] = useState(false);
 
-  const initRatings = useAppStore((s) => s.initRatings);
+  // 🔥 CARGAR DESDE SUPABASE
+  const loadPromos = useAppStore((s) => s.loadPromos);
+  const promos = useAppStore((s) => s.promos);
   const ratings = useAppStore((s) => s.ratings);
+  const initRatings = useAppStore((s) => s.initRatings);
+  const loading = useAppStore((s) => s.loading);
 
-  const recomendadas = getRecomendadas();
-  const hot = getPromosHot();
-  const cercanas = getPromosNuevas();
+  useEffect(() => {
+    loadPromos();
+  }, [loadPromos]);
 
-  const allPromos = [...recomendadas, ...cercanas, ...hot];
-
-  React.useEffect(() => {
-    initRatings(allPromos);
-  }, []);
+  useEffect(() => {
+    if (promos.length > 0) {
+      initRatings(promos);
+    }
+  }, [promos, initRatings]);
 
   const { query, setQuery, filterPromos } = usePromoSearch();
-  const searchResults = filterPromos(allPromos);
-
+  const searchResults = filterPromos(promos);
   const searching = query.trim().length > 0;
+
+  // Categorizar promos (puedes mejorar con filtros SQL)
+  const recomendadas = promos.slice(0, 5);
+  const hot = promos.slice(5, 10);
+  const cercanas = promos.slice(10, 15);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 20, textAlign: "center" }}>
+        Cargando promociones...
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "16px 0 120px" }}>
@@ -60,21 +66,9 @@ export default function ClienteHome() {
         </div>
       ) : (
         <div style={{ padding: "0 16px" }}>
-          <PromoSection
-            title="Promociones sugeridas"
-            promos={recomendadas}
-            ratings={ratings}
-          />
-          <PromoSection
-            title="Nuevas"
-            promos={cercanas}
-            ratings={ratings}
-          />
-          <PromoSection
-            title="Hot"
-            promos={hot}
-            ratings={ratings}
-          />
+          <PromoSection title="Promociones sugeridas" promos={recomendadas} ratings={ratings} />
+          <PromoSection title="Nuevas" promos={cercanas} ratings={ratings} />
+          <PromoSection title="Hot" promos={hot} ratings={ratings} />
         </div>
       )}
     </div>
