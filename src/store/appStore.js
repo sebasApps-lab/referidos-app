@@ -103,7 +103,16 @@ export const useAppStore = create(
             throw new Error("No se pudo crear la cuenta");
           }
 
-          const authUserId = signUpData.user.id;
+          const sessionAfterSignUp =
+            signUpData.session ??
+            (await supabase.auth.getSession()).data.session;
+
+          if (!sessionAfterSignUp) {
+            set({ loading: false, error: "Cuenta creada. Revisa tu email para confirmar y luego inicia sesión." });
+            return { ok: false, error: "Cuenta creada. Confirma tu email para continuar." };
+          }
+
+          const authUserId = sessionAfterSignUp.user.id;
 
           // 2. Esperar a que el trigger cree la fila en usuarios
           const userData = await waitForUser(authUserId);

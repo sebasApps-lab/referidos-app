@@ -1,9 +1,0 @@
-alter table usuarios enable row level security;
-alter table negocios enable row level security;
-alter table promos enable row level security;
-alter table qr_validos enable row level security;
-alter table comentarios enable row level security;
-alter table escaneos enable row level security;
-alter table reportes enable row level security;
-alter table sucursales enable row level security;
-alter table promos_sucursales enable row level security;

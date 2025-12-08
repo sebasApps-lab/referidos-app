@@ -2,19 +2,24 @@
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Profesional / seguro: usar SOLO variables de entorno (no fallback en el código).
- * Necesitas definir en .env (Vite):
- * VITE_SUPABASE_URL=https://...supabase.co
- * VITE_SUPABASE_ANON_KEY=ey...
+ * Cliente browser sin anon_key ni service_role.
+ * Usa flujo PKCE para obtener tokens de sesion dinamicos.
+ * Env requerido:
+ *  - VITE_SUPABASE_URL=https://...supabase.co
  */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    "Missing Supabase env vars. Define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env"
-  );
+if (!SUPABASE_URL) {
+  throw new Error("Missing Supabase env var VITE_SUPABASE_URL");
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, {
+  auth: {
+    flowType: "pkce",
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
+
 export default supabase;

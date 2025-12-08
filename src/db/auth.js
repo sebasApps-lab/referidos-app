@@ -3,13 +3,9 @@ import { supabase } from "../lib/supabaseClient";
 import { shortId } from "./utils/idGen";
 
 /**
- * Auth helpers (basic)
- * - findUserByEmail
- * - createUser
- * - loginLocal (simple password compare; for production use Supabase Auth)
+ * Auth helpers (lectura/creación de perfiles, no maneja contraseñas).
  */
 
-// find by email
 export async function findUserByEmail(email) {
   const { data, error } = await supabase
     .from("usuarios")
@@ -20,29 +16,20 @@ export async function findUserByEmail(email) {
   return { ok: true, data: data?.[0] || null };
 }
 
-// create user record (caller may later integrate Supabase Auth)
+// Crea/actualiza perfil de usuario (sin password)
 export async function createUser(payload) {
-  // payload should NOT include plain-sensitive fallback in prod;
+  const { password: _password, ...rest } = payload;
   const user = {
-    ...payload,
+    ...rest,
     id: payload.id || `USR_${shortId("")}`,
     fechaCreacion: new Date().toISOString(),
   };
-  const { data, error } = await supabase
-    .from("usuarios")
-    .insert(user)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("usuarios").upsert(user).select().single();
   if (error) return { ok: false, error };
   return { ok: true, data };
 }
 
-// simple login against usuarios table (development)
-export async function loginLocal(email, password) {
-  const r = await findUserByEmail(email);
-  if (!r.ok) return r;
-  const user = r.data;
-  if (!user) return { ok: false, error: "Usuario no encontrado" };
-  if (user.password !== password) return { ok: false, error: "Contraseña incorrecta" };
-  return { ok: true, user };
+// Deshabilitado: la app debe usar Supabase Auth (PKCE)
+export async function loginLocal() {
+  return { ok: false, error: "loginLocal deshabilitado: usa Supabase Auth" };
 }

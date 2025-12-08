@@ -179,11 +179,6 @@ create policy usuarios_select_self on usuarios
   for select to authenticated
   using (id_auth = auth.uid());
 
--- SELECT: permitir leer su fila por email
-create policy usuarios_select_by_email on usuarios
-  for select to authenticated
-  using (email = auth.email());
-
 -- SELECT: service_role puede ver todo (script migrate)
 create policy usuarios_select_service_role on usuarios
   for select to service_role
@@ -206,6 +201,18 @@ create policy usuarios_update_service_role on usuarios
 -----------------------------------------------
 create policy promos_public_select on promos
   for select using (true);
+
+create policy negocios_select_authenticated on negocios
+  for select to authenticated
+  using (true);
+
+create policy sucursales_select_authenticated on sucursales
+  for select to authenticated
+  using (true);
+
+create policy promos_sucursales_select_authenticated on promos_sucursales
+  for select to authenticated
+  using (true);
 
 -----------------------------------------------
 -- SUCURSALES (negocio)
@@ -256,6 +263,24 @@ create policy qr_insert_by_client on qr_validos
     )
   );
 
+create policy qr_update_by_client on qr_validos
+  for update using (
+    exists (
+      select 1
+      from usuarios u
+      where u.id = qr_validos.clienteId
+        and u.id_auth = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from usuarios u
+      where u.id = qr_validos.clienteId
+        and u.id_auth = auth.uid()
+    )
+  );
+
 -----------------------------------------------
 -- COMENTARIOS
 -----------------------------------------------
@@ -272,6 +297,17 @@ create policy coment_insert_by_client on comentarios
 
 create policy coment_select_public on comentarios
   for select using (true);
+
+create policy escaneos_insert_by_client on escaneos
+  for insert with check (
+    exists (
+      select 1
+      from qr_validos q
+      join usuarios u on u.id = q.clienteId
+      where q.id = escaneos.qrValidoId
+        and u.id_auth = auth.uid()
+    )
+  );
 
 ------------------------------------------------
 -- TRIGGERS MODERNOS 2025
@@ -302,7 +338,13 @@ begin
     '',
     role,
     new.email_confirmed_at is not null
-  ) on conflict (id_auth) do nothing;
+  ) on conflict (email) do update set
+    id_auth = excluded.id_auth,
+    telefono = excluded.telefono,
+    nombre = excluded.nombre,
+    apellido = excluded.apellido,
+    role = excluded.role,
+    emailConfirmado = excluded.emailConfirmado;
 
   return new;
 end $$;
