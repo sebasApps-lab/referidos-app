@@ -3,13 +3,17 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 import { COLORS } from "../../constants/branding";
+import { sanitizeText } from "../../utils/sanitize";
 
 export default function PromoCard({ promo, rating }) {
   const navigate = useNavigate();
 
   const goDetalle = () => navigate(`/detalle/${promo.id}`);
 
-  const nombreLocal = promo.nombreLocal || "Local";
+  const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
+  const titulo = sanitizeText(promo.titulo);
+  const descripcion = sanitizeText(promo.descripcion);
+  const sector = sanitizeText(promo.sector);
 
   // Detectar si es desktop
   const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
@@ -79,7 +83,7 @@ export default function PromoCard({ promo, rating }) {
                 overflow: "hidden",
               }}
             >
-              {promo.titulo}
+              {titulo}
             </h3>
 
             <div style={{ display: "flex", alignItems: "center" }}>
@@ -110,7 +114,7 @@ export default function PromoCard({ promo, rating }) {
               overflow: "hidden",
             }}
           >
-            {promo.descripcion}
+            {descripcion}
           </p>
 
           {/* Nombre del negocio */}
@@ -149,7 +153,7 @@ export default function PromoCard({ promo, rating }) {
                 <path d="M12 21s8-4.534 8-10A8 8 0 0 0 4 11c0 5.466 8 10 8 10z" />
                 <circle cx="12" cy="11" r="2" />
               </svg>
-              <span style={{ marginLeft: 6 }}>{promo.sector}</span>
+              <span style={{ marginLeft: 6 }}>{sector}</span>
             </div>
 
             {/* Fecha */}

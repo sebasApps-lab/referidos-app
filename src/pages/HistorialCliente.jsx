@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
+import { sanitizeText } from "../utils/sanitize";
 
 export default function HistorialCliente() {
   const usuario = useAppStore((s) => s.usuario);
@@ -44,15 +45,15 @@ export default function HistorialCliente() {
               className="border-b last:border-none py-3 flex flex-col items-start"
             >
               <p className="font-semibold text-[#5E30A5] text-left">
-                {qr.promoTitulo}
+                {sanitizeText(qr.promoTitulo)}
               </p>
 
               <p className="text-sm text-gray-600 mt-1">
-                {qr.fecha}
+                {sanitizeText(qr.fecha)}
               </p>
 
               <p className="text-xs text-gray-500 mt-1">
-                ID: {qr.id}
+                ID: {sanitizeText(qr.id)}
               </p>
             </div>
           ))}

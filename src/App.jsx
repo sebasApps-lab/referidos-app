@@ -11,8 +11,12 @@ function PwaGuardWrapper({ children }) {
   const location = useLocation();
 
   useEffect(() => {
-    const redir = pwaGuard(usuario, location.pathname);
-    if (redir) window.location.replace(redir);
+    try {
+      const redir = pwaGuard(usuario, location.pathname);
+      if (redir) window.location.replace(redir);
+    } catch (error) {
+      if (import.meta.env.DEV) console.error("pwaGuard error", error);
+    }
   }, [usuario, location.pathname]);
 
   return children;

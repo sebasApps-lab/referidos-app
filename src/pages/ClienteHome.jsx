@@ -3,9 +3,10 @@ import React, { useEffect, useState } from "react";
 import { useAppStore } from "../store/appStore";
 import PromoSection from "../components/sections/PromoSection";
 import SearchBar from "../components/ui/SearchBar";
-import PromoCard from "../components/cards/PromoCard";
 import { usePromoSearch } from "../hooks/usePromoSearch";
 import MenuFilters from "../components/menus/MenuFilters";
+import PromoCard from "../components/cards/PromoCard";
+import { sanitizeText } from "../utils/sanitize";
 
 export default function ClienteHome() {
   const [showFiltros, setShowFiltros] = useState(false);
@@ -36,6 +37,14 @@ export default function ClienteHome() {
   const hot = promos.slice(5, 10);
   const cercanas = promos.slice(10, 15);
 
+  const safeResults = searchResults.map((p) => ({
+    ...p,
+    titulo: sanitizeText(p.titulo),
+    descripcion: sanitizeText(p.descripcion),
+    sector: sanitizeText(p.sector),
+    nombreLocal: sanitizeText(p.nombreLocal),
+  }));
+
   if (loading) {
     return (
       <div style={{ padding: 20, textAlign: "center" }}>
@@ -60,7 +69,7 @@ export default function ClienteHome() {
 
           {searchResults.length === 0 && <p>No se encontró el local.</p>}
 
-          {searchResults.map((p) => (
+          {safeResults.map((p) => (
             <PromoCard key={p.id} promo={p} rating={ratings[p.id]} />
           ))}
         </div>
