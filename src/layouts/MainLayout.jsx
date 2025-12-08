@@ -19,7 +19,6 @@ export default function MainLayout({ children, usuario, logout }) {
         flexDirection: "column",
         minHeight: "100dvh",
         background: "#FFFFFF",
-        overflow: "hidden",
       }}
     >
       {/* HEADER */}
@@ -36,12 +35,24 @@ export default function MainLayout({ children, usuario, logout }) {
         }`}
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: "auto",
-          paddingBottom: 80,
+          paddingBottom: 64,
           paddingTop: headerHeight,
+          position: "relative",
         }}
       >
         {children}
+        <div
+          className="text-xs text-gray-500 opacity-60"
+          style={{
+            position: "fixed",
+            bottom: 78,
+            right: 16,
+          }}
+        >
+          ALPHA v0.0.1
+        </div>
       </main>
 
       <Footer />

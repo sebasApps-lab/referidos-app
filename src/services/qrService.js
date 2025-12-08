@@ -40,3 +40,55 @@ export async function markQRAsUsed(qrId) {
     return { ok: false, error: error.message ?? String(error) };
   }
 }
+
+export async function getUserQrHistory(clienteId) {
+  try {
+    const { data, error } = await supabase
+      .from("qr_validos")
+      .select(`
+        id,
+        promoid,
+        clienteid,
+        fechaexpira,
+        canjeado,
+        fechacanje,
+        fechacreacion,
+        promos (
+          id,
+          titulo,
+          descripcion,
+          imagen,
+          negocios (
+            nombre,
+            sector
+          )
+        )
+      `)
+      .eq("clienteid", clienteId)
+      .order("fechacreacion", { ascending: false });
+
+    if (error) throw error;
+
+    const formatted = (data || []).map((item) => ({
+      id: item.id,
+      promoId: item.promoid,
+      clienteId: item.clienteid,
+      fechaExpira: item.fechaexpira,
+      canjeado: item.canjeado,
+      fechaCanje: item.fechacanje,
+      fechaCreacion: item.fechacreacion,
+      promo: {
+        id: item.promos?.id,
+        titulo: item.promos?.titulo,
+        descripcion: item.promos?.descripcion,
+        imagen: item.promos?.imagen,
+        sector: item.promos?.negocios?.sector,
+        nombreLocal: item.promos?.negocios?.nombre,
+      },
+    }));
+
+    return { ok: true, data: formatted };
+  } catch (error) {
+    return { ok: false, error: error.message ?? String(error) };
+  }
+}
