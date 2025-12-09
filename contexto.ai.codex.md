@@ -349,3 +349,149 @@ El backend usa server-secret keys modernas y automáticamente bypass RLS.
 No se crean policies separadas para admin.
 No existe admin en frontend.
 
+
+# CONTEXTO COMPLETO DEL SISTEMA DE QR
+
+## Tu rol
+Actúa SIEMPRE como un **desarrollador senior full-stack especializado en Supabase + React**.
+
+Debes diseñar e implementar un sistema robusto de QR usando Supabase (SQL + RPC + Edge Functions).
+
+---
+
+# 1. DOS TIPOS DE QR
+
+## QR de Promo — Estático
+- Uno por (usuario, promoción)
+- No expira
+- No canjeable
+- Visible en detalles de promo
+- Sirve para generar QR válidos
+
+- Formato: qrs-{biz}-{prm}-{usr}-{h8}
+
+
+## QR Válido — Dinámico para canje
+- Generado bajo demanda
+- Válido por 30 min
+- Solo un canje
+- 3 estados: `valido`, `canjeado`, `expirado`
+
+- Formato: qrv-{biz}-{prm}-{usr}-{ts}-{h8}
+
+
+---
+
+# 2. REGLAS CRIPTOGRÁFICAS
+
+### short_hash
+SHA-256(input) → base64url → slice(0,4)
+
+
+### sign_qr
+
+### SECRET_KEY
+- Vive solo en backend Supabase
+- Nunca enviada al cliente
+
+---
+
+# 3. REGLAS DE NEGOCIO QR VÁLIDO
+
+1. Usuario solicita usar promo → backend genera QR válido  
+2. QR válido dura 30 min  
+3. Estados:  
+   - valido  
+   - canjeado  
+   - expirado  
+4. Escaneo por negocio:  
+   - Validar firma  
+   - Validar no expirado  
+   - Validar no canjeado  
+   - Si OK → marcar `canjeado` + registrar `redeemed_at`  
+5. Acceso a una promo válida del negocio → acceso a todas las promos del negocio  
+
+---
+
+# 4. CAMBIOS QUE DEBE PROPONER EL MODELO ANTES DE ESCRIBIR CÓDIGO
+
+## 4.1 Cambios a la base de datos (Migraciones)
+Debe definir tablas como `qr_validos`, incluyendo:
+- id  
+- negocio_id  
+- promo_id  
+- user_id  
+- code  
+- created_at  
+- redeemed_at  
+- expires_at  
+- status (o cálculo dinámico)
+
+Debe definir:
+- Índices  
+- FKs  
+- Enums  
+- Políticas RLS modernas  
+
+## 4.2 Backend Supabase (RPC / Edge)
+Debe crear funciones:
+- `generate_promo_qr(user_id, promo_id)`
+- `generate_valid_qr(user_id, promo_id)`
+- `redeem_valid_qr(code text)`
+
+Cada función debe:
+- Verificar auth.uid()
+- Validar propiedad de datos
+- Generar hashes y firmas
+- Actualizar estado
+
+## 4.3 Frontend (React)
+Debe especificar:
+- En qué páginas mostrar QR estático y QR válido
+- Cómo generar QR válido
+- Cómo mostrar estados
+- Llamadas RPC
+- Manejo de errores y loading
+- Integración con Zustand
+
+## 4.4 UI
+Cliente:
+- Mostrar QR estático
+- Si hay QR válido → mostrar QR válido
+- Estado: Valido / Canjeado / Expirado
+
+Negocio:
+- Escaneo → mostrar resultado claro
+
+No mostrar hashes ni IDs reales al usuario.
+
+## 4.5 Limpieza y Compatibilidad
+- Eliminar sistemas de QR antiguos
+- Mantener login/registro intactos
+- Ajustar datos simulados
+
+---
+
+# 5. FORMA DE RESPUESTA ESPERADA DEL MODELO
+
+1. Resumen estructurado:  
+   - Cambios BD  
+   - Cambios Backend  
+   - Cambios Frontend  
+   - Cambios UI  
+
+2. Luego generar:  
+   - Migraciones SQL  
+   - Código RPC / Edge Functions  
+   - Cambios concretos en React  
+
+3. Todo debe:  
+   - Compilar  
+   - Ser seguro  
+   - Seguir Supabase 2025–2026  
+   - Respetar estructura actual del proyecto  
+
+---
+
+# FIN DEL CONTEXTO
+

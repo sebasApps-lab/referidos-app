@@ -1,81 +1,81 @@
-// src/pages/Escanear.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/appStore";
+import { redeemValidQr } from "../services/qrService";
 import { handleError } from "../utils/errorUtils";
 import { sanitizeText } from "../utils/sanitize";
 
-const parseQrPayload = (raw) => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed.qrBase || !parsed.promoId || !parsed.clienteId) {
-      throw new Error("QR incompleto");
-    }
-    return parsed;
-  } catch {
-    throw new Error("QR invalido");
-  }
+const parseCode = (raw) => {
+  if (!raw) throw new Error("QR vacío");
+  const value = raw.trim();
+  if (value.startsWith("qrv-")) return { type: "valid", code: value };
+  if (value.startsWith("qrs-")) return { type: "static", code: value };
+  throw new Error("QR no reconocido");
 };
 
-const CameraFrame = React.forwardRef(({ scanning, borderColor }, ref) => (
-  <div
-    className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden shadow-xl bg-black transition border-4"
-    style={{ borderColor: borderColor || "#5E30A5" }}
-  >
-    <video
-      ref={ref}
-      className="w-full h-full object-cover"
-      autoPlay
-      playsInline
-      muted
-    />
-    {scanning && (
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-1 bg-[#FFC21C] animate-pulse" />
-      </div>
-    )}
-  </div>
-));
-
-const PartyAvatars = ({ items }) => {
-  if (!items.length) return null;
+const StatusBanner = ({ status, message }) => {
+  if (!status && !message) return null;
+  const map = {
+    valido: { color: "#10B981", text: "Válido" },
+    canjeado: { color: "#1DA1F2", text: "Canjeado" },
+    expirado: { color: "#EF4444", text: "Expirado" },
+    info: { color: "#5E30A5", text: "Info" },
+  };
+  const cfg = map[status] || map.info;
   return (
-    <div className="flex items-center gap-2 absolute top-4 right-4">
-      {items.map((c) => (
-        <div
-          key={c.clienteId}
-          className="w-9 h-9 rounded-full bg-[#5E30A5] text-white flex items-center justify-center text-sm font-semibold shadow"
-        >
-          {sanitizeText(c.alias || c.clienteId).slice(0, 2).toUpperCase()}
-        </div>
-      ))}
+    <div
+      className="w-full rounded-xl px-4 py-3 text-sm font-semibold shadow border"
+      style={{
+        background: `${cfg.color}15`,
+        color: cfg.color,
+        borderColor: `${cfg.color}55`,
+      }}
+    >
+      {cfg.text}: {message}
     </div>
   );
 };
 
-const PartyTimer = ({ progress }) => (
-  <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-    <div
-      className="h-full bg-[#5E30A5] transition-all"
-      style={{ width: `${Math.max(0, Math.min(1, progress)) * 100}%` }}
-    />
-  </div>
-);
-
-const ResultCardCliente = ({ qrBase, promo }) => (
-  <div className="mt-4 w-full max-w-md bg-white rounded-2xl shadow-lg border border-[#1DA1F2] p-4">
-    <div className="text-sm text-gray-600 mb-2">QR listo para presentar al negocio:</div>
-    <div className="border-2 border-[#1DA1F2] rounded-lg p-3 bg-[#E8F5FD] text-center font-mono text-sm break-all">
-      {qrBase}
+const ResultCard = ({ data }) => {
+  if (!data) return null;
+  return (
+    <div className="w-full bg-white border border-gray-100 rounded-2xl shadow p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">Estado</p>
+        <span
+          className="px-3 py-1 rounded-full text-xs font-semibold"
+          style={{
+            background: data.status === "valido" ? "#10B98122" : data.status === "canjeado" ? "#1DA1F222" : "#EF444422",
+            color: data.status === "valido" ? "#10B981" : data.status === "canjeado" ? "#1DA1F2" : "#EF4444",
+            border: "1px solid rgba(0,0,0,0.08)",
+          }}
+        >
+          {data.status}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-base font-semibold text-[#5E30A5]">
+          {sanitizeText(data.promoTitulo || "Promo")}
+        </p>
+        <p className="text-sm text-gray-600">
+          Cliente: {sanitizeText(data.clienteNombre || data.clienteId || "N/D")}
+        </p>
+        <p className="text-sm text-gray-600">
+          Negocio: {sanitizeText(data.negocioNombre || "N/D")}
+        </p>
+        {data.status === "valido" && data.expiresAt && (
+          <p className="text-xs text-gray-500">
+            Expira: {new Date(data.expiresAt).toLocaleTimeString()}
+          </p>
+        )}
+        {data.status === "canjeado" && data.redeemedAt && (
+          <p className="text-xs text-gray-500">
+            Canjeado: {new Date(data.redeemedAt).toLocaleTimeString()}
+          </p>
+        )}
+      </div>
     </div>
-    <div className="mt-3">
-      <p className="text-[#5E30A5] font-semibold">{sanitizeText(promo?.titulo || "Promo")}</p>
-      <p className="text-sm text-gray-700 mt-1">{sanitizeText(promo?.descripcion || "")}</p>
-      <p className="text-sm text-gray-500 mt-1">
-        Negocio: {sanitizeText(promo?.nombreLocal || "N/D")}
-      </p>
-    </div>
-  </div>
-);
+  );
+};
 
 export default function Escanear() {
   const usuario = useAppStore((s) => s.usuario);
@@ -84,15 +84,14 @@ export default function Escanear() {
   const videoRef = useRef(null);
   const detectorRef = useRef(null);
   const rafRef = useRef(null);
+
   const [camSupported, setCamSupported] = useState(true);
   const [camGranted, setCamGranted] = useState(true);
   const [manualValue, setManualValue] = useState("");
-  const [scannerError, setScannerError] = useState("");
-  const [status, setStatus] = useState("");
-  const [resultCliente, setResultCliente] = useState(null);
-  const [party, setParty] = useState([]);
-  const [partyProgress, setPartyProgress] = useState(1);
-  const [feedback, setFeedback] = useState(null); // 'success' | 'error' | null
+  const [statusMsg, setStatusMsg] = useState("");
+  const [statusType, setStatusType] = useState("info");
+  const [result, setResult] = useState(null);
+  const [processing, setProcessing] = useState(false);
   const [manualFallbackVisible, setManualFallbackVisible] = useState(false);
 
   useEffect(() => {
@@ -110,20 +109,14 @@ export default function Escanear() {
         if (supportsBarcode) scanLoop();
       } catch (err) {
         setCamGranted(false);
-        const msg = handleError(err);
-        if (import.meta.env.DEV) {
-          console.warn("Camera access error:", msg);
-        }
-        setScannerError("");
         setManualFallbackVisible(true);
+        setStatusMsg("Activa la cámara o pega el código manualmente.");
       }
     };
     start();
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -132,187 +125,141 @@ export default function Escanear() {
       if (detectorRef.current && videoRef.current?.readyState >= 2) {
         const codes = await detectorRef.current.detect(videoRef.current);
         if (codes.length) {
-          handleScan(codes[0].rawValue);
+          handleCode(codes[0].rawValue);
         }
       }
     } catch (err) {
-      setScannerError(handleError(err));
+      setStatusMsg(handleError(err));
+      setStatusType("info");
     } finally {
       rafRef.current = requestAnimationFrame(scanLoop);
     }
   };
 
-  const handleScan = (raw) => {
+  const handleCode = async (raw) => {
+    if (!raw || processing) return;
+    setProcessing(true);
+    setStatusMsg("");
+    setResult(null);
     try {
-      setScannerError("");
-      const payload = parseQrPayload(raw);
-      if (isNegocio) {
-        handleScanNegocio(payload);
-      } else {
-        handleScanCliente(payload);
+      const parsed = parseCode(raw);
+      if (!isNegocio) {
+        if (parsed.type === "valid") {
+          setStatusMsg("Muestra este QR al negocio para canjear tu promo.");
+        } else {
+          setStatusMsg("Este es un QR base. Genera tu QR válido en el detalle de la promo.");
+        }
+        setStatusType("info");
+        return;
       }
-      setFeedback("success");
-      if (navigator.vibrate) navigator.vibrate(50);
+
+      if (parsed.type !== "valid") {
+        setStatusMsg("Este QR no es canjeable. Solicita un QR válido al cliente.");
+        setStatusType("info");
+        return;
+      }
+
+      const { ok, data, error } = await redeemValidQr(parsed.code);
+      if (!ok) {
+        if (error?.includes("expired") || error?.includes("expir")) {
+          setStatusMsg("Este QR ha expirado.");
+          setStatusType("expirado");
+        } else if (error?.includes("canjeado") || error?.includes("redeemed")) {
+          setStatusMsg("Este QR ya fue canjeado.");
+          setStatusType("canjeado");
+        } else {
+          setStatusMsg(error || "No se pudo canjear.");
+          setStatusType("info");
+        }
+        return;
+      }
+
+      setResult({
+        ...data,
+        expiresAt: data.expiresAt,
+        redeemedAt: data.redeemedAt,
+      });
+
+      if (data.status === "valido") {
+        setStatusMsg("QR válido. Canje registrado correctamente.");
+        setStatusType("valido");
+      } else if (data.status === "canjeado") {
+        setStatusMsg("Este QR ya fue canjeado.");
+        setStatusType("canjeado");
+      } else {
+        setStatusMsg("Este QR ha expirado.");
+        setStatusType("expirado");
+      }
     } catch (err) {
-      setFeedback("error");
-      if (navigator.vibrate) navigator.vibrate(80);
-      setStatus(err.message);
+      setStatusMsg(handleError(err));
+      setStatusType("info");
+    } finally {
+      setProcessing(false);
     }
   };
 
-  const handleScanCliente = (payload) => {
-    setStatus("");
-    setResultCliente({
-      qrBase: `${payload.qrBase}:${usuario?.id}`,
-      promo: {
-        titulo: payload.promoTitulo || "Promo",
-        descripcion: payload.promoDescripcion || "",
-        nombreLocal: payload.negocioNombre || "",
-      },
-    });
-  };
-
-  const handleScanNegocio = (payload) => {
-    setStatus("");
-    const now = Date.now();
-    setParty((prev) => {
-      const exists = prev.find((p) => p.clienteId === payload.clienteId);
-      if (exists) return prev;
-      return [...prev, { ...payload, ts: now }];
-    });
-    setPartyProgress(1);
-  };
-
-  useEffect(() => {
-    if (!isNegocio || party.length === 0) return;
-    const WINDOW_MS = 30000;
-    const start = Date.now();
-    const timer = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, WINDOW_MS - elapsed);
-      setPartyProgress(remaining / WINDOW_MS);
-      if (remaining === 0) {
-        setParty([]);
-        setStatus("Ventana cerrada, vuelve a escanear clientes.");
-      }
-    }, 500);
-    return () => clearInterval(timer);
-  }, [isNegocio, party.length]);
-
-  const manualSubmit = () => {
-    if (!manualValue.trim()) return;
-    handleScan(manualValue.trim());
-  };
-
-  const partyValid = useMemo(() => party.length >= 2, [party.length]);
-
   const showCamera = camSupported && camGranted;
   const showManual = !camSupported || !camGranted || manualFallbackVisible;
-  const accessMessage = showManual
-    ? !camGranted
-      ? "Permite acceso a la camara para escaneo."
-      : "Tu dispositivo no soporta escaneo de QR."
-    : "";
-  const inputHasValue = manualValue.trim().length > 0;
-  const inputValid = inputHasValue;
-  const inputBorder = feedback === "error" ? "#EF4444" : feedback === "success" ? "#10B981" : "#D1D5DB";
-  const buttonDisabled = !inputValid;
+  const manualDisabled = processing || !manualValue.trim();
+
   return (
     <div
       className="flex flex-col flex-1 w-full bg-white relative"
       style={{ minHeight: "100%", padding: "16px 16px 72px" }}
     >
-      {accessMessage && (
-        <div className="w-full max-w-sm bg-[#FFF8D8] border border-[#FFC21C] text-[#5E30A5] text-sm p-3 rounded-lg shadow text-center self-center">
-          {accessMessage}
-        </div>
-      )}
-      <div
-        className="flex-1 w-full flex items-center justify-center"
-        style={{ minHeight: "45vh", paddingTop: accessMessage ? 12 : 0 }}
-      >
-        {showCamera && !showManual && (
-          <div className="relative w-full max-w-sm">
-            <CameraFrame
-              ref={videoRef}
-              scanning={camGranted}
-              borderColor={
-                feedback === "error" ? "#EF4444" : feedback === "success" ? "#10B981" : "#5E30A5"
-              }
-            />
-            {isNegocio && party.length > 0 && <PartyAvatars items={party} />}
-          </div>
-        )}
-
-        {showManual && (
-          <div className="flex flex-col items-center justify-center w-full max-w-sm gap-3">
-            <input
-              className="w-11/12 md:w-4/5 px-4 py-3.5 rounded-2xl border text-base bg-white"
-              style={{ borderColor: inputBorder, maxWidth: 320 }}
-              placeholder="Pega aqui el contenido del QR"
-              value={manualValue}
-              onChange={(e) => setManualValue(e.target.value)}
-            />
-            <button
-              onClick={manualSubmit}
-              disabled={buttonDisabled}
-              className={`w-10/12 md:w-3/5 px-4 py-2.5 rounded-2xl font-semibold shadow ${
-                buttonDisabled ? "bg-[#CBB3F0] text-white cursor-not-allowed" : "bg-[#5E30A5] text-white"
-              }`}
-              style={{ maxWidth: 320 }}
-            >
-              Escanear
-            </button>
-          </div>
-        )}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-lg font-bold text-[#5E30A5]">
+          {isNegocio ? "Escáner de canje" : "Escanea tu QR"}
+        </h1>
+        {processing && <span className="text-xs text-gray-500">Procesando...</span>}
       </div>
 
-      {scannerError && (
-        <p className="text-red-500 text-sm text-center">{scannerError}</p>
-      )}
-      {status && !scannerError && (
-        <p className="text-gray-700 text-sm text-center">{status}</p>
-      )}
-
-      {!isNegocio && resultCliente && (
-        <ResultCardCliente qrBase={resultCliente.qrBase} promo={resultCliente.promo} />
-      )}
-
-      {isNegocio && party.length > 0 && (
-        <div className="w-full max-w-md bg-gray-50 border rounded-2xl shadow p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <p className="text-sm text-gray-700 font-semibold">Grupo:</p>
-            {party.map((c) => (
-              <div
-                key={c.clienteId}
-                className="w-8 h-8 rounded-full bg-[#5E30A5] text-white flex items-center justify-center text-xs font-semibold shadow"
-              >
-                {sanitizeText(c.clienteId).slice(0, 2).toUpperCase()}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <PartyTimer progress={partyProgress} />
-          </div>
-          <div className="text-sm text-gray-600">
-            {partyValid
-              ? "Escanea siguiente cliente o termina el grupo."
-              : "Necesitas 2 o mas clientes validos en la misma promo."}
-          </div>
-          <div className="mt-3">
-            <button
-              onClick={() => {
-                setParty([]);
-                setStatus("Grupo cerrado, puedes iniciar otro.");
-                setPartyProgress(1);
-              }}
-              className="bg-[#5E30A5] text-white px-4 py-2 rounded-lg font-semibold shadow"
-            >
-              Terminar escaneo
-            </button>
+      {showCamera && !showManual && (
+        <div className="relative w-full max-w-sm self-center mb-4">
+          <div
+            className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden shadow-xl bg-black transition border-4"
+            style={{ borderColor: "#5E30A5" }}
+          >
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted
+            />
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-1 bg-[#FFC21C] animate-pulse" />
+            </div>
           </div>
         </div>
       )}
+
+      {showManual && (
+        <div className="flex flex-col items-center justify-center w-full max-w-sm gap-3 self-center">
+          <input
+            className="w-11/12 md:w-4/5 px-4 py-3.5 rounded-2xl border text-base bg-white"
+            style={{ borderColor: "#D1D5DB", maxWidth: 360 }}
+            placeholder="Pega aquí el contenido del QR"
+            value={manualValue}
+            onChange={(e) => setManualValue(e.target.value)}
+          />
+          <button
+            onClick={() => handleCode(manualValue)}
+            disabled={manualDisabled}
+            className={`w-10/12 md:w-3/5 px-4 py-2.5 rounded-2xl font-semibold shadow ${
+              manualDisabled ? "bg-[#CBB3F0] text-white cursor-not-allowed" : "bg-[#5E30A5] text-white"
+            }`}
+            style={{ maxWidth: 320 }}
+          >
+            Escanear
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-col gap-3 w-full max-w-lg self-center">
+        <StatusBanner status={statusType} message={statusMsg} />
+        <ResultCard data={result} />
+      </div>
     </div>
   );
 }

@@ -1,0 +1,143 @@
+-- ============================================
+-- 20250205_000002_seed.sql (VERSION COMPLETA)
+-- SEED FINAL 2025 — re-ejecutable y CONSISTENTE
+-- Incluye TODOS los usuarios, negocios, sucursales
+-- y promociones de ambos seeds.
+-- ============================================
+
+-- Limpieza total
+truncate table reportes cascade;
+truncate table comentarios cascade;
+truncate table escaneos cascade;
+truncate table qr_validos cascade;
+truncate table promos_sucursales cascade;
+truncate table promos cascade;
+truncate table sucursales cascade;
+truncate table negocios cascade;
+truncate table usuarios cascade;
+
+------------------------------------------------
+-- USUARIOS DEMO (id_auth = NULL → sync por JS)
+------------------------------------------------
+insert into usuarios (id, id_auth, email, role, nombre, apellido, telefono, emailConfirmado, fechaCreacion)
+values
+  -- Del seed nuevo original
+  ('USR_ADMIN', null, 'admin@gmail.com', 'admin', 'Admin', 'Demo', '0990000000', true, now()),
+  ('USR_NEG_1', null, 'tienda@gmail.com', 'negocio', 'Negocio', 'Demo', '0991110000', true, now()),
+  ('USR_CLI_1', null, 'user@gmail.com', 'cliente', 'Cliente', 'Demo', '0992220000', true, now()),
+
+  -- USUARIOS FALTANTES DEL SEED VIEJO
+  ('USR_001', null, 'user@gmail.com', 'cliente', 'Cliente', 'Demo', '0991110001', true, now()),
+  ('USR_003', null, 'tienda@gmail.com', 'negocio', 'Negocio', 'Demo', '0990000000', true, now()),
+  ('USR_004', null, 'admin@gmail.com', 'admin', 'Admin', 'Demo', null, true, now()),
+
+  -- Usuarios adicionales del seed viejo
+  ('USR_002', null, 'carlos.moya@example.com', 'cliente', 'Carlos', 'Moya', '0991110002', true, now()),
+  ('USR_005', null, 'ana.perez@example.com', 'cliente', 'Ana', 'Pérez', '0991110003', true, now());
+
+------------------------------------------------
+-- NEGOCIOS (se mantiene estructura del seed nuevo)
+------------------------------------------------
+insert into negocios (id, usuarioId, nombre, sector, direccion, lat, lng, imagen, fechaCreacion)
+values
+  -- NEGOCIO BASE (corregido para incluir la imagen del seed viejo)
+  ('NEG_001', 'USR_NEG_1', 'Pizzería La Rueda', 'La Mariscal', 'Av. Principal 123',
+   -0.180653, -78.467834,
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/img_pizzeria_la_rueda.jpg',
+   now()),
+
+  -- Negocios adicionales del seed viejo
+  ('NEG_002', null, 'Café Central', 'La Floresta', 'Calle 45 #7-89',
+   -0.182, -78.47,
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/img_cafe_central.jpg',
+   now()),
+
+  ('NEG_003', null, 'Tienda Verde', 'Cumbayá', 'Mall Centro',
+   -0.179, -78.466,
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/img_tienda_verde.jpg',
+   now());
+
+------------------------------------------------
+-- SUCURSALES
+------------------------------------------------
+insert into sucursales (id, negocioId, direccion, sector, lat, lng, imagen, fechaCreacion)
+values
+  -- Del seed nuevo
+  ('SUC_001', 'NEG_001', 'Av. Principal 123', 'La Mariscal',
+   -0.180653, -78.467834, null, now()),
+
+  -- Del seed viejo
+  ('SUC_002', 'NEG_002', 'Calle 45 #7-89', 'La Floresta',
+   -0.182, -78.47,
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/SucursalN1/img_SucursalN1.jpg',
+   now()),
+
+  ('SUC_003', 'NEG_003', 'Mall Centro', 'Cumbayá',
+   -0.179, -78.466,
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/SucursalN1/img_SucursalN1.jpg',
+   now());
+
+------------------------------------------------
+-- PROMOS
+------------------------------------------------
+insert into promos (id, negocioId, titulo, descripcion, inicio, fin, estado, imagen, fechaCreacion)
+values
+  -- Promo original del seed nuevo
+  ('PRO_001', 'NEG_001', '2x1 pizzas', 'Dos pizzas medianas al precio de una.',
+   '2025-01-01', '2025-12-31', 'activo', null, now()),
+
+  -- Promos de NEG_001 (del seed viejo)
+  ('PRO_002', 'NEG_001', 'Combo familiar - 20% off', 'Combo para 4 personas con bebida incluida.',
+   '2025-01-01', '2025-06-30', 'activo', null, now()),
+
+  ('PRO_003', 'NEG_001', 'Promo inactiva ejemplo', 'Promo antigua (inactiva).',
+   '2024-01-01', '2024-02-01', 'inactivo', null, now()),
+
+  ('PRO_004', 'NEG_001', 'Promo pendiente ejemplo', 'En cola para revisión.',
+   '2025-02-01', '2025-06-01', 'pendiente', null, now()),
+
+  -- Promos NEG_002
+  ('PRO_011', 'NEG_002', '2x1 en capuchino', '2 capuchinos por el precio de 1 (mañanas).',
+   '2025-01-10', '2025-03-31', 'activo',
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/img_cafe_central.jpg', now()),
+
+  ('PRO_012', 'NEG_002', '10% off en pastelería', 'Descuento en toda la sección de pastelería.',
+   '2025-01-01', '2025-04-30', 'activo', null, now()),
+
+  ('PRO_013', 'NEG_002', 'Inactiva café', 'Promo terminada.',
+   '2024-01-01', '2024-02-01', 'inactivo', null, now()),
+
+  ('PRO_014', 'NEG_002', 'Pendiente café', 'En cola.',
+   '2025-02-05', '2025-06-05', 'pendiente', null, now()),
+
+  -- Promos NEG_003
+  ('PRO_021', 'NEG_003', 'Compra 2 lleva 3', 'Oferta en productos seleccionados.',
+   '2025-01-01', '2025-12-31', 'activo',
+   'https://mqgkukbognykqlwxmbli.supabase.co/storage/v1/object/public/business/img_tienda_verde.jpg', now()),
+
+  ('PRO_022', 'NEG_003', '15% off orgánicos', 'Descuento en orgánicos.',
+   '2025-01-01', '2025-07-01', 'activo', null, now()),
+
+  ('PRO_023', 'NEG_003', 'Inactiva tienda', 'Promo vieja.',
+   '2024-01-01', '2024-03-01', 'inactivo', null, now()),
+
+  ('PRO_024', 'NEG_003', 'Pendiente tienda', 'Revisión pendiente.',
+   '2025-03-01', '2025-05-01', 'pendiente', null, now());
+
+------------------------------------------------
+-- PROMOS x SUCURSALES
+------------------------------------------------
+insert into promos_sucursales (promoId, sucursalId) values
+  ('PRO_001', 'SUC_001'),
+  ('PRO_002', 'SUC_001'),
+  ('PRO_011', 'SUC_002'),
+  ('PRO_021', 'SUC_003');
+
+------------------------------------------------
+-- QR VALIDOS (solo el del seed nuevo original)
+------------------------------------------------
+insert into qr_validos (id, promoId, clienteId, negocioId, sucursalId, fechaExpira, canjeado, fechaCreacion)
+values (
+  'QRV_001', 'PRO_001', 'USR_CLI_1', 'NEG_001', 'SUC_001',
+  now() + interval '1 hour', false, now()
+);

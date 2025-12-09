@@ -8,7 +8,12 @@ import {
   getSessionUserProfile,
 } from "../services/authService";
 import { getActivePromos } from "../services/promoService";
-import { createQR, markQRAsUsed } from "../services/qrService";
+import {
+  generatePromoQr,
+  generateValidQr,
+  getActiveValidQr,
+  redeemValidQr,
+} from "../services/qrService";
 import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 
@@ -101,9 +106,11 @@ export const useAppStore = create(
         set({ ratings: map });
       },
 
-      // QR
-      createQR: (args) => createQR(args),
-      markQRAsUsed: (qrId) => markQRAsUsed(qrId),
+      // QR (HMAC)
+      generatePromoQr: (promoId) => generatePromoQr(promoId),
+      generateValidQr: (promoId, opts) => generateValidQr(promoId, opts),
+      getActiveValidQr: (promoId) => getActiveValidQr(promoId),
+      redeemValidQr: (code) => redeemValidQr(code),
 
       // COMENTARIOS
       addComentario: (payload) => addComentario(payload),

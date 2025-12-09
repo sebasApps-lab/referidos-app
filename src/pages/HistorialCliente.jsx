@@ -3,17 +3,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { sanitizeText } from "../utils/sanitize";
-import { getUserQrHistory } from "../services/qrService";
+import { getQrHistory } from "../services/qrService";
 import { handleError } from "../utils/errorUtils";
 import PromoCard from "../components/cards/PromoCard";
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const VALID_WINDOW_MS = 30 * 60 * 1000;
 
 const PacmanTimer = ({ timeLeftMs }) => {
-  const progress = Math.max(0, Math.min(1, timeLeftMs / ONE_HOUR_MS));
+  const progress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const mouthDeg = 50 * (1 - progress) + 10;
   const color =
-    timeLeftMs > 30 * 60 * 1000
+    timeLeftMs > 20 * 60 * 1000
       ? "#10B981"
       : timeLeftMs > 10 * 60 * 1000
       ? "#F59E0B"
@@ -124,14 +124,18 @@ export default function HistorialCliente() {
       setLoading(true);
       setError("");
       try {
-        const { ok, data, error: err } = await getUserQrHistory(usuario.id);
+        const { ok, data, error: err } = await getQrHistory();
         if (!ok) throw new Error(err || "No se pudo cargar el historial");
 
         const now = Date.now();
         const enriched = data.map((item) => {
-          const exp = item.fechaExpira ? new Date(item.fechaExpira).getTime() : now;
+          const exp = item.expiresAt ? new Date(item.expiresAt).getTime() : now;
           const timeLeftMs = exp - now;
-          const estado = item.canjeado ? "canjeado" : timeLeftMs <= 0 ? "expirado" : "activo";
+          const estado = item.status === "canjeado"
+            ? "canjeado"
+            : timeLeftMs <= 0
+            ? "expirado"
+            : "activo";
           return { ...item, estado, timeLeftMs };
         });
 
