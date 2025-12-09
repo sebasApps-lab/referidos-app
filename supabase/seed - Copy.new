@@ -192,58 +192,37 @@ values
 ------------------------------------------------
 -- QR VÁLIDOS (solo el original, no generar más)
 ------------------------------------------------
-with qr_data as (
-  -- cliente USR_CLI_1
-  values
-    ('QRV_C1_C1', 'PRO_001', 'NEG_001', 'USR_CLI_1', 'canjeado', -25),
-    ('QRV_C1_C2', 'PRO_003', 'NEG_002', 'USR_CLI_1', 'canjeado', -50),
-    ('QRV_C1_E1', 'PRO_005', 'NEG_003', 'USR_CLI_1', 'expirado', -120),
-    ('QRV_C1_E2', 'PRO_012', 'NEG_006', 'USR_CLI_1', 'expirado', -200),
-    -- cliente USR_001
-    ('QRV_C2_C1', 'PRO_002', 'NEG_002', 'USR_001', 'canjeado', -35),
-    ('QRV_C2_C2', 'PRO_014', 'NEG_007', 'USR_001', 'canjeado', -45),
-    ('QRV_C2_E1', 'PRO_009', 'NEG_005', 'USR_001', 'expirado', -180),
-    ('QRV_C2_E2', 'PRO_018', 'NEG_009', 'USR_001', 'expirado', -240),
-    -- cliente USR_002
-    ('QRV_C3_C1', 'PRO_010', 'NEG_005', 'USR_002', 'canjeado', -22),
-    ('QRV_C3_C2', 'PRO_012', 'NEG_006', 'USR_002', 'canjeado', -55),
-    ('QRV_C3_C3', 'PRO_015', 'NEG_007', 'USR_002', 'canjeado', -40),
-    ('QRV_C3_C4', 'PRO_016', 'NEG_008', 'USR_002', 'canjeado', -70),
-    ('QRV_C3_E1', 'PRO_004', 'NEG_002', 'USR_002', 'expirado', -260),
-    ('QRV_C3_E2', 'PRO_006', 'NEG_003', 'USR_002', 'expirado', -190),
-    -- cliente USR_005
-    ('QRV_C4_C1', 'PRO_001', 'NEG_001', 'USR_005', 'canjeado', -32),
-    ('QRV_C4_C2', 'PRO_017', 'NEG_008', 'USR_005', 'canjeado', -28),
-    ('QRV_C4_E1', 'PRO_011', 'NEG_005', 'USR_005', 'expirado', -150),
-    ('QRV_C4_E2', 'PRO_018', 'NEG_009', 'USR_005', 'expirado', -210)
-)
-, computed as (
+with base as (
   select
-    id,
+    'PRO_001'::text as promo_id,
+    'NEG_001'::text as negocio_id,
+    'USR_CLI_1'::text as cliente_id,
+    floor(extract(epoch from now()))::bigint as ts
+),
+payload as (
+  select
     promo_id,
     negocio_id,
     cliente_id,
-    status,
-    ts_offset_min,
-    floor(extract(epoch from now() + (ts_offset_min || ' minutes')::interval))::bigint as ts_epoch
-  from qr_data
-)
-, signed as (
-  select
-    id,
-    promo_id,
-    negocio_id,
-    cliente_id,
-    status,
-    ts_epoch,
+    ts,
     short_hash(negocio_id) as biz,
     short_hash(promo_id) as prm,
-    short_hash(cliente_id) as usr,
-    sign_qr(short_hash(negocio_id) || short_hash(promo_id) || short_hash(cliente_id) || ts_epoch::text, 8) as sig
-  from computed
+    short_hash(cliente_id) as usr
+  from base
+),
+signed as (
+  select
+    promo_id,
+    negocio_id,
+    cliente_id,
+    ts,
+    biz,
+    prm,
+    usr,
+    sign_qr(biz || prm || usr || ts::text, 8) as sig
+  from payload
 )
 insert into qr_validos (
-  id,
   code,
   promo_id,
   negocio_id,
@@ -251,58 +230,23 @@ insert into qr_validos (
   ts_epoch,
   created_at,
   expires_at,
-  redeemed_at,
   status,
   biz_hash,
   promo_hash,
   user_hash,
-  signature,
-  redeemed_by
+  signature
 )
 select
-  id,
-  format('qrv-%s-%s-%s-%s-%s', biz, prm, usr, ts_epoch::text, sig),
+  format('qrv-%s-%s-%s-%s-%s', biz, prm, usr, ts::text, sig),
   promo_id,
   negocio_id,
   cliente_id,
-  ts_epoch,
-  to_timestamp(ts_epoch),
-  to_timestamp(ts_epoch) + interval '30 minutes',
-  case when status = 'canjeado' then to_timestamp(ts_epoch) + interval '5 minutes' else null end,
-  status::qr_status,
+  ts,
+  to_timestamp(ts),
+  to_timestamp(ts) + interval '30 minutes',
+  'valido',
   biz,
   prm,
   usr,
-  sig,
-  case when status = 'canjeado' then 'USR_NEG_1' else null end
+  sig
 from signed;
-
-insert into escaneos (id, qrvalidoid, clienteid, fechacreacion)
-select
-  'ESC_' || row_number() over (order by id),
-  id,
-  cliente_id,
-  to_timestamp(ts_epoch) + interval '6 minutes'
-from signed
-where status = 'canjeado';
-
-insert into comentarios (id, promoId, clienteId, estrellas, texto, fechaCreacion) values
-  ('COM_001', 'PRO_001', 'USR_CLI_1', 5, 'Excelente servicio y la promo funciono perfecto.', now() - interval '3 days'),
-  ('COM_002', 'PRO_003', 'USR_CLI_1', 4, 'Buen cafe, volveria con amigos.', now() - interval '2 days'),
-  ('COM_003', 'PRO_012', 'USR_CLI_1', 4, 'Buena atencion en la tienda, productos frescos.', now() - interval '1 day'),
-
-  ('COM_004', 'PRO_002', 'USR_001', 5, 'La pizza salio rapidisimo y muy rica.', now() - interval '4 days'),
-  ('COM_005', 'PRO_014', 'USR_001', 3, 'El descuento bien, pero falto stock.', now() - interval '2 days'),
-
-  ('COM_006', 'PRO_016', 'USR_002', 5, 'Gran variedad y buenos precios.', now() - interval '5 days'),
-  ('COM_007', 'PRO_010', 'USR_002', 4, 'Buen descuento en organicos.', now() - interval '3 days'),
-  ('COM_008', 'PRO_006', 'USR_002', 4, 'El cafe estaba fresco y caliente.', now() - interval '1 day'),
-
-  ('COM_009', 'PRO_001', 'USR_005', 4, 'La promo 2x1 cumplio lo prometido.', now() - interval '6 days'),
-  ('COM_010', 'PRO_011', 'USR_005', 3, 'Me atendieron bien pero la promo ya estaba por terminar.', now() - interval '2 days');
-
-insert into reportes (id, reporterId, reporterRole, targetId, targetType, texto, fechaCreacion) values
-  ('REP_001', 'USR_CLI_1', 'cliente', 'PRO_012', 'promo', 'El descuento no aplicaba en todos los productos.', now() - interval '1 day'),
-  ('REP_002', 'USR_001', 'cliente', 'NEG_003', 'negocio', 'Falto senalizacion para la promo.', now() - interval '2 days'),
-  ('REP_003', 'USR_002', 'cliente', 'PRO_016', 'promo', 'No aceptaban el QR al inicio, luego funciono.', now() - interval '3 days'),
-  ('REP_004', 'USR_005', 'cliente', 'NEG_001', 'negocio', 'Demora en validar el QR en caja.', now() - interval '4 days');
