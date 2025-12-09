@@ -10,7 +10,7 @@ export async function getActivePromos() {
         negocios!inner(nombre, sector, lat, lng, imagen)
       `)
       .eq("estado", "activo")
-      .order("fechaCreacion", { ascending: false });
+      .order("fechacreacion", { ascending: false });
 
     if (error) throw error;
 

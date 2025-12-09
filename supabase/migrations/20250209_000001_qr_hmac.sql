@@ -61,8 +61,8 @@ begin
     raise exception 'QR secret (app.qr_secret) no configurada en el backend';
   end if;
 
-  -- Usamos hmac de pgcrypto (schema extensions) y casteamos payload a bytea
-  sig := public.base64url_encode(extensions.hmac(payload::bytea, secret, 'sha256'));
+  -- Usamos hmac de pgcrypto (schema extensions) y casteamos payload/secret a bytea
+  sig := public.base64url_encode(extensions.hmac(payload::bytea, secret::bytea, 'sha256'));
   sig := regexp_replace(sig, '=', '', 'g');
   return substr(sig, 1, length);
 end;

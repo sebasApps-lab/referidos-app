@@ -8,7 +8,6 @@
 -- Limpieza total
 truncate table reportes cascade;
 truncate table comentarios cascade;
-truncate table escaneos cascade;
 truncate table qr_validos cascade;
 truncate table promos_sucursales cascade;
 truncate table promos cascade;
@@ -136,8 +135,61 @@ insert into promos_sucursales (promoId, sucursalId) values
 ------------------------------------------------
 -- QR VALIDOS (solo el del seed nuevo original)
 ------------------------------------------------
-insert into qr_validos (id, promoId, clienteId, negocioId, sucursalId, fechaExpira, canjeado, fechaCreacion)
-values (
-  'QRV_001', 'PRO_001', 'USR_CLI_1', 'NEG_001', 'SUC_001',
-  now() + interval '1 hour', false, now()
-);
+with base as (
+  select
+    'PRO_001'::text as promo_id,
+    'NEG_001'::text as negocio_id,
+    'USR_CLI_1'::text as cliente_id,
+    floor(extract(epoch from now()))::bigint as ts
+),
+payload as (
+  select
+    promo_id,
+    negocio_id,
+    cliente_id,
+    ts,
+    short_hash(negocio_id) as biz,
+    short_hash(promo_id) as prm,
+    short_hash(cliente_id) as usr
+  from base
+),
+signed as (
+  select
+    promo_id,
+    negocio_id,
+    cliente_id,
+    ts,
+    biz,
+    prm,
+    usr,
+    sign_qr(biz || prm || usr || ts::text, 8) as sig
+  from payload
+)
+insert into qr_validos (
+  code,
+  promo_id,
+  negocio_id,
+  cliente_id,
+  ts_epoch,
+  created_at,
+  expires_at,
+  status,
+  biz_hash,
+  promo_hash,
+  user_hash,
+  signature
+)
+select
+  format('qrv-%s-%s-%s-%s-%s', biz, prm, usr, ts::text, sig),
+  promo_id,
+  negocio_id,
+  cliente_id,
+  ts,
+  to_timestamp(ts),
+  to_timestamp(ts) + interval '30 minutes',
+  'valido',
+  biz,
+  prm,
+  usr,
+  sig
+from signed;
