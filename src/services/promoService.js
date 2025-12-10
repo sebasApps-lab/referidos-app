@@ -5,10 +5,19 @@ export async function getActivePromos() {
   try {
     const { data, error } = await supabase
       .from("promos")
-      .select(`
-        *,
+      .select(
+        `
+        id,
+        titulo,
+        descripcion,
+        inicio,
+        fin,
+        imagen,
+        estado,
+        negocioId:negocioid,
         negocios!inner(nombre, sector, lat, lng, imagen)
-      `)
+      `
+      )
       .eq("estado", "activo")
       .order("fechacreacion", { ascending: false });
 
@@ -47,7 +56,7 @@ export async function getPromoById(promoId) {
         fin,
         imagen,
         estado,
-        negocioId,
+        negocioId:negocioid,
         negocios (nombre, sector, lat, lng, imagen)
       `
       )
