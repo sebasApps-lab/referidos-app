@@ -1,16 +1,21 @@
 // src/pages/OAuth.jsx
-// Pantalla temporal para probar OAuth (Google) sin tocar Login.jsx.
+// Pantalla temporal para probar OAuth (Google) con selección y modal de código para negocio.
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithOAuth, getSessionUserProfile } from "../services/authService";
 import { useAppStore } from "../store/appStore";
+import { useModal } from "../modals/useModal";
 
 export default function OAuth() {
   const navigate = useNavigate();
   const setUser = useAppStore((s) => s.setUser);
+  const { openModal } = useModal();
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState("select"); // select | oauth
+  const [role, setRole] = useState(null); // 'cliente' | 'negocio'
+  const [codigo, setCodigo] = useState("");
 
   useEffect(() => {
     // Si ya hay sesión, redirige según rol.
@@ -28,7 +33,11 @@ export default function OAuth() {
     (typeof window !== "undefined" && `${window.location.origin}/oauth`) ||
     import.meta.env.VITE_AUTH_REDIRECT_URL;
 
-  const startOAuth = async (role = "cliente") => {
+  const startOAuth = async () => {
+    if (role !== "cliente") {
+      // Negocio aún no implementado.
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -43,43 +52,110 @@ export default function OAuth() {
     }
   };
 
+  const handleSelectCliente = () => {
+    setError("");
+    setRole("cliente");
+    setCodigo("");
+    setStep("oauth");
+  };
+
+  const handleSelectNegocio = () => {
+    setError("");
+    openModal("CodigoNegocio", {
+      onConfirm: (code) => {
+        setCodigo(code);
+        setRole("negocio");
+        setStep("oauth");
+      },
+    });
+  };
+
+  const isNegocioPending = role === "negocio";
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#5E30A5] p-6">
       <h1 className="text-white text-3xl font-extrabold mb-8">REFERIDOS APP</h1>
 
-      <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6">
-        <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">
-          OAuth (Google) - PRUEBA
-        </h2>
+      {step === "select" && (
+        <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 space-y-4">
+          <h2 className="text-center text-xl font-bold text-[#5E30A5]">Tipo de cuenta</h2>
+          <p className="text-sm text-gray-600 text-center">
+            Elige cómo quieres continuar con Google.
+          </p>
 
-        {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+          <div className="space-y-3">
+            <button
+              onClick={handleSelectCliente}
+              className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-xl shadow active:scale-[0.98]"
+            >
+              Soy cliente
+            </button>
 
-        <div className="space-y-3">
+            <button
+              onClick={handleSelectNegocio}
+              className="w-full border border-[#5E30A5] text-[#5E30A5] font-semibold py-3 rounded-xl shadow-sm active:scale-[0.98] bg-white"
+            >
+              Soy negocio (requiere código)
+            </button>
+          </div>
+
+          <div className="text-center text-sm text-gray-600">
+            Pantalla temporal para probar OAuth. Navega manualmente a <code>/oauth</code>.
+          </div>
+
+          <div className="text-center mt-2">
+            <Link to="/login" className="text-sm text-[#5E30A5] font-medium underline">
+              Volver a Login
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {step === "oauth" && (
+        <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-[#5E30A5]">
+              Continuar con Google
+            </h2>
+            <button
+              onClick={() => setStep("select")}
+              className="text-sm text-gray-500 underline"
+            >
+              Cambiar tipo
+            </button>
+          </div>
+
+          <div className="text-sm text-gray-700">
+            Rol seleccionado: <span className="font-semibold capitalize">{role}</span>
+            {role === "negocio" && codigo ? (
+              <span className="block text-xs text-gray-500 mt-1">Código: {codigo}</span>
+            ) : null}
+          </div>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
           <button
-            onClick={() => startOAuth("cliente")}
-            disabled={loading}
-            className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 disabled:opacity-60"
+            onClick={startOAuth}
+            disabled={loading || isNegocioPending}
+            className={`w-full border border-gray-300 font-semibold py-3 rounded-lg shadow flex items-center justify-center gap-2 ${
+              loading || isNegocioPending
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700"
+            }`}
           >
             <GoogleIcon />
-            {loading ? "Iniciando..." : "Continuar con Google (cliente)"}
+            {isNegocioPending
+              ? "Continuar con Google (pendiente)"
+              : loading
+                ? "Iniciando..."
+                : "Continuar con Google"}
           </button>
 
-          <button
-            onClick={() => startOAuth("negocio")}
-            disabled={loading}
-            className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            <GoogleIcon />
-            {loading ? "Iniciando..." : "Registrar negocio con Google"}
-          </button>
+          <div className="text-xs text-gray-500 text-center">
+            Negocio con Google: pendiente de implementación (requiere código validado).
+          </div>
         </div>
-
-        <div className="text-center mt-6">
-          <Link to="/login" className="text-sm text-[#5E30A5] font-medium underline">
-            Volver a Login
-          </Link>
-        </div>
-      </div>
+      )}
 
       <div className="absolute bottom-2 right-2 text-xs text-white opacity-70">
         ALPHA v0.0.1 - OAuth test
