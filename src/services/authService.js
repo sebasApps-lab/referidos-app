@@ -17,6 +17,37 @@ async function waitForUser(id_auth, attempts = 8, delay = 400) {
   return null;
 }
 
+const DEFAULT_REDIRECT =
+  typeof window !== "undefined" ? window.location.origin : undefined;
+
+export async function signInWithOAuth(provider, opts = {}) {
+  const {
+    redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL ?? DEFAULT_REDIRECT,
+    scopes,
+    queryParams,
+    data,
+  } = opts;
+
+  const { data: res, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      scopes,
+      queryParams,
+      data,
+      // Redirigimos manualmente para controlar el flujo en UI.
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) throw error;
+  if (res?.url) {
+    window.location.assign(res.url);
+    return { ok: true, redirected: true };
+  }
+  return { ok: false, error: "No se pudo iniciar el flujo OAuth" };
+}
+
 export async function signInWithEmail(email, password) {
   try {
     const {
