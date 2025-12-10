@@ -7,4 +7,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: true,
+    // Allow ngrok (or similar) HTTPS tunnels to reach the dev server.
+    allowedHosts: [
+      'indissolubly-preluxurious-harmony.ngrok-free.dev',
+    ],
+  },
 });
