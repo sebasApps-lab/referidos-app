@@ -1,7 +1,7 @@
 // src/pages/Bienvenido.jsx
-// Pantalla inicial. Redirige si el usuario ya está logueado.
+// Pantalla inicial splash. Redirige si el usuario ya está logueado.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import homeBg from "../assets/bg-home.png";
@@ -9,52 +9,61 @@ import homeBg from "../assets/bg-home.png";
 export default function Bienvenido() {
   const usuario = useAppStore((state) => state.usuario);
   const navigate = useNavigate();
+  const [mounted, setMounted] = useState(false);
 
-  // Redirección automática si ya ha iniciado sesión
   useEffect(() => {
     if (!usuario) return;
 
-    if (usuario.role === "cliente") {
-      navigate("/cliente/inicio");
-    } else if (usuario.role === "negocio") {
-      navigate("/negocio/inicio");
-    } else if (usuario.role === "admin") {
-      navigate("/admin/inicio");
-    }
+    if (usuario.role === "cliente") navigate("/cliente/inicio");
+    else if (usuario.role === "negocio") navigate("/negocio/inicio");
+    else if (usuario.role === "admin") navigate("/admin/inicio");
   }, [usuario, navigate]);
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
-    <div className="flex flex-col min-h-screen items-center justify-start bg-white p-6">
-
-      {/* Título */}
-      <h1 className="text-5xl font-semibold text-[#5E30A5] mt-12 mb-6 text-center">
-        REFERIDOS<br />APP
-      </h1>
-
-      {/* Imagen */}
+    <div className="flex flex-col min-h-screen items-center justify-center bg-gradient-to-b from-[#5E30A5] via-[#6B37B6] to-[#5E30A5] p-6 text-white">
       <div
-        className="w-54 h-54 mb-5 rounded-xl bg-center bg-no-repeat bg-contain"
-        style={{ backgroundImage: `url(${homeBg})` }}
-      />
-
-      {/* Botón REGISTRARSE */}
-      <Link
-        to="/registro"
-        className="bg-[#5E30A5] text-white w-full max-w-xs py-2 rounded-md text-center font-semibold shadow-md"
+        className={`w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/15 rounded-3xl shadow-2xl p-8 transition-all duration-600 ${
+          mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}
+        style={{ transitionTimingFunction: "ease" }}
       >
-        REGISTRARSE
-      </Link>
+        <h1 className="text-5xl font-semibold text-center mb-4 leading-[1.1]">
+          REFERIDOS
+          <br />
+          APP
+        </h1>
 
-      {/* YA TENGO UNA CUENTA */}
-      <Link
-        to="/login"
-        className="mt-6 text-sm text-gray-700 tracking-wide"
-      >
-        YA TENGO UNA CUENTA.
-      </Link>
+        <div
+          className="w-full h-48 mb-6 rounded-2xl bg-center bg-no-repeat bg-contain transition-transform duration-700"
+          style={{
+            backgroundImage: `url(${homeBg})`,
+            transform: mounted ? "translateY(0)" : "translateY(12px)",
+          }}
+        />
 
-      {/* Versión */}
-      <div className="absolute bottom-2 right-2 text-xs opacity-60">
+        <div className="flex flex-col gap-4">
+          <Link
+            to="/tipo"
+            className="bg-white text-[#5E30A5] w-full py-2.5 rounded-lg text-center font-semibold shadow-lg shadow-[#0000002a] active:scale-[0.99] transition-transform"
+          >
+            REGISTRARSE
+          </Link>
+
+          <Link
+            to="/login"
+            className="text-sm text-white/80 text-center tracking-wide underline underline-offset-4"
+          >
+            YA TENGO UNA CUENTA.
+          </Link>
+        </div>
+      </div>
+
+      <div className="absolute bottom-2 right-2 text-xs text-white/70">
         ALPHA v0.0.1
       </div>
     </div>

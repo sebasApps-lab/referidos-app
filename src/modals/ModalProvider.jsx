@@ -21,8 +21,10 @@ export default function ModalProvider() {
         background: "rgba(0,0,0,0.45)",
         backdropFilter: "blur(3px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
+        padding: "38px 14px",
+        overflowY: "auto",
         zIndex: 9999,
       }}
       onClick={closeModal}
