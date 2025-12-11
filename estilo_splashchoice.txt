@@ -1,0 +1,10 @@
+# SplashChoice theme (pre-cambio)
+# Fondo oscuro original
+bg: linear-gradient(to bottom right, #0F172A, #111827, #1F2937)
+text: #ffffff
+
+# Container (sin cambios)
+container-bg: rgba(255, 255, 255, 0.05)
+container-border: rgba(255, 255, 255, 0.10)
+container-radius: 24px
+container-shadow: 0 20px 50px rgba(0,0,0,0.25)

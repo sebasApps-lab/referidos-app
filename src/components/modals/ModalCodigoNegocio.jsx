@@ -4,16 +4,30 @@ import ModalBase from "./ModalBase";
 import { useModal } from "../../modals/useModal";
 import { CODE_RE } from "../../utils/validators";
 
-const DEFAULT_CODES = ["REF-001532", "REF-003765"];
+const DEFAULT_CODES = ["REF-123456", "REF-654321"];
+
+function isPartialFormat(code) {
+  if (!code) return true;
+  if (code === "R" || code === "RE" || code === "REF" || code === "REF-") return true;
+  if (!code.startsWith("REF-")) return false;
+  const tail = code.slice(4);
+  return /^[0-9]{0,6}$/.test(tail);
+}
 
 export default function ModalCodigoNegocio({ onConfirm }) {
   const { closeModal } = useModal();
   const [codigo, setCodigo] = useState("");
   const [valid, setValid] = useState(false);
+  const [formatOk, setFormatOk] = useState(true);
+  const whatsappHref =
+    "https://wa.me/593000000000?text=" +
+    encodeURIComponent("Hola! Deseo recibir un codigo de registro para registrar mi negocio.");
 
   useEffect(() => {
     const upper = codigo.toUpperCase();
-    const ok = CODE_RE.test(upper) && DEFAULT_CODES.includes(upper);
+    const isFormat = isPartialFormat(upper);
+    setFormatOk(isFormat);
+    const ok = isFormat && CODE_RE.test(upper) && DEFAULT_CODES.includes(upper);
     setValid(ok);
   }, [codigo]);
 
@@ -25,22 +39,28 @@ export default function ModalCodigoNegocio({ onConfirm }) {
 
   return (
     <ModalBase title="Código de registro">
-      <div className="space-y-3">
-        <p className="text-sm text-gray-600 text-center">
-          Ingresa el código de registro para negocios.
-        </p>
+      <div className="space-y-2">
+        <div className="text-sm font-semibold text-gray-700">Solo necesario para negocios</div>
 
         <input
           autoFocus
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase tracking-wide"
-          placeholder="REF-000000"
+          className={`w-full border rounded-lg px-3 py-2 text-sm uppercase tracking-wide transition-colors ${
+            formatOk
+              ? "border-gray-400 text-gray-900 focus:border-[#5E30A5] focus:outline focus:outline-1 focus:outline-[#5E30A5] focus:ring-0"
+              : "border-red-500 text-red-600 focus:border-red-500 focus:outline focus:outline-1 focus:outline-red-500 focus:ring-0"
+          }`}
+          placeholder="REF-435526"
           value={codigo}
-          onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+          onChange={(e) => {
+            const upper = e.target.value.toUpperCase();
+            setCodigo(upper);
+            setFormatOk(isPartialFormat(upper));
+          }}
         />
 
-        <div className="text-xs text-gray-500 text-center">
-          Formato requerido: REF-######. Se habilitará el botón al ser válido.
-        </div>
+        <a href={whatsappHref} target="_blank" rel="noreferrer" className="text-xs text-[#5E30A5] underline self-start -mt-1 block">
+          Solicitar código para negocio
+        </a>
 
         <button
           onClick={handleNext}

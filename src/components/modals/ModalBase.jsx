@@ -14,7 +14,7 @@ export default function ModalBase({ children, title, height = "auto" }) {
         width: "92vw",
         maxWidth: 420,
         padding: 20,
-        maxHeight: "90vh",
+        maxHeight: "85vh",
         overflowY: "auto",
         boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
         position: "relative",

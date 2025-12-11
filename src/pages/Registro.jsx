@@ -1,6 +1,6 @@
 // src/pages/Registro.jsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   EMAIL_RE,
   PHONE_RE,
@@ -17,6 +17,9 @@ const DEFAULT_CODES = ["REF-001532", "REF-003765"];
 export default function Registro() {
   const navigate = useNavigate();
   const register = useAppStore((s) => s.register);
+  const location = useLocation();
+  const roleFromSplash = location.state?.role || null;
+  const codeFromSplash = location.state?.codigo || "";
 
   const cardRef = useRef(null);
   const sliderRef = useRef(null);
@@ -27,10 +30,9 @@ export default function Registro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [codigo, setCodigo] = useState("");
-  const [codeValid, setCodeValid] = useState(false);
+  const [codigo, setCodigo] = useState(codeFromSplash);
+  const [codeValid, setCodeValid] = useState(roleFromSplash === "negocio");
   const [codeChecking, setCodeChecking] = useState(false);
-  const [codeFocused, setCodeFocused] = useState(false);
 
   const [nombreDueno, setNombreDueno] = useState("");
   const [apellidoDueno, setApellidoDueno] = useState("");
@@ -68,7 +70,7 @@ export default function Registro() {
     let mounted = true;
 
     if (!codigo || !CODE_RE.test(codigo)) {
-      setCodeValid(false);
+      setCodeValid(roleFromSplash === "negocio");
       setBtnFadeKey((k) => k + 1);
       setBtnText("Registrarse");
       return;
@@ -88,7 +90,7 @@ export default function Registro() {
     return () => {
       mounted = false;
     };
-  }, [codigo]);
+  }, [codigo, roleFromSplash]);
 
   const containerStyle = useMemo(
     () => ({
@@ -167,6 +169,12 @@ export default function Registro() {
   };
 
   const handlePrimaryPage1 = () => {
+    if (roleFromSplash === "negocio") {
+      setError("");
+      goTo(2);
+      return;
+    }
+
     if (!validatePage1()) return;
     if (!codeValid) {
       handleRegisterCliente();
@@ -202,10 +210,6 @@ export default function Registro() {
   };
 
   const inputCommon = "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
-  const codigoInputClass = (!codigo && !codeFocused ? "bg-gray-200 text-gray-700 " : "bg-white ") + inputCommon;
-  const whatsappHref =
-    "https://wa.me/593995705833?text=" +
-    encodeURIComponent("Hola! Deseo recibir un codigo de registro para registrar mi negocio.");
 
   const segment = (n) => (
     <div
@@ -269,23 +273,7 @@ export default function Registro() {
                   onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
                 />
 
-                <label className="text-sm text-gray-700">Código de registro</label>
-                <input
-                  type="text"
-                  className={codigoInputClass}
-                  placeholder="REF-123456 (solo si tienes)"
-                  value={codigo}
-                  onFocus={() => setCodeFocused(true)}
-                  onBlur={() => setCodeFocused(false)}
-                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-                />
-
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-xs text-gray-500">Solo necesario para negocio</div>
-                  <div className="text-xs text-gray-500">
-                    {codeChecking ? "Verificando..." : codeValid ? "Código válido" : ""}
-                  </div>
-                </div>
+                <div className="mb-4" />
 
                 <div className="flex flex-col gap-3">
                   <button onClick={handlePrimaryPage1} className="w-full bg-yellow-400 text-white font-semibold py-2.5 rounded-lg shadow">
@@ -293,10 +281,6 @@ export default function Registro() {
                       {btnText}
                     </span>
                   </button>
-
-                  <a href={whatsappHref} target="_blank" rel="noreferrer" className="text-xs text-[#5E30A5] underline self-start">
-                    Solicitar código para negocio
-                  </a>
 
                   <div className="text-center mt-3">
                     <Link to="/login" className="text-sm text-gray-700">

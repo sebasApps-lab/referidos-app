@@ -1,6 +1,7 @@
 // src/pages/SplashChoice.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useModal } from "../modals/useModal";
 
 const cards = [
   {
@@ -19,6 +20,7 @@ export default function SplashChoice() {
   const [mounted, setMounted] = useState(false);
   const [selected, setSelected] = useState(null);
   const navigate = useNavigate();
+  const { openModal } = useModal();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -26,11 +28,22 @@ export default function SplashChoice() {
   }, []);
 
   const goNext = () => {
-    navigate("/registro");
+    if (!selected) return;
+
+    if (selected === "cliente") {
+      navigate("/registro", { state: { role: "cliente" } });
+      return;
+    }
+
+    openModal("CodigoNegocio", {
+      onConfirm: (code) => {
+        navigate("/registro", { state: { role: "negocio", codigo: code } });
+      },
+    });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0F172A] via-[#111827] to-[#1F2937] text-white p-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white p-6">
       <div
         className={`w-full max-w-xl bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl transition-all duration-500 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
