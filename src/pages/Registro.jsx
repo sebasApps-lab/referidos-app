@@ -10,14 +10,18 @@ import {
   validatePhone,
 } from "../utils/validators";
 import { useAppStore } from "../store/appStore";
-import { signInWithOAuth } from "../services/authService";
+import { signInWithOAuth, getSessionUserProfile } from "../services/authService";
+import { useModal } from "../modals/useModal";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
+const OAUTH_INTENT_KEY = "registro_oauth_intent";
 
 export default function Registro() {
   const navigate = useNavigate();
   const register = useAppStore((s) => s.register);
+  const setUser = useAppStore((s) => s.setUser);
+  const { openModal } = useModal();
   const location = useLocation();
   const roleFromSplash = location.state?.role || null;
   const codeFromSplash = location.state?.codigo || "";
@@ -51,6 +55,7 @@ export default function Registro() {
   const [btnFadeKey, setBtnFadeKey] = useState(0);
   const [entryStep, setEntryStep] = useState("choice");
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState(null);
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/registro`) ||
@@ -61,6 +66,65 @@ export default function Registro() {
       localStorage.setItem(CODES_KEY, JSON.stringify(DEFAULT_CODES));
     }
   }, []);
+
+  const saveOAuthIntent = () => {
+    try {
+      const role = roleFromSplash || "cliente";
+      localStorage.setItem(OAUTH_INTENT_KEY, JSON.stringify({ role, ts: Date.now() }));
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    // Si vuelve de OAuth con sesion activa, mostrar mensaje y redirigir.
+    (async () => {
+      const user = await getSessionUserProfile();
+      if (!user) return;
+
+      let intendedRole = null;
+      let hasIntent = false;
+      try {
+        const raw = localStorage.getItem(OAUTH_INTENT_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const age = parsed?.ts ? Date.now() - parsed.ts : 0;
+          if (!parsed?.ts || age < 15 * 60 * 1000) {
+            intendedRole = parsed?.role || null;
+            hasIntent = true;
+          }
+        }
+      } catch {
+        intendedRole = null;
+      }
+      localStorage.removeItem(OAUTH_INTENT_KEY);
+
+      setUser(user);
+
+      if (hasIntent) {
+        const suffix = " Se le redirige a la cuenta existente.";
+        let msg = "Esta cuenta ya existe." + suffix;
+        if (intendedRole && intendedRole !== user.role) {
+          if (intendedRole === "negocio" && user.role === "cliente") {
+            msg = "Una cuenta de tipo cliente ya existe con estas credenciales." + suffix;
+          } else if (intendedRole === "cliente" && user.role === "negocio") {
+            msg = "Una cuenta de negocio ya existe con estas credenciales." + suffix;
+          }
+        }
+        openModal("CuentaExistente", { message: msg });
+
+        setTimeout(() => {
+          if (user.role === "admin") navigate("/admin/inicio", { replace: true });
+          else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
+          else navigate("/cliente/inicio", { replace: true });
+        }, 1200);
+      } else {
+        if (user.role === "admin") navigate("/admin/inicio", { replace: true });
+        else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
+        else navigate("/cliente/inicio", { replace: true });
+      }
+    })();
+  }, [navigate, setUser]);
 
   async function fakeValidateCode(code) {
     await new Promise((r) => setTimeout(r, 250));
@@ -217,19 +281,26 @@ export default function Registro() {
     }
   };
 
-  const startGoogle = async () => {
+  const startOAuth = async (provider) => {
     setError("");
+    setOauthProvider(provider);
     setOauthLoading(true);
+    saveOAuthIntent();
     try {
-      await signInWithOAuth("google", {
+      await signInWithOAuth(provider, {
         redirectTo,
         data: { role: roleFromSplash || "cliente" },
       });
     } catch (err) {
-      setError(err?.message || "No se pudo iniciar con Google");
+      localStorage.removeItem(OAUTH_INTENT_KEY);
+      setError(err?.message || `No se pudo iniciar con ${provider === "google" ? "Google" : "Facebook"}`);
       setOauthLoading(false);
+      setOauthProvider(null);
     }
   };
+
+  const startGoogle = () => startOAuth("google");
+  const startFacebook = () => startOAuth("facebook");
 
   const inputCommon = "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
 
@@ -283,15 +354,16 @@ export default function Registro() {
               className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
             >
               <GoogleIcon />
-              {oauthLoading ? "Iniciando..." : "Continuar con Google"}
+              {oauthLoading && oauthProvider === "google" ? "Iniciando..." : "Continuar con Google"}
             </button>
 
             <button
-              onClick={() => {}}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98]"
+              onClick={startFacebook}
+              disabled={oauthLoading}
+              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
             >
               <FacebookIcon />
-              Continuar con Facebook
+              {oauthLoading && oauthProvider === "facebook" ? "Iniciando..." : "Continuar con Facebook"}
             </button>
 
             <Link to="/login" className="block text-center text-sm text-gray-600 font-bold pt-3">
