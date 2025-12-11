@@ -1,13 +1,17 @@
 // src/pages/Login.jsx
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { validateEmail } from "../utils/validators";
-import { signInWithOAuth, getSessionUserProfile } from "../services/authService";
+import { getSessionUserProfile, signInWithGoogleIdToken } from "../services/authService";
 import { supabase } from "../lib/supabaseClient";
+import { requestGoogleCredential } from "../utils/googleOneTap";
 
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
 const REG_STATUS_PREFIX = "reg_status_";
+const GOOGLE_ONE_TAP_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_ONE_TAP_CLIENT_ID ||
+  import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const getRegStatus = (userId) => {
   if (!userId) return null;
@@ -38,9 +42,53 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState("choice"); // choice | email
 
-  const redirectTo =
-    (typeof window !== "undefined" && `${window.location.origin}/login`) ||
-    import.meta.env.VITE_AUTH_REDIRECT_URL;
+  const handleSessionRedirect = useCallback(async () => {
+    const user = await getSessionUserProfile();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const pendingRaw = localStorage.getItem(OAUTH_LOGIN_PENDING);
+    let pendingTs = 0;
+    try {
+      pendingTs = pendingRaw ? JSON.parse(pendingRaw)?.ts || 0 : 0;
+    } catch {
+      pendingTs = 0;
+    }
+    const pendingAge = pendingTs ? Date.now() - pendingTs : Infinity;
+    const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
+    const regStatus = session?.user ? getRegStatus(session.user.id) : null;
+
+    // Si hay sesion recien creada o sin perfil/rol, dirigir a seleccion de tipo.
+    if (session?.user && (pendingAge < 15 * 60 * 1000 || !roleOk || !user)) {
+      localStorage.removeItem(OAUTH_LOGIN_PENDING);
+      navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
+      return true;
+    }
+
+    if (user) {
+      localStorage.removeItem(OAUTH_LOGIN_PENDING);
+      setUser(user);
+      if (user.role === "admin") {
+        navigate("/admin/inicio", { replace: true });
+      } else if (user.role === "negocio") {
+        if (regStatus === "negocio_page3") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 3 } });
+        else if (regStatus === "negocio_page2") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 2 } });
+        else navigate("/negocio/inicio", { replace: true });
+      } else {
+        navigate("/cliente/inicio", { replace: true });
+      }
+      return true;
+    }
+
+    if (session?.user) {
+      localStorage.removeItem(OAUTH_LOGIN_PENDING);
+      navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
+      return true;
+    }
+
+    return false;
+  }, [navigate, setUser]);
 
   const handleLogin = async () => {
     setError("");
@@ -76,70 +124,32 @@ export default function Login() {
   const startGoogle = async () => {
     setError("");
     setLoading(true);
-    localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
+    if (!GOOGLE_ONE_TAP_CLIENT_ID) {
+      setError("Falta configurar Google Client ID");
+      setLoading(false);
+      return;
+    }
+
     try {
-      await signInWithOAuth("google", {
-        redirectTo,
-        data: { role: null },
+      const result = await requestGoogleCredential({
+        clientId: GOOGLE_ONE_TAP_CLIENT_ID,
       });
-      // Redirige fuera de la app.
+
+      if (!result || result.type === "dismissed") return;
+
+      localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
+      await signInWithGoogleIdToken({ token: result.credential });
+      await handleSessionRedirect();
     } catch (err) {
       setError(err?.message || "No se pudo iniciar con Google");
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Si hay sesión y perfil, redirige según rol.
-    // Si hay sesión y NO hay perfil, envía a SplashChoice para elegir rol (fromOAuth: true).
-    (async () => {
-      const user = await getSessionUserProfile();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const pendingRaw = localStorage.getItem(OAUTH_LOGIN_PENDING);
-      let pendingTs = 0;
-      try {
-        pendingTs = pendingRaw ? JSON.parse(pendingRaw)?.ts || 0 : 0;
-      } catch {
-        pendingTs = 0;
-      }
-      const pendingAge = pendingTs ? Date.now() - pendingTs : Infinity;
-      const isNewSession = session?.user?.created_at
-        ? Date.now() - new Date(session.user.created_at).getTime()
-        : Infinity;
-      const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
-      const regStatus = session?.user ? getRegStatus(session.user.id) : null;
-
-      // Si hay sesión y parece nueva o sin perfil/rol válido, ir a SplashChoice
-      if (session?.user && (pendingAge < 15 * 60 * 1000 || !roleOk || !user)) {
-        localStorage.removeItem(OAUTH_LOGIN_PENDING);
-        navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
-        return;
-      }
-
-      if (user) {
-        localStorage.removeItem(OAUTH_LOGIN_PENDING);
-        setUser(user);
-        if (user.role === "admin") {
-          navigate("/admin/inicio", { replace: true });
-        } else if (user.role === "negocio") {
-          if (regStatus === "negocio_page3") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 3 } });
-          else if (regStatus === "negocio_page2") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 2 } });
-          else navigate("/negocio/inicio", { replace: true });
-        } else {
-          navigate("/cliente/inicio", { replace: true });
-        }
-        return;
-      }
-
-      if (session?.user) {
-        localStorage.removeItem(OAUTH_LOGIN_PENDING);
-        navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
-      }
-    })();
-  }, [navigate, setUser]);
+    handleSessionRedirect();
+  }, [handleSessionRedirect]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#5E30A5] p-6 pb-28">
