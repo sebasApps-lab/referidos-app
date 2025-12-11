@@ -1,17 +1,23 @@
 // src/pages/Perfil.jsx
 
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
+import { deleteUserAccount } from "../services/authService";
+import { useModal } from "../modals/useModal";
 
 export default function Perfil() {
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
+  const navigate = useNavigate();
+  const { openModal, closeModal } = useModal();
 
-  const [form, setForm] = React.useState({
+  const [form, setForm] = useState({
     nombre: usuario?.nombre || "",
     email: usuario?.email || "",
     telefono: usuario?.telefono || ""
   });
+  const [deleting, setDeleting] = useState(false);
 
   const handleChange = (e) => {
     setForm({
@@ -23,6 +29,33 @@ export default function Perfil() {
   const guardar = () => {
     setUser({ ...usuario, ...form });
     alert("Datos guardados");
+  };
+
+  const confirmDelete = () => {
+    if (!usuario?.id_auth) {
+      alert("No se pudo identificar la cuenta.");
+      return;
+    }
+
+    openModal("EliminarCuenta", {
+      deleting,
+      onConfirm: async () => {
+        if (deleting) return;
+        setDeleting(true);
+        const res = await deleteUserAccount(usuario.id_auth);
+        setDeleting(false);
+        if (!res.ok) {
+          alert(res.error || "No se pudo eliminar la cuenta");
+          return;
+        }
+        closeModal();
+        setUser(null);
+        navigate("/", { replace: true });
+      },
+      onCancel: () => {
+        setDeleting(false);
+      },
+    });
   };
 
   return (
@@ -89,6 +122,23 @@ export default function Perfil() {
       >
         Guardar cambios
       </button>
+
+      <div style={{ marginTop: 24, textAlign: "center" }}>
+        <button
+          onClick={confirmDelete}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#DC2626",
+            fontWeight: 700,
+            textDecoration: "none",
+            cursor: "pointer",
+            padding: "8px 12px",
+          }}
+        >
+          Eliminar cuenta
+        </button>
+      </div>
     </div>
   );
 }

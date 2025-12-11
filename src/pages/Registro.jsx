@@ -10,7 +10,7 @@ import {
   validatePhone,
 } from "../utils/validators";
 import { useAppStore } from "../store/appStore";
-import { signInWithOAuth, getSessionUserProfile } from "../services/authService";
+import { signInWithOAuth, getSessionUserProfile, signOut, updateUserProfile } from "../services/authService";
 import { useModal } from "../modals/useModal";
 
 const CODES_KEY = "registration_codes";
@@ -56,6 +56,11 @@ export default function Registro() {
   const [entryStep, setEntryStep] = useState("choice");
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthProvider, setOauthProvider] = useState(null);
+  const [oauthIntentRole, setOauthIntentRole] = useState(null);
+  const [startedWithOAuth, setStartedWithOAuth] = useState(false);
+  const allowExitRef = useRef(false);
+  const [oauthExit, setOauthExit] = useState(false);
+  const [pendingOAuthProfile, setPendingOAuthProfile] = useState(null);
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/registro`) ||
@@ -67,20 +72,107 @@ export default function Registro() {
     }
   }, []);
 
-  const saveOAuthIntent = () => {
+  const effectiveRole = roleFromSplash || oauthIntentRole || null;
+  const leaveGuardActive = effectiveRole === "negocio" && entryStep !== "choice";
+
+  const saveOAuthIntent = (role) => {
     try {
-      const role = roleFromSplash || "cliente";
       localStorage.setItem(OAUTH_INTENT_KEY, JSON.stringify({ role, ts: Date.now() }));
     } catch {
       // ignore
     }
   };
 
+  const clearOAuthIntent = () => {
+    try {
+      localStorage.removeItem(OAUTH_INTENT_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (!roleFromSplash) return;
+    clearOAuthIntent();
+    setOauthIntentRole(null);
+    setPendingOAuthProfile(null);
+    setStartedWithOAuth(false);
+    setEntryStep("choice");
+    setPage(1);
+    setError("");
+    setOauthProvider(null);
+    setOauthLoading(false);
+    setCodigo(codeFromSplash || "");
+    setCodeValid(roleFromSplash === "negocio");
+  }, [roleFromSplash, codeFromSplash]);
+
+  useEffect(() => {
+    if (roleFromSplash) return;
+    try {
+      const raw = localStorage.getItem(OAUTH_INTENT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const age = parsed?.ts ? Date.now() - parsed.ts : 0;
+      if (parsed?.role && (!parsed?.ts || age < 15 * 60 * 1000)) {
+        setOauthIntentRole(parsed.role);
+        setEntryStep("form");
+        setPage(2);
+        setStartedWithOAuth(true);
+        setPendingOAuthProfile(null);
+        if (parsed.role === "negocio") setCodeValid(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const showLeaveModal = () => {
+    openModal("AbandonarRegistro", {
+      onAbandon: () => {
+        allowExitRef.current = true;
+        clearOAuthIntent();
+        setPendingOAuthProfile(null);
+        signOut();
+        window.location.assign("/");
+      },
+      onStay: () => {
+        allowExitRef.current = false;
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (!leaveGuardActive) return;
+    const handleBeforeUnload = (e) => {
+      if (allowExitRef.current || oauthExit) return;
+      e.preventDefault();
+      e.returnValue = "";
+      showLeaveModal();
+      return "";
+    };
+    const handlePopState = (e) => {
+      if (allowExitRef.current || oauthExit) return;
+      e.preventDefault?.();
+      showLeaveModal();
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [leaveGuardActive, oauthExit]);
+
   useEffect(() => {
     // Si vuelve de OAuth con sesion activa, mostrar mensaje y redirigir.
     (async () => {
       const user = await getSessionUserProfile();
-      if (!user) return;
+      if (!user) {
+        setOauthExit(false);
+        allowExitRef.current = false;
+        return;
+      }
 
       let intendedRole = null;
       let hasIntent = false;
@@ -98,6 +190,18 @@ export default function Registro() {
         intendedRole = null;
       }
       localStorage.removeItem(OAUTH_INTENT_KEY);
+
+      if (hasIntent && startedWithOAuth) {
+        setPendingOAuthProfile(user);
+        setOauthExit(false);
+        allowExitRef.current = false;
+        if (intendedRole === "negocio") {
+          setEntryStep("form");
+          setPage(2);
+          setCodeValid(true);
+        }
+        return;
+      }
 
       setUser(user);
 
@@ -123,6 +227,8 @@ export default function Registro() {
         else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
         else navigate("/cliente/inicio", { replace: true });
       }
+      setOauthExit(false);
+      allowExitRef.current = false;
     })();
   }, [navigate, setUser]);
 
@@ -241,7 +347,7 @@ export default function Registro() {
   };
 
   const handlePrimaryPage1 = () => {
-    if (roleFromSplash === "negocio") {
+    if (effectiveRole === "negocio") {
       setError("");
       goTo(2);
       return;
@@ -264,6 +370,29 @@ export default function Registro() {
 
   const handleRegister = async () => {
     try {
+      if (pendingOAuthProfile) {
+        const profileUpdate = {
+          id_auth: pendingOAuthProfile.id_auth,
+          role: "negocio",
+          nombre: nombreDueno || pendingOAuthProfile.nombre,
+          telefono: telefono || pendingOAuthProfile.telefono,
+        };
+
+        const result = await updateUserProfile(profileUpdate);
+        if (!result.ok) {
+          setError(result.error || "No se pudo completar el registro con OAuth");
+          return;
+        }
+
+        const finalUser = { ...pendingOAuthProfile, ...result.user, role: "negocio" };
+        setUser(finalUser);
+        setPendingOAuthProfile(null);
+        clearOAuthIntent();
+        allowExitRef.current = true;
+        navigate("/negocio/inicio");
+        return;
+      }
+
       const result = await register({
         email,
         password,
@@ -285,17 +414,27 @@ export default function Registro() {
     setError("");
     setOauthProvider(provider);
     setOauthLoading(true);
-    saveOAuthIntent();
+    const role = effectiveRole || "cliente";
+    setOauthIntentRole(role);
+    setEntryStep("form");
+    setPage(2);
+    setStartedWithOAuth(true);
+    setOauthExit(true);
+    allowExitRef.current = true;
+    if (role === "negocio") setCodeValid(true);
+    saveOAuthIntent(role);
     try {
       await signInWithOAuth(provider, {
         redirectTo,
-        data: { role: roleFromSplash || "cliente" },
+        data: { role },
       });
     } catch (err) {
       localStorage.removeItem(OAUTH_INTENT_KEY);
       setError(err?.message || `No se pudo iniciar con ${provider === "google" ? "Google" : "Facebook"}`);
       setOauthLoading(false);
       setOauthProvider(null);
+      setOauthExit(false);
+      allowExitRef.current = false;
     }
   };
 
@@ -308,7 +447,7 @@ export default function Registro() {
     <div
       key={n}
       className="flex-1 mx-1 rounded-full"
-      style={{ height: 4, background: "#FFFFFF", opacity: page === n ? 1 : 0.35, transition: "opacity 200ms" }}
+      style={{ height: 4, background: "#FFFFFF", opacity: page === n + 1 ? 1 : 0.35, transition: "opacity 200ms" }}
     />
   );
 
@@ -325,8 +464,15 @@ export default function Registro() {
 
             <button
               onClick={() => {
+                clearOAuthIntent();
+                setOauthIntentRole(null);
+                setCodeValid(roleFromSplash === "negocio");
+                setPage(1);
+                setStartedWithOAuth(false);
                 setError("");
                 setEntryStep("form");
+                setOauthExit(false);
+                allowExitRef.current = false;
               }}
               className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
             >
@@ -373,17 +519,17 @@ export default function Registro() {
         </div>
       )}
 
+      {entryStep !== "choice" && page >= 2 && (
+        <div className="w-full max-w-sm px-2 mb-4">
+          <div className="flex">
+            {segment(1)}
+            {segment(2)}
+          </div>
+        </div>
+      )}
+
       {entryStep !== "choice" && (
         <>
-          {codeValid && (
-            <div className="w-full max-w-sm px-2 mb-4">
-              <div className="flex">
-                {segment(1)}
-                {segment(2)}
-                {segment(3)}
-              </div>
-            </div>
-          )}
 
           <div
             ref={cardRef}
@@ -445,9 +591,11 @@ export default function Registro() {
 
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
               <div className="pb-4" ref={page2Ref}>
-                <button onClick={() => goTo(1)} className="text-gray-500 mb-2">
-                  ←
-                </button>
+                {!startedWithOAuth && (
+                  <button onClick={() => goTo(1)} className="text-gray-500 mb-2">
+                    ←
+                  </button>
+                )}
 
                 <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar</h2>
                 <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>

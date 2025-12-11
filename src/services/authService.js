@@ -106,6 +106,40 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+export async function deleteUserAccount(id_auth) {
+  if (!id_auth) return { ok: false, error: "No se pudo identificar la cuenta" };
+
+  try {
+    const { error } = await supabase.functions.invoke("delete-account", {
+      body: { userId: id_auth },
+    });
+
+    if (error) throw error;
+
+    await supabase.auth.signOut();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message ?? String(error) };
+  }
+}
+
+export async function updateUserProfile({ id_auth, ...payload }) {
+  if (!id_auth) return { ok: false, error: "Falta id_auth para actualizar perfil" };
+  try {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .update(payload)
+      .eq("id_auth", id_auth)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    return { ok: true, user: data };
+  } catch (error) {
+    return { ok: false, error: error.message ?? String(error) };
+  }
+}
+
 export async function getSessionUserProfile() {
   try {
     const {
