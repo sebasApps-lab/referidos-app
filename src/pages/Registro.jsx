@@ -12,10 +12,12 @@ import {
 import { useAppStore } from "../store/appStore";
 import { signInWithOAuth, getSessionUserProfile, signOut, updateUserProfile } from "../services/authService";
 import { useModal } from "../modals/useModal";
+import { supabase } from "../lib/supabaseClient";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
 const OAUTH_INTENT_KEY = "registro_oauth_intent";
+const REG_STATUS_PREFIX = "reg_status_";
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -25,6 +27,8 @@ export default function Registro() {
   const location = useLocation();
   const roleFromSplash = location.state?.role || null;
   const codeFromSplash = location.state?.codigo || "";
+  const fromOAuth = location.state?.fromOAuth || false;
+  const pageFromState = location.state?.page || null;
 
   const cardRef = useRef(null);
   const sliderRef = useRef(null);
@@ -74,6 +78,24 @@ export default function Registro() {
 
   const effectiveRole = roleFromSplash || oauthIntentRole || null;
   const leaveGuardActive = effectiveRole === "negocio" && entryStep !== "choice";
+  const setRegStatus = async (status) => {
+    let uid = pendingOAuthProfile?.id_auth || null;
+    if (!uid) {
+      try {
+        const session = (await supabase?.auth?.getSession())?.data?.session;
+        uid = session?.user?.id || null;
+      } catch {
+        uid = null;
+      }
+    }
+    if (!uid) return;
+    try {
+      if (!status) localStorage.removeItem(`${REG_STATUS_PREFIX}${uid}`);
+      else localStorage.setItem(`${REG_STATUS_PREFIX}${uid}`, status);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const saveOAuthIntent = (role) => {
     try {
@@ -116,7 +138,7 @@ export default function Registro() {
       if (parsed?.role && (!parsed?.ts || age < 15 * 60 * 1000)) {
         setOauthIntentRole(parsed.role);
         setEntryStep("form");
-        setPage(2);
+        setPage(pageFromState || 2);
         setStartedWithOAuth(true);
         setPendingOAuthProfile(null);
         if (parsed.role === "negocio") setCodeValid(true);
@@ -124,7 +146,7 @@ export default function Registro() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [pageFromState]);
 
   const showLeaveModal = () => {
     openModal("AbandonarRegistro", {
@@ -197,38 +219,18 @@ export default function Registro() {
         allowExitRef.current = false;
         if (intendedRole === "negocio") {
           setEntryStep("form");
-          setPage(2);
+          setPage(pageFromState || 2);
           setCodeValid(true);
         }
         return;
       }
 
       setUser(user);
-
-      if (hasIntent) {
-        const suffix = " Se le redirige a la cuenta existente.";
-        let msg = "Esta cuenta ya existe." + suffix;
-        if (intendedRole && intendedRole !== user.role) {
-          if (intendedRole === "negocio" && user.role === "cliente") {
-            msg = "Una cuenta de tipo cliente ya existe con estas credenciales." + suffix;
-          } else if (intendedRole === "cliente" && user.role === "negocio") {
-            msg = "Una cuenta de negocio ya existe con estas credenciales." + suffix;
-          }
-        }
-        openModal("CuentaExistente", { message: msg });
-
-        setTimeout(() => {
-          if (user.role === "admin") navigate("/admin/inicio", { replace: true });
-          else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
-          else navigate("/cliente/inicio", { replace: true });
-        }, 1200);
-      } else {
-        if (user.role === "admin") navigate("/admin/inicio", { replace: true });
-        else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
-        else navigate("/cliente/inicio", { replace: true });
-      }
       setOauthExit(false);
       allowExitRef.current = false;
+      if (user.role === "admin") navigate("/admin/inicio", { replace: true });
+      else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
+      else navigate("/cliente/inicio", { replace: true });
     })();
   }, [navigate, setUser]);
 
@@ -365,28 +367,36 @@ export default function Registro() {
     if (!nombreDueno) return setError("Ingrese nombres");
     if (!apellidoDueno) return setError("Ingrese apellidos");
     setError("");
+    if (startedWithOAuth || fromOAuth) setRegStatus("negocio_page3");
     goTo(3);
   };
 
   const handleRegister = async () => {
     try {
-      if (pendingOAuthProfile) {
-        const profileUpdate = {
-          id_auth: pendingOAuthProfile.id_auth,
-          role: "negocio",
-          nombre: nombreDueno || pendingOAuthProfile.nombre,
-          telefono: telefono || pendingOAuthProfile.telefono,
-        };
-
-        const result = await updateUserProfile(profileUpdate);
-        if (!result.ok) {
-          setError(result.error || "No se pudo completar el registro con OAuth");
+      if (pendingOAuthProfile || fromOAuth || startedWithOAuth) {
+        const session = (await supabase.auth.getSession())?.data?.session;
+        const userId = session?.user?.id;
+        if (!userId) {
+          setError("No hay sesión activa");
           return;
         }
-
-        const finalUser = { ...pendingOAuthProfile, ...result.user, role: "negocio" };
-        setUser(finalUser);
-        setPendingOAuthProfile(null);
+        const payload = {
+          role: "negocio",
+          nombre: nombreDueno || pendingOAuthProfile?.nombre,
+          telefono: telefono || pendingOAuthProfile?.telefono,
+          ruc,
+          nombreNegocio,
+          sectorNegocio,
+          calle1,
+          calle2,
+        };
+        const { data, error } = await supabase.functions.invoke("onboarding", { body: payload });
+        if (error || !data?.ok) {
+          setError(data?.message || error?.message || "No se pudo completar el registro");
+          return;
+        }
+        setUser(data.usuario);
+        setRegStatus(null);
         clearOAuthIntent();
         allowExitRef.current = true;
         navigate("/negocio/inicio");

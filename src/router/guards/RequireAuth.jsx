@@ -11,5 +11,13 @@ export default function RequireAuth({ children }) {
     return <Navigate to="/login" replace />;
   }
 
+  // Falta rol o registro incompleto → forzar onboarding
+  if (!usuario.role || usuario.registro_estado !== "completo") {
+    if (usuario?.role === "negocio") {
+      return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
+    }
+    return <Navigate to="/tipo" replace state={{ fromOAuth: true }} />;
+  }
+
   return children;
 }

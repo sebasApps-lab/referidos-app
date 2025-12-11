@@ -4,6 +4,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { validateEmail } from "../utils/validators";
 import { signInWithOAuth, getSessionUserProfile } from "../services/authService";
+import { supabase } from "../lib/supabaseClient";
+
+const OAUTH_LOGIN_PENDING = "oauth_login_pending";
+const REG_STATUS_PREFIX = "reg_status_";
+
+const getRegStatus = (userId) => {
+  if (!userId) return null;
+  try {
+    return localStorage.getItem(`${REG_STATUS_PREFIX}${userId}`);
+  } catch {
+    return null;
+  }
+};
+
+const clearRegStatus = (userId) => {
+  if (!userId) return;
+  try {
+    localStorage.removeItem(`${REG_STATUS_PREFIX}${userId}`);
+  } catch {
+    /* ignore */
+  }
+};
 
 export default function Login() {
   const login = useAppStore((state) => state.login);
@@ -54,10 +76,11 @@ export default function Login() {
   const startGoogle = async () => {
     setError("");
     setLoading(true);
+    localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
     try {
       await signInWithOAuth("google", {
         redirectTo,
-        data: { role: "cliente" },
+        data: { role: null },
       });
       // Redirige fuera de la app.
     } catch (err) {
@@ -67,14 +90,54 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Si ya hay sesión (p.ej. retorno de OAuth), redirige según rol.
+    // Si hay sesión y perfil, redirige según rol.
+    // Si hay sesión y NO hay perfil, envía a SplashChoice para elegir rol (fromOAuth: true).
     (async () => {
       const user = await getSessionUserProfile();
-      if (!user) return;
-      setUser(user);
-      if (user.role === "admin") navigate("/admin/inicio", { replace: true });
-      else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
-      else navigate("/cliente/inicio", { replace: true });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const pendingRaw = localStorage.getItem(OAUTH_LOGIN_PENDING);
+      let pendingTs = 0;
+      try {
+        pendingTs = pendingRaw ? JSON.parse(pendingRaw)?.ts || 0 : 0;
+      } catch {
+        pendingTs = 0;
+      }
+      const pendingAge = pendingTs ? Date.now() - pendingTs : Infinity;
+      const isNewSession = session?.user?.created_at
+        ? Date.now() - new Date(session.user.created_at).getTime()
+        : Infinity;
+      const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
+      const regStatus = session?.user ? getRegStatus(session.user.id) : null;
+
+      // Si hay sesión y parece nueva o sin perfil/rol válido, ir a SplashChoice
+      if (session?.user && (pendingAge < 15 * 60 * 1000 || !roleOk || !user)) {
+        localStorage.removeItem(OAUTH_LOGIN_PENDING);
+        navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
+        return;
+      }
+
+      if (user) {
+        localStorage.removeItem(OAUTH_LOGIN_PENDING);
+        setUser(user);
+        if (user.role === "admin") {
+          navigate("/admin/inicio", { replace: true });
+        } else if (user.role === "negocio") {
+          if (regStatus === "negocio_page3") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 3 } });
+          else if (regStatus === "negocio_page2") navigate("/registro", { replace: true, state: { role: "negocio", fromOAuth: true, page: 2 } });
+          else navigate("/negocio/inicio", { replace: true });
+        } else {
+          navigate("/cliente/inicio", { replace: true });
+        }
+        return;
+      }
+
+      if (session?.user) {
+        localStorage.removeItem(OAUTH_LOGIN_PENDING);
+        navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
+      }
     })();
   }, [navigate, setUser]);
 

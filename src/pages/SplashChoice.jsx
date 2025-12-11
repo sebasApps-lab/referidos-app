@@ -1,7 +1,10 @@
 // src/pages/SplashChoice.jsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useModal } from "../modals/useModal";
+import { useAppStore } from "../store/appStore";
+import { supabase } from "../lib/supabaseClient";
+import { supabase as supabaseClient } from "../lib/supabaseClient";
 
 const cards = [
   {
@@ -19,8 +22,24 @@ const cards = [
 export default function SplashChoice() {
   const [mounted, setMounted] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { openModal } = useModal();
+  const location = useLocation();
+  const setUser = useAppStore((s) => s.setUser);
+
+  const fromOAuth = location.state?.fromOAuth || false;
+  const regStatus = location.state?.regStatus || null;
+
+  const REG_STATUS_PREFIX = "reg_status_";
+  const setRegStatus = (userId, status) => {
+    if (!userId) return;
+    try {
+      localStorage.setItem(`${REG_STATUS_PREFIX}${userId}`, status);
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -31,12 +50,52 @@ export default function SplashChoice() {
     if (!selected) return;
 
     if (selected === "cliente") {
+      if (fromOAuth) {
+        setError("");
+        (async () => {
+          const session = (await supabase?.auth?.getSession())?.data?.session;
+          const userId = session?.user?.id;
+          if (!userId) {
+            setError("No hay sesión activa");
+            return;
+          }
+          setRegStatus(userId, null);
+          const { error, data } = await supabaseClient.functions.invoke("onboarding", {
+            body: { role: "cliente" },
+          });
+          if (error || !data?.ok) {
+            setError(data?.message || error?.message || "No se pudo completar el onboarding");
+            return;
+          }
+          setUser(data.usuario);
+          navigate("/cliente/inicio", { replace: true });
+        })().catch((e) => setError(e?.message || "No se pudo crear el perfil"));
+        return;
+      }
       navigate("/registro", { state: { role: "cliente" } });
       return;
     }
 
     openModal("CodigoNegocio", {
       onConfirm: (code) => {
+        if (fromOAuth) {
+          setError("");
+          (async () => {
+            const session = (await supabase?.auth?.getSession())?.data?.session;
+            const userId = session?.user?.id;
+            if (!userId) {
+              setError("No hay sesión activa");
+              return;
+            }
+            setRegStatus(userId, "negocio_page2");
+            setError("");
+            setRegStatus(userId, "negocio_page2");
+            // No marcamos completo; se completará en Registro (page2/page3)
+            setUser({ id_auth: userId, role: "negocio" });
+            navigate("/registro", { state: { role: "negocio", codigo: code, fromOAuth: true, page: 2 } });
+          })().catch((e) => setError(e?.message || "No se pudo iniciar el registro de negocio"));
+          return;
+        }
         navigate("/registro", { state: { role: "negocio", codigo: code } });
       },
     });
@@ -50,6 +109,7 @@ export default function SplashChoice() {
         }`}
       >
         <div className="p-8 space-y-6">
+          {error && <div className="text-center text-sm text-red-300">{error}</div>}
           <div className="space-y-1 text-center">
             <p className="text-sm uppercase tracking-[0.25em] text-white/60">Tipo de cuenta</p>
             <h1 className="text-2xl font-semibold text-white">¿Cómo quieres continuar?</h1>
