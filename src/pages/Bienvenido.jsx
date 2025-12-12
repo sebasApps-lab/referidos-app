@@ -41,6 +41,7 @@ export default function Bienvenido() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState("choice"); // choice | email
+  const [authTab, setAuthTab] = useState("login"); // login | register
 
   const handleSessionRedirect = useCallback(async () => {
     const user = await getSessionUserProfile();
@@ -59,7 +60,6 @@ export default function Bienvenido() {
     const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
     const regStatus = session?.user ? getRegStatus(session.user.id) : null;
 
-    // Si hay sesion recien creada o sin perfil/rol, dirigir a seleccion de tipo.
     if (session?.user && (pendingAge < 15 * 60 * 1000 || !roleOk || !user)) {
       localStorage.removeItem(OAUTH_LOGIN_PENDING);
       navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
@@ -98,11 +98,11 @@ export default function Bienvenido() {
       return;
     }
     if (!validateEmail(email)) {
-      setError("Formato de email inválido");
+      setError("Formato de email invalido");
       return;
     }
     if (!password) {
-      setError("Ingrese su contraseña");
+      setError("Ingrese su contrasena");
       return;
     }
 
@@ -111,7 +111,7 @@ export default function Bienvenido() {
     setLoading(false);
 
     if (!result.ok) {
-      setError(result.error || "Usuario o contraseña incorrectos");
+      setError(result.error || "Usuario o contrasena incorrectos");
       return;
     }
 
@@ -155,122 +155,153 @@ export default function Bienvenido() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#5E30A5] p-6 pb-28">
       <h1 className="text-white text-3xl font-extrabold mb-6">REFERIDOS APP</h1>
 
-      <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6">
-        {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
-
-        {step === "choice" && (
-          <div className="space-y-4">
-            <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-1">
-              Elige cómo continuar...
-            </h2>
-            <p className="text-center text-sm text-gray-500 mb-4">
-              Si eres nuevo, te ayudaremos a crear tu cuenta.
-            </p>
-
-            <button
-              onClick={() => {
-                setError("");
-                setStep("email");
-              }}
-              className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <MailIcon />
-                <span>Continuar con correo</span>
-              </div>
-            </button>
-
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span
-                className="flex-1 h-px"
-                style={{ background: "linear-gradient(270deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
-              />
-              <span className="font-semibold">O</span>
-              <span
-                className="flex-1 h-px"
-                style={{ background: "linear-gradient(90deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
-              />
-            </div>
-
-            <button
-              onClick={startGoogle}
-              disabled={loading}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
-            >
-              <GoogleIcon />
-              {loading ? "Iniciando..." : "Continuar con Google"}
-            </button>
-
-            <button
-              onClick={() => {}}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98]"
-            >
-              <FacebookIcon />
-              Continuar con Facebook
-            </button>
-
-            <div className="text-center pt-2">
-              <p className="text-sm font-semibold text-gray-700">¿YA TIENES UNA CUENTA?</p>
-              <p className="text-xs text-gray-500">
-                Si ya tienes cuenta, elige una opción y entrarás automáticamente.
-              </p>
-            </div>
-          </div>
-        )}
-
+      <div className="relative w-full max-w-sm">
         {step === "email" && (
-          <>
-            <div className="flex items-center gap-3 ml-2 mb-4">
-              <button
-                onClick={() => setStep("choice")}
-                className="text-xl font-bold leading-none text-[#5E30A5]"
-                aria-label="Volver"
-              >
-                &lt;
-              </button>
-              <h2 className="flex-1 text-center text-xl font-bold text-[#5E30A5] ml-1">
-                Inicio de Sesión
-              </h2>
-              <span style={{ width: "24px" }} />
-            </div>
-
-            <label className="text-sm text-gray-700">Email</label>
-            <input
-              type="email"
-              placeholder="Ingrese su email..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
-
-            <label className="text-sm text-gray-700">Contraseña</label>
-            <input
-              type="password"
-              placeholder="Ingrese su contraseña..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-6 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50"
-            >
-              {loading ? "Ingresando..." : "INGRESAR"}
-            </button>
-
-            <Link to="/recuperar" className="block text-center text-sm text-gray-400 mt-3 mb-5 underline">
-              OLVIDASTE TU CONTRASEÑA?
-            </Link>
-
-            <Link to="/registro" className="block text-center text-sm text-gray-600 font-bold pt-2">
-              AUN NO TENGO UNA CUENTA
-            </Link>
-          </>
+          <button
+            onClick={() => setStep("choice")}
+            className="absolute top-1/2 -translate-y-1/2 w-8 h-17 rounded-xl bg-white shadow flex items-center justify-center text-[#5E30A5] hover:bg-[#F3E8FF] active:scale-95 transition z-10"
+            style={{ left: "-17px" }}
+            aria-label="Volver"
+          >
+            <ArrowLeftIcon />
+          </button>
         )}
+
+        <div className="bg-white w-full rounded-2xl shadow-xl p-6">
+          {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+
+          {step === "choice" && (
+            <div className="space-y-4">
+              <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-1">
+                Elige como continuar...
+              </h2>
+              <p className="text-center text-sm text-gray-500 mb-4">
+                Si eres nuevo, te ayudaremos a crear tu cuenta.
+              </p>
+
+              <button
+                onClick={() => {
+                  setError("");
+                  setStep("email");
+                  setAuthTab("login");
+                }}
+                className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <MailIcon />
+                  <span>Continuar con correo</span>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span
+                  className="flex-1 h-px"
+                  style={{ background: "linear-gradient(270deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
+                />
+                <span className="font-semibold">O</span>
+                <span
+                  className="flex-1 h-px"
+                  style={{ background: "linear-gradient(90deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
+                />
+              </div>
+
+              <button
+                onClick={startGoogle}
+                disabled={loading}
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+              >
+                <GoogleIcon />
+                {loading ? "Iniciando..." : "Continuar con Google"}
+              </button>
+
+              <button
+                onClick={() => {}}
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <FacebookIcon />
+                Continuar con Facebook
+              </button>
+
+              <div className="text-center pt-2">
+                <p className="text-sm font-semibold text-gray-700">¿YA TIENES UNA CUENTA?</p>
+                <p className="text-xs text-gray-500">
+                  Si ya tienes cuenta, elige una opcion y entraras automaticamente.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {step === "email" && (
+            <>
+              <div className="flex items-center gap-3 mb-5 -mt-2">
+                <div className="flex-1">
+                  <div
+                    className="flex bg-[#f7f5fdff] rounded-xl p-0.75 gap-3"
+                    style={{ marginLeft: "-10px", marginRight: "-10px", width: "calc(100% + 20px)" }}
+                  >
+                    <button
+                      onClick={() => {
+                        setAuthTab("login");
+                      }}
+                      className={`flex-1 text-base font-semibold py-3 px-3 rounded-xl transition-all ${
+                        authTab === "login"
+                          ? "bg-[#5E30A5] text-white shadow flex-[0.85] px-6"
+                          : "text-[#5E30A5] bg-transparent flex-[1.15]"
+                      }`}
+                    >
+                      Iniciar sesion
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAuthTab("register");
+                        navigate("/registro");
+                      }}
+                      className={`flex-1 text-base font-semibold py-3 px-5 rounded-xl transition-all ${
+                        authTab === "register"
+                          ? "bg-[#5E30A5] text-white shadow flex-[1.25] px-6"
+                          : "text-[#5E30A5] bg-transparent flex-[0.75]"
+                      }`}
+                    >
+                      Registrarse
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <label className="text-sm text-gray-700">Email</label>
+              <input
+                type="email"
+                placeholder="Ingrese su email..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+
+              <label className="text-sm text-gray-700">Contraseña</label>
+              <input
+                type="password"
+                placeholder="Ingrese su contraseña..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-6 text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50"
+              >
+                {loading ? "Ingresando..." : "INGRESAR"}
+              </button>
+
+              <Link to="/recuperar" className="block text-center text-sm text-gray-400 mt-3 mb-5 underline">
+                OLVIDASTE TU CONTRASENA?
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="absolute bottom-2 right-2 text-xs text-white opacity-70">
@@ -338,6 +369,25 @@ function MailIcon() {
     >
       <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M4 7l7.82 6.165a2 2 0 002.36 0L22 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="27"
+      height="27"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.85"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 18l-6-6 6-6" />
     </svg>
   );
 }
