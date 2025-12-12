@@ -8,7 +8,7 @@ export default function RequireAuth({ children }) {
 
   // Si no hay usuario → bloquear ruta
   if (!usuario) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Falta rol o registro incompleto → forzar onboarding

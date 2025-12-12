@@ -522,7 +522,7 @@ export default function Registro() {
               {oauthLoading && oauthProvider === "facebook" ? "Iniciando..." : "Continuar con Facebook"}
             </button>
 
-            <Link to="/login" className="block text-center text-sm text-gray-600 font-bold pt-3">
+            <Link to="/" className="block text-center text-sm text-gray-600 font-bold pt-3">
               YA TENGO UNA CUENTA.
             </Link>
           </div>
@@ -591,7 +591,7 @@ export default function Registro() {
                   </button>
 
                   <div className="text-center mt-3">
-                    <Link to="/login" className="text-sm text-gray-700">
+                    <Link to="/" className="text-sm text-gray-700">
                       YA TENGO UNA CUENTA.
                     </Link>
                   </div>
@@ -625,7 +625,7 @@ export default function Registro() {
                 </div>
 
                 <div className="text-center mt-3">
-                  <Link to="/login" className="text-sm text-gray-700">
+                  <Link to="/" className="text-sm text-gray-700">
                     YA TENGO UNA CUENTA.
                   </Link>
                 </div>
@@ -674,7 +674,7 @@ export default function Registro() {
                 </div>
 
                 <div className="text-center mt-3">
-                  <Link to="/login" className="text-sm text-gray-700">
+                  <Link to="/" className="text-sm text-gray-700">
                     YA TENGO UNA CUENTA.
                   </Link>
                 </div>

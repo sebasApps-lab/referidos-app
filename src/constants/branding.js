@@ -8,7 +8,6 @@ export const COLORS = {
 
 export const ROUTES = {
   HOME: "/",
-  LOGIN: "/login",
   REGISTRO: "/registro",
   CLIENTE_HOME: "/inicio/cliente",
   NEGOCIO_HOME: "/inicio/negocio",

@@ -9,7 +9,6 @@ import MainLayout from "./layouts/MainLayout";
 
 // Lazy pages
 const Bienvenido = lazy(() => import("./pages/Bienvenido"));
-const Login = lazy(() => import("./pages/Login"));
 const Registro = lazy(() => import("./pages/Registro"));
 const SplashChoice = lazy(() => import("./pages/SplashChoice"));
 const ClienteHome = lazy(() => import("./pages/ClienteHome"));
@@ -26,7 +25,6 @@ export default function AppRoutes() {
     <Routes>
       {/* PUBLIC */}
       <Route path="/" element={<Bienvenido />} />
-      <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
       <Route path="/tipo" element={<SplashChoice />} />
 

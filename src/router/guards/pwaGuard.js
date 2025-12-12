@@ -8,8 +8,8 @@ export function pwaGuard(usuario, pathname) {
   if (!isPWA()) return null;
 
   // Si no hay usuario → solo permitir login/registro
-  if (!usuario && pathname !== "/login" && pathname !== "/registro") {
-    return "/login";
+  if (!usuario && pathname !== "/" && pathname !== "/registro") {
+    return "/";
   }
 
   // Redirigir al home correcto

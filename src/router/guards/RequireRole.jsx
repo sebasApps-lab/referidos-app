@@ -15,7 +15,7 @@ export default function RequireRole({ children, role }) {
   })();
 
   if (!usuario) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Falta rol: enviar a SplashChoice para completar onboarding
