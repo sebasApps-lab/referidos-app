@@ -18,7 +18,14 @@ const isPartialFormat = (code) => {
   return /^[0-9]{0,6}$/.test(tail);
 };
 
-export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegocio, skipNegocioCode = false, prefillCode = "" }) {
+export default function ModalSplashChoiceOverlay({
+  authCreds,
+  onCliente,
+  onNegocio,
+  skipNegocioCode = false,
+  prefillCode = "",
+  initialSelectedRole = null,
+}) {
   const [selected, setSelected] = useState(null);
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState("");
@@ -26,6 +33,7 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
   const [code, setCode] = useState("");
   const [codeFormatOk, setCodeFormatOk] = useState(true);
   const [codeValid, setCodeValid] = useState(false);
+  const [persisting, setPersisting] = useState(false);
   const { closeModal } = useModal();
 
   useEffect(() => {
@@ -33,14 +41,30 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
     return () => cancelAnimationFrame(id);
   }, []);
 
+  useEffect(() => {
+    if (initialSelectedRole) setSelected(initialSelectedRole);
+  }, [initialSelectedRole]);
+
+  const proceedNegocio = async (codeVal) => {
+    if (!onNegocio) return;
+    try {
+      setPersisting(true);
+      await onNegocio(codeVal);
+    } finally {
+      setPersisting(false);
+    }
+  };
+
   const handleNext = () => {
     if (!selected) return;
     if (selected === "cliente") {
       onCliente?.(authCreds);
       return;
     }
-    if (skipNegocioCode && prefillCode) {
-      onNegocio?.(prefillCode);
+    const codeReady = prefillCode && CODE_RE.test(prefillCode);
+    const canSkipCode = skipNegocioCode || codeReady;
+    if (canSkipCode) {
+      proceedNegocio(prefillCode);
       return;
     }
     setError("");
@@ -57,8 +81,8 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
   };
 
   const confirmCode = () => {
-    if (!codeValid) return;
-    onNegocio?.(code);
+    if (!codeValid || persisting) return;
+    proceedNegocio(code);
     setShowCodeModal(false);
   };
 
@@ -66,10 +90,11 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
     <div className="w-screen h-screen bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
       <button
         onClick={() => closeModal()}
-        className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-[#4B1E90] text-white shadow-lg flex items-center justify-center active:scale-95 transition"
+        className="absolute left-8 w-9 h-25 rounded-xl bg-[#5624a1ff] text-white shadow-lg flex items-center justify-center active:scale-95 transition"
+        style={{ top: "42%", transform: "translate(-50%, 0)", zIndex: 20 }}
         aria-label="Volver"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
           <path d="M15 5L8 12L15 19" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -121,14 +146,14 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
           <div className="pt-2">
             <button
               onClick={handleNext}
-              disabled={!selected}
+              disabled={!selected || persisting}
               className={`w-full py-3 rounded-xl font-semibold transition-all ${
-                selected
+                selected && !persisting
                   ? "bg-[#FFC21C] text-[#0F172A] shadow-lg shadow-[#ffc21c33] active:scale-[0.99]"
                   : "bg-white/10 text-white/60 cursor-not-allowed"
               }`}
             >
-              Registrarse
+              {persisting ? "Guardando..." : "Registrarse"}
             </button>
           </div>
 
@@ -139,7 +164,10 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
       </div>
 
       {showCodeModal && (
-        <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[2px]">
+        <div
+          className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[2px]"
+          style={{ zIndex: 30 }}
+        >
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-[#0F172A] relative">
             <h3 className="text-center text-xl font-bold text-[#5E30A5] mb-2">Código de registro</h3>
             <p className="text-sm text-gray-600 mb-3 text-center">Solo necesario para negocios</p>
@@ -175,12 +203,12 @@ export default function ModalSplashChoiceOverlay({ authCreds, onCliente, onNegoc
               </button>
               <button
                 onClick={confirmCode}
-                disabled={!codeValid}
+                disabled={!codeValid || persisting}
                 className={`flex-1 py-2.5 rounded-lg font-semibold ${
-                  codeValid ? "bg-[#5E30A5] text-white shadow" : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  codeValid && !persisting ? "bg-[#5E30A5] text-white shadow" : "bg-gray-200 text-gray-500 cursor-not-allowed"
                 }`}
               >
-                Continuar
+                {persisting ? "Guardando..." : "Continuar"}
               </button>
             </div>
           </div>

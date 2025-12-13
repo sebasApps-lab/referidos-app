@@ -68,6 +68,8 @@ export default function AuthHub() {
   const [startedWithOAuth, setStartedWithOAuth] = useState(false);
   const [roleLocked, setRoleLocked] = useState(false);
   const [codeLocked, setCodeLocked] = useState(false);
+  const [lastValidCode, setLastValidCode] = useState(codeFromSplash || "");
+  const [selectedChoiceRole, setSelectedChoiceRole] = useState(null);
   const allowExitRef = useRef(false);
   const [oauthExit, setOauthExit] = useState(false);
   const [pendingOAuthProfile, setPendingOAuthProfile] = useState(null);
@@ -134,9 +136,11 @@ export default function AuthHub() {
     setOauthProvider(null);
     setOauthLoading(false);
     setCodigo(codeFromSplash || "");
+    if (codeFromSplash) setLastValidCode(codeFromSplash);
     setCodeValid(roleFromSplash === "negocio");
     if (roleFromSplash === "negocio" && codeFromSplash) setCodeLocked(true);
     if (roleFromSplash === "negocio") setRoleLocked(true);
+    if (roleFromSplash === "negocio") setSelectedChoiceRole("negocio");
   }, [roleFromSplash, codeFromSplash, pageFromState]);
 
   useEffect(() => {
@@ -148,10 +152,13 @@ export default function AuthHub() {
       setEntryStep("form");
       setAuthTab("register");
       setPage(authCredsFromChoice.page || 2);
-      setCodigo(authCredsFromChoice.codigo || codeFromSplash || "");
+      const incomingCode = authCredsFromChoice.codigo || codeFromSplash || "";
+      setCodigo(incomingCode);
+      if (incomingCode) setLastValidCode(incomingCode);
       setCodeValid(true);
       setOauthIntentRole("negocio");
       setRoleLocked(true);
+      setSelectedChoiceRole("negocio");
       if (authCredsFromChoice.codigo) setCodeLocked(true);
       else if (codeFromSplash) setCodeLocked(true);
     }
@@ -171,11 +178,20 @@ export default function AuthHub() {
         setStartedWithOAuth(true);
         setPendingOAuthProfile(null);
         if (parsed.role === "negocio") setCodeValid(true);
+        if (parsed.role === "negocio") setSelectedChoiceRole("negocio");
       }
     } catch {
       // ignore
     }
   }, [pageFromState]);
+
+  useEffect(() => {
+    if (codeLocked && CODE_RE.test((codigo || lastValidCode || "").toString())) {
+      setSelectedChoiceRole((prev) => prev || "negocio");
+      setRoleLocked(true);
+      if (!codigo && lastValidCode) setCodigo(lastValidCode);
+    }
+  }, [codeLocked, codigo, lastValidCode]);
 
   const showLeaveModal = () => {
     openModal("AbandonarRegistro", {
@@ -418,8 +434,23 @@ export default function AuthHub() {
       email: modalEmail,
       initialError,
       onBack: () => {
+        if (role === "negocio" && (codigo || lastValidCode)) {
+          const codeVal = lastValidCode || codigo;
+          if (codeVal) {
+            setCodigo(codeVal);
+            setLastValidCode(codeVal);
+            setCodeLocked(true);
+            setSelectedChoiceRole("negocio");
+            setRoleLocked(true);
+          }
+        }
         closeModal();
-        openChoiceOverlay({ skipNegocioCode: codeLocked, prefillCode: codigo });
+        openChoiceOverlay({
+          skipNegocioCode: true,
+          prefillCode: lastValidCode || codigo,
+          forceRole: "negocio",
+          forceSkipCode: true,
+        });
       },
       onSend: async (targetEmail) => {
         if (role === "cliente") {
@@ -455,6 +486,7 @@ export default function AuthHub() {
         setUser(result.user);
         setRoleLocked(true);
         if (codigo) setCodeLocked(true);
+        setSelectedChoiceRole("negocio");
         setEntryStep("form");
         setAuthTab("register");
         setPage(2);
@@ -465,30 +497,44 @@ export default function AuthHub() {
     });
   };
 
-  const openChoiceOverlay = ({ skipNegocioCode, prefillCode } = {}) => {
-    const skipCode = typeof skipNegocioCode === "boolean" ? skipNegocioCode : codeLocked;
-    const codeToUse = prefillCode ?? codigo;
+  const openChoiceOverlay = ({ skipNegocioCode, prefillCode, forceRole = null, forceSkipCode = false } = {}) => {
+    const codeToUse = prefillCode || lastValidCode || codigo;
+    const codeReady = codeToUse && CODE_RE.test(codeToUse);
+    const skipCode =
+      forceSkipCode ||
+      (typeof skipNegocioCode === "boolean"
+        ? (skipNegocioCode || codeLocked || !!lastValidCode) && (codeReady || codeLocked || !!lastValidCode)
+        : codeLocked || codeReady || !!lastValidCode);
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
       skipNegocioCode: skipCode,
       prefillCode: codeToUse,
+      initialSelectedRole:
+        forceRole || selectedChoiceRole || (skipCode ? "negocio" : roleLocked ? "negocio" : null),
       onCliente: async () => {
+        setSelectedChoiceRole("cliente");
         closeModal();
         openEmailModal({ email, role: "cliente" });
       },
-      onNegocio: (code) => {
+      onNegocio: async (code) => {
         setError("");
-        const finalCode = code || codeToUse || "";
-        setCodigo(finalCode);
+        const finalCode = code || codeToUse || lastValidCode || "";
+        if (finalCode && CODE_RE.test(finalCode)) {
+          setCodigo(finalCode);
+          setLastValidCode(finalCode);
+          setCodeLocked(true);
+        }
         setCodeValid(true);
         setOauthIntentRole("negocio");
         setEntryStep("form");
         setAuthTab("register");
         setPage(1);
         setRoleLocked(true);
-        if (finalCode) setCodeLocked(true);
+        setSelectedChoiceRole("negocio");
+        if (finalCode && CODE_RE.test(finalCode)) setCodeLocked(true);
         closeModal();
         openEmailModal({ email, role: "negocio" });
+        return true;
       },
     });
   };
@@ -496,12 +542,9 @@ export default function AuthHub() {
   const handlePrimaryPage1 = () => {
     if (!validatePage1()) return;
     setError("");
-    if (roleLocked) {
-      setEntryStep("form");
-      setAuthTab("register");
-      setPage(codeLocked ? 2 : 2);
-      return;
-    }
+    setEntryStep("form");
+    setAuthTab("register");
+    setPage(1);
     openChoiceOverlay();
   };
 

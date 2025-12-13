@@ -57,10 +57,11 @@ export default function ModalSplashEmailConfirmation({ email: initialEmail, init
     <div className="w-screen h-screen bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
       <button
         onClick={() => (onBack ? onBack() : closeModal())}
-        className="absolute top-4 left-4 w-10 h-10 rounded-xl bg-[#4B1E90] text-white shadow-lg flex items-center justify-center active:scale-95 transition"
+        className="absolute left-8 w-9 h-25 rounded-xl bg-[#5624a1ff] text-white shadow-lg flex items-center justify-center active:scale-95 transition"
+        style={{ top: "42%", transform: "translate(-50%, 0)", zIndex: 20 }}
         aria-label="Volver"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
           <path d="M15 5L8 12L15 19" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
