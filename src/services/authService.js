@@ -65,12 +65,22 @@ export async function signInWithEmail(email, password) {
     } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) throw signInError;
-    if (!signInData?.user) throw new Error("No se pudo iniciar sesión");
+    if (!signInData?.user) throw new Error("No se pudo iniciar sesiИn");
 
     const authUserId = signInData.user.id;
     const userData = await waitForUser(authUserId);
 
-    if (!userData) return { ok: false, error: "No se encontró el perfil de usuario" };
+    if (!userData) {
+      return {
+        ok: true,
+        user: {
+          id_auth: authUserId,
+          email: signInData.user.email,
+          role: signInData.user.user_metadata?.role ?? null,
+        },
+        pendingProfile: true,
+      };
+    }
     return { ok: true, user: userData };
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
@@ -90,22 +100,24 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
       },
     });
 
-    if (signUpError) throw signUpError;
-    if (!signUpData?.user) throw new Error("No se pudo crear la cuenta");
+    const warning = signUpError ? signUpError.message ?? String(signUpError) : null;
 
     const sessionAfterSignUp =
-      signUpData.session ??
+      signUpData?.session ??
       (await supabase.auth.getSession()).data.session;
 
-    if (!sessionAfterSignUp) {
-      return { ok: false, error: "Cuenta creada. Confirma tu email para continuar." };
+    const authUserId = signUpData?.user?.id ?? sessionAfterSignUp?.user?.id;
+    if (!authUserId) {
+      if (signUpError) throw signUpError;
+      return { ok: false, error: "No se pudo identificar la cuenta creada" };
     }
-
-    const authUserId = sessionAfterSignUp.user.id;
     const userData = await waitForUser(authUserId);
 
-    if (!userData) return { ok: false, error: "No se creó el perfil del usuario" };
-    return { ok: true, user: userData };
+    if (!userData) {
+      if (signUpError) throw signUpError;
+      return { ok: false, error: "No se creИ el perfil del usuario" };
+    }
+    return { ok: true, user: userData, warning };
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
   }

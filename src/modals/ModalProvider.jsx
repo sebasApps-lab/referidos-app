@@ -15,6 +15,9 @@ export default function ModalProvider() {
   const [baseH, setBaseH] = useState(
     typeof window !== "undefined" ? window.innerHeight : 0
   );
+  const isFullScreenOverlay =
+    activeModal === "SplashChoiceOverlay" || activeModal === "SplashEmailConfirmation";
+  const disableBackdropClose = activeModal === "SplashEmailConfirmation";
 
   useEffect(() => {
     const update = () => {
@@ -41,28 +44,30 @@ export default function ModalProvider() {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(3px)",
+        background: isFullScreenOverlay ? "transparent" : "rgba(0,0,0,0.45)",
+        backdropFilter: isFullScreenOverlay ? "none" : "blur(3px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "24px 14px",
-        overflowY: "auto",
+        padding: isFullScreenOverlay ? "0" : "24px 14px",
+        overflow: "hidden",
         minHeight: viewportH ? `${viewportH}px` : "100vh",
         height: viewportH ? `${viewportH}px` : "100dvh",
         boxSizing: "border-box",
         zIndex: 9999,
       }}
-      onClick={closeModal}
+      onClick={disableBackdropClose ? undefined : closeModal}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
+          height: "100%",
           display: "flex",
           justifyContent: "center",
+          alignItems: "center",
           transform:
-            viewportH && baseH && viewportH > baseH * 0.95
+            !isFullScreenOverlay && viewportH && baseH && viewportH > baseH * 0.95
               ? "translateY(-64px)"
               : "translateY(0)",
           transition: "transform 180ms ease",

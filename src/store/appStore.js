@@ -55,7 +55,7 @@ export const useAppStore = create(
             return { ok: false, error: result.error };
           }
           set({ usuario: result.user, loading: false });
-          return { ok: true, user: result.user };
+          return { ok: true, user: result.user, warning: result.warning };
         } catch (error) {
           const message = handleError(error);
           set({ loading: false, error: message });

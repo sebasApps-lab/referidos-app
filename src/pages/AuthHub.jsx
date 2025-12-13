@@ -24,12 +24,13 @@ export default function AuthHub() {
   const register = useAppStore((s) => s.register);
   const login = useAppStore((s) => s.login);
   const setUser = useAppStore((s) => s.setUser);
-  const { openModal } = useModal();
+  const { openModal, closeModal } = useModal();
   const location = useLocation();
   const roleFromSplash = location.state?.role || null;
   const codeFromSplash = location.state?.codigo || "";
   const fromOAuth = location.state?.fromOAuth || false;
   const pageFromState = location.state?.page || null;
+  const authCredsFromChoice = location.state?.authCreds || null;
 
   const cardRef = useRef(null);
   const sliderRef = useRef(null);
@@ -56,7 +57,7 @@ export default function AuthHub() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [animating, setAnimating] = useState(false);
-  const [btnText, setBtnText] = useState("REGISTRARSE");
+  const [btnText, setBtnText] = useState("SIGUIENTE");
   const [btnFadeKey, setBtnFadeKey] = useState(0);
   const [entryStep, setEntryStep] = useState("email");
   const [authTab, setAuthTab] = useState("login");
@@ -65,6 +66,8 @@ export default function AuthHub() {
   const [oauthProvider, setOauthProvider] = useState(null);
   const [oauthIntentRole, setOauthIntentRole] = useState(null);
   const [startedWithOAuth, setStartedWithOAuth] = useState(false);
+  const [roleLocked, setRoleLocked] = useState(false);
+  const [codeLocked, setCodeLocked] = useState(false);
   const allowExitRef = useRef(false);
   const [oauthExit, setOauthExit] = useState(false);
   const [pendingOAuthProfile, setPendingOAuthProfile] = useState(null);
@@ -80,7 +83,7 @@ export default function AuthHub() {
   }, []);
 
   const effectiveRole = roleFromSplash || oauthIntentRole || null;
-  const leaveGuardActive = effectiveRole === "negocio" && entryStep !== "email";
+  const leaveGuardActive = entryStep === "form" && roleLocked && codeLocked && !allowExitRef.current;
   const setRegStatus = async (status) => {
     let uid = pendingOAuthProfile?.id_auth || null;
     if (!uid) {
@@ -122,16 +125,37 @@ export default function AuthHub() {
     setOauthIntentRole(null);
     setPendingOAuthProfile(null);
     setStartedWithOAuth(false);
-    setEntryStep("email");
-    setAuthTab("login");
+    const targetPage = pageFromState && pageFromState >= 1 ? pageFromState : 1;
+    setEntryStep(targetPage >= 2 ? "form" : "email");
+    setAuthTab(targetPage >= 2 ? "register" : "login");
     setLoginLoading(false);
-    setPage(1);
+    setPage(targetPage);
     setError("");
     setOauthProvider(null);
     setOauthLoading(false);
     setCodigo(codeFromSplash || "");
     setCodeValid(roleFromSplash === "negocio");
-  }, [roleFromSplash, codeFromSplash]);
+    if (roleFromSplash === "negocio" && codeFromSplash) setCodeLocked(true);
+    if (roleFromSplash === "negocio") setRoleLocked(true);
+  }, [roleFromSplash, codeFromSplash, pageFromState]);
+
+  useEffect(() => {
+    if (!authCredsFromChoice) return;
+    if (authCredsFromChoice.email) setEmail(authCredsFromChoice.email);
+    if (authCredsFromChoice.password) setPassword(authCredsFromChoice.password);
+    if (authCredsFromChoice.telefono) setTelefono(authCredsFromChoice.telefono);
+    if (authCredsFromChoice.role === "negocio") {
+      setEntryStep("form");
+      setAuthTab("register");
+      setPage(authCredsFromChoice.page || 2);
+      setCodigo(authCredsFromChoice.codigo || codeFromSplash || "");
+      setCodeValid(true);
+      setOauthIntentRole("negocio");
+      setRoleLocked(true);
+      if (authCredsFromChoice.codigo) setCodeLocked(true);
+      else if (codeFromSplash) setCodeLocked(true);
+    }
+  }, [authCredsFromChoice]);
 
   useEffect(() => {
     if (roleFromSplash) return;
@@ -174,20 +198,11 @@ export default function AuthHub() {
       if (allowExitRef.current || oauthExit) return;
       e.preventDefault();
       e.returnValue = "";
-      showLeaveModal();
       return "";
     };
-    const handlePopState = (e) => {
-      if (allowExitRef.current || oauthExit) return;
-      e.preventDefault?.();
-      showLeaveModal();
-      window.history.pushState(null, "", window.location.href);
-    };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
     };
   }, [leaveGuardActive, oauthExit]);
 
@@ -254,9 +269,9 @@ export default function AuthHub() {
     let mounted = true;
 
     if (!codigo || !CODE_RE.test(codigo)) {
-      setCodeValid(roleFromSplash === "negocio");
+      setCodeValid(effectiveRole === "negocio");
       setBtnFadeKey((k) => k + 1);
-      setBtnText("REGISTRARSE");
+      setBtnText("SIGUIENTE");
       return;
     }
 
@@ -267,27 +282,28 @@ export default function AuthHub() {
         if (!mounted) return;
         setCodeValid(res.ok);
         setBtnFadeKey((k) => k + 1);
-        setBtnText(res.ok ? "SIGUIENTE" : "REGISTRARSE");
+        setBtnText("SIGUIENTE");
       })
       .finally(() => mounted && setCodeChecking(false));
 
     return () => {
       mounted = false;
     };
-  }, [codigo, roleFromSplash]);
+  }, [codigo, roleFromSplash, effectiveRole]);
 
+  const sliderGap = 28;
   const containerStyle = useMemo(
     () => ({
       display: "flex",
-      gap: 18,
-      transform: `translateX(${-(page - 1) * 100}%)`,
+      gap: sliderGap,
+      transform: `translateX(calc(${-(page - 1) * 100}% - ${(page - 1) * sliderGap}px))`,
       transition: animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease",
       filter: animating ? "blur(1.2px)" : "none",
       opacity: animating ? 0.55 : 1,
       width: "100%",
       boxSizing: "border-box",
     }),
-    [page, animating]
+    [page, animating, sliderGap]
   );
 
   const updateHeight = (targetPage = page) => {
@@ -374,7 +390,6 @@ export default function AuthHub() {
     if (!EMAIL_RE.test(email)) return setError("Email inválido"), false;
     if (!password || password.length < 6) return setError("Contraseña mínimo 6 caracteres"), false;
     if (!PHONE_RE.test(telefono)) return setError("Teléfono inválido"), false;
-    if (codigo && !codeValid) return setError("Código inválido"), false;
     setError("");
     return true;
   };
@@ -398,19 +413,102 @@ export default function AuthHub() {
     }
   };
 
-  const handlePrimaryPage1 = () => {
-    if (effectiveRole === "negocio") {
-      setError("");
-      goTo(2);
-      return;
-    }
+  const openEmailModal = ({ email: emailForModal, initialError } = {}) => {
+    const modalEmail = emailForModal || email;
+    openModal("SplashEmailConfirmation", {
+      email: modalEmail,
+      initialError,
+      onBack: () => {
+        closeModal();
+        openChoiceOverlay({ skipNegocioCode: codeLocked, prefillCode: codigo });
+      },
+    });
+  };
 
+  const openChoiceOverlay = ({ skipNegocioCode, prefillCode } = {}) => {
+    const skipCode = typeof skipNegocioCode === "boolean" ? skipNegocioCode : codeLocked;
+    const codeToUse = prefillCode ?? codigo;
+    openModal("SplashChoiceOverlay", {
+      authCreds: { email, password, telefono },
+      skipNegocioCode: skipCode,
+      prefillCode: codeToUse,
+      onCliente: async () => {
+        closeModal();
+        openEmailModal({ email });
+        try {
+          const result = await register({
+            email,
+            password,
+            telefono,
+            nombre: email.split("@")[0],
+            role: "cliente",
+          });
+          if (!result.ok) {
+            setError(result.error || "No se pudo crear la cuenta");
+            openEmailModal({ email, initialError: result.error });
+            return;
+          }
+          setUser(result.user);
+          if (result.warning) {
+            openEmailModal({ email, initialError: result.warning });
+          }
+          allowExitRef.current = true;
+          navigate("/cliente/inicio");
+        } catch (err) {
+          setError(err?.message || "No se pudo crear la cuenta");
+          openEmailModal({ email, initialError: err?.message || "No se pudo crear la cuenta" });
+        }
+      },
+      onNegocio: (code) => {
+        setError("");
+        const finalCode = code || codeToUse || "";
+        setCodigo(finalCode);
+        setCodeValid(true);
+        setOauthIntentRole("negocio");
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(2);
+        setRoleLocked(true);
+        if (finalCode) setCodeLocked(true);
+        closeModal();
+        openEmailModal({ email });
+        (async () => {
+          try {
+            const result = await register({
+              email,
+              password,
+              telefono,
+              nombre: nombreDueno || email.split("@")[0],
+              role: "negocio",
+            });
+            if (!result.ok) {
+              setError(result.error || "Error al registrar negocio");
+              openEmailModal({ email, initialError: result.error });
+              return;
+            }
+            setUser(result.user);
+            if (result.warning) {
+              openEmailModal({ email, initialError: result.warning });
+            }
+          } catch (err) {
+            setError(err?.message || "Error al registrar negocio");
+            openEmailModal({ email, initialError: err?.message || "Error al registrar negocio" });
+          }
+        })();
+      },
+    });
+  };
+
+  const handlePrimaryPage1 = () => {
     if (!validatePage1()) return;
-    if (!codeValid) {
-      handleRegisterCliente();
+    setError("");
+    if (roleLocked) {
+      setEntryStep("form");
+      setAuthTab("register");
+      setPage(codeLocked ? 2 : 2);
       return;
     }
-    goTo(2);
+    openChoiceOverlay();
   };
 
   const handleNext2 = () => {
@@ -449,6 +547,7 @@ export default function AuthHub() {
         setRegStatus(null);
         clearOAuthIntent();
         allowExitRef.current = true;
+        openEmailModal({ email: data?.usuario?.email || email });
         navigate("/negocio/inicio");
         return;
       }
@@ -464,6 +563,8 @@ export default function AuthHub() {
         setError(result.error || "Error al registrar negocio");
         return;
       }
+      allowExitRef.current = true;
+      openEmailModal({ email, initialError: result.warning });
       navigate("/negocio/inicio");
     } catch (err) {
       setError(err?.message || "Error al registrar negocio");
@@ -512,21 +613,66 @@ export default function AuthHub() {
     />
   );
 
+  const showBackButton = entryStep === "email" || entryStep === "form";
+
+  const handleBack = () => {
+    if (entryStep === "email") {
+      navigate("/");
+      return;
+    }
+    if (page === 3) {
+      goTo(2);
+      return;
+    }
+    if (page === 2) {
+      goTo(1);
+      return;
+    }
+    setAuthTab("login");
+    setEntryStep("email");
+    setPage(1);
+    setStartedWithOAuth(false);
+  };
+
+  const showForwardButton = entryStep === "form" && page < 3;
+
+  const handleForward = () => {
+    if (page === 1) {
+      handlePrimaryPage1();
+      return;
+    }
+    if (page === 2) {
+      handleNext2();
+      return;
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center min-h-screen bg-[#5E30A5] p-6">
+    <div className="flex flex-col items-center min-h-screen bg-[#5E30A5] p-6 relative">
       <h1 className="text-white text-3xl font-extrabold mt-12 mb-2 text-center">REFERIDOS APP</h1>
+
+      {showBackButton && (
+        <button
+          onClick={handleBack}
+          className="absolute left-2 top-68 w-9 h-18 rounded-xl bg-white shadow flex items-center justify-center text-[#5E30A5] hover:bg-[#F3E8FF] active:scale-95 transition z-20"
+          aria-label="Volver"
+        >
+          <ArrowLeftIcon />
+        </button>
+      )}
+
+      {showForwardButton && (
+        <button
+          onClick={handleForward}
+          className="absolute right-2 top-68 w-9 h-18 rounded-xl bg-white shadow flex items-center justify-center text-[#5E30A5] hover:bg-[#F3E8FF] active:scale-95 transition z-20"
+          aria-label="Siguiente"
+        >
+          <ArrowRightIcon />
+        </button>
+      )}
 
       {entryStep === "email" && (
         <div className="relative w-full max-w-sm mt-2">
-          <button
-            onClick={() => navigate("/")}
-            className="absolute top-1/2 -translate-y-1/2 w-8 h-17 rounded-xl bg-white shadow flex items-center justify-center text-[#5E30A5] hover:bg-[#F3E8FF] active:scale-95 transition z-10"
-            style={{ left: "-17px" }}
-            aria-label="Volver"
-          >
-            <ArrowLeftIcon />
-          </button>
-
           <div className="bg-white w-full rounded-2xl shadow-xl p-6">
             {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
 
@@ -699,7 +845,7 @@ export default function AuthHub() {
                   </button>
 
                   <div className="text-center text-sm text-gray-500">
-                    Eligiras el tipo de cuenta al avanzar.
+                    Eligirás el tipo de cuenta al avanzar.
                   </div>
                 </div>
               </div>
@@ -707,12 +853,6 @@ export default function AuthHub() {
 
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
               <div className="pb-4" ref={page2Ref}>
-                {!startedWithOAuth && (
-                  <button onClick={() => goTo(1)} className="text-gray-500 mb-2">
-                    <ArrowLeftIcon />
-                  </button>
-                )}
-
                 <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
                 <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
 
@@ -740,10 +880,6 @@ export default function AuthHub() {
 
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
               <div className="pb-4" ref={page3Ref}>
-                <button onClick={() => goTo(codeValid ? 2 : 1)} className="text-gray-500 mb-2">
-                  <ArrowLeftIcon />
-                </button>
-
                 <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
                 <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
 
@@ -757,21 +893,17 @@ export default function AuthHub() {
                   maxLength={13}
                 />
 
-                {codeValid && (
-                  <>
-                    <label className="text-sm text-gray-700">Nombre negocio</label>
-                    <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
+                <label className="text-sm text-gray-700">Nombre negocio</label>
+                <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
 
-                    <label className="text-sm text-gray-700">Sector negocio</label>
-                    <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
+                <label className="text-sm text-gray-700">Sector negocio</label>
+                <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
 
-                    <label className="text-sm text-gray-700">Calle 1</label>
-                    <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
+                <label className="text-sm text-gray-700">Calle 1</label>
+                <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
 
-                    <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
-                    <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
-                  </>
-                )}
+                <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
+                <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
 
                 <div className="pt-4">
                   <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
@@ -874,6 +1006,25 @@ function ArrowLeftIcon() {
       strokeLinejoin="round"
     >
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="27"
+      height="27"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.85"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 18l6-6-6-6" />
     </svg>
   );
 }

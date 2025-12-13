@@ -23,13 +23,17 @@ export default function SplashChoice() {
   const [mounted, setMounted] = useState(false);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   const navigate = useNavigate();
   const { openModal } = useModal();
   const location = useLocation();
   const setUser = useAppStore((s) => s.setUser);
+  const register = useAppStore((s) => s.register);
 
   const fromOAuth = location.state?.fromOAuth || false;
   const regStatus = location.state?.regStatus || null;
+  const fromAuthHub = location.state?.fromAuthHub || false;
+  const authCreds = location.state?.authCreds || null;
 
   const REG_STATUS_PREFIX = "reg_status_";
   const setRegStatus = (userId, status) => {
@@ -72,6 +76,30 @@ export default function SplashChoice() {
         })().catch((e) => setError(e?.message || "No se pudo crear el perfil"));
         return;
       }
+      if (fromAuthHub && authCreds?.email && authCreds?.password && authCreds?.telefono) {
+        setError("");
+        setActionLoading(true);
+        (async () => {
+          const result = await register({
+            email: authCreds.email,
+            password: authCreds.password,
+            telefono: authCreds.telefono,
+            nombre: authCreds.email.split("@")[0],
+            role: "cliente",
+          });
+          setActionLoading(false);
+          if (!result.ok) {
+            setError(result.error || "No se pudo crear la cuenta");
+            return;
+          }
+          setUser(result.user);
+          navigate("/cliente/inicio", { replace: true });
+        })().catch((e) => {
+          setActionLoading(false);
+          setError(e?.message || "No se pudo crear la cuenta");
+        });
+        return;
+      }
       navigate("/auth", { state: { role: "cliente" } });
       return;
     }
@@ -94,6 +122,10 @@ export default function SplashChoice() {
             setUser({ id_auth: userId, role: "negocio" });
             navigate("/auth", { state: { role: "negocio", codigo: code, fromOAuth: true, page: 2 } });
           })().catch((e) => setError(e?.message || "No se pudo iniciar el registro de negocio"));
+          return;
+        }
+        if (fromAuthHub && authCreds?.email && authCreds?.password && authCreds?.telefono) {
+          navigate("/auth", { state: { role: "negocio", codigo: code, page: 2, authCreds, fromChoice: true } });
           return;
         }
         navigate("/auth", { state: { role: "negocio", codigo: code } });
@@ -151,14 +183,14 @@ export default function SplashChoice() {
           <div className="pt-2">
             <button
               onClick={goNext}
-              disabled={!selected}
+              disabled={!selected || actionLoading}
               className={`w-full py-3 rounded-xl font-semibold transition-all ${
-                selected
+                selected && !actionLoading
                   ? "bg-[#FFC21C] text-[#0F172A] shadow-lg shadow-[#ffc21c33] active:scale-[0.99]"
                   : "bg-white/10 text-white/60 cursor-not-allowed"
               }`}
             >
-              Siguiente
+              {actionLoading ? "Procesando..." : "Siguiente"}
             </button>
           </div>
 
