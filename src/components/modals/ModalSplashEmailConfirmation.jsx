@@ -3,15 +3,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalSplashEmailConfirmation({ email: initialEmail, initialError, onBack }) {
+export default function ModalSplashEmailConfirmation({ email: initialEmail, initialError, onBack, onSend }) {
   const [email, setEmail] = useState(initialEmail || "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [signedUp, setSignedUp] = useState(false);
   const { closeModal } = useModal();
 
   useEffect(() => {
     setEmail(initialEmail || "");
+    setSignedUp(false);
   }, [initialEmail]);
 
   useEffect(() => {
@@ -28,12 +30,22 @@ export default function ModalSplashEmailConfirmation({ email: initialEmail, init
     }
     setLoading(true);
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: "signup",
-        email,
-      });
-      if (resendError) throw resendError;
-      setMessage("Código enviado. Revisa tu bandeja o spam.");
+      if (onSend && !signedUp) {
+        const res = await onSend(email);
+        if (!res?.ok) {
+          setError(res?.error || "No se pudo enviar el código");
+        } else {
+          setSignedUp(true);
+          setMessage(res?.message || "Te enviamos un correo de verificación.");
+        }
+      } else {
+        const { error: resendError } = await supabase.auth.resend({
+          type: "signup",
+          email,
+        });
+        if (resendError) throw resendError;
+        setMessage("Código enviado. Revisa tu bandeja o spam.");
+      }
     } catch (err) {
       setError(err?.message || "No se pudo enviar el código");
     } finally {

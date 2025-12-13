@@ -389,7 +389,6 @@ export default function AuthHub() {
   const validatePage1 = () => {
     if (!EMAIL_RE.test(email)) return setError("Email inválido"), false;
     if (!password || password.length < 6) return setError("Contraseña mínimo 6 caracteres"), false;
-    if (!PHONE_RE.test(telefono)) return setError("Teléfono inválido"), false;
     setError("");
     return true;
   };
@@ -413,7 +412,7 @@ export default function AuthHub() {
     }
   };
 
-  const openEmailModal = ({ email: emailForModal, initialError } = {}) => {
+  const openEmailModal = ({ email: emailForModal, initialError, role }) => {
     const modalEmail = emailForModal || email;
     openModal("SplashEmailConfirmation", {
       email: modalEmail,
@@ -421,6 +420,47 @@ export default function AuthHub() {
       onBack: () => {
         closeModal();
         openChoiceOverlay({ skipNegocioCode: codeLocked, prefillCode: codigo });
+      },
+      onSend: async (targetEmail) => {
+        if (role === "cliente") {
+          const result = await register({
+            email: targetEmail,
+            password,
+            telefono,
+            nombre: targetEmail.split("@")[0],
+            role: "cliente",
+          });
+          if (!result.ok) {
+            setError(result.error || "No se pudo crear la cuenta");
+            return { ok: false, error: result.error || "No se pudo crear la cuenta" };
+          }
+          setUser(result.user);
+          allowExitRef.current = true;
+          closeModal();
+          navigate("/cliente/inicio");
+          return { ok: true, message: result.warning };
+        }
+
+        const result = await register({
+          email: targetEmail,
+          password,
+          telefono,
+          nombre: nombreDueno || targetEmail.split("@")[0],
+          role: "negocio",
+        });
+        if (!result.ok) {
+          setError(result.error || "Error al registrar negocio");
+          return { ok: false, error: result.error || "Error al registrar negocio" };
+        }
+        setUser(result.user);
+        setRoleLocked(true);
+        if (codigo) setCodeLocked(true);
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(2);
+        allowExitRef.current = false;
+        closeModal();
+        return { ok: true, message: result.warning };
       },
     });
   };
@@ -434,30 +474,7 @@ export default function AuthHub() {
       prefillCode: codeToUse,
       onCliente: async () => {
         closeModal();
-        openEmailModal({ email });
-        try {
-          const result = await register({
-            email,
-            password,
-            telefono,
-            nombre: email.split("@")[0],
-            role: "cliente",
-          });
-          if (!result.ok) {
-            setError(result.error || "No se pudo crear la cuenta");
-            openEmailModal({ email, initialError: result.error });
-            return;
-          }
-          setUser(result.user);
-          if (result.warning) {
-            openEmailModal({ email, initialError: result.warning });
-          }
-          allowExitRef.current = true;
-          navigate("/cliente/inicio");
-        } catch (err) {
-          setError(err?.message || "No se pudo crear la cuenta");
-          openEmailModal({ email, initialError: err?.message || "No se pudo crear la cuenta" });
-        }
+        openEmailModal({ email, role: "cliente" });
       },
       onNegocio: (code) => {
         setError("");
@@ -467,34 +484,11 @@ export default function AuthHub() {
         setOauthIntentRole("negocio");
         setEntryStep("form");
         setAuthTab("register");
-        setPage(2);
+        setPage(1);
         setRoleLocked(true);
         if (finalCode) setCodeLocked(true);
         closeModal();
-        openEmailModal({ email });
-        (async () => {
-          try {
-            const result = await register({
-              email,
-              password,
-              telefono,
-              nombre: nombreDueno || email.split("@")[0],
-              role: "negocio",
-            });
-            if (!result.ok) {
-              setError(result.error || "Error al registrar negocio");
-              openEmailModal({ email, initialError: result.error });
-              return;
-            }
-            setUser(result.user);
-            if (result.warning) {
-              openEmailModal({ email, initialError: result.warning });
-            }
-          } catch (err) {
-            setError(err?.message || "Error al registrar negocio");
-            openEmailModal({ email, initialError: err?.message || "Error al registrar negocio" });
-          }
-        })();
+        openEmailModal({ email, role: "negocio" });
       },
     });
   };
@@ -514,6 +508,7 @@ export default function AuthHub() {
   const handleNext2 = () => {
     if (!nombreDueno) return setError("Ingrese nombres");
     if (!apellidoDueno) return setError("Ingrese apellidos");
+    if (!PHONE_RE.test(telefono)) return setError("Ingrese un teléfono válido");
     setError("");
     if (startedWithOAuth || fromOAuth) setRegStatus("negocio_page3");
     goTo(3);
@@ -828,15 +823,6 @@ export default function AuthHub() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
 
-                <label className="text-sm text-gray-700">Teléfono</label>
-                <input
-                  type="tel"
-                  className={inputCommon}
-                  placeholder="0998888888"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
-                />
-
                 <div className="flex flex-col gap-3 mt-3">
                   <button onClick={handlePrimaryPage1} className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50">
                     <span key={btnFadeKey} style={{ display: "inline-block", transition: "opacity 180ms" }}>
@@ -863,6 +849,14 @@ export default function AuthHub() {
 
                 <label className="text-sm text-gray-700">Apellidos</label>
                 <input className={inputCommon} value={apellidoDueno} onChange={(e) => setApellidoDueno(e.target.value)} />
+
+                <label className="text-sm text-gray-700">Teléfono</label>
+                <input
+                  className={inputCommon}
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
+                  placeholder="0998888888"
+                />
 
                 <div className="pt-4">
                   <button onClick={handleNext2} className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow">
