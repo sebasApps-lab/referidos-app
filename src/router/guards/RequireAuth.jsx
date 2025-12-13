@@ -14,7 +14,7 @@ export default function RequireAuth({ children }) {
   // Falta rol o registro incompleto → forzar onboarding
   if (!usuario.role || usuario.registro_estado !== "completo") {
     if (usuario?.role === "negocio") {
-      return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
+      return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
     }
     return <Navigate to="/tipo" replace state={{ fromOAuth: true }} />;
   }

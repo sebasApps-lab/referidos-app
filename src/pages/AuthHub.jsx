@@ -1,4 +1,4 @@
-// src/pages/Registro.jsx
+// src/pages/Auth.jsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -19,9 +19,10 @@ const DEFAULT_CODES = ["REF-001532", "REF-003765"];
 const OAUTH_INTENT_KEY = "registro_oauth_intent";
 const REG_STATUS_PREFIX = "reg_status_";
 
-export default function Registro() {
+export default function AuthHub() {
   const navigate = useNavigate();
   const register = useAppStore((s) => s.register);
+  const login = useAppStore((s) => s.login);
   const setUser = useAppStore((s) => s.setUser);
   const { openModal } = useModal();
   const location = useLocation();
@@ -57,7 +58,9 @@ export default function Registro() {
   const [animating, setAnimating] = useState(false);
   const [btnText, setBtnText] = useState("Registrarse");
   const [btnFadeKey, setBtnFadeKey] = useState(0);
-  const [entryStep, setEntryStep] = useState("choice");
+  const [entryStep, setEntryStep] = useState("email");
+  const [authTab, setAuthTab] = useState("login");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthProvider, setOauthProvider] = useState(null);
   const [oauthIntentRole, setOauthIntentRole] = useState(null);
@@ -67,7 +70,7 @@ export default function Registro() {
   const [pendingOAuthProfile, setPendingOAuthProfile] = useState(null);
 
   const redirectTo =
-    (typeof window !== "undefined" && `${window.location.origin}/registro`) ||
+    (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
     import.meta.env.VITE_AUTH_REDIRECT_URL;
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function Registro() {
   }, []);
 
   const effectiveRole = roleFromSplash || oauthIntentRole || null;
-  const leaveGuardActive = effectiveRole === "negocio" && entryStep !== "choice";
+  const leaveGuardActive = effectiveRole === "negocio" && entryStep !== "email";
   const setRegStatus = async (status) => {
     let uid = pendingOAuthProfile?.id_auth || null;
     if (!uid) {
@@ -119,7 +122,9 @@ export default function Registro() {
     setOauthIntentRole(null);
     setPendingOAuthProfile(null);
     setStartedWithOAuth(false);
-    setEntryStep("choice");
+    setEntryStep("email");
+    setAuthTab("login");
+    setLoginLoading(false);
     setPage(1);
     setError("");
     setOauthProvider(null);
@@ -295,7 +300,7 @@ export default function Registro() {
     const cs = window.getComputedStyle(cardRef.current);
     const pt = parseFloat(cs.paddingTop || "0");
     const pb = parseFloat(cs.paddingBottom || "0");
-    const extra = 8;
+    const extra = targetPage === 1 ? 28 : 8;
     const targetHeight = Math.ceil(contentH + pt + pb + extra);
     cardRef.current.style.transition = "height 260ms ease";
     cardRef.current.style.height = `${targetHeight}px`;
@@ -307,12 +312,56 @@ export default function Registro() {
   }, []);
 
   useEffect(() => {
-    if (entryStep === "choice") return;
+    if (entryStep === "email") return;
     const rafId = requestAnimationFrame(() => {
       updateHeight(page);
     });
     return () => cancelAnimationFrame(rafId);
   }, [page, codeValid, entryStep]);
+
+  const startForm = () => {
+    clearOAuthIntent();
+    setOauthIntentRole(null);
+    setCodeValid(roleFromSplash === "negocio");
+    setPage(1);
+    setStartedWithOAuth(false);
+    setError("");
+    setEntryStep("form");
+    setAuthTab("register");
+    setOauthExit(false);
+    allowExitRef.current = false;
+  };
+
+  const handleLogin = async () => {
+    setError("");
+
+    if (!email) {
+      setError("Ingrese su email");
+      return;
+    }
+    if (!validateEmail(email)) {
+      setError("Formato de email invalido");
+      return;
+    }
+    if (!password) {
+      setError("Ingrese su contrasena");
+      return;
+    }
+
+    setLoginLoading(true);
+    const result = await login(email, password);
+    setLoginLoading(false);
+
+    if (!result.ok) {
+      setError(result.error || "Usuario o contrasena incorrectos");
+      return;
+    }
+
+    const { user } = result;
+    if (user.role === "admin") navigate("/admin/inicio");
+    else if (user.role === "negocio") navigate("/negocio/inicio");
+    else navigate("/cliente/inicio");
+  };
 
   const goTo = (p) => {
     setAnimating(true);
@@ -451,7 +500,8 @@ export default function Registro() {
   const startGoogle = () => startOAuth("google");
   const startFacebook = () => startOAuth("facebook");
 
-  const inputCommon = "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
+  const inputCommon = "w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm";
+  const inputCommon1 = "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
 
   const segment = (n) => (
     <div
@@ -465,71 +515,92 @@ export default function Registro() {
     <div className="flex flex-col items-center min-h-screen bg-[#5E30A5] p-6">
       <h1 className="text-white text-3xl font-extrabold mt-12 mb-2 text-center">REFERIDOS APP</h1>
 
-      {entryStep === "choice" && (
-        <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6">
-          {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
+      {entryStep === "email" && (
+        <div className="relative w-full max-w-sm mt-2">
+          <button
+            onClick={() => navigate("/")}
+            className="absolute top-1/2 -translate-y-1/2 w-8 h-17 rounded-xl bg-white shadow flex items-center justify-center text-[#5E30A5] hover:bg-[#F3E8FF] active:scale-95 transition z-10"
+            style={{ left: "-17px" }}
+            aria-label="Volver"
+          >
+            <ArrowLeftIcon />
+          </button>
 
-          <div className="space-y-4">
-            <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-4">Registro</h2>
+          <div className="bg-white w-full rounded-2xl shadow-xl p-6">
+            {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
 
-            <button
-              onClick={() => {
-                clearOAuthIntent();
-                setOauthIntentRole(null);
-                setCodeValid(roleFromSplash === "negocio");
-                setPage(1);
-                setStartedWithOAuth(false);
-                setError("");
-                setEntryStep("form");
-                setOauthExit(false);
-                allowExitRef.current = false;
-              }}
-              className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <MailIcon />
-                <span>Continuar con correo</span>
+            <div className="flex items-center gap-3 mb-5 -mt-2">
+              <div className="flex-1">
+                <div
+                  className="flex bg-[#f7f5fdff] rounded-xl py-0.75 gap-3"
+                  style={{ marginLeft: "-10px", marginRight: "-10px", width: "calc(100% + 20px)" }}
+                >
+                  <button
+                    onClick={() => {
+                      setAuthTab("login");
+                      setEntryStep("email");
+                    }}
+                    className={`flex-1 text-base font-semibold py-3 px-3 rounded-xl transition-all ${
+                      authTab === "login"
+                        ? "bg-[#5E30A5] text-white shadow flex-[0.85] px-6"
+                        : "text-[#5E30A5] bg-transparent flex-[1.15]"
+                    }`}
+                  >
+                    Iniciar sesión
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthTab("register");
+                      startForm();
+                    }}
+                    className={`flex-1 text-base font-semibold py-3 px-5 rounded-xl transition-all ${
+                      authTab === "register"
+                        ? "bg-[#5E30A5] text-white shadow flex-[1.25] px-6"
+                        : "text-[#5E30A5] bg-transparent flex-[0.75]"
+                    }`}
+                  >
+                    Registrarse
+                  </button>
+                </div>
               </div>
-            </button>
-
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span
-                className="flex-1 h-px"
-                style={{ background: "linear-gradient(270deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
-              />
-              <span className="font-semibold">O</span>
-              <span
-                className="flex-1 h-px"
-                style={{ background: "linear-gradient(90deg, rgba(173, 173, 173, 0.9) 0%, rgba(209,213,219,0.75) 95%, rgba(194, 194, 194, 0.2) 100%)" }}
-              />
             </div>
 
-            <button
-              onClick={startGoogle}
-              disabled={oauthLoading}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
-            >
-              <GoogleIcon />
-              {oauthLoading && oauthProvider === "google" ? "Iniciando..." : "Continuar con Google"}
-            </button>
+            <label className="text-sm text-gray-700">Email</label>
+            <input
+              type="email"
+              placeholder="Ingrese su email..."
+              className={inputCommon}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loginLoading}
+            />
+
+            <label className="text-sm text-gray-700">Contraseña</label>
+            <input
+              type="password"
+              placeholder="Ingrese su contraseña..."
+              className={inputCommon}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loginLoading}
+            />
 
             <button
-              onClick={startFacebook}
-              disabled={oauthLoading}
-              className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
+              onClick={handleLogin}
+              disabled={loginLoading}
+              className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50"
             >
-              <FacebookIcon />
-              {oauthLoading && oauthProvider === "facebook" ? "Iniciando..." : "Continuar con Facebook"}
+              {loginLoading ? "Ingresando..." : "INGRESAR"}
             </button>
 
-            <Link to="/" className="block text-center text-sm text-gray-600 font-bold pt-3">
-              YA TENGO UNA CUENTA.
+            <Link to="/recuperar" className="block text-center text-sm text-gray-400 mt-3 mb-5 underline">
+              OLVIDASTE TU CONTRASEÑA?
             </Link>
           </div>
         </div>
       )}
 
-      {entryStep !== "choice" && page >= 2 && (
+      {entryStep !== "email" && page >= 2 && (
         <div className="w-full max-w-sm px-2 mb-4">
           <div className="flex">
             {segment(1)}
@@ -538,19 +609,57 @@ export default function Registro() {
         </div>
       )}
 
-      {entryStep !== "choice" && (
+      {entryStep !== "email" && (
         <>
 
           <div
             ref={cardRef}
-            className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 overflow-hidden"
+            className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 pt-4 mt-2 overflow-visible"
             style={{ height: "auto", boxSizing: "border-box" }}
           >
-            <div className="overflow-hidden" style={{ boxSizing: "border-box" }}>
+            <div className="overflow-hidden" style={{ boxSizing: "border-box", overflowX: "hidden", overflowY: "visible" }}>
               <div ref={sliderRef} style={containerStyle} className="flex">
-            <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
+            <section style={{ flex: "0 0 100%", boxSizing: "border-box" }}>
               <div className="pb-4" ref={page1Ref}>
-                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrarse</h2>
+                {page === 1 && (
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex-1">
+                      <div
+                        className="flex bg-[#f7f5fdff] rounded-xl p-0.75 gap-3"
+                        style={{ marginLeft: "-10px", marginRight: "-10px", width: "calc(100% + 20px)" }}
+                      >
+                        <button
+                          onClick={() => {
+                            setAuthTab("login");
+                            setEntryStep("email");
+                            setPage(1);
+                          }}
+                          className={`flex-1 text-base font-semibold py-3 px-3 rounded-xl transition-all ${
+                            authTab === "login"
+                              ? "bg-[#5E30A5] text-white shadow flex-[0.85] px-6"
+                              : "text-[#5E30A5] bg-transparent flex-[1.15]"
+                          }`}
+                        >
+                          Iniciar sesion
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAuthTab("register");
+                            setEntryStep("form");
+                            setPage(1);
+                          }}
+                          className={`flex-1 text-base font-semibold py-3 px-5 rounded-xl transition-all ${
+                            authTab === "register"
+                              ? "bg-[#5E30A5] text-white shadow flex-[1.25] px-6"
+                              : "text-[#5E30A5] bg-transparent flex-[0.75]"
+                          }`}
+                        >
+                          Registrarse
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
 
@@ -603,11 +712,11 @@ export default function Registro() {
               <div className="pb-4" ref={page2Ref}>
                 {!startedWithOAuth && (
                   <button onClick={() => goTo(1)} className="text-gray-500 mb-2">
-                    ←
+                    <ArrowLeftIcon />
                   </button>
                 )}
 
-                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar</h2>
+                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
                 <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
 
                 {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
@@ -635,10 +744,10 @@ export default function Registro() {
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
               <div className="pb-4" ref={page3Ref}>
                 <button onClick={() => goTo(codeValid ? 2 : 1)} className="text-gray-500 mb-2">
-                  ←
+                  <ArrowLeftIcon />
                 </button>
 
-                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar</h2>
+                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
                 <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
 
                 {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
@@ -669,7 +778,7 @@ export default function Registro() {
 
                 <div className="pt-4">
                   <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
-                    Registrar
+                    Registrar Negocio
                   </button>
                 </div>
 
@@ -749,6 +858,25 @@ function MailIcon() {
     >
       <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M4 7l7.82 6.165a2 2 0 002.36 0L22 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="27"
+      height="27"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.85"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 18l-6-6 6-6" />
     </svg>
   );
 }

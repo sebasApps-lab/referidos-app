@@ -11,7 +11,7 @@ import { sanitizeText } from "../utils/sanitize";
 export default function ClienteHome() {
   const [showFiltros, setShowFiltros] = useState(false);
 
-  // 🔥 CARGAR DESDE SUPABASE
+  //  CARGAR DESDE SUPABASE
   const loadPromos = useAppStore((s) => s.loadPromos);
   const promos = useAppStore((s) => s.promos);
   const ratings = useAppStore((s) => s.ratings);

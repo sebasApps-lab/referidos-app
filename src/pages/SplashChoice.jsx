@@ -72,7 +72,7 @@ export default function SplashChoice() {
         })().catch((e) => setError(e?.message || "No se pudo crear el perfil"));
         return;
       }
-      navigate("/registro", { state: { role: "cliente" } });
+      navigate("/auth", { state: { role: "cliente" } });
       return;
     }
 
@@ -92,11 +92,11 @@ export default function SplashChoice() {
             setRegStatus(userId, "negocio_page2");
             // No marcamos completo; se completará en Registro (page2/page3)
             setUser({ id_auth: userId, role: "negocio" });
-            navigate("/registro", { state: { role: "negocio", codigo: code, fromOAuth: true, page: 2 } });
+            navigate("/auth", { state: { role: "negocio", codigo: code, fromOAuth: true, page: 2 } });
           })().catch((e) => setError(e?.message || "No se pudo iniciar el registro de negocio"));
           return;
         }
-        navigate("/registro", { state: { role: "negocio", codigo: code } });
+        navigate("/auth", { state: { role: "negocio", codigo: code } });
       },
     });
   };

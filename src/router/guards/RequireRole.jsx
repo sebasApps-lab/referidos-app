@@ -30,9 +30,9 @@ export default function RequireRole({ children, role }) {
 
   if (usuario.role === "negocio" && usuario.registro_estado !== "completo") {
     if (regStatus === "negocio_page3") {
-      return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 3 }} />;
+      return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 3 }} />;
     }
-    return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
+    return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
   }
 
   // Verificar rol correcto
@@ -50,10 +50,10 @@ export default function RequireRole({ children, role }) {
   // Si es negocio y tiene pasos pendientes, forzar regreso al registro
   if (usuario.role === "negocio") {
     if (regStatus === "negocio_page3") {
-      return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 3 }} />;
+      return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 3 }} />;
     }
     if (regStatus === "negocio_page2") {
-      return <Navigate to="/registro" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
+      return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
     }
   }
 

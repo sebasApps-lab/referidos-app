@@ -8,7 +8,7 @@ export function pwaGuard(usuario, pathname) {
   if (!isPWA()) return null;
 
   // Si no hay usuario → solo permitir login/registro
-  if (!usuario && pathname !== "/" && pathname !== "/registro") {
+  if (!usuario && pathname !== "/" && pathname !== "/auth") {
     return "/";
   }
 
