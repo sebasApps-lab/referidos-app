@@ -1,5 +1,5 @@
 // src/pages/Auth.jsx
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useLayoutEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   EMAIL_RE,
@@ -32,7 +32,11 @@ export default function AuthHub() {
   const pageFromState = location.state?.page || null;
   const authCredsFromChoice = location.state?.authCreds || null;
 
+  const [cardHeight, setCardHeight] = useState(null);
+  const [sliderHeight, setSliderHeight] = useState(null);
+
   const cardRef = useRef(null);
+  const cardInnerRef = useRef(null);
   const sliderRef = useRef(null);
   const page1Ref = useRef(null);
   const page2Ref = useRef(null);
@@ -313,44 +317,54 @@ export default function AuthHub() {
       display: "flex",
       gap: sliderGap,
       transform: `translateX(calc(${-(page - 1) * 100}% - ${(page - 1) * sliderGap}px))`,
-      transition: animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease",
+      transition:
+        animating || sliderHeight != null
+          ? `${animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease"}, height 260ms ease`
+          : animating
+            ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease"
+            : "transform 350ms ease",
       filter: animating ? "blur(1.2px)" : "none",
       opacity: animating ? 0.55 : 1,
       width: "100%",
       boxSizing: "border-box",
+      height: sliderHeight != null ? `${sliderHeight}px` : "auto",
+      overflow: "hidden",
     }),
-    [page, animating, sliderGap]
+    [page, animating, sliderGap, sliderHeight]
   );
 
-  const updateHeight = (targetPage = page) => {
-    if (!cardRef.current) return;
-    let sec = page1Ref.current;
-    if (targetPage === 2) sec = page2Ref.current;
-    if (targetPage === 3) sec = page3Ref.current;
-    if (!sec) return;
+  const pageRefs = useMemo(() => [page1Ref, page2Ref, page3Ref], []);
 
-    const contentH = sec.scrollHeight;
-    const cs = window.getComputedStyle(cardRef.current);
-    const pt = parseFloat(cs.paddingTop || "0");
-    const pb = parseFloat(cs.paddingBottom || "0");
-    const extra = targetPage === 1 ? 28 : 8;
-    const targetHeight = Math.ceil(contentH + pt + pb + extra);
-    cardRef.current.style.transition = "height 260ms ease";
-    cardRef.current.style.height = `${targetHeight}px`;
-  };
+  const measureHeights = useCallback(
+    (targetPage = page) => {
+      const inner = cardInnerRef.current;
+      const active = pageRefs[targetPage - 1]?.current;
+      if (!inner || !active) return;
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => updateHeight(1));
-    return () => cancelAnimationFrame(id);
-  }, []);
+      const styles = window.getComputedStyle(inner);
+      const pt = parseFloat(styles.paddingTop || "0");
+      const pb = parseFloat(styles.paddingBottom || "0");
+      const contentH = active.scrollHeight;
+
+      setSliderHeight(Math.ceil(contentH));
+      setCardHeight(Math.ceil(contentH + pt + pb));
+    },
+    [page, pageRefs]
+  );
+
+  useLayoutEffect(() => {
+    if (entryStep === "email") return;
+    measureHeights(page);
+  }, [page, entryStep, measureHeights]);
 
   useEffect(() => {
     if (entryStep === "email") return;
-    const rafId = requestAnimationFrame(() => {
-      updateHeight(page);
-    });
-    return () => cancelAnimationFrame(rafId);
-  }, [page, codeValid, entryStep]);
+    const active = pageRefs[page - 1]?.current;
+    if (!active) return;
+    const ro = new ResizeObserver(() => measureHeights(page));
+    ro.observe(active);
+    return () => ro.disconnect();
+  }, [page, entryStep, pageRefs, measureHeights]);
 
   const startForm = () => {
     clearOAuthIntent();
@@ -800,9 +814,13 @@ export default function AuthHub() {
           <div
             ref={cardRef}
             className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
-            style={{ height: "auto", boxSizing: "border-box" }}
+            style={{ height: cardHeight != null ? `${cardHeight}px` : "auto", boxSizing: "border-box", transition: "height 260ms ease", overflow: "hidden" }}
           >
-            <div className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4" style={{ boxSizing: "border-box", overflowX: "hidden", overflowY: "visible" }}>
+            <div
+              ref={cardInnerRef}
+              className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4"
+              style={{ boxSizing: "border-box", overflow: "hidden" }}
+            >
               <div ref={sliderRef} style={containerStyle} className="flex">
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }}>
               <div ref={page1Ref}>
