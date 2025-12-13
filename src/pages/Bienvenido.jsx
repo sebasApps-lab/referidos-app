@@ -1,6 +1,6 @@
 // src/pages/Bienvenido.jsx
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { getSessionUserProfile, signInWithGoogleIdToken } from "../services/authService";
 import { supabase } from "../lib/supabaseClient";
@@ -127,7 +127,7 @@ export default function Bienvenido() {
               Elige como continuar...
             </h2>
             <p className="text-center text-sm text-gray-500 mb-4">
-              Si ya tienes cuenta, elige una opcion y entraras automaticamente.
+              Si ya tienes cuenta, elige una opción y entrarás automaticamente.
             </p>
 
             <button
@@ -172,11 +172,8 @@ export default function Bienvenido() {
               Continuar con Facebook
             </button>
 
-            <div className="text-center pt-2">
-              <p className="text-sm font-semibold text-gray-700">YA TIENES UNA CUENTA?</p>
-              <p className="text-xs text-gray-500">
-                Si eres nuevo, te ayudaremos a crear tu cuenta.
-              </p>
+            <div className="text-center pt-2 text-sm text-gray-500">Si eres nuevo, te ayudaremos a 
+              <Link to="/auth" className="text-sm text-[#5E30A5] font-bold"> crear tu cuenta.</Link>              
             </div>
           </div>
         </div>

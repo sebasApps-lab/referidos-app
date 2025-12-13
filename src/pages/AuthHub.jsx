@@ -56,7 +56,7 @@ export default function AuthHub() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [animating, setAnimating] = useState(false);
-  const [btnText, setBtnText] = useState("Registrarse");
+  const [btnText, setBtnText] = useState("REGISTRARSE");
   const [btnFadeKey, setBtnFadeKey] = useState(0);
   const [entryStep, setEntryStep] = useState("email");
   const [authTab, setAuthTab] = useState("login");
@@ -256,7 +256,7 @@ export default function AuthHub() {
     if (!codigo || !CODE_RE.test(codigo)) {
       setCodeValid(roleFromSplash === "negocio");
       setBtnFadeKey((k) => k + 1);
-      setBtnText("Registrarse");
+      setBtnText("REGISTRARSE");
       return;
     }
 
@@ -267,7 +267,7 @@ export default function AuthHub() {
         if (!mounted) return;
         setCodeValid(res.ok);
         setBtnFadeKey((k) => k + 1);
-        setBtnText(res.ok ? "Siguiente" : "Registrarse");
+        setBtnText(res.ok ? "SIGUIENTE" : "REGISTRARSE");
       })
       .finally(() => mounted && setCodeChecking(false));
 
@@ -279,6 +279,7 @@ export default function AuthHub() {
   const containerStyle = useMemo(
     () => ({
       display: "flex",
+      gap: 18,
       transform: `translateX(${-(page - 1) * 100}%)`,
       transition: animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease",
       filter: animating ? "blur(1.2px)" : "none",
@@ -340,11 +341,11 @@ export default function AuthHub() {
       return;
     }
     if (!validateEmail(email)) {
-      setError("Formato de email invalido");
+      setError("Formato de email inválido");
       return;
     }
     if (!password) {
-      setError("Ingrese su contrasena");
+      setError("Ingrese su contraseña");
       return;
     }
 
@@ -353,7 +354,7 @@ export default function AuthHub() {
     setLoginLoading(false);
 
     if (!result.ok) {
-      setError(result.error || "Usuario o contrasena incorrectos");
+      setError(result.error || "Usuario o contraseña incorrectos");
       return;
     }
 
@@ -588,12 +589,12 @@ export default function AuthHub() {
             <button
               onClick={handleLogin}
               disabled={loginLoading}
-              className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50"
+              className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50 mt-3"
             >
               {loginLoading ? "Ingresando..." : "INGRESAR"}
             </button>
 
-            <Link to="/recuperar" className="block text-center text-sm text-gray-400 mt-3 mb-5 underline">
+            <Link to="/recuperar" className="block text-center text-xs text-gray-400 mt-3 underline">
               OLVIDASTE TU CONTRASEÑA?
             </Link>
           </div>
@@ -614,13 +615,13 @@ export default function AuthHub() {
 
           <div
             ref={cardRef}
-            className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 pt-4 mt-2 overflow-visible"
+            className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
             style={{ height: "auto", boxSizing: "border-box" }}
           >
-            <div className="overflow-hidden" style={{ boxSizing: "border-box", overflowX: "hidden", overflowY: "visible" }}>
+            <div className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4" style={{ boxSizing: "border-box", overflowX: "hidden", overflowY: "visible" }}>
               <div ref={sliderRef} style={containerStyle} className="flex">
             <section style={{ flex: "0 0 100%", boxSizing: "border-box" }}>
-              <div className="pb-4" ref={page1Ref}>
+              <div ref={page1Ref}>
                 {page === 1 && (
                   <div className="flex items-center gap-3 mb-5">
                     <div className="flex-1">
@@ -690,19 +691,15 @@ export default function AuthHub() {
                   onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
                 />
 
-                <div className="mb-4" />
-
-                <div className="flex flex-col gap-3">
-                  <button onClick={handlePrimaryPage1} className="w-full bg-yellow-400 text-white font-semibold py-2.5 rounded-lg shadow">
+                <div className="flex flex-col gap-3 mt-3">
+                  <button onClick={handlePrimaryPage1} className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50">
                     <span key={btnFadeKey} style={{ display: "inline-block", transition: "opacity 180ms" }}>
                       {btnText}
                     </span>
                   </button>
 
-                  <div className="text-center mt-3">
-                    <Link to="/" className="text-sm text-gray-700">
-                      YA TENGO UNA CUENTA.
-                    </Link>
+                  <div className="text-center text-sm text-gray-500">
+                    Eligiras el tipo de cuenta al avanzar.
                   </div>
                 </div>
               </div>
