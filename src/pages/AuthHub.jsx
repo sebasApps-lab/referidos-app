@@ -699,6 +699,33 @@ export default function AuthHub() {
     }
   };
 
+  const goToLoginTab = () => {
+    setAuthTab("login");
+    setEntryStep("email");
+    setPage(1);
+    setStartedWithOAuth(false);
+    setError("");
+    setOauthExit(false);
+    allowExitRef.current = false;
+  };
+
+  const goToRegisterTab = () => {
+    clearOAuthIntent();
+    setOauthIntentRole(null);
+    setCodeValid(roleFromSplash === "negocio");
+    setPage(1);
+    setStartedWithOAuth(false);
+    setError("");
+    setEntryStep("email");
+    setAuthTab("register");
+    setOauthExit(false);
+    allowExitRef.current = false;
+  };
+
+  const primaryEmailLabel = authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "SIGUIENTE";
+  const primaryEmailHandler = authTab === "login" ? handleLogin : handlePrimaryPage1;
+  const primaryEmailDisabled = authTab === "login" ? loginLoading : false;
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-[#5E30A5] p-6 relative">
       <h1 className="text-white text-3xl font-extrabold mt-12 mb-2 text-center">REFERIDOS APP</h1>
@@ -735,10 +762,7 @@ export default function AuthHub() {
                   style={{ marginLeft: "-10px", marginRight: "-10px", width: "calc(100% + 20px)" }}
                 >
                   <button
-                    onClick={() => {
-                      setAuthTab("login");
-                      setEntryStep("email");
-                    }}
+                    onClick={goToLoginTab}
                     className={`flex-1 text-base font-semibold py-3 px-3 rounded-xl transition-all ${
                       authTab === "login"
                         ? "bg-[#5E30A5] text-white shadow flex-[0.85] px-6"
@@ -748,10 +772,7 @@ export default function AuthHub() {
                     Iniciar sesión
                   </button>
                   <button
-                    onClick={() => {
-                      setAuthTab("register");
-                      startForm();
-                    }}
+                    onClick={goToRegisterTab}
                     className={`flex-1 text-base font-semibold py-3 px-5 rounded-xl transition-all ${
                       authTab === "register"
                         ? "bg-[#5E30A5] text-white shadow flex-[1.25] px-6"
@@ -771,7 +792,7 @@ export default function AuthHub() {
               className={inputCommon}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={loginLoading}
+              disabled={authTab === "login" ? loginLoading : false}
             />
 
             <label className="text-sm text-gray-700">Contraseña</label>
@@ -781,20 +802,24 @@ export default function AuthHub() {
               className={inputCommon}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loginLoading}
+              disabled={authTab === "login" ? loginLoading : false}
             />
 
             <button
-              onClick={handleLogin}
-              disabled={loginLoading}
+              onClick={primaryEmailHandler}
+              disabled={primaryEmailDisabled}
               className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50 mt-3"
             >
-              {loginLoading ? "Ingresando..." : "INGRESAR"}
+              {primaryEmailLabel}
             </button>
 
-            <Link to="/recuperar" className="block text-center text-xs text-gray-400 mt-3 underline">
-              OLVIDASTE TU CONTRASEÑA?
-            </Link>
+            {authTab === "login" ? (
+              <Link to="/recuperar" className="block text-center text-xs text-gray-400 mt-3 underline">
+                OLVIDASTE TU CONTRASENA?
+              </Link>
+            ) : (
+              <div className="block text-center text-sm text-gray-500 mt-4">Avanza para elegir el tipo de cuenta</div>
+            )}
           </div>
         </div>
       )}
