@@ -16,7 +16,7 @@ export default function RequireAuth({ children }) {
     if (usuario?.role === "negocio") {
       return <Navigate to="/auth" replace state={{ role: "negocio", fromOAuth: true, page: 2 }} />;
     }
-    return <Navigate to="/tipo" replace state={{ fromOAuth: true }} />;
+    return <Navigate to="/auth" replace state={{ fromOAuth: true }} />;
   }
 
   return children;

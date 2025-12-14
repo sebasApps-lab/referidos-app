@@ -22,9 +22,6 @@ export default function ModalSplashChoiceOverlay({
   authCreds,
   onCliente,
   onNegocio,
-  skipNegocioCode = false,
-  prefillCode = "",
-  initialSelectedRole = null,
   onBack = null,
 }) {
   const [selected, setSelected] = useState(null);
@@ -42,10 +39,6 @@ export default function ModalSplashChoiceOverlay({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  useEffect(() => {
-    if (initialSelectedRole) setSelected(initialSelectedRole);
-  }, [initialSelectedRole]);
-
   const proceedNegocio = async (codeVal) => {
     if (!onNegocio) return;
     try {
@@ -60,12 +53,6 @@ export default function ModalSplashChoiceOverlay({
     if (!selected) return;
     if (selected === "cliente") {
       onCliente?.(authCreds);
-      return;
-    }
-    const codeReady = prefillCode && CODE_RE.test(prefillCode);
-    const canSkipCode = skipNegocioCode || codeReady;
-    if (canSkipCode) {
-      proceedNegocio(prefillCode);
       return;
     }
     setError("");

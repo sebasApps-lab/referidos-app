@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function waitForUser(id_auth, attempts = 8, delay = 400) {
+async function waitForUser(id_auth, attempts = 12, delay = 500) {
   for (let i = 0; i < attempts; i++) {
     const { data, error } = await supabase
       .from("usuarios")
@@ -108,14 +108,36 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
 
     const authUserId = signUpData?.user?.id ?? sessionAfterSignUp?.user?.id;
     if (!authUserId) {
+      // Si ya existe la cuenta, intenta login con las mismas credenciales
+      if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
+        const loginResult = await signInWithEmail(email, password);
+        if (loginResult.ok) return { ...loginResult, warning: "La cuenta ya existía, se inició sesión." };
+      }
       if (signUpError) throw signUpError;
       return { ok: false, error: "No se pudo identificar la cuenta creada" };
     }
     const userData = await waitForUser(authUserId);
 
     if (!userData) {
+      if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
+        const loginResult = await signInWithEmail(email, password);
+        if (loginResult.ok) return { ...loginResult, warning: "La cuenta ya existía, se inició sesión." };
+      }
       if (signUpError) throw signUpError;
-      return { ok: false, error: "No se creИ el perfil del usuario" };
+      const pendingUser = {
+        id_auth: authUserId,
+        email: signUpData?.user?.email ?? email,
+        role: role ?? signUpData?.user?.user_metadata?.role ?? null,
+        nombre: signUpData?.user?.user_metadata?.nombre ?? nombre ?? null,
+        telefono: signUpData?.user?.user_metadata?.telefono ?? telefono ?? null,
+        registro_estado: "pendiente",
+      };
+      return {
+        ok: true,
+        user: pendingUser,
+        pendingProfile: true,
+        warning: "Perfil aun en proceso de creacion. Continua con el onboarding.",
+      };
     }
     return { ok: true, user: userData, warning };
   } catch (error) {
@@ -131,7 +153,18 @@ export async function deleteUserAccount(id_auth) {
   if (!id_auth) return { ok: false, error: "No se pudo identificar la cuenta" };
 
   try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { ok: false, error: "Tu sesi\u00f3n expir\u00f3. Vuelve a iniciar sesi\u00f3n e intenta de nuevo." };
+    }
+
     const { error } = await supabase.functions.invoke("delete-account", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: { userId: id_auth },
     });
 

@@ -18,14 +18,14 @@ export default function RequireRole({ children, role }) {
     return <Navigate to="/" replace />;
   }
 
-  // Falta rol: enviar a SplashChoice para completar onboarding
+  // Falta rol: enviar a AuthHub con chooser
   if (!usuario.role) {
-    return <Navigate to="/tipo" replace state={{ fromOAuth: true }} />;
+    return <Navigate to="/auth" replace state={{ openChoice: true }} />;
   }
 
   // Falta completar onboarding: bloquea entrada a dashboard
   if (usuario.role === "cliente" && usuario.registro_estado !== "completo") {
-    return <Navigate to="/tipo" replace state={{ fromOAuth: true }} />;
+    return <Navigate to="/auth" replace state={{ openChoice: true }} />;
   }
 
   if (usuario.role === "negocio" && usuario.registro_estado !== "completo") {

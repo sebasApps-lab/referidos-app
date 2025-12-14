@@ -38,8 +38,8 @@ export default function AuthHub() {
   const cardRef = useRef(null);
   const cardInnerRef = useRef(null);
   const sliderRef = useRef(null);
-  const page2Ref = useRef(null);
-  const page3Ref = useRef(null);
+  const regPage1Ref = useRef(null); // antes page2: datos del propietario
+  const regPage2Ref = useRef(null); // antes page3: datos del negocio
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -105,6 +105,14 @@ export default function AuthHub() {
       /* ignore */
     }
   };
+  const getRegStatus = (uid) => {
+    if (!uid) return null;
+    try {
+      return localStorage.getItem(`${REG_STATUS_PREFIX}${uid}`);
+    } catch {
+      return null;
+    }
+  };
 
   const saveOAuthIntent = (role) => {
     try {
@@ -139,7 +147,6 @@ export default function AuthHub() {
     setCodigo(codeFromSplash || "");
     if (codeFromSplash) setLastValidCode(codeFromSplash);
     setCodeValid(roleFromSplash === "negocio");
-    if (roleFromSplash === "negocio" && codeFromSplash) setCodeLocked(true);
     if (roleFromSplash === "negocio") setRoleLocked(true);
     if (roleFromSplash === "negocio") setSelectedChoiceRole("negocio");
   }, [roleFromSplash, codeFromSplash, pageFromState]);
@@ -164,6 +171,20 @@ export default function AuthHub() {
       else if (codeFromSplash) setCodeLocked(true);
     }
   }, [authCredsFromChoice]);
+
+  useEffect(() => {
+    if (!location.state?.openChoice) return;
+    const { openChoice, ...rest } = location.state || {};
+    setAuthTab("register");
+    setEntryStep("email");
+    setPage(1);
+    setError("");
+    setStartedWithOAuth(false);
+    setRoleLocked(false);
+    setCodeLocked(false);
+    openChoiceOverlay();
+    navigate(location.pathname, { replace: true, state: { ...rest } });
+  }, [location.state?.openChoice, location.pathname, navigate]);
 
   useEffect(() => {
     if (roleFromSplash) return;
@@ -252,6 +273,7 @@ export default function AuthHub() {
 
       if (hasIntent && startedWithOAuth) {
         setPendingOAuthProfile(user);
+        if (user?.email) setEmail((prev) => prev || user.email);
         setOauthExit(false);
         allowExitRef.current = false;
         if (intendedRole === "negocio") {
@@ -262,9 +284,30 @@ export default function AuthHub() {
         return;
       }
 
+      const regStatus = getRegStatus(user?.id_auth);
       setUser(user);
       setOauthExit(false);
       allowExitRef.current = false;
+
+      if (user.registro_estado !== "completo") {
+        if (user.role === "negocio") {
+          setEntryStep("form");
+          setAuthTab("register");
+          setRoleLocked(true);
+          setCodeValid(true);
+          setSelectedChoiceRole("negocio");
+          const targetPage = regStatus === "negocio_page3" ? 3 : 2;
+          setPage(targetPage);
+          return;
+        }
+        if (user.role === "cliente") {
+          setAuthTab("register");
+          setEntryStep("email");
+          setPage(1);
+          return;
+        }
+      }
+
       if (user.role === "admin") navigate("/admin/inicio", { replace: true });
       else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
       else navigate("/cliente/inicio", { replace: true });
@@ -308,37 +351,31 @@ export default function AuthHub() {
   const containerStyle = useMemo(
     () => ({
       display: "flex",
+      flexDirection: "column",
       gap: sliderGap,
-      transform: (() => {
-        const idx = page <= 2 ? 0 : 1;
-        return `translateX(calc(${ -idx * 100}% - ${idx * sliderGap}px))`;
-      })(),
-      transition:
-        animating || sliderHeight != null
-          ? `${animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease"}, height 260ms ease`
-          : animating
-            ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease"
-            : "transform 350ms ease",
+      transition: "opacity 250ms ease",
       filter: animating ? "blur(1.2px)" : "none",
       opacity: animating ? 0.55 : 1,
       width: "100%",
       boxSizing: "border-box",
-      height: sliderHeight != null ? `${sliderHeight}px` : "auto",
-      overflow: "hidden",
     }),
-    [page, animating, sliderGap, sliderHeight]
+    [animating, sliderGap]
   );
 
   const measureHeights = useCallback(
     (targetPage = page) => {
       const inner = cardInnerRef.current;
-      const active = targetPage === 3 ? page3Ref.current : page2Ref.current;
+      const active = targetPage === 3 ? regPage2Ref.current : regPage1Ref.current;
       if (!inner || !active) return;
+      const p2 = regPage1Ref.current;
+      const p3 = regPage2Ref.current;
 
       const styles = window.getComputedStyle(inner);
       const pt = parseFloat(styles.paddingTop || "0");
       const pb = parseFloat(styles.paddingBottom || "0");
-      const contentH = active.scrollHeight;
+      const hActive = active.scrollHeight;
+      const fallbackH = Math.max(p2?.scrollHeight || 0, p3?.scrollHeight || 0);
+      const contentH = hActive > 0 ? hActive : fallbackH;
 
       setSliderHeight(Math.ceil(contentH));
       setCardHeight(Math.ceil(contentH + pt + pb));
@@ -353,7 +390,13 @@ export default function AuthHub() {
 
   useEffect(() => {
     if (entryStep === "email") return;
-    const active = page === 3 ? page3Ref.current : page2Ref.current;
+    const id = requestAnimationFrame(() => measureHeights(page));
+    return () => cancelAnimationFrame(id);
+  }, [page, entryStep, measureHeights]);
+
+  useEffect(() => {
+    if (entryStep === "email") return;
+    const active = page === 3 ? regPage2Ref.current : regPage1Ref.current;
     if (!active) return;
     const ro = new ResizeObserver(() => measureHeights(page));
     ro.observe(active);
@@ -423,29 +466,36 @@ export default function AuthHub() {
     }
   };
 
-  const openEmailModal = ({ email: emailForModal, initialError, role }) => {
+  const openEmailModal = ({ email: emailForModal, initialError, role, readOnlyEmail = true }) => {
     const modalEmail = emailForModal || email;
     openModal("SplashEmailConfirmation", {
       email: modalEmail,
       initialError,
+      readOnlyEmail,
+      onSkip:
+        role === "negocio"
+          ? () => {
+              setSelectedChoiceRole("negocio");
+              setRoleLocked(true);
+              setCodeValid(true);
+              setEntryStep("form");
+              setAuthTab("register");
+              setPage(2);
+              closeModal();
+            }
+          : null,
       onBack: () => {
         if (role === "negocio" && (codigo || lastValidCode)) {
           const codeVal = lastValidCode || codigo;
           if (codeVal) {
             setCodigo(codeVal);
             setLastValidCode(codeVal);
-            setCodeLocked(true);
             setSelectedChoiceRole("negocio");
             setRoleLocked(true);
           }
         }
         closeModal();
-        openChoiceOverlay({
-          skipNegocioCode: true,
-          prefillCode: lastValidCode || codigo,
-          forceRole: "negocio",
-          forceSkipCode: true,
-        });
+        openChoiceOverlay();
       },
       onSend: async (targetEmail) => {
         if (role === "cliente") {
@@ -480,7 +530,6 @@ export default function AuthHub() {
         }
         setUser(result.user);
         setRoleLocked(true);
-        if (codigo) setCodeLocked(true);
         setSelectedChoiceRole("negocio");
         setEntryStep("form");
         setAuthTab("register");
@@ -492,59 +541,104 @@ export default function AuthHub() {
     });
   };
 
-  const openChoiceOverlay = ({ skipNegocioCode, prefillCode, forceRole = null, forceSkipCode = false } = {}) => {
-    const codeToUse = prefillCode || lastValidCode || codigo;
-    const codeReady = codeToUse && CODE_RE.test(codeToUse);
-    const skipCode =
-      forceSkipCode ||
-      (typeof skipNegocioCode === "boolean"
-        ? (skipNegocioCode || codeLocked || !!lastValidCode) && (codeReady || codeLocked || !!lastValidCode)
-        : codeLocked || codeReady || !!lastValidCode);
+  const openChoiceOverlay = () => {
+    setCodeLocked(false);
+    setRoleLocked(false);
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
-      skipNegocioCode: skipCode,
-      prefillCode: codeToUse,
-      initialSelectedRole:
-        forceRole || selectedChoiceRole || (skipCode ? "negocio" : roleLocked ? "negocio" : null),
       onBack: () => {
         goToRegisterTab();
         closeModal();
       },
       onCliente: async () => {
-        setSelectedChoiceRole("cliente");
+        setError("");
+
+        const session = (await supabase.auth.getSession()).data.session;
+        if(!session?.user) {
+          setError("Sesión no válida");
+          return { ok: false };
+        }
+        
+        const result = await updateUserProfile({
+          id_auth: session.user.id,
+          role: "cliente",
+          nombre: email.split("@")[0],
+          telefono,
+          registro_estado: "completo",
+        });
+
+        if (!result.ok) {
+          setError(result.error || "Error al crear perfil");
+          return { ok: false };
+        }
+
+        setUser(result.user);
+        allowExitRef.current = true;
         closeModal();
-        openEmailModal({ email, role: "cliente" });
+        navigate("/cliente/inicio");
+        return { ok: true };
       },
+
       onNegocio: async (code) => {
         setError("");
-        const finalCode = code || codeToUse || lastValidCode || "";
-        if (finalCode && CODE_RE.test(finalCode)) {
-          setCodigo(finalCode);
-          setLastValidCode(finalCode);
-          setCodeLocked(true);
+
+        if (!CODE_RE.test(finalCode)) {
+          setError("Código de registro inválido");
+          return { ok: false };
         }
+
+        setCodigo(code);
+        setLastValidCode(code);
         setCodeValid(true);
-        setOauthIntentRole("negocio");
+        setRoleLocked(true);
+        setSelectedChoiceRole("negocio");
+        setCodeLocked(true);
+
         setEntryStep("form");
         setAuthTab("register");
         setPage(2);
-        setRoleLocked(true);
-        setSelectedChoiceRole("negocio");
-        if (finalCode && CODE_RE.test(finalCode)) setCodeLocked(true);
+
         closeModal();
-        openEmailModal({ email, role: "negocio" });
-        return true;
+        return { ok:true };
       },
     });
   };
 
-  const handlePrimaryPage1 = () => {
+  const handlePrimaryPage1 = async () => {
     if (!validatePage1()) return;
     setError("");
-    setEntryStep("form");
-    setAuthTab("register");
-    setPage(2);
-    openChoiceOverlay();
+
+    try {
+      //Crear SOLO la cuanta Auth (sin perfil)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error && !error.message?.toLowerCase().includes("already registred")) {
+        setError(error.message);
+        return;
+      }
+
+      //Asegurar sesión activa
+      const session =
+        data?.session ??
+        (await supabase.auth.getSession()).data.session;
+
+      if (!session?.user) {
+        setError("No se pudo iniciar la sesión");
+        return;
+      }
+
+      //Avanzar igual que OAuth
+      setEntryStep("form");
+      setAuthTab("register");
+      setPage(2);
+      openChoiceOverlay();
+    } catch (err) {
+      setError(err?.message || "Error al crear la cuenta")
+
+    }
   };
 
   const handleNext2 = () => {
@@ -558,53 +652,76 @@ export default function AuthHub() {
 
   const handleRegister = async () => {
     try {
-      if (pendingOAuthProfile || fromOAuth || startedWithOAuth) {
-        const session = (await supabase.auth.getSession())?.data?.session;
-        const userId = session?.user?.id;
-        if (!userId) {
-          setError("No hay sesión activa");
-          return;
-        }
-        const payload = {
-          role: "negocio",
-          nombre: nombreDueno || pendingOAuthProfile?.nombre,
-          telefono: telefono || pendingOAuthProfile?.telefono,
-          ruc,
-          nombreNegocio,
-          sectorNegocio,
-          calle1,
-          calle2,
-        };
-        const { data, error } = await supabase.functions.invoke("onboarding", { body: payload });
-        if (error || !data?.ok) {
-          setError(data?.message || error?.message || "No se pudo completar el registro");
-          return;
-        }
-        setUser(data.usuario);
-        setRegStatus(null);
-        clearOAuthIntent();
-        allowExitRef.current = true;
-        openEmailModal({ email: data?.usuario?.email || email });
-        navigate("/negocio/inicio");
+      const session = (await supabase.auth.getSession())?.data?.session;
+      const userId = session?.user?.id;
+      if (!userId || !session?.access_token) {
+        setError("No hay sesion activa. Inicia sesion y vuelve a intentar.");
         return;
       }
-
-      const result = await register({
-        email,
-        password,
-        telefono,
-        nombre: nombreDueno,
+      const payload = {
         role: "negocio",
+        nombre: nombreDueno || pendingOAuthProfile?.nombre,
+        apellido: apellidoDueno || pendingOAuthProfile?.apellido || null,
+        telefono: telefono || pendingOAuthProfile?.telefono || telefono,
+        ruc,
+        nombreNegocio,
+        sectorNegocio,
+        calle1,
+        calle2,
+      };
+      const { data, error } = await supabase.functions.invoke("onboarding", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: payload,
       });
-      if (!result.ok) {
-        setError(result.error || "Error al registrar negocio");
+      if (error || !data?.ok) {
+        let msg = data?.message || error?.message || "No se pudo completar el registro";
+        let status = error?.context?.response?.status;
+        let bodyText = null;
+        if (error?.context?.response) {
+          const resp = error.context.response;
+          if (typeof resp.clone === "function") {
+            try {
+              const cloned = resp.clone();
+              bodyText = await cloned.text();
+              try {
+                const parsed = JSON.parse(bodyText);
+                if (parsed?.message) msg = parsed.message;
+              } catch {
+                /* plain text */
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        console.error("onboarding invoke error", { status, error, data, bodyText });
+        setError(status ? `(${status}) ${msg}` : msg);
         return;
       }
+      setUser(data.usuario);
+      setRegStatus(null);
+      clearOAuthIntent();
       allowExitRef.current = true;
-      openEmailModal({ email, initialError: result.warning });
       navigate("/negocio/inicio");
     } catch (err) {
-      setError(err?.message || "Error al registrar negocio");
+      let msg = err?.message || "Error al registrar negocio";
+      try {
+        const ctxBody = err?.context?.body;
+        if (ctxBody) {
+          if (typeof ctxBody === "string") msg = ctxBody;
+          else if (ctxBody?.message) msg = ctxBody.message;
+          else if (ctxBody?.error) msg = ctxBody.error;
+        }
+        const resp = err?.context?.response;
+        if (resp && typeof resp.text === "function") {
+          const txt = await resp.text();
+          if (txt) msg = txt;
+        }
+      } catch {
+        /* ignore */
+      }
+      console.error("onboarding error", err);
+      setError(msg || "Error al registrar negocio");
     }
   };
 
@@ -696,7 +813,7 @@ export default function AuthHub() {
     allowExitRef.current = false;
   };
 
-  const primaryEmailLabel = authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "SIGUIENTE";
+  const primaryEmailLabel = authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "REGISTRARSE";
   const primaryEmailHandler = authTab === "login" ? handleLogin : handlePrimaryPage1;
   const primaryEmailDisabled = authTab === "login" ? loginLoading : false;
 
@@ -813,89 +930,98 @@ export default function AuthHub() {
           <div
             ref={cardRef}
             className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
-            style={{ height: cardHeight != null ? `${cardHeight}px` : "auto", boxSizing: "border-box", transition: "height 260ms ease", overflow: "hidden" }}
+            style={{
+              height: cardHeight != null ? `${cardHeight}px` : "auto",
+              boxSizing: "border-box",
+              transition: "height 260ms ease",
+              overflow: "hidden",
+            }}
           >
             <div
               ref={cardInnerRef}
               className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4"
               style={{ boxSizing: "border-box", overflow: "hidden" }}
             >
-              <div ref={sliderRef} style={containerStyle} className="flex">
-                <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
-                  <div className="pb-4" ref={page2Ref}>
-                    <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
-                    <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
+              <div ref={sliderRef} style={containerStyle} className="relative z-10">
+                {page === 2 && (
+                  <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2">
+                    <div className="pb-4" ref={regPage1Ref}>
+                      <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
+                      <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
 
-                    {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+                      {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
 
-                    <label className="text-sm text-gray-700">Nombres</label>
-                    <input className={inputCommon} value={nombreDueno} onChange={(e) => setNombreDueno(e.target.value)} />
+                      <label className="text-sm text-gray-700">Nombres</label>
+                      <input className={inputCommon} value={nombreDueno} onChange={(e) => setNombreDueno(e.target.value)} />
 
-                    <label className="text-sm text-gray-700">Apellidos</label>
-                    <input className={inputCommon} value={apellidoDueno} onChange={(e) => setApellidoDueno(e.target.value)} />
+                      <label className="text-sm text-gray-700">Apellidos</label>
+                      <input className={inputCommon} value={apellidoDueno} onChange={(e) => setApellidoDueno(e.target.value)} />
 
-                    <label className="text-sm text-gray-700">Telefono</label>
-                    <input
-                      className={inputCommon}
-                      value={telefono}
-                      onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
-                      placeholder="0998888888"
-                    />
+                      <label className="text-sm text-gray-700">Telefono</label>
+                      <input
+                        className={inputCommon}
+                        value={telefono}
+                        onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
+                        placeholder="0998888888"
+                      />
 
-                    <div className="pt-4">
-                      <button onClick={handleNext2} className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow">
-                        Siguiente
-                      </button>
+                      <div className="pt-4">
+                        <button onClick={handleNext2} className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow">
+                          Siguiente
+                        </button>
+                      </div>
+
+                      <div className="text-center mt-3">
+                        <Link to="/" className="text-sm text-gray-700">
+                          YA TENGO UNA CUENTA.
+                        </Link>
+                      </div>
                     </div>
+                  </section>
+                )}
 
-                    <div className="text-center mt-3">
-                      <Link to="/" className="text-sm text-gray-700">
-                        YA TENGO UNA CUENTA.
-                      </Link>
+                {page === 3 && (
+                  <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2">
+                    <div className="pb-4" ref={regPage2Ref}>
+                      <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
+                      <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
+
+                      {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+
+                      <label className="text-sm text-gray-700">RUC</label>
+                      <input
+                        className={inputCommon}
+                        value={ruc}
+                        onChange={(e) => setRuc(e.target.value.replace(/[^\d]/g, ""))}
+                        maxLength={13}
+                      />
+
+                      <label className="text-sm text-gray-700">Nombre negocio</label>
+                      <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
+
+                      <label className="text-sm text-gray-700">Sector negocio</label>
+                      <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
+
+                      <label className="text-sm text-gray-700">Calle 1</label>
+                      <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
+
+                      <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
+                      <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
+
+                      <div className="pt-4">
+                        <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
+                          Registrar Negocio
+                        </button>
+                      </div>
+
+                      <div className="text-center mt-3">
+                        <Link to="/" className="text-sm text-gray-700">
+                          YA TENGO UNA CUENTA.
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </section>
-
-                <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
-                  <div className="pb-4" ref={page3Ref}>
-                    <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
-                    <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
-
-                    {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
-
-                    <label className="text-sm text-gray-700">RUC</label>
-                    <input
-                      className={inputCommon}
-                      value={ruc}
-                      onChange={(e) => setRuc(e.target.value.replace(/[^\d]/g, ""))}
-                      maxLength={13}
-                    />
-
-                    <label className="text-sm text-gray-700">Nombre negocio</label>
-                    <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
-
-                    <label className="text-sm text-gray-700">Sector negocio</label>
-                    <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
-
-                    <label className="text-sm text-gray-700">Calle 1</label>
-                    <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
-
-                    <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
-                    <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
-
-                    <div className="pt-4">
-                      <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
-                        Registrar Negocio
-                      </button>
-                    </div>
-
-                    <div className="text-center mt-3">
-                      <Link to="/" className="text-sm text-gray-700">
-                        YA TENGO UNA CUENTA.
-                      </Link>
-                    </div>
-                  </div>
-                </section>
+                  </section>
+                )}
               </div>
             </div>
           </div>

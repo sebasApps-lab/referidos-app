@@ -54,12 +54,6 @@ export default function Bienvenido() {
     const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
     const regStatus = session?.user ? getRegStatus(session.user.id) : null;
 
-    if (session?.user && (pendingAge < 15 * 60 * 1000 || !roleOk || !user)) {
-      localStorage.removeItem(OAUTH_LOGIN_PENDING);
-      navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
-      return true;
-    }
-
     if (user) {
       localStorage.removeItem(OAUTH_LOGIN_PENDING);
       setUser(user);
@@ -75,9 +69,9 @@ export default function Bienvenido() {
       return true;
     }
 
-    if (session?.user) {
+    if (session?.user && (pendingAge < 15 * 60 * 1000 || regStatus)) {
       localStorage.removeItem(OAUTH_LOGIN_PENDING);
-      navigate("/tipo", { replace: true, state: { fromOAuth: true, regStatus } });
+      navigate("/auth", { replace: true, state: { fromOAuth: true, regStatus, openChoice: true } });
       return true;
     }
 
