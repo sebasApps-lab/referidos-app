@@ -38,7 +38,6 @@ export default function AuthHub() {
   const cardRef = useRef(null);
   const cardInnerRef = useRef(null);
   const sliderRef = useRef(null);
-  const page1Ref = useRef(null);
   const page2Ref = useRef(null);
   const page3Ref = useRef(null);
 
@@ -61,8 +60,6 @@ export default function AuthHub() {
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [animating, setAnimating] = useState(false);
-  const [btnText, setBtnText] = useState("SIGUIENTE");
-  const [btnFadeKey, setBtnFadeKey] = useState(0);
   const [entryStep, setEntryStep] = useState("email");
   const [authTab, setAuthTab] = useState("login");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -131,7 +128,7 @@ export default function AuthHub() {
     setOauthIntentRole(null);
     setPendingOAuthProfile(null);
     setStartedWithOAuth(false);
-    const targetPage = pageFromState && pageFromState >= 1 ? pageFromState : 1;
+    const targetPage = pageFromState && pageFromState >= 2 ? pageFromState : 2;
     setEntryStep(targetPage >= 2 ? "form" : "email");
     setAuthTab(targetPage >= 2 ? "register" : "login");
     setLoginLoading(false);
@@ -290,8 +287,6 @@ export default function AuthHub() {
 
     if (!codigo || !CODE_RE.test(codigo)) {
       setCodeValid(effectiveRole === "negocio");
-      setBtnFadeKey((k) => k + 1);
-      setBtnText("SIGUIENTE");
       return;
     }
 
@@ -301,8 +296,6 @@ export default function AuthHub() {
       .then((res) => {
         if (!mounted) return;
         setCodeValid(res.ok);
-        setBtnFadeKey((k) => k + 1);
-        setBtnText("SIGUIENTE");
       })
       .finally(() => mounted && setCodeChecking(false));
 
@@ -316,7 +309,10 @@ export default function AuthHub() {
     () => ({
       display: "flex",
       gap: sliderGap,
-      transform: `translateX(calc(${-(page - 1) * 100}% - ${(page - 1) * sliderGap}px))`,
+      transform: (() => {
+        const idx = page <= 2 ? 0 : 1;
+        return `translateX(calc(${ -idx * 100}% - ${idx * sliderGap}px))`;
+      })(),
       transition:
         animating || sliderHeight != null
           ? `${animating ? "transform 350ms ease, filter 350ms ease, opacity 350ms ease" : "transform 350ms ease"}, height 260ms ease`
@@ -333,12 +329,10 @@ export default function AuthHub() {
     [page, animating, sliderGap, sliderHeight]
   );
 
-  const pageRefs = useMemo(() => [page1Ref, page2Ref, page3Ref], []);
-
   const measureHeights = useCallback(
     (targetPage = page) => {
       const inner = cardInnerRef.current;
-      const active = pageRefs[targetPage - 1]?.current;
+      const active = targetPage === 3 ? page3Ref.current : page2Ref.current;
       if (!inner || !active) return;
 
       const styles = window.getComputedStyle(inner);
@@ -349,7 +343,7 @@ export default function AuthHub() {
       setSliderHeight(Math.ceil(contentH));
       setCardHeight(Math.ceil(contentH + pt + pb));
     },
-    [page, pageRefs]
+    [page]
   );
 
   useLayoutEffect(() => {
@@ -359,25 +353,12 @@ export default function AuthHub() {
 
   useEffect(() => {
     if (entryStep === "email") return;
-    const active = pageRefs[page - 1]?.current;
+    const active = page === 3 ? page3Ref.current : page2Ref.current;
     if (!active) return;
     const ro = new ResizeObserver(() => measureHeights(page));
     ro.observe(active);
     return () => ro.disconnect();
-  }, [page, entryStep, pageRefs, measureHeights]);
-
-  const startForm = () => {
-    clearOAuthIntent();
-    setOauthIntentRole(null);
-    setCodeValid(roleFromSplash === "negocio");
-    setPage(1);
-    setStartedWithOAuth(false);
-    setError("");
-    setEntryStep("form");
-    setAuthTab("register");
-    setOauthExit(false);
-    allowExitRef.current = false;
-  };
+  }, [page, entryStep, measureHeights]);
 
   const handleLogin = async () => {
     setError("");
@@ -525,6 +506,10 @@ export default function AuthHub() {
       prefillCode: codeToUse,
       initialSelectedRole:
         forceRole || selectedChoiceRole || (skipCode ? "negocio" : roleLocked ? "negocio" : null),
+      onBack: () => {
+        goToRegisterTab();
+        closeModal();
+      },
       onCliente: async () => {
         setSelectedChoiceRole("cliente");
         closeModal();
@@ -542,7 +527,7 @@ export default function AuthHub() {
         setOauthIntentRole("negocio");
         setEntryStep("form");
         setAuthTab("register");
-        setPage(1);
+        setPage(2);
         setRoleLocked(true);
         setSelectedChoiceRole("negocio");
         if (finalCode && CODE_RE.test(finalCode)) setCodeLocked(true);
@@ -558,7 +543,7 @@ export default function AuthHub() {
     setError("");
     setEntryStep("form");
     setAuthTab("register");
-    setPage(1);
+    setPage(2);
     openChoiceOverlay();
   };
 
@@ -676,23 +661,12 @@ export default function AuthHub() {
       goTo(2);
       return;
     }
-    if (page === 2) {
-      goTo(1);
-      return;
-    }
-    setAuthTab("login");
-    setEntryStep("email");
-    setPage(1);
-    setStartedWithOAuth(false);
+    goToRegisterTab();
   };
 
   const showForwardButton = entryStep === "form" && page < 3;
 
   const handleForward = () => {
-    if (page === 1) {
-      handlePrimaryPage1();
-      return;
-    }
     if (page === 2) {
       handleNext2();
       return;
@@ -713,7 +687,7 @@ export default function AuthHub() {
     clearOAuthIntent();
     setOauthIntentRole(null);
     setCodeValid(roleFromSplash === "negocio");
-    setPage(1);
+    setPage(2);
     setStartedWithOAuth(false);
     setError("");
     setEntryStep("email");
@@ -814,7 +788,7 @@ export default function AuthHub() {
             </button>
 
             {authTab === "login" ? (
-              <Link to="/recuperar" className="block text-center text-xs text-gray-400 mt-3 underline">
+              <Link to="/recuperar" className="block text-center text-sm text-gray-400 mt-4 underline">
                 OLVIDASTE TU CONTRASENA?
               </Link>
             ) : (
@@ -847,160 +821,84 @@ export default function AuthHub() {
               style={{ boxSizing: "border-box", overflow: "hidden" }}
             >
               <div ref={sliderRef} style={containerStyle} className="flex">
-            <section style={{ flex: "0 0 100%", boxSizing: "border-box" }}>
-              <div ref={page1Ref}>
-                {page === 1 && (
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="flex-1">
-                      <div
-                        className="flex bg-[#f7f5fdff] rounded-xl p-0.75 gap-3"
-                        style={{ marginLeft: "-10px", marginRight: "-10px", width: "calc(100% + 20px)" }}
-                      >
-                        <button
-                          onClick={() => {
-                            setAuthTab("login");
-                            setEntryStep("email");
-                            setPage(1);
-                          }}
-                          className={`flex-1 text-base font-semibold py-3 px-3 rounded-xl transition-all ${
-                            authTab === "login"
-                              ? "bg-[#5E30A5] text-white shadow flex-[0.85] px-6"
-                              : "text-[#5E30A5] bg-transparent flex-[1.15]"
-                          }`}
-                        >
-                          Iniciar sesion
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAuthTab("register");
-                            setEntryStep("form");
-                            setPage(1);
-                          }}
-                          className={`flex-1 text-base font-semibold py-3 px-5 rounded-xl transition-all ${
-                            authTab === "register"
-                              ? "bg-[#5E30A5] text-white shadow flex-[1.25] px-6"
-                              : "text-[#5E30A5] bg-transparent flex-[0.75]"
-                          }`}
-                        >
-                          Registrarse
-                        </button>
-                      </div>
+                <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
+                  <div className="pb-4" ref={page2Ref}>
+                    <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
+                    <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
+
+                    {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+
+                    <label className="text-sm text-gray-700">Nombres</label>
+                    <input className={inputCommon} value={nombreDueno} onChange={(e) => setNombreDueno(e.target.value)} />
+
+                    <label className="text-sm text-gray-700">Apellidos</label>
+                    <input className={inputCommon} value={apellidoDueno} onChange={(e) => setApellidoDueno(e.target.value)} />
+
+                    <label className="text-sm text-gray-700">Telefono</label>
+                    <input
+                      className={inputCommon}
+                      value={telefono}
+                      onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
+                      placeholder="0998888888"
+                    />
+
+                    <div className="pt-4">
+                      <button onClick={handleNext2} className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow">
+                        Siguiente
+                      </button>
+                    </div>
+
+                    <div className="text-center mt-3">
+                      <Link to="/" className="text-sm text-gray-700">
+                        YA TENGO UNA CUENTA.
+                      </Link>
                     </div>
                   </div>
-                )}
+                </section>
 
-                {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+                <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
+                  <div className="pb-4" ref={page3Ref}>
+                    <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
+                    <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
 
-                <label className="text-sm text-gray-700">Email</label>
-                <input
-                  type="email"
-                  className={inputCommon}
-                  placeholder="Ingrese su email..."
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                    {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
 
-                <label className="text-sm text-gray-700">Contraseña</label>
-                <input
-                  type="password"
-                  className={inputCommon}
-                  placeholder="Ingrese su contraseña..."
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                    <label className="text-sm text-gray-700">RUC</label>
+                    <input
+                      className={inputCommon}
+                      value={ruc}
+                      onChange={(e) => setRuc(e.target.value.replace(/[^\d]/g, ""))}
+                      maxLength={13}
+                    />
 
-                <div className="flex flex-col gap-3 mt-3">
-                  <button onClick={handlePrimaryPage1} className="w-full bg-[#FFC21C] text-white font-semibold py-2.5 rounded-lg shadow active:scale-[0.98] disabled:opacity-50">
-                    <span key={btnFadeKey} style={{ display: "inline-block", transition: "opacity 180ms" }}>
-                      {btnText}
-                    </span>
-                  </button>
+                    <label className="text-sm text-gray-700">Nombre negocio</label>
+                    <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
 
-                  <div className="text-center text-sm text-gray-500">
-                    Eligirás el tipo de cuenta al avanzar.
+                    <label className="text-sm text-gray-700">Sector negocio</label>
+                    <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
+
+                    <label className="text-sm text-gray-700">Calle 1</label>
+                    <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
+
+                    <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
+                    <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
+
+                    <div className="pt-4">
+                      <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
+                        Registrar Negocio
+                      </button>
+                    </div>
+
+                    <div className="text-center mt-3">
+                      <Link to="/" className="text-sm text-gray-700">
+                        YA TENGO UNA CUENTA.
+                      </Link>
+                    </div>
                   </div>
-                </div>
+                </section>
               </div>
-            </section>
-
-            <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
-              <div className="pb-4" ref={page2Ref}>
-                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
-                <p className="text-sm text-gray-600 mb-3">Datos del Propietario</p>
-
-                {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
-
-                <label className="text-sm text-gray-700">Nombres</label>
-                <input className={inputCommon} value={nombreDueno} onChange={(e) => setNombreDueno(e.target.value)} />
-
-                <label className="text-sm text-gray-700">Apellidos</label>
-                <input className={inputCommon} value={apellidoDueno} onChange={(e) => setApellidoDueno(e.target.value)} />
-
-                <label className="text-sm text-gray-700">Teléfono</label>
-                <input
-                  className={inputCommon}
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value.replace(/[^\d]/g, ""))}
-                  placeholder="0998888888"
-                />
-
-                <div className="pt-4">
-                  <button onClick={handleNext2} className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow">
-                    Siguiente
-                  </button>
-                </div>
-
-                <div className="text-center mt-3">
-                  <Link to="/" className="text-sm text-gray-700">
-                    YA TENGO UNA CUENTA.
-                  </Link>
-                </div>
-              </div>
-            </section>
-
-            <section style={{ flex: "0 0 100%", boxSizing: "border-box" }} className="px-2">
-              <div className="pb-4" ref={page3Ref}>
-                <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
-                <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
-
-                {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
-
-                <label className="text-sm text-gray-700">RUC</label>
-                <input
-                  className={inputCommon}
-                  value={ruc}
-                  onChange={(e) => setRuc(e.target.value.replace(/[^\d]/g, ""))}
-                  maxLength={13}
-                />
-
-                <label className="text-sm text-gray-700">Nombre negocio</label>
-                <input className={inputCommon} value={nombreNegocio} onChange={(e) => setNombreNegocio(e.target.value)} />
-
-                <label className="text-sm text-gray-700">Sector negocio</label>
-                <input className={inputCommon} value={sectorNegocio} onChange={(e) => setSectorNegocio(e.target.value)} />
-
-                <label className="text-sm text-gray-700">Calle 1</label>
-                <input className={inputCommon} value={calle1} onChange={(e) => setCalle1(e.target.value)} />
-
-                <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
-                <input className={inputCommon} value={calle2} onChange={(e) => setCalle2(e.target.value)} />
-
-                <div className="pt-4">
-                  <button onClick={handleRegister} className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow">
-                    Registrar Negocio
-                  </button>
-                </div>
-
-                <div className="text-center mt-3">
-                  <Link to="/" className="text-sm text-gray-700">
-                    YA TENGO UNA CUENTA.
-                  </Link>
-                </div>
-              </div>
-            </section>
+            </div>
           </div>
-        </div>
-      </div>
         </>
       )}
 

@@ -25,6 +25,7 @@ export default function ModalSplashChoiceOverlay({
   skipNegocioCode = false,
   prefillCode = "",
   initialSelectedRole = null,
+  onBack = null,
 }) {
   const [selected, setSelected] = useState(null);
   const [mounted, setMounted] = useState(false);
@@ -89,7 +90,10 @@ export default function ModalSplashChoiceOverlay({
   return (
     <div className="w-screen h-screen bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
       <button
-        onClick={() => closeModal()}
+        onClick={() => {
+          if (onBack) onBack();
+          else closeModal();
+        }}
         className="absolute left-8 w-9 h-25 rounded-xl bg-[#5624a1ff] text-white shadow-lg flex items-center justify-center active:scale-95 transition"
         style={{ top: "42%", transform: "translate(-50%, 0)", zIndex: 20 }}
         aria-label="Volver"
