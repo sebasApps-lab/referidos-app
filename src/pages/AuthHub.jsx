@@ -19,7 +19,6 @@ const DEFAULT_CODES = ["REF-001532", "REF-003765"];
 
 export default function AuthHub() {
   const navigate = useNavigate();
-  const register = useAppStore((s) => s.register);
   const login = useAppStore((s) => s.login);
   const setUser = useAppStore((s) => s.setUser);
   const { openModal, closeModal } = useModal();
@@ -176,6 +175,19 @@ export default function AuthHub() {
     setLoginLoading(false);
 
     if (!result.ok) {
+      const msg = (result.error || "").toLowerCase();
+      if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
+        const { data: oauthUser } = await supabase
+          .from("usuarios")
+          .select("id_auth")
+          .eq("email", email)
+          .maybeSingle();
+        if (oauthUser) {
+          setError("Esta cuenta fue creada con Google. Inicia sesión con Google para continuar.");
+          navigate("/", { replace: true });
+          return;
+        }
+      }
       setError(result.error || "Usuario o contraseña incorrectos");
       return;
     }
@@ -214,21 +226,48 @@ export default function AuthHub() {
           setError("Sesión no válida");
           return { ok: false };
         }
-        
-        const result = await updateUserProfile({
-          id_auth: session.user.id,
-          role: "cliente",
-          nombre: email.split("@")[0],
-          telefono,
-          registro_estado: "completo",
-        });
 
-        if (!result.ok) {
+        //Crear perfil si no existe, o actualizar si ya existe
+        const { data: existing } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id_auth", session.user.id)
+          .maybeSingle();
+        
+        if (!existing) {
+          const { data, error } = await supabase
+            .from("usuarios")
+            .insert({
+              id_auth: session.user.id,
+              email,
+              role: "cliente",
+              telefono,
+              registro_estado: "completo",
+            })
+            .select()
+            .maybeSingle();
+          if (error) {
+            setError(error.message || "Error al crear perfil");
+            return { ok: false };
+          }
+          setUser(data);
+        } else {
+          const result = await updateUserProfile({
+            id_auth: session.user.id,
+            role: "cliente",
+            email: existing.email || email,
+            nombre: existing.nombre || existing.email.split("@")[0] || email.split("@")[0],
+            telefono: telefono || existing.telefono,
+            registro_estado: "completo",
+          });
+
+          if (!result.ok) {
           setError(result.error || "Error al crear perfil");
           return { ok: false };
+          }
+          setUser(result.user);
         }
 
-        setUser(result.user);
         closeModal();
         navigate("/cliente/inicio");
         return { ok: true };
@@ -243,11 +282,9 @@ export default function AuthHub() {
         }
 
         setCodigo(code);
-
         setEntryStep("form");
         setAuthTab("register");
         setPage(2);
-
         closeModal();
         return { ok:true };
       },
@@ -301,7 +338,7 @@ export default function AuthHub() {
 
       //Negocio
       const missingOwner = !userProfile.nombre || !userProfile.apellido || !userProfile.telefono;
-      const missingBusiness = !userProfile.nombreNegocio || !userProfile.sectorNegocio || !userProfile.calle1;
+      const missingBusiness = !userProfile.ruc || !userProfile.nombreNegocio || !userProfile.sectorNegocio || !userProfile.calle1;
 
       if (missingOwner) {
         landingHandledRef.current = true;
@@ -323,6 +360,7 @@ export default function AuthHub() {
         setApellidoDueno(userProfile.apellido || "");
         setRuc(userProfile.ruc || "");
         setTelefono(userProfile.telefono || "");
+        setRuc(userProfile.ruc || "");
         setNombreNegocio(userProfile.nombreNegocio || "");
         setSectorNegocio(userProfile.sectorNegocio || "");
         setCalle1(userProfile.calle1 || "");
@@ -331,7 +369,7 @@ export default function AuthHub() {
       }
 
       if (userProfile.registro_estado !== "completo") {
-        await updateUserProfile({ id_atuh: session.user.id, registro_estado: "completo" });
+        await updateUserProfile({ id_auth: session.user.id, registro_estado: "completo" });
       }
       landingHandledRef.current = true;
       setUser(userProfile);
@@ -353,10 +391,18 @@ export default function AuthHub() {
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
-        if(!msg.includes("already") && !msg.includes("exists")) {
-          setError(error.message);
+        if(msg.includes("already") || msg.includes("exists")) {
+          //Correo ya usado: asumir que puede ser cuenta creada con OAuth
+          setError("Esta cuenta ya existe. Si la creaste con Google, usa Google para continuar.");
+          setAuthTab("login");
+          setEntryStep("email");
+          setPage(1);
+          //Redirige a la pantalla de bienvenida con botones OAuth
+          navigate("/", { replace: true });
           return;
-      }
+        }
+        setError(error.message);
+        return;
       }
 
       //Asegurar sesión activa

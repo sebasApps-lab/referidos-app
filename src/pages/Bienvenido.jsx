@@ -7,28 +7,9 @@ import { supabase } from "../lib/supabaseClient";
 import { requestGoogleCredential } from "../utils/googleOneTap";
 
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
-const REG_STATUS_PREFIX = "reg_status_";
 const GOOGLE_ONE_TAP_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_ONE_TAP_CLIENT_ID ||
   import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-const getRegStatus = (userId) => {
-  if (!userId) return null;
-  try {
-    return localStorage.getItem(`${REG_STATUS_PREFIX}${userId}`);
-  } catch {
-    return null;
-  }
-};
-
-const clearRegStatus = (userId) => {
-  if (!userId) return;
-  try {
-    localStorage.removeItem(`${REG_STATUS_PREFIX}${userId}`);
-  } catch {
-    /* ignore */
-  }
-};
 
 export default function Bienvenido() {
   const setUser = useAppStore((state) => state.setUser);
@@ -39,39 +20,19 @@ export default function Bienvenido() {
 
   const handleSessionRedirect = useCallback(async () => {
     const user = await getSessionUserProfile();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const pendingRaw = localStorage.getItem(OAUTH_LOGIN_PENDING);
-    let pendingTs = 0;
-    try {
-      pendingTs = pendingRaw ? JSON.parse(pendingRaw)?.ts || 0 : 0;
-    } catch {
-      pendingTs = 0;
-    }
-    const pendingAge = pendingTs ? Date.now() - pendingTs : Infinity;
-    const roleOk = user?.role && ["admin", "negocio", "cliente"].includes(user.role);
-    const regStatus = session?.user ? getRegStatus(session.user.id) : null;
-
+    const { data: { session } = {} } = await supabase.auth.getSession();
+    
     if (user) {
-      localStorage.removeItem(OAUTH_LOGIN_PENDING);
       setUser(user);
-      if (user.role === "admin") {
-        navigate("/admin/inicio", { replace: true });
-      } else if (user.role === "negocio") {
-        if (regStatus === "negocio_page3") navigate("/auth", { replace: true, state: { role: "negocio", fromOAuth: true, page: 3 } });
-        else if (regStatus === "negocio_page2") navigate("/auth", { replace: true, state: { role: "negocio", fromOAuth: true, page: 2 } });
-        else navigate("/negocio/inicio", { replace: true });
-      } else {
-        navigate("/cliente/inicio", { replace: true });
-      }
+      if (user.role === "admin") navigate("/admin/inicio", { replace: true });
+      else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
+      else navigate("/cliente/inicio", { replace: true });      
       return true;
     }
 
-    if (session?.user && (pendingAge < 15 * 60 * 1000 || regStatus)) {
-      localStorage.removeItem(OAUTH_LOGIN_PENDING);
-      navigate("/auth", { replace: true, state: { fromOAuth: true, regStatus, openChoice: true } });
+    if (session?.user) {
+      // hay sesión pero no perfil/rol -> ir a /auth con SplashChoice
+      navigate("/auth", { replace: true, state: { openChoice: true } });
       return true;
     }
 
