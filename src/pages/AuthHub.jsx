@@ -16,8 +16,6 @@ import { supabase } from "../lib/supabaseClient";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
-const OAUTH_INTENT_KEY = "registro_oauth_intent";
-const REG_STATUS_PREFIX = "reg_status_";
 
 export default function AuthHub() {
   const navigate = useNavigate();
@@ -65,15 +63,6 @@ export default function AuthHub() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthProvider, setOauthProvider] = useState(null);
-  const [oauthIntentRole, setOauthIntentRole] = useState(null);
-  const [startedWithOAuth, setStartedWithOAuth] = useState(false);
-  const [roleLocked, setRoleLocked] = useState(false);
-  const [codeLocked, setCodeLocked] = useState(false);
-  const [lastValidCode, setLastValidCode] = useState(codeFromSplash || "");
-  const [selectedChoiceRole, setSelectedChoiceRole] = useState(null);
-  const allowExitRef = useRef(false);
-  const [oauthExit, setOauthExit] = useState(false);
-  const [pendingOAuthProfile, setPendingOAuthProfile] = useState(null);
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
@@ -85,26 +74,7 @@ export default function AuthHub() {
     }
   }, []);
 
-  const effectiveRole = roleFromSplash || oauthIntentRole || null;
-  const leaveGuardActive = entryStep === "form" && roleLocked && codeLocked && !allowExitRef.current;
-  const setRegStatus = async (status) => {
-    let uid = pendingOAuthProfile?.id_auth || null;
-    if (!uid) {
-      try {
-        const session = (await supabase?.auth?.getSession())?.data?.session;
-        uid = session?.user?.id || null;
-      } catch {
-        uid = null;
-      }
-    }
-    if (!uid) return;
-    try {
-      if (!status) localStorage.removeItem(`${REG_STATUS_PREFIX}${uid}`);
-      else localStorage.setItem(`${REG_STATUS_PREFIX}${uid}`, status);
-    } catch {
-      /* ignore */
-    }
-  };
+  
   const getRegStatus = (uid) => {
     if (!uid) return null;
     try {
@@ -113,206 +83,6 @@ export default function AuthHub() {
       return null;
     }
   };
-
-  const saveOAuthIntent = (role) => {
-    try {
-      localStorage.setItem(OAUTH_INTENT_KEY, JSON.stringify({ role, ts: Date.now() }));
-    } catch {
-      // ignore
-    }
-  };
-
-  const clearOAuthIntent = () => {
-    try {
-      localStorage.removeItem(OAUTH_INTENT_KEY);
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    if (!roleFromSplash) return;
-    clearOAuthIntent();
-    setOauthIntentRole(null);
-    setPendingOAuthProfile(null);
-    setStartedWithOAuth(false);
-    const targetPage = pageFromState && pageFromState >= 2 ? pageFromState : 2;
-    setEntryStep(targetPage >= 2 ? "form" : "email");
-    setAuthTab(targetPage >= 2 ? "register" : "login");
-    setLoginLoading(false);
-    setPage(targetPage);
-    setError("");
-    setOauthProvider(null);
-    setOauthLoading(false);
-    setCodigo(codeFromSplash || "");
-    if (codeFromSplash) setLastValidCode(codeFromSplash);
-    setCodeValid(roleFromSplash === "negocio");
-    if (roleFromSplash === "negocio") setRoleLocked(true);
-    if (roleFromSplash === "negocio") setSelectedChoiceRole("negocio");
-  }, [roleFromSplash, codeFromSplash, pageFromState]);
-
-  useEffect(() => {
-    if (!authCredsFromChoice) return;
-    if (authCredsFromChoice.email) setEmail(authCredsFromChoice.email);
-    if (authCredsFromChoice.password) setPassword(authCredsFromChoice.password);
-    if (authCredsFromChoice.telefono) setTelefono(authCredsFromChoice.telefono);
-    if (authCredsFromChoice.role === "negocio") {
-      setEntryStep("form");
-      setAuthTab("register");
-      setPage(authCredsFromChoice.page || 2);
-      const incomingCode = authCredsFromChoice.codigo || codeFromSplash || "";
-      setCodigo(incomingCode);
-      if (incomingCode) setLastValidCode(incomingCode);
-      setCodeValid(true);
-      setOauthIntentRole("negocio");
-      setRoleLocked(true);
-      setSelectedChoiceRole("negocio");
-      if (authCredsFromChoice.codigo) setCodeLocked(true);
-      else if (codeFromSplash) setCodeLocked(true);
-    }
-  }, [authCredsFromChoice]);
-
-  useEffect(() => {
-    if (!location.state?.openChoice) return;
-    const { openChoice, ...rest } = location.state || {};
-    setAuthTab("register");
-    setEntryStep("email");
-    setPage(1);
-    setError("");
-    setStartedWithOAuth(false);
-    setRoleLocked(false);
-    setCodeLocked(false);
-    openChoiceOverlay();
-    navigate(location.pathname, { replace: true, state: { ...rest } });
-  }, [location.state?.openChoice, location.pathname, navigate]);
-
-  useEffect(() => {
-    if (roleFromSplash) return;
-    try {
-      const raw = localStorage.getItem(OAUTH_INTENT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      const age = parsed?.ts ? Date.now() - parsed.ts : 0;
-      if (parsed?.role && (!parsed?.ts || age < 15 * 60 * 1000)) {
-        setOauthIntentRole(parsed.role);
-        setEntryStep("form");
-        setPage(pageFromState || 2);
-        setStartedWithOAuth(true);
-        setPendingOAuthProfile(null);
-        if (parsed.role === "negocio") setCodeValid(true);
-        if (parsed.role === "negocio") setSelectedChoiceRole("negocio");
-      }
-    } catch {
-      // ignore
-    }
-  }, [pageFromState]);
-
-  useEffect(() => {
-    if (codeLocked && CODE_RE.test((codigo || lastValidCode || "").toString())) {
-      setSelectedChoiceRole((prev) => prev || "negocio");
-      setRoleLocked(true);
-      if (!codigo && lastValidCode) setCodigo(lastValidCode);
-    }
-  }, [codeLocked, codigo, lastValidCode]);
-
-  const showLeaveModal = () => {
-    openModal("AbandonarRegistro", {
-      onAbandon: () => {
-        allowExitRef.current = true;
-        clearOAuthIntent();
-        setPendingOAuthProfile(null);
-        signOut();
-        window.location.assign("/");
-      },
-      onStay: () => {
-        allowExitRef.current = false;
-      },
-    });
-  };
-
-  useEffect(() => {
-    if (!leaveGuardActive) return;
-    const handleBeforeUnload = (e) => {
-      if (allowExitRef.current || oauthExit) return;
-      e.preventDefault();
-      e.returnValue = "";
-      return "";
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [leaveGuardActive, oauthExit]);
-
-  useEffect(() => {
-    // Si vuelve de OAuth con sesion activa, mostrar mensaje y redirigir.
-    (async () => {
-      const user = await getSessionUserProfile();
-      if (!user) {
-        setOauthExit(false);
-        allowExitRef.current = false;
-        return;
-      }
-
-      let intendedRole = null;
-      let hasIntent = false;
-      try {
-        const raw = localStorage.getItem(OAUTH_INTENT_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const age = parsed?.ts ? Date.now() - parsed.ts : 0;
-          if (!parsed?.ts || age < 15 * 60 * 1000) {
-            intendedRole = parsed?.role || null;
-            hasIntent = true;
-          }
-        }
-      } catch {
-        intendedRole = null;
-      }
-      localStorage.removeItem(OAUTH_INTENT_KEY);
-
-      if (hasIntent && startedWithOAuth) {
-        setPendingOAuthProfile(user);
-        if (user?.email) setEmail((prev) => prev || user.email);
-        setOauthExit(false);
-        allowExitRef.current = false;
-        if (intendedRole === "negocio") {
-          setEntryStep("form");
-          setPage(pageFromState || 2);
-          setCodeValid(true);
-        }
-        return;
-      }
-
-      const regStatus = getRegStatus(user?.id_auth);
-      setUser(user);
-      setOauthExit(false);
-      allowExitRef.current = false;
-
-      if (user.registro_estado !== "completo") {
-        if (user.role === "negocio") {
-          setEntryStep("form");
-          setAuthTab("register");
-          setRoleLocked(true);
-          setCodeValid(true);
-          setSelectedChoiceRole("negocio");
-          const targetPage = regStatus === "negocio_page3" ? 3 : 2;
-          setPage(targetPage);
-          return;
-        }
-        if (user.role === "cliente") {
-          setAuthTab("register");
-          setEntryStep("email");
-          setPage(1);
-          return;
-        }
-      }
-
-      if (user.role === "admin") navigate("/admin/inicio", { replace: true });
-      else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
-      else navigate("/cliente/inicio", { replace: true });
-    })();
-  }, [navigate, setUser]);
 
   async function fakeValidateCode(code) {
     await new Promise((r) => setTimeout(r, 250));
@@ -329,7 +99,7 @@ export default function AuthHub() {
     let mounted = true;
 
     if (!codigo || !CODE_RE.test(codigo)) {
-      setCodeValid(effectiveRole === "negocio");
+      setCodeValid(false);
       return;
     }
 
@@ -345,7 +115,7 @@ export default function AuthHub() {
     return () => {
       mounted = false;
     };
-  }, [codigo, roleFromSplash, effectiveRole]);
+  }, [codigo, roleFromSplash]);
 
   const sliderGap = 28;
   const containerStyle = useMemo(
@@ -466,84 +236,7 @@ export default function AuthHub() {
     }
   };
 
-  const openEmailModal = ({ email: emailForModal, initialError, role, readOnlyEmail = true }) => {
-    const modalEmail = emailForModal || email;
-    openModal("SplashEmailConfirmation", {
-      email: modalEmail,
-      initialError,
-      readOnlyEmail,
-      onSkip:
-        role === "negocio"
-          ? () => {
-              setSelectedChoiceRole("negocio");
-              setRoleLocked(true);
-              setCodeValid(true);
-              setEntryStep("form");
-              setAuthTab("register");
-              setPage(2);
-              closeModal();
-            }
-          : null,
-      onBack: () => {
-        if (role === "negocio" && (codigo || lastValidCode)) {
-          const codeVal = lastValidCode || codigo;
-          if (codeVal) {
-            setCodigo(codeVal);
-            setLastValidCode(codeVal);
-            setSelectedChoiceRole("negocio");
-            setRoleLocked(true);
-          }
-        }
-        closeModal();
-        openChoiceOverlay();
-      },
-      onSend: async (targetEmail) => {
-        if (role === "cliente") {
-          const result = await register({
-            email: targetEmail,
-            password,
-            telefono,
-            nombre: targetEmail.split("@")[0],
-            role: "cliente",
-          });
-          if (!result.ok) {
-            setError(result.error || "No se pudo crear la cuenta");
-            return { ok: false, error: result.error || "No se pudo crear la cuenta" };
-          }
-          setUser(result.user);
-          allowExitRef.current = true;
-          closeModal();
-          navigate("/cliente/inicio");
-          return { ok: true, message: result.warning };
-        }
-
-        const result = await register({
-          email: targetEmail,
-          password,
-          telefono,
-          nombre: nombreDueno || targetEmail.split("@")[0],
-          role: "negocio",
-        });
-        if (!result.ok) {
-          setError(result.error || "Error al registrar negocio");
-          return { ok: false, error: result.error || "Error al registrar negocio" };
-        }
-        setUser(result.user);
-        setRoleLocked(true);
-        setSelectedChoiceRole("negocio");
-        setEntryStep("form");
-        setAuthTab("register");
-        setPage(2);
-        allowExitRef.current = false;
-        closeModal();
-        return { ok: true, message: result.warning };
-      },
-    });
-  };
-
   const openChoiceOverlay = () => {
-    setCodeLocked(false);
-    setRoleLocked(false);
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
       onBack: () => {
@@ -573,7 +266,6 @@ export default function AuthHub() {
         }
 
         setUser(result.user);
-        allowExitRef.current = true;
         closeModal();
         navigate("/cliente/inicio");
         return { ok: true };
@@ -588,11 +280,7 @@ export default function AuthHub() {
         }
 
         setCodigo(code);
-        setLastValidCode(code);
         setCodeValid(true);
-        setRoleLocked(true);
-        setSelectedChoiceRole("negocio");
-        setCodeLocked(true);
 
         setEntryStep("form");
         setAuthTab("register");
@@ -615,9 +303,12 @@ export default function AuthHub() {
         password,
       });
 
-      if (error && !error.message?.toLowerCase().includes("already registred")) {
-        setError(error.message);
-        return;
+      if (error) {
+        const msg = error.message?.toLowerCase() || "";
+        if(!msg.includes("already") && !msg.includes("exists")) {
+          setError(error.message);
+          return;
+      }
       }
 
       //Asegurar sesión activa
@@ -646,7 +337,6 @@ export default function AuthHub() {
     if (!apellidoDueno) return setError("Ingrese apellidos");
     if (!PHONE_RE.test(telefono)) return setError("Ingrese un teléfono válido");
     setError("");
-    if (startedWithOAuth || fromOAuth) setRegStatus("negocio_page3");
     goTo(3);
   };
 
@@ -660,9 +350,9 @@ export default function AuthHub() {
       }
       const payload = {
         role: "negocio",
-        nombre: nombreDueno || pendingOAuthProfile?.nombre,
-        apellido: apellidoDueno || pendingOAuthProfile?.apellido || null,
-        telefono: telefono || pendingOAuthProfile?.telefono || telefono,
+        nombre: nombreDueno,
+        apellido: apellidoDueno,
+        telefono,
         ruc,
         nombreNegocio,
         sectorNegocio,
@@ -699,9 +389,6 @@ export default function AuthHub() {
         return;
       }
       setUser(data.usuario);
-      setRegStatus(null);
-      clearOAuthIntent();
-      allowExitRef.current = true;
       navigate("/negocio/inicio");
     } catch (err) {
       let msg = err?.message || "Error al registrar negocio";
@@ -729,27 +416,14 @@ export default function AuthHub() {
     setError("");
     setOauthProvider(provider);
     setOauthLoading(true);
-    const role = effectiveRole || "cliente";
-    setOauthIntentRole(role);
-    setEntryStep("form");
-    setPage(2);
-    setStartedWithOAuth(true);
-    setOauthExit(true);
-    allowExitRef.current = true;
-    if (role === "negocio") setCodeValid(true);
-    saveOAuthIntent(role);
+
     try {
-      await signInWithOAuth(provider, {
-        redirectTo,
-        data: { role },
-      });
+      await signInWithOAuth(provider, { redirectTo });
     } catch (err) {
       localStorage.removeItem(OAUTH_INTENT_KEY);
-      setError(err?.message || `No se pudo iniciar con ${provider === "google" ? "Google" : "Facebook"}`);
+      setError(err?.message || "No se pudo iniciar sesión");
       setOauthLoading(false);
       setOauthProvider(null);
-      setOauthExit(false);
-      allowExitRef.current = false;
     }
   };
 
@@ -794,23 +468,15 @@ export default function AuthHub() {
     setAuthTab("login");
     setEntryStep("email");
     setPage(1);
-    setStartedWithOAuth(false);
     setError("");
-    setOauthExit(false);
-    allowExitRef.current = false;
   };
 
   const goToRegisterTab = () => {
-    clearOAuthIntent();
-    setOauthIntentRole(null);
     setCodeValid(roleFromSplash === "negocio");
     setPage(2);
-    setStartedWithOAuth(false);
     setError("");
     setEntryStep("email");
     setAuthTab("register");
-    setOauthExit(false);
-    allowExitRef.current = false;
   };
 
   const primaryEmailLabel = authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "REGISTRARSE";
