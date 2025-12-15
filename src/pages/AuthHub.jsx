@@ -24,11 +24,6 @@ export default function AuthHub() {
   const setUser = useAppStore((s) => s.setUser);
   const { openModal, closeModal } = useModal();
   const location = useLocation();
-  const roleFromSplash = location.state?.role || null;
-  const codeFromSplash = location.state?.codigo || "";
-  const fromOAuth = location.state?.fromOAuth || false;
-  const pageFromState = location.state?.page || null;
-  const authCredsFromChoice = location.state?.authCreds || null;
 
   const [cardHeight, setCardHeight] = useState(null);
   const [sliderHeight, setSliderHeight] = useState(null);
@@ -42,8 +37,7 @@ export default function AuthHub() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [codigo, setCodigo] = useState(codeFromSplash);
-  const [codeValid, setCodeValid] = useState(roleFromSplash === "negocio");
+  const [codigo, setCodigo] = useState("");
   const [codeChecking, setCodeChecking] = useState(false);
 
   const [nombreDueno, setNombreDueno] = useState("");
@@ -74,16 +68,6 @@ export default function AuthHub() {
     }
   }, []);
 
-  
-  const getRegStatus = (uid) => {
-    if (!uid) return null;
-    try {
-      return localStorage.getItem(`${REG_STATUS_PREFIX}${uid}`);
-    } catch {
-      return null;
-    }
-  };
-
   async function fakeValidateCode(code) {
     await new Promise((r) => setTimeout(r, 250));
     try {
@@ -99,7 +83,6 @@ export default function AuthHub() {
     let mounted = true;
 
     if (!codigo || !CODE_RE.test(codigo)) {
-      setCodeValid(false);
       return;
     }
 
@@ -108,14 +91,13 @@ export default function AuthHub() {
     fakeValidateCode(codigo)
       .then((res) => {
         if (!mounted) return;
-        setCodeValid(res.ok);
       })
       .finally(() => mounted && setCodeChecking(false));
 
     return () => {
       mounted = false;
     };
-  }, [codigo, roleFromSplash]);
+  }, [codigo]);
 
   const sliderGap = 28;
   const containerStyle = useMemo(
@@ -217,25 +199,6 @@ export default function AuthHub() {
     return true;
   };
 
-  const handleRegisterCliente = async () => {
-    try {
-      const result = await register({
-        email,
-        password,
-        telefono,
-        nombre: email.split("@")[0],
-        role: "cliente",
-      });
-      if (!result.ok) {
-        setError(result.error || "Error al registrar cliente");
-        return;
-      }
-      navigate("/cliente/inicio");
-    } catch (err) {
-      setError(err?.message || "Error al registrar cliente");
-    }
-  };
-
   const openChoiceOverlay = () => {
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
@@ -274,13 +237,12 @@ export default function AuthHub() {
       onNegocio: async (code) => {
         setError("");
 
-        if (!CODE_RE.test(finalCode)) {
+        if (!CODE_RE.test(code)) {
           setError("Código de registro inválido");
           return { ok: false };
         }
 
         setCodigo(code);
-        setCodeValid(true);
 
         setEntryStep("form");
         setAuthTab("register");
@@ -291,6 +253,92 @@ export default function AuthHub() {
       },
     });
   };
+
+  const landingHandledRef = useRef(false);
+
+  useEffect (() => {
+    if (landingHandledRef.current) return;
+
+    (async () => {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      if(!session?.user) return;
+
+      //Intentar cargar perfil
+      const { data: userProfile } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id_auth", session.user.id)
+        .maybeSingle();
+
+      //Si no hay perfil, o falta rol -> abrir SplashChoice
+      if (!userProfile || !userProfile.role) {
+        landingHandledRef.current = true;
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(2);
+        openChoiceOverlay();
+        return;
+      }
+
+      //Si role === cliente
+      if (userProfile.role === "cliente") {
+        if (userProfile.registro_estado !== "completo") {
+          await updateUserProfile({ id_auth: session.user.id, registro_estado: "completo"});
+        }
+        landingHandledRef.current = true;
+        setUser(userProfile);
+        navigate("/cliente/inicio", { replace : true });
+        return;
+      }
+
+      //Si role === admin
+      if (userProfile.role === "admin") {
+        landingHandledRef.current = true;
+        setUser(userProfile);
+        navigate("/admin/inicio", { replace: true });
+        return;
+      }
+
+      //Negocio
+      const missingOwner = !userProfile.nombre || !userProfile.apellido || !userProfile.telefono;
+      const missingBusiness = !userProfile.nombreNegocio || !userProfile.sectorNegocio || !userProfile.calle1;
+
+      if (missingOwner) {
+        landingHandledRef.current = true;
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(2);
+        setNombreDueno(userProfile.nombre || "");
+        setApellidoDueno(userProfile.apellido || "");
+        setTelefono(userProfile.telefono || "");
+        return;
+      }
+
+      if (missingBusiness) {
+        landingHandledRef.current = true;
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(3);
+        setNombreDueno(userProfile.nombre || "");
+        setApellidoDueno(userProfile.apellido || "");
+        setRuc(userProfile.ruc || "");
+        setTelefono(userProfile.telefono || "");
+        setNombreNegocio(userProfile.nombreNegocio || "");
+        setSectorNegocio(userProfile.sectorNegocio || "");
+        setCalle1(userProfile.calle1 || "");
+        setCalle2(userProfile.calle2 || "");
+        return;
+      }
+
+      if (userProfile.registro_estado !== "completo") {
+        await updateUserProfile({ id_atuh: session.user.id, registro_estado: "completo" });
+      }
+      landingHandledRef.current = true;
+      setUser(userProfile);
+      navigate("/negocio/inicio", { replace: true });
+
+    })();
+  }, []);
 
   const handlePrimaryPage1 = async () => {
     if (!validatePage1()) return;
@@ -472,7 +520,6 @@ export default function AuthHub() {
   };
 
   const goToRegisterTab = () => {
-    setCodeValid(roleFromSplash === "negocio");
     setPage(2);
     setError("");
     setEntryStep("email");
