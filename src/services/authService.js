@@ -65,10 +65,12 @@ export async function signInWithEmail(email, password) {
     } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) throw signInError;
-    if (!signInData?.user) throw new Error("No se pudo iniciar sesiИn");
+    if (!signInData?.user) throw new Error("No se pudo iniciar sesión");
 
     const authUserId = signInData.user.id;
     const userData = await waitForUser(authUserId);
+
+    const provider = signInData.user.app_metadata?.provider ?? null;
 
     if (!userData) {
       return {
@@ -77,11 +79,13 @@ export async function signInWithEmail(email, password) {
           id_auth: authUserId,
           email: signInData.user.email,
           role: signInData.user.user_metadata?.role ?? null,
+          provider: signInData.user.app_metadata?.provider ?? null
         },
         pendingProfile: true,
       };
     }
-    return { ok: true, user: userData };
+    const userWithProvider = { ...userData, provider };
+    return { ok: true, user: userWithProvider };
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
   }
@@ -108,22 +112,22 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
 
     const authUserId = signUpData?.user?.id ?? sessionAfterSignUp?.user?.id;
     if (!authUserId) {
-      // Si ya existe la cuenta, intenta login con las mismas credenciales
+      // Si ya existe la cuenta, muestra error y redirecciona (logica en AuthHub)
       if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
-        const loginResult = await signInWithEmail(email, password);
-        if (loginResult.ok) return { ...loginResult, warning: "La cuenta ya existía, se inició sesión." };
+        return { ok: false, error: "Esta cuenta ya existe. Inicia Sesión con tu correo y contraseña."}
       }
       if (signUpError) throw signUpError;
       return { ok: false, error: "No se pudo identificar la cuenta creada" };
     }
     const userData = await waitForUser(authUserId);
+    const provider = signUpData?.user?.app_metadata?.provider ?? null;
 
     if (!userData) {
       if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
-        const loginResult = await signInWithEmail(email, password);
-        if (loginResult.ok) return { ...loginResult, warning: "La cuenta ya existía, se inició sesión." };
+        return { ok: false, error: "Esta cuenta ya existe. Inicia sesión con tu correo y contraseña."}
       }
       if (signUpError) throw signUpError;
+
       const pendingUser = {
         id_auth: authUserId,
         email: signUpData?.user?.email ?? email,
@@ -131,6 +135,7 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
         nombre: signUpData?.user?.user_metadata?.nombre ?? nombre ?? null,
         telefono: signUpData?.user?.user_metadata?.telefono ?? telefono ?? null,
         registro_estado: "pendiente",
+        provider,
       };
       return {
         ok: true,
@@ -139,7 +144,9 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
         warning: "Perfil aun en proceso de creacion. Continua con el onboarding.",
       };
     }
-    return { ok: true, user: userData, warning };
+    
+    const userWithProvider = { ...userData, provider };
+    return { ok: true, user: userWithProvider, warning };
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
   }

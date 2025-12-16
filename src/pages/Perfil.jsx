@@ -12,6 +12,8 @@ export default function Perfil() {
   const navigate = useNavigate();
   const { openModal, closeModal } = useModal();
 
+  const isSocialAccount = usuario?.provider && usuario.provider !== "email";
+
   const [form, setForm] = useState({
     nombre: usuario?.nombre || "",
     email: usuario?.email || "",
@@ -83,14 +85,21 @@ export default function Perfil() {
         name="email"
         value={form.email}
         onChange={handleChange}
+        disabled={isSocialAccount}
         style={{
           width: "100%",
           padding: 10,
           marginBottom: 16,
           borderRadius: 8,
-          border: "1px solid #CCC"
+          border: "1px solid #CCC",
+          backgroundColor: isSocialAccount ? "f3f4f6" : "white",
         }}
       />
+      {isSocialAccount && (
+        <div style={{ fontSize: 12, color: "6b7280", marginBotton: 16 }}>
+          Esta cuenta se creó usando Google, gestiona tu email desde Google.
+        </div>
+      )}
 
       <label style={{ fontWeight: 600 }}>Teléfono</label>
       <input

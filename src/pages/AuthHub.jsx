@@ -281,6 +281,52 @@ export default function AuthHub() {
           return { ok: false };
         }
 
+        const session = (await supabase.auth.getSession()).data.session;
+        if (!session?.user) {
+          setError("Sesión no válida");
+          return { ok: false };
+        }
+
+        //Crear o actualizar perfil de negocio en usuarios
+        const { data: existing } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id_auth", session.user.id)
+          .maybeSingle();
+
+        if (!existing) {
+          const { data, error } = await supabase
+            .from("usuarios")
+            .insert({
+              id_auth: session.user.id,
+              email,
+              role: "negocio",
+              registro_estado: "incompleto",              
+            })
+            .select()
+            .maybeSingle();
+          if (error) {
+            setError(error.message || "Error al crear perfil");
+            return { ok: false };
+          }
+          setUser(data);
+        } else {
+          const { data, error } = await supabase
+            .from("usuarios")
+            .update({
+              role: "negocio",
+              email: existing.email || email,
+              registro_estado: existing.registro_estado || "incompleto",
+            })
+            .eq("id_auth", session.user.id)
+            .select()
+            .maybeSingle();
+          if (error) {
+            setError(error.message || "Error al actualizar perfil");
+            return { ok: false };
+          }
+          setUser(data);
+        }
         setCodigo(code);
         setEntryStep("form");
         setAuthTab("register");
@@ -391,7 +437,7 @@ export default function AuthHub() {
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
-        if(msg.includes("already") || msg.includes("exists")) {
+        if(msg.includes("ya existe") || msg.includes("already") || msg.includes("exists") ) {
           //Correo ya usado: asumir que puede ser cuenta creada con OAuth
           setError("Esta cuenta ya existe. Si la creaste con Google, usa Google para continuar.");
           setAuthTab("login");
@@ -426,11 +472,54 @@ export default function AuthHub() {
     }
   };
 
-  const handleNext2 = () => {
+  const handleNext2 = async () => {
     if (!nombreDueno) return setError("Ingrese nombres");
     if (!apellidoDueno) return setError("Ingrese apellidos");
     if (!PHONE_RE.test(telefono)) return setError("Ingrese un teléfono válido");
     setError("");
+
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session?.user) {
+      setError("No hay sesión activa");
+      return;
+    }
+    //Inserta/actualiza datos del propietario en usuarios
+    const { data: existing } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id_auth", session.user.id)
+      .maybeSingle();
+
+    if(!existing) {
+      const { error } = await supabase.from("usuarios").insert({
+        id_auth: session.user.id,
+        email,
+        role: "negocio",
+        nombre: nombreDueno,
+        telefono,
+        registro_estado: "incompleto",
+      });
+      if (error) {
+        setError(error.message || "No se pudo guardar datos del propietario");
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("usuarios")
+        .update({
+          nombre: nombreDueno,
+          apellido: apellidoDueno,
+          telefono,
+          role: existing.role || "negocio",
+          registro_estado: existing.registro_estado || "incompleto",
+        })
+        .eq("id_auth", session.user.id);
+      if (error) {
+        setError(error.message || "No se pudo guardar datos del propietario");
+        return;
+      }
+    }
+
     goTo(3);
   };
 
@@ -442,67 +531,80 @@ export default function AuthHub() {
         setError("No hay sesion activa. Inicia sesion y vuelve a intentar.");
         return;
       }
-      const payload = {
-        role: "negocio",
-        nombre: nombreDueno,
-        apellido: apellidoDueno,
-        telefono,
-        ruc,
-        nombreNegocio,
-        sectorNegocio,
-        calle1,
-        calle2,
-      };
-      const { data, error } = await supabase.functions.invoke("onboarding", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: payload,
-      });
-      if (error || !data?.ok) {
-        let msg = data?.message || error?.message || "No se pudo completar el registro";
-        let status = error?.context?.response?.status;
-        let bodyText = null;
-        if (error?.context?.response) {
-          const resp = error.context.response;
-          if (typeof resp.clone === "function") {
-            try {
-              const cloned = resp.clone();
-              bodyText = await cloned.text();
-              try {
-                const parsed = JSON.parse(bodyText);
-                if (parsed?.message) msg = parsed.message;
-              } catch {
-                /* plain text */
-              }
-            } catch {
-              /* ignore */
-            }
-          }
-        }
-        console.error("onboarding invoke error", { status, error, data, bodyText });
-        setError(status ? `(${status}) ${msg}` : msg);
+
+      //Obtener perfil actual
+      const { data: userRow, error: userErr } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id_auth", userId)
+        .maybeSingle();
+
+      if (userErr) {
+        setError(userErr.message || "No se pudo leer el perfil");
         return;
       }
-      setUser(data.usuario);
+
+      //Crear/actualizar negocio
+      let negocio = null;
+      if (userRow) {
+        const { data: existingNeg } = await supabase
+          .from("negocios")
+          .select("*")
+          .eq("usuarioId", userRow.id)
+          .maybeSingle();
+
+        const direccion = calle2 ? `${calle1} ${calle2}` : calle1;
+
+        const negocioPayload = {
+          usuarioId: userRow.id,
+          nombre: nombreNegocio || existingNeg?.nombre || "Negocio",
+          sector: sectorNegocio || existingNeg?.sector || null,
+          direccion: direccion || existingNeg?.direccion || null,
+        };
+
+        if (existingNeg) {
+          const { data, error } = await supabase
+            .from("negocios")
+            .update(negocioPayload)
+            .eq("id", existingNeg.id)
+            .select()
+            .maybeSingle();
+          if (error) throw error;
+          negocio = data;
+        } else {
+          const { data, error } = await supabase
+            .from("negocios")
+            .insert(negocioPayload)
+            .select()
+            .maybeSingle();
+          if (error) throw error;
+          negocio = data;
+        }
+
+        //Actualizar perfil de usuario a completo con datos del dueño
+        const { data: updatedUser, error: updErr } = await supabase
+          .from("usuarios")
+          .update({
+            role: "negocio",
+            nombre: nombreDueno || userRow.nombre,
+            apellido: apellidoDueno || userRow.apellido,
+            telefono,
+            ruc,
+            registro_estado: "completo",
+          })
+          .eq("id_auth", userId)
+          .select()
+          .maybeSingle();
+        if (updErr) throw updErr;
+
+        setUser(updatedUser);
+      }
+
+      //Redirigir
       navigate("/negocio/inicio");
     } catch (err) {
       let msg = err?.message || "Error al registrar negocio";
-      try {
-        const ctxBody = err?.context?.body;
-        if (ctxBody) {
-          if (typeof ctxBody === "string") msg = ctxBody;
-          else if (ctxBody?.message) msg = ctxBody.message;
-          else if (ctxBody?.error) msg = ctxBody.error;
-        }
-        const resp = err?.context?.response;
-        if (resp && typeof resp.text === "function") {
-          const txt = await resp.text();
-          if (txt) msg = txt;
-        }
-      } catch {
-        /* ignore */
-      }
-      console.error("onboarding error", err);
-      setError(msg || "Error al registrar negocio");
+      setError(msg);
     }
   };
 
