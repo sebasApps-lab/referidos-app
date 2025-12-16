@@ -15,18 +15,18 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const anonKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-const serviceKey = Deno.env.get("SUPABASE_SECRET_KEY")!;
+const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL");
+const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("PUBLISHABLE_KEY");
+const secretKey = Deno.env.get("SUPABASE_SECRET_KEY") ?? Deno.env.get("SECRET_KEY");
 
-if(!supabaseUrl || !anonKey || !serviceKey) {
+if(!supabaseUrl || !publishableKey || !secretKey) {
     throw new Error("Missing Supabase env vars: SUPABASE_URL, PUBLISHABLE_KEY, SECRET_KEY");
 }
 
 //Cliente público: valida el token del usuario.
-const supabasePublic = createClient(supabaseUrl, anonKey);
+const supabasePublic = createClient(supabaseUrl, publishableKey);
 //Cliente service-role: lee/actualiza perfiles ignorando RLS (solo para este chequeo controlado).
-const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+const supabaseAdmin = createClient(supabaseUrl, secretKey);
 
 type RegistroEstado = "completo" | "incompleto";
 type OnboardingResult = {
@@ -69,6 +69,7 @@ serve (async (req) => {
 
     const authEmail = user.email ?? "";
     const authProvider = user.app_metadata?.provider ?? "email";
+    const baseName = authEmail ? authEmail.split("@")[0] : null;
 
     //2) Obtener perfil en public.usuarios
     const { data: profile, error: profileErr } = await supabaseAdmin
@@ -133,6 +134,10 @@ serve (async (req) => {
 
     if (role === "cliente") {
         if (!authEmail) markIncomplete("missing_auth_email");
+        //Autocompletar nombre solo para cliente
+        if (!profile.nombre && baseName) {
+            patch.nombre = baseName;
+        }
         //No podemos saber si tiene contraseña; confiamos en que si inició sesión, tiene un método válido.
     } else if (role === "negocio") {
         // a) Datos del propietario en usuarios

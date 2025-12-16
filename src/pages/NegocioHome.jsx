@@ -1,11 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useAppStore } from "../store/appStore";
+import { runOnboardingCheck } from "../services/onboardingClient";
 
 // cuando hagamos las cards reales
 // import NegocioPromoCard from "../components/cards/NegocioPromoCard";
 
 export default function NegocioHome() {
   const usuario = useAppStore((s) => s.usuario);
+  const setUser = useAppStore((s) => s.setUsuario);
+  const onceRef = useRef(false);
+
+  useEffect(() => {
+    if (onceRef.current) return;
+    onceRef.current = true;
+    (async () => {
+      const res = await runOnboardingCheck();
+      if (res?.ok && res.usuario) setUser(res.usuario);
+    })();
+  }, [setUser]);
 
   // Ejemplos provisionales de promos del negocio
   // Cuando conectemos backend, reemplazamos esto

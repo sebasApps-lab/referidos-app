@@ -13,6 +13,7 @@ import { useAppStore } from "../store/appStore";
 import { signInWithOAuth, getSessionUserProfile, signOut, updateUserProfile } from "../services/authService";
 import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
+import { runOnboardingCheck } from "../services/onboardingClient";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
@@ -275,6 +276,12 @@ export default function AuthHub() {
           return { ok: false };
           }
           setUser(result.user);
+        }
+
+        const check = await runOnboardingCheck();
+        if (!check?.ok || check?.allowAccess === false) {
+          setError(check?.reasons?.join(", ") || "Completa tu registro");
+          return { ok: false };
         }
 
         closeModal();
@@ -561,68 +568,78 @@ export default function AuthHub() {
         setError(userErr.message || "No se pudo leer el perfil");
         return;
       }
-
-      //Crear/actualizar negocio
-      let negocio = null;
-      if (userRow) {
-        const { data: existingNeg } = await supabase
-          .from("negocios")
-          .select("*")
-          .eq("usuarioid", userRow.id)
-          .maybeSingle();
-
-        const direccion = calle2 ? `${calle1} ${calle2}` : calle1;
-
-        const negocioPayload = {
-          usuarioid: userRow.id,
-          nombre: nombreNegocio || existingNeg?.nombre || "Negocio",
-          sector: sectorNegocio || existingNeg?.sector || null,
-          direccion: direccion || existingNeg?.direccion || null,
-        };
-
-        if (existingNeg) {
-          const { data, error } = await supabase
-            .from("negocios")
-            .update(negocioPayload)
-            .eq("id", existingNeg.id)
-            .select()
-            .maybeSingle();
-          if (error) throw error;
-          negocio = data;
-        } else {
-          const { data, error } = await supabase
-            .from("negocios")
-            .insert(negocioPayload)
-            .select()
-            .maybeSingle();
-          if (error) throw error;
-          negocio = data;
-        }
-
-        //Actualizar perfil de usuario a completo con datos del dueño
-        const { data: updatedUser, error: updErr } = await supabase
-          .from("usuarios")
-          .update({
-            role: "negocio",
-            nombre: nombreDueno || userRow.nombre,
-            apellido: apellidoDueno || userRow.apellido,
-            telefono,
-            ruc,
-            registro_estado: "completo",
-          })
-          .eq("id_auth", userId)
-          .select()
-          .maybeSingle();
-        if (updErr) throw updErr;
-
-        setUser(updatedUser);
+      if (!userRow) {
+        setError("Falta crear el perfil de usuario antes de registrar el negocio");
+        return;
       }
 
+      const { data: existingNeg, error: negReadError } = await supabase
+        .from("negocios")
+        .select("*")
+        .eq("usuarioId", userRow.id)
+        .maybeSingle();
+      if (negReadErr) {
+        setError(negReadErr.message || "No se pudo leer el negocio");
+        return;
+      }
+
+      const direccion = calle2 ? `${calle1} ${calle2}` : calle1;
+      const negocioPayload = {
+        usuarioId: userRow.id,
+        nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
+        sector: sectorNegocio || existingNeg?.sector || null,
+        direction: direccion || existingNeg?.direccion || null,
+      };
+
+      //Crear/actualizar negocio
+      let negocio = existingNeg;
+      if (existingNeg) {
+        const { data, error } = await supabase
+          .from("negocios")
+          .update(negocioPayload)
+          .eq("id", existingNeg.id)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        negocio = data;
+      } else {
+        const { data, error } = await supabase
+          .from("negocios")
+          .insert(negocioPayload)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        negocio = data;
+      }
+
+      //Actualizar perfil de usuario a completo con datos del dueño
+      const { data: updatedUser, error: updErr } = await supabase
+        .from("usuarios")
+        .update({
+          role: "negocio",
+          nombre: nombreDueno || userRow.nombre,
+          apellido: apellidoDueno || userRow.apellido,
+          telefono,
+          ruc,
+          registro_estado: "completo",
+        })
+        .eq("id_auth", userId)
+        .select()
+        .maybeSingle();
+      if (updErr) throw updErr;
+
+      setUser(updatedUser);
+
+      const check = await runOnboardingCheck();
+      if (!check?.ok || check?.allowAccess === false) {
+        setError(check?.reasons?.join(",") || "Completa tu registro");
+        return;
+      }
+      
       //Redirigir
       navigate("/negocio/inicio");
     } catch (err) {
-      let msg = err?.message || "Error al registrar negocio";
-      setError(msg);
+      setError(err?.message || "Error al registrar negocio");
     }
   };
 
