@@ -226,22 +226,32 @@ export default function AuthHub() {
           setError("Sesión no válida");
           return { ok: false };
         }
+        const authEmail = session.user.email || email;
+        if (!authEmail) {
+          setError("No se pudo obtener el email de la cuenta");
+          return { ok: false };
+        }
 
         //Crear perfil si no existe, o actualizar si ya existe
-        const { data: existing } = await supabase
+        const { data: existing, error: exErr } = await supabase
           .from("usuarios")
           .select("*")
           .eq("id_auth", session.user.id)
           .maybeSingle();
+        if (exErr) {
+          setError(exErr.message || "No se puede leer perfil");
+          return { ok: false };
+        }
         
         if (!existing) {
           const { data, error } = await supabase
             .from("usuarios")
             .insert({
               id_auth: session.user.id,
-              email,
+              email: authEmail,
+              nombre: authEmail.split("@")[0],
               role: "cliente",
-              telefono,
+              telefono: telefono || null,
               registro_estado: "completo",
             })
             .select()
@@ -255,14 +265,13 @@ export default function AuthHub() {
           const result = await updateUserProfile({
             id_auth: session.user.id,
             role: "cliente",
-            email: existing.email || email,
-            nombre: existing.nombre || existing.email.split("@")[0] || email.split("@")[0],
-            telefono: telefono || existing.telefono,
+            email: existing.email || authEmail,
+            nombre: existing.nombre || authEmail.split("@")[0],
+            telefono: telefono || existing.telefono || null,
             registro_estado: "completo",
           });
-
           if (!result.ok) {
-          setError(result.error || "Error al crear perfil");
+          setError(result.error || "Error al actualizar perfil");
           return { ok: false };
           }
           setUser(result.user);
@@ -286,20 +295,29 @@ export default function AuthHub() {
           setError("Sesión no válida");
           return { ok: false };
         }
+        const authEmail = session.user.email || email;
+        if (!authEmail) {
+          setError("No se pudo obtener el email de la cuenta");
+          return { ok: false };
+        }
 
         //Crear o actualizar perfil de negocio en usuarios
-        const { data: existing } = await supabase
+        const { data: existing, error: exErr } = await supabase
           .from("usuarios")
           .select("*")
           .eq("id_auth", session.user.id)
           .maybeSingle();
+        if (exErr) {
+          setError(exErr.message || "No se pudo leer perfil");
+          return { ok: false };
+        }
 
         if (!existing) {
           const { data, error } = await supabase
             .from("usuarios")
             .insert({
               id_auth: session.user.id,
-              email,
+              email: authEmail,
               role: "negocio",
               registro_estado: "incompleto",              
             })
@@ -550,13 +568,13 @@ export default function AuthHub() {
         const { data: existingNeg } = await supabase
           .from("negocios")
           .select("*")
-          .eq("usuarioId", userRow.id)
+          .eq("usuarioid", userRow.id)
           .maybeSingle();
 
         const direccion = calle2 ? `${calle1} ${calle2}` : calle1;
 
         const negocioPayload = {
-          usuarioId: userRow.id,
+          usuarioid: userRow.id,
           nombre: nombreNegocio || existingNeg?.nombre || "Negocio",
           sector: sectorNegocio || existingNeg?.sector || null,
           direccion: direccion || existingNeg?.direccion || null,
