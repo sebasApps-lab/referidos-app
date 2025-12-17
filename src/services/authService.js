@@ -78,7 +78,7 @@ export async function signInWithEmail(email, password) {
         user: {
           id_auth: authUserId,
           email: signInData.user.email,
-          role: signInData.user.user_metadata?.role ?? null,
+          //role: signInData.user.user_metadata?.role ?? null,
           provider: signInData.user.app_metadata?.provider ?? null
         },
         pendingProfile: true,
@@ -131,7 +131,7 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
       const pendingUser = {
         id_auth: authUserId,
         email: signUpData?.user?.email ?? email,
-        role: role ?? signUpData?.user?.user_metadata?.role ?? null,
+        //role: role ?? signUpData?.user?.user_metadata?.role ?? null,
         nombre: signUpData?.user?.user_metadata?.nombre ?? nombre ?? null,
         telefono: signUpData?.user?.user_metadata?.telefono ?? telefono ?? null,
         registro_estado: "pendiente",

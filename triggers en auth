@@ -1,0 +1,20 @@
+trg_sync_auth_user_profile
+begin
+  update usuarios
+  set email = new.email,
+      telefono = coalesce(new.raw_user_meta_data->>'telefono', new.phone, telefono),
+      nombre = coalesce(new.raw_user_meta_data->>'nombre', nombre),
+      role = coalesce(new.raw_user_meta_data->>'role', role)
+  where id_auth = new.id;
+  return new;
+end 
+
+
+
+trg_sync_auth_user_to_usuarios
+begin
+  update usuarios
+  set emailConfirmado = (new.email_confirmed_at is not null)
+  where id_auth = new.id;
+  return new;
+end 
