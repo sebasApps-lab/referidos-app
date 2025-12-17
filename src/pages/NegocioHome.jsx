@@ -7,7 +7,7 @@ import { runOnboardingCheck } from "../services/onboardingClient";
 
 export default function NegocioHome() {
   const usuario = useAppStore((s) => s.usuario);
-  const setUser = useAppStore((s) => s.setUsuario);
+  const setUser = useAppStore((s) => s.setUser);
   const onceRef = useRef(false);
 
   useEffect(() => {

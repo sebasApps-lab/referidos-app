@@ -151,7 +151,7 @@ serve (async (req) => {
         const { data: negData, error: negErr } = await supabaseAdmin
             .from("negocios")
             .select("*")
-            .eq("usuarioId", profile.id)
+            .eq("usuarioid", profile.id)
             .maybeSingle();
 
         if (negErr) {

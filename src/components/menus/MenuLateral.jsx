@@ -1,10 +1,11 @@
 // src/components/menus/MenuLateral.jsx
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../../store/appStore"; // ← añadir
 
 export default function MenuLateral({ visible, onClose, usuario }) {
   const logout = useAppStore((s) => s.logout); // ← añadir
+  const navigate = useNavigate();
 
   const base =
     usuario?.role === "cliente"
@@ -46,9 +47,13 @@ export default function MenuLateral({ visible, onClose, usuario }) {
         </nav>
 
         <button
-          onClick={() => {
-            logout();   // ahora SI funciona
-            onClose();
+          onClick={async () => {
+            try {
+              await logout();
+            } finally {
+              onClose?.();
+              navigate("/", { replace: true });
+            }
           }}
           className="mt-10 text-red-500 underline"
         >

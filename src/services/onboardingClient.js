@@ -17,3 +17,7 @@ export async function runOnboardingCheck() {
   if (error) return { ok: false, error: error.message || String(error) };
   return data; // { ok, allowAccess, registro_estado, usuario, negocio, reasons, provider }
 }
+
+export function resetOnboardingFlag() {
+  onboardingRun = false;
+}

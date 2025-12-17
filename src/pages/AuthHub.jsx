@@ -408,8 +408,17 @@ export default function AuthHub() {
       }
 
       //Negocio
+
+      const { data: negocioProfile } = await supabase
+        .from("negocios")
+        .select("*")
+        .eq("usuarioid", userProfile.id)
+        .maybeSingle();
+
+      const rawDir = negocioProfile?.direccion || "";
+      const [c1, c2 = ""] = rawDir.split("|");
       const missingOwner = !userProfile.nombre || !userProfile.apellido || !userProfile.telefono;
-      const missingBusiness = !userProfile.ruc || !userProfile.nombreNegocio || !userProfile.sectorNegocio || !userProfile.calle1;
+      const missingBusiness = !userProfile.ruc || !negocioProfile.nombre || !negocioProfile.sector || !negocioProfile.direccion;
 
       if (missingOwner) {
         landingHandledRef.current = true;
@@ -419,6 +428,11 @@ export default function AuthHub() {
         setNombreDueno(userProfile.nombre || "");
         setApellidoDueno(userProfile.apellido || "");
         setTelefono(userProfile.telefono || "");
+        setRuc(userProfile.ruc || "");
+        setNombreNegocio(negocioProfile.nombre || "");
+        setSectorNegocio(negocioProfile.sector || "");        
+        setCalle1(c1);
+        setCalle2(c2);
         return;
       }
 
@@ -428,14 +442,13 @@ export default function AuthHub() {
         setAuthTab("register");
         setPage(3);
         setNombreDueno(userProfile.nombre || "");
-        setApellidoDueno(userProfile.apellido || "");
-        setRuc(userProfile.ruc || "");
+        setApellidoDueno(userProfile.apellido || "");        
         setTelefono(userProfile.telefono || "");
         setRuc(userProfile.ruc || "");
-        setNombreNegocio(userProfile.nombreNegocio || "");
-        setSectorNegocio(userProfile.sectorNegocio || "");
-        setCalle1(userProfile.calle1 || "");
-        setCalle2(userProfile.calle2 || "");
+        setNombreNegocio(negocioProfile.nombre || "");
+        setSectorNegocio(negocioProfile.sector || "");
+        setCalle1(c1);
+        setCalle2(c2);
         return;
       }
 
@@ -508,42 +521,39 @@ export default function AuthHub() {
       setError("No hay sesión activa");
       return;
     }
+    //Perfil debe existir y ser rol negocio (ya seteado en SplashChoice)
     //Inserta/actualiza datos del propietario en usuarios
-    const { data: existing } = await supabase
+    const { data: existing, error: exErr } = await supabase
       .from("usuarios")
       .select("*")
       .eq("id_auth", session.user.id)
       .maybeSingle();
-
-    if(!existing) {
-      const { error } = await supabase.from("usuarios").insert({
-        id_auth: session.user.id,
-        email,
-        role: "negocio",
-        nombre: nombreDueno,
-        telefono,
-        registro_estado: "incompleto",
-      });
-      if (error) {
-        setError(error.message || "No se pudo guardar datos del propietario");
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("usuarios")
-        .update({
-          nombre: nombreDueno,
-          apellido: apellidoDueno,
-          telefono,
-          role: existing.role || "negocio",
-          registro_estado: existing.registro_estado || "incompleto",
-        })
-        .eq("id_auth", session.user.id);
-      if (error) {
-        setError(error.message || "No se pudo guardar datos del propietario");
-        return;
-      }
+    if (exErr) {
+      setError(exErr.message || "No se pudo leer perfil");
+      return;
     }
+    if(!existing) {
+      setError("Primero debes seleccionar tipo de cuenta")
+      return;
+    }
+    if (existing.role !== "negocio") {
+      setError("Tu cuenta no es de negocio");
+      return;
+    }
+    const { error } = await supabase
+      .from("usuarios")
+      .update({
+        nombre: nombreDueno,
+        apellido: apellidoDueno,
+        telefono,
+        registro_estado: existing.registro_estado || "incompleto",
+      })
+      .eq("id_auth", session.user.id);
+
+      if (error) {
+        setError(error.message || "No se pudo guardar datos del propietario");
+        return;
+      }    
 
     goTo(3);
   };
@@ -553,7 +563,7 @@ export default function AuthHub() {
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId || !session?.access_token) {
-        setError("No hay sesion activa. Inicia sesion y vuelve a intentar.");
+        setError("No hay sesion activa. Inicia sesión y vuelve a intentar.");
         return;
       }
 
@@ -572,23 +582,30 @@ export default function AuthHub() {
         setError("Falta crear el perfil de usuario antes de registrar el negocio");
         return;
       }
+      if (userRow.role !== "negocio"){
+        setError("Tu cuenta no es de negocio");
+        return;
+      }
 
-      const { data: existingNeg, error: negReadError } = await supabase
+      const { data: existingNeg, error: negReadErr } = await supabase
         .from("negocios")
         .select("*")
-        .eq("usuarioId", userRow.id)
+        .eq("usuarioid", userRow.id)
         .maybeSingle();
       if (negReadErr) {
         setError(negReadErr.message || "No se pudo leer el negocio");
         return;
       }
 
-      const direccion = calle2 ? `${calle1} ${calle2}` : calle1;
+      const direccion = calle2
+        ? `${(calle1 || "").trim()}|${(calle2 || "").trim()}`
+        : (calle1 || "").trim();
+
       const negocioPayload = {
-        usuarioId: userRow.id,
+        usuarioid: userRow.id,
         nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
         sector: sectorNegocio || existingNeg?.sector || null,
-        direction: direccion || existingNeg?.direccion || null,
+        direccion: direccion || existingNeg?.direccion || null,
       };
 
       //Crear/actualizar negocio
@@ -616,7 +633,6 @@ export default function AuthHub() {
       const { data: updatedUser, error: updErr } = await supabase
         .from("usuarios")
         .update({
-          role: "negocio",
           nombre: nombreDueno || userRow.nombre,
           apellido: apellidoDueno || userRow.apellido,
           telefono,

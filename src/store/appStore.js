@@ -16,6 +16,7 @@ import {
 } from "../services/qrService";
 import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
+import { resetOnboardingFlag, runOnboardingCheck } from "../services/onboardingClient";
 
 export const useAppStore = create(
   persist(
@@ -64,15 +65,30 @@ export const useAppStore = create(
       },
 
       logout: async () => {
-        await signOut();
-        set({ usuario: null, promos: [], negocios: [] });
-      },
+        try{
+          await signOut();
+        } catch (e) {
+          //opcional: log o toast
+        } finally {
+          resetOnboardingFlag?.();
+          set({ usuario: null, promos: [], negocios: [] });
+        }
+      },  
 
       restoreSession: async () => {
         try {
           const userData = await getSessionUserProfile();
-          if (userData) set({ usuario: userData });
+          if (userData) {
+            set({ usuario: userData });
+          } else{
+            set({ usuario: null });
+            resetOnboardingFlag?.();
+            set( { promos: [], negocios: [] });
+          }
         } catch (error) {
+          //error al leer sesión → limpiar estado para evitar incoherencias
+          set({ usuario: null });
+          resetOnboardingFlag?.();
           handleError(error);
         }
       },
