@@ -213,12 +213,18 @@ export default function AuthHub() {
   };
 
   const openChoiceOverlay = () => {
+    //Si ya hay rol, no abrir modal; dejar a landing/guards redirigir
+    if(useAppStore.getState().usuario?.role) {
+      return;
+    }
+
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
       onBack: () => {
         goToRegisterTab();
         closeModal();
       },
+
       onCliente: async () => {
         setError("");
 
@@ -243,40 +249,31 @@ export default function AuthHub() {
           setError(exErr.message || "No se puede leer perfil");
           return { ok: false };
         }
-        
-        if (!existing) {
-          const { data, error } = await supabase
-            .from("usuarios")
-            .insert({
-              id_auth: session.user.id,
-              email: authEmail,
-              nombre: authEmail.split("@")[0],
-              role: "cliente",
-              telefono: telefono || null,
-              registro_estado: "completo",
-            })
-            .select()
-            .maybeSingle();
-          if (error) {
-            setError(error.message || "Error al crear perfil");
-            return { ok: false };
-          }
-          setUser(data);
-        } else {
-          const result = await updateUserProfile({
-            id_auth: session.user.id,
-            role: "cliente",
-            email: existing.email || authEmail,
-            nombre: existing.nombre || authEmail.split("@")[0],
-            telefono: telefono || existing.telefono || null,
-            registro_estado: "completo",
-          });
-          if (!result.ok) {
-          setError(result.error || "Error al actualizar perfil");
-          return { ok: false };
-          }
-          setUser(result.user);
+
+        //Si ya hay rol, no escribir de nuevo
+        if (existing?.role) {
+          setUser(existing);
+          closeModal();
+          return { ok: true };
         }
+
+        const { data, error } = await supabase
+          .from("usuarios")
+          .insert({
+            id_auth: session.user.id,
+            email: authEmail,
+            nombre: authEmail.split("@")[0],
+            role: "cliente",
+            telefono: telefono || null,
+            registro_estado: "completo",
+          })
+          .select()
+          .maybeSingle();
+        if (error) {
+          setError(error.message || "Error al crear perfil");
+          return { ok: false };
+        }
+        setUser(data);
 
         const check = await runOnboardingCheck();
         if (!check?.ok || check?.allowAccess === false) {
@@ -293,6 +290,12 @@ export default function AuthHub() {
         setError("");
 
         if (!CODE_RE.test(code)) {
+          setError("Código de registro inválido");
+          return { ok: false };
+        }
+
+        const resCode = await fakeValidateCode(code);
+        if (!resCode?.ok) {
           setError("Código de registro inválido");
           return { ok: false };
         }
@@ -319,39 +322,29 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        if (!existing) {
-          const { data, error } = await supabase
-            .from("usuarios")
-            .insert({
-              id_auth: session.user.id,
-              email: authEmail,
-              role: "negocio",
-              registro_estado: "incompleto",              
-            })
-            .select()
-            .maybeSingle();
-          if (error) {
-            setError(error.message || "Error al crear perfil");
-            return { ok: false };
-          }
-          setUser(data);
-        } else {
-          const { data, error } = await supabase
-            .from("usuarios")
-            .update({
-              role: "negocio",
-              email: existing.email || email,
-              registro_estado: existing.registro_estado || "incompleto",
-            })
-            .eq("id_auth", session.user.id)
-            .select()
-            .maybeSingle();
-          if (error) {
-            setError(error.message || "Error al actualizar perfil");
-            return { ok: false };
-          }
-          setUser(data);
+        //Si ya hay rol, no escribir de nuevo
+        if (existing?.role) {
+          setUser(existing);
+          closeModal();
+          return { ok: true };
         }
+
+        const { data, error } = await supabase
+          .from("usuarios")
+          .insert({
+            id_auth: session.user.id,
+            email: authEmail,
+            role: "negocio",
+            registro_estado: "incompleto",              
+          })
+          .select()
+          .maybeSingle();
+        if (error) {
+          setError(error.message || "Error al crear perfil");
+          return { ok: false };
+        }
+        setUser(data);
+        
         setCodigo(code);
         setEntryStep("form");
         setAuthTab("register");
@@ -409,16 +402,17 @@ export default function AuthHub() {
 
       //Negocio
 
-      const { data: negocioProfile } = await supabase
+      const { data: negocioProfile, error: negocioErr } = await supabase
         .from("negocios")
         .select("*")
         .eq("usuarioid", userProfile.id)
         .maybeSingle();
 
+      const negocio = negocioErr ? null : negocioProfile || null;
       const rawDir = negocioProfile?.direccion || "";
       const [c1, c2 = ""] = rawDir.split("|");
       const missingOwner = !userProfile.nombre || !userProfile.apellido || !userProfile.telefono;
-      const missingBusiness = !userProfile.ruc || !negocioProfile.nombre || !negocioProfile.sector || !negocioProfile.direccion;
+      const missingBusiness = !userProfile.ruc || !negocio || !negocioProfile.nombre || !negocioProfile.sector || !negocioProfile.direccion;
 
       if (missingOwner) {
         landingHandledRef.current = true;
@@ -429,8 +423,8 @@ export default function AuthHub() {
         setApellidoDueno(userProfile.apellido || "");
         setTelefono(userProfile.telefono || "");
         setRuc(userProfile.ruc || "");
-        setNombreNegocio(negocioProfile.nombre || "");
-        setSectorNegocio(negocioProfile.sector || "");        
+        setNombreNegocio(negocio?.nombre || "");
+        setSectorNegocio(negocio?.sector || "");        
         setCalle1(c1);
         setCalle2(c2);
         return;
@@ -445,8 +439,8 @@ export default function AuthHub() {
         setApellidoDueno(userProfile.apellido || "");        
         setTelefono(userProfile.telefono || "");
         setRuc(userProfile.ruc || "");
-        setNombreNegocio(negocioProfile.nombre || "");
-        setSectorNegocio(negocioProfile.sector || "");
+        setNombreNegocio(negocio?.nombre || "");
+        setSectorNegocio(negocio?.sector || "");
         setCalle1(c1);
         setCalle2(c2);
         return;
@@ -600,7 +594,7 @@ export default function AuthHub() {
       const direccion = calle2
         ? `${(calle1 || "").trim()}|${(calle2 || "").trim()}`
         : (calle1 || "").trim();
-
+        
       const negocioPayload = {
         usuarioid: userRow.id,
         nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
