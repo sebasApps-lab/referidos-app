@@ -25,7 +25,6 @@ export async function signInWithOAuth(provider, opts = {}) {
     redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL ?? DEFAULT_REDIRECT,
     scopes,
     queryParams,
-    data,
   } = opts;
 
   const { data: res, error } = await supabase.auth.signInWithOAuth({
@@ -34,7 +33,6 @@ export async function signInWithOAuth(provider, opts = {}) {
       redirectTo,
       scopes,
       queryParams,
-      data,
       // Redirigimos manualmente para controlar el flujo en UI.
       skipBrowserRedirect: true,
     },
@@ -101,7 +99,7 @@ export async function signUpWithEmail({ email, password }) {
     });
 
     if (signUpError) throw signUpError;
-    return { ok: false, error: "No se pudo identificar la cuenta creada" };
+    return { ok: true, data: signUpData };
 
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
