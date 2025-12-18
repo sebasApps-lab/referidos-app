@@ -78,8 +78,7 @@ export async function signInWithEmail(email, password) {
         user: {
           id_auth: authUserId,
           email: signInData.user.email,
-          //role: signInData.user.user_metadata?.role ?? null,
-          provider: signInData.user.app_metadata?.provider ?? null
+          provider,
         },
         pendingProfile: true,
       };
@@ -91,7 +90,7 @@ export async function signInWithEmail(email, password) {
   }
 }
 
-export async function signUpWithEmail({ email, password, telefono, nombre, role = "cliente" }) {
+export async function signUpWithEmail({ email, password }) {
   try {
     const {
       data: signUpData,
@@ -99,57 +98,14 @@ export async function signUpWithEmail({ email, password, telefono, nombre, role 
     } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { role, nombre, telefono },
-      },
     });
 
-    const warning = signUpError ? signUpError.message ?? String(signUpError) : null;
+    if (signUpError) throw signUpError;
+    return { ok: false, error: "No se pudo identificar la cuenta creada" };
 
-    const sessionAfterSignUp =
-      signUpData?.session ??
-      (await supabase.auth.getSession()).data.session;
-
-    const authUserId = signUpData?.user?.id ?? sessionAfterSignUp?.user?.id;
-    if (!authUserId) {
-      // Si ya existe la cuenta, muestra error y redirecciona (logica en AuthHub)
-      if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
-        return { ok: false, error: "Esta cuenta ya existe. Inicia Sesión con tu correo y contraseña."}
-      }
-      if (signUpError) throw signUpError;
-      return { ok: false, error: "No se pudo identificar la cuenta creada" };
-    }
-    const userData = await waitForUser(authUserId);
-    const provider = signUpData?.user?.app_metadata?.provider ?? null;
-
-    if (!userData) {
-      if (signUpError?.message?.toLowerCase?.().includes("already registered")) {
-        return { ok: false, error: "Esta cuenta ya existe. Inicia sesión con tu correo y contraseña."}
-      }
-      if (signUpError) throw signUpError;
-
-      const pendingUser = {
-        id_auth: authUserId,
-        email: signUpData?.user?.email ?? email,
-        //role: role ?? signUpData?.user?.user_metadata?.role ?? null,
-        nombre: signUpData?.user?.user_metadata?.nombre ?? nombre ?? null,
-        telefono: signUpData?.user?.user_metadata?.telefono ?? telefono ?? null,
-        registro_estado: "pendiente",
-        provider,
-      };
-      return {
-        ok: true,
-        user: pendingUser,
-        pendingProfile: true,
-        warning: "Perfil aun en proceso de creacion. Continua con el onboarding.",
-      };
-    }
-    
-    const userWithProvider = { ...userData, provider };
-    return { ok: true, user: userWithProvider, warning };
   } catch (error) {
     return { ok: false, error: error.message ?? String(error) };
-  }
+  }  
 }
 
 export async function signOut() {
