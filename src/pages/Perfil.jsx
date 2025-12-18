@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { deleteUserAccount } from "../services/authService";
 import { useModal } from "../modals/useModal";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Perfil() {
   const usuario = useAppStore((s) => s.usuario);
@@ -20,6 +21,7 @@ export default function Perfil() {
     telefono: usuario?.telefono || ""
   });
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const handleChange = (e) => {
     setForm({
@@ -34,25 +36,49 @@ export default function Perfil() {
   };
 
   const confirmDelete = () => {
+    setDeleteError("");
+
     if (!usuario?.id_auth) {
-      alert("No se pudo identificar la cuenta.");
+      setDeleteError("No se pudo identificar la cuenta.");
       return;
     }
 
     openModal("EliminarCuenta", {
       deleting,
       onConfirm: async () => {
+        //Bloqueo real contra múltiples clicks
         if (deleting) return;
+
         setDeleting(true);
         const res = await deleteUserAccount(usuario.id_auth);
         setDeleting(false);
+
+        //El modal se debe cerrar siempre al recibir respuesta
+        closeModal();
+
         if (!res.ok) {
-          alert(res.error || "No se pudo eliminar la cuenta");
+          //Error se muestra en Perfil, no en el modal
+          setDeleteError(res.error || "No se pudo eliminar la cuenta");
           return;
         }
-        closeModal();
+        
+        //Éxito = limpia store + persist + sesión supabase
         setUser(null);
-        navigate("/", { replace: true });
+
+        try {
+          //Limpia persist zustand
+          localStorage.removeItem("referidos_app_user");
+        } catch {}
+
+        //IMPORTANTÍSIMO: limpiar storage de Supabase Auth
+        try {
+          const sbKey = supabase.auth.storageKey; //ej: "sb-<projectref>-auth-token"
+          localStorage.removeItem(sbKey);
+          localStorage.removeItem(`${sbKey}-code-verifier`);
+        } catch {}
+
+        //Navegación limpia (con reload para vaciar memoria/in-memory session)
+        window.location.replace("/");
       },
       onCancel: () => {
         setDeleting(false);
@@ -147,6 +173,11 @@ export default function Perfil() {
         >
           Eliminar cuenta
         </button>
+        {deleteError && (
+          <div style={{ marginTop: 10, color: "#DC2626", fontSize: 13 }}>
+            {deleteError}
+          </div>
+        )}
       </div>
     </div>
   );

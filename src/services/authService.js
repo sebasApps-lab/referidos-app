@@ -165,22 +165,37 @@ export async function deleteUserAccount(id_auth) {
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      return { ok: false, error: "Tu sesi\u00f3n expir\u00f3. Vuelve a iniciar sesi\u00f3n e intenta de nuevo." };
+      return {
+        ok: false,
+        error: "Tu sesi\u00f3n expir\u00f3. Vuelve a iniciar sesi\u00f3n e intenta de nuevo.",
+      };
     }
 
-    const { error } = await supabase.functions.invoke("delete-account", {
+    const { data, error } = await supabase.functions.invoke("delete-account", {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
       body: { userId: id_auth },
     });
 
-    if (error) throw error;
+    if (error) {
+      //error de Edge invocada (network / non-2xx)
+      return { ok: false, error: error.message ?? String(error) };
+    }
 
-    await supabase.auth.signOut();
+    //La función devuelve { ok: true } o { ok: false, message } (a veces con status)
+    if (data?.ok === false) {
+      const msg = (data?.message || "").toLowerCase();
+      //Si la función dice que ya estaba eliminada, tratamos como éxito
+      if (msg.includes("ya fue eliminada") || msg.includes("already") || msg.includes("not found")) {
+        return { ok: true };
+      }
+      return { ok: false, error: data?.message || "No se pudo eliminar la cuenta" };
+    }
+
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error.message ?? String(error) };
+    return { ok: false, error: error?.message ?? String(error) };
   }
 }
 

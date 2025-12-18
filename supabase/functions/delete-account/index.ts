@@ -67,7 +67,7 @@ serve(async (req) => {
       const { error: negDelErr } = await supabaseAdmin
         .from("negocios")
         .delete()
-        .in("usuarioId", usuarioIds);
+        .in("usuarioid", usuarioIds);
       if (negDelErr) throw negDelErr;
     }
 

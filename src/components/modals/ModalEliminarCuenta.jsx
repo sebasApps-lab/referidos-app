@@ -4,6 +4,7 @@ import { useModal } from "../../modals/useModal";
 export default function ModalEliminarCuenta({ onConfirm, onCancel, deleting = false }) {
   const { closeModal } = useModal();
   const [countdown, setCountdown] = useState(5);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -12,16 +13,24 @@ export default function ModalEliminarCuenta({ onConfirm, onCancel, deleting = fa
   }, [countdown]);
 
   const handleCancel = () => {
+    if (submitting || deleting) return;
     closeModal();
     onCancel?.();
   };
 
-  const handleConfirm = () => {
-    if (countdown > 0 || deleting) return;
-    onConfirm?.();
+  const handleConfirm = async () => {
+    if (countdown > 0 || deleting || submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm?.();
+    } finally {
+      //Cerrar siempre el modal al terminar
+      closeModal();
+      setSubmitting(false);
+    }
   };
 
-  const disabled = countdown > 0 || deleting;
+  const disabled = countdown > 0 || deleting || submitting;
 
   return (
     <div
@@ -59,11 +68,12 @@ export default function ModalEliminarCuenta({ onConfirm, onCancel, deleting = fa
           className={`text-sm font-semibold ${disabled ? "text-red-300 cursor-not-allowed" : "text-red-600 hover:text-red-700"}`}
           style={{ textDecoration: "none" }}
         >
-          {deleting ? "Eliminando..." : countdown > 0 ? `Eliminar cuenta (${countdown})` : "Eliminar cuenta"}
+          {deleting || submitting ? "Eliminando..." : countdown > 0 ? `Eliminar cuenta (${countdown})` : "Eliminar cuenta"}
         </button>
 
         <button
           onClick={handleCancel}
+          disabled={deleting || submitting}
           className="text-sm font-semibold text-gray-700 hover:text-gray-900"
           style={{ textDecoration: "none" }}
         >
