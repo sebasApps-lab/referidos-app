@@ -1,11 +1,6 @@
-// src/pages/NegocioHome.jsx
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { supabase } from "../lib/supabaseClient";
-//import { Users } from "lucide-react"; ya no se usa
-
-// cuando hagamos las cards reales
-// import NegocioPromoCard from "../components/cards/NegocioPromoCard";
 
 export default function NegocioHome() {
   const usuario = useAppStore((s) => s.usuario);
@@ -17,11 +12,11 @@ export default function NegocioHome() {
   const [tab, setTab] = useState("activas");
 
   useEffect(() => {
-    let abort = false; 
+    let abort = false;
 
     const fetchPromos = async () => {
-      if (typeof usuario === "undefined") return; //bootstrap no resuelto
-      if(!usuario || usuario.role !== "negocio") {
+      if (typeof usuario === "undefined") return; // bootstrap no resuelto
+      if (!usuario || usuario.role !== "negocio") {
         setLoading(false);
         return;
       }
@@ -63,7 +58,6 @@ export default function NegocioHome() {
             negocioid,
             fechacreacion
           `
-
           )
           .eq("negocioid", negocioId)
           .order("fechacreacion", { ascending: false });
@@ -83,7 +77,7 @@ export default function NegocioHome() {
             negocioId: p.negocioid,
           }))
         );
-        setLoading(false);      
+        setLoading(false);
       } catch (err) {
         if (abort) return;
         setError(err?.message || "No se pudieron cargar tus promos");
@@ -121,7 +115,7 @@ export default function NegocioHome() {
       );
     }
     if (tab === "inactivas" && inactivas.length === 0) {
-      return <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Tus promos inactivas se verán aquí.</p>;
+      return <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Tus promos INACTIVAS se verán aquí.</p>;
     }
     if (tab === "pendientes" && pendientes.length === 0) {
       return <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Tus promos en cola se mostrarán en este espacio.</p>;
@@ -145,7 +139,7 @@ export default function NegocioHome() {
           >
             <div style={{ fontWeight: 700, marginBottom: 6 }}>{promo.titulo}</div>
             <div style={{ color: "#555", fontSize: 14, marginBottom: 8 }}>{promo.descripcion}</div>
-            <div style={{ fontSize: 12, color: "#888" }}> Estado: {promo.estado}</div>
+            <div style={{ fontSize: 12, color: "#888" }}>Estado: {promo.estado}</div>
           </div>
         ))}
       </div>
@@ -224,7 +218,7 @@ export default function NegocioHome() {
         })}
       </div>
 
-      {loading && <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}> Cargando promos...</p>}
+      {loading && <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Cargando promos...</p>}
       {!loading && error && <p style={{ padding: "12px 0", color: "#c00", textAlign: "center" }}>{error}</p>}
       {!loading && !error && renderPromos(currentList)}
     </div>

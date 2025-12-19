@@ -1,6 +1,5 @@
 // src/pages/ClienteHome.jsx
-import React, { useEffect, useState, useRef } from "react";
-import { runOnboardingCheck } from "../services/onboardingClient";
+import React, { useEffect, useState } from "react";
 import { useAppStore } from "../store/appStore";
 import PromoSection from "../components/sections/PromoSection";
 import SearchBar from "../components/ui/SearchBar";
@@ -11,8 +10,6 @@ import { sanitizeText } from "../utils/sanitize";
 
 export default function ClienteHome() {
   const [showFiltros, setShowFiltros] = useState(false);
-  const setUser = useAppStore((s) => s.setUser);
-  const onceRef = useRef(false);
 
   //  CARGAR DESDE SUPABASE
   const loadPromos = useAppStore((s) => s.loadPromos);
@@ -22,22 +19,11 @@ export default function ClienteHome() {
   const loading = useAppStore((s) => s.loading);
 
   useEffect(() => {
-    if (onceRef.current) return;
-    onceRef.current = true;
-    (async () => {
-      const res = await runOnboardingCheck();
-      if (res?.ok && res.usuario) setUser(res.usuario);
-    })();
-  }, [setUser]);
-
-  useEffect(() => {
     loadPromos();
   }, [loadPromos]);
 
   useEffect(() => {
-    if (promos.length > 0) {
-      initRatings(promos);
-    }
+    if (promos.length > 0) initRatings(promos);
   }, [promos, initRatings]);
 
   const { query, setQuery, filterPromos } = usePromoSearch();
