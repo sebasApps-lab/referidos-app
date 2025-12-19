@@ -1,226 +1,300 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useAppStore } from "../store/appStore";
-import { supabase } from "../lib/supabaseClient";
+import React, { useRef, useLayoutEffect } from "react";
 
-export default function NegocioHome() {
-  const usuario = useAppStore((s) => s.usuario);
-  const onboarding = useAppStore((s) => s.onboarding);
+const BRAND_PURPLE = "#5E30A5";
+const BRAND_YELLOW = "#FFF3CD";
+const REFERRAL_GREEN = "#A6F28F";
+const LOCAL_PURPLE = "#7C5CD6";
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [promos, setPromos] = useState([]);
-  const [tab, setTab] = useState("activas");
+const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
+const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
 
-  useEffect(() => {
-    let abort = false;
+export default function Header({
+  usuario,
+  bootstrap,
+  locAllowed,
+  hideLocationBar,
+  onCloseLocationBar,
+  onOpenTier,
+  onOpenGrupo,
+  onOpenMenu,
+  onHeaderHeightChange,
+}) {
+  const headerRef = useRef(null);
 
-    const fetchPromos = async () => {
-      if (typeof usuario === "undefined") return; // bootstrap no resuelto
-      if (!usuario || usuario.role !== "negocio") {
-        setLoading(false);
-        return;
-      }
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || usuario.registro_estado !== "completo") return null;
 
-      try {
-        setLoading(true);
-        setError("");
+  const avatarSrc =
+    usuario?.genero === "f"
+      ? AVATAR_FEMALE
+      : usuario?.genero === "m"
+      ? AVATAR_MALE
+      : AVATAR_MALE;
 
-        const negocioId =
-          onboarding?.negocio?.id ||
-          (await (async () => {
-            const { data, error: negErr } = await supabase
-              .from("negocios")
-              .select("id")
-              .eq("usuarioid", usuario.id)
-              .maybeSingle();
-            if (negErr) throw negErr;
-            return data?.id || null;
-          })());
-
-        if (!negocioId) {
-          setPromos([]);
-          setError("No se encontró el negocio asociado a esta cuenta.");
-          setLoading(false);
-          return;
-        }
-
-        const { data, error: promoErr } = await supabase
-          .from("promos")
-          .select(
-            `
-            id,
-            titulo,
-            descripcion,
-            inicio,
-            fin,
-            imagen,
-            estado,
-            negocioid,
-            fechacreacion
-          `
-          )
-          .eq("negocioid", negocioId)
-          .order("fechacreacion", { ascending: false });
-
-        if (promoErr) throw promoErr;
-        if (abort) return;
-
-        setPromos(
-          (data || []).map((p) => ({
-            id: p.id,
-            titulo: p.titulo,
-            descripcion: p.descripcion,
-            inicio: p.inicio,
-            fin: p.fin,
-            imagen: p.imagen,
-            estado: p.estado,
-            negocioId: p.negocioid,
-          }))
-        );
-        setLoading(false);
-      } catch (err) {
-        if (abort) return;
-        setError(err?.message || "No se pudieron cargar tus promos");
-        setLoading(false);
-      }
-    };
-
-    fetchPromos();
-    return () => {
-      abort = true;
-    };
-  }, [usuario, onboarding]);
-
-  const { activas, inactivas, pendientes } = useMemo(() => {
-    const activas = [];
-    const pendientes = [];
-    const inactivas = [];
-    promos.forEach((p) => {
-      if (p.estado === "activo") activas.push(p);
-      else if (p.estado === "pendiente") pendientes.push(p);
-      else inactivas.push(p);
-    });
-    return { activas, inactivas, pendientes };
-  }, [promos]);
-
-  const renderEmptyMessage = () => {
-    if (tab === "activas" && activas.length === 0) {
-      const haCreadoAntes = inactivas.length > 0 || pendientes.length > 0;
-      return (
-        <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>
-          {haCreadoAntes
-            ? "Publica una promo y no pierdas más clientes."
-            : "Añade tu primera promo y empieza a atraer nuevos clientes."}
-        </p>
-      );
+  useLayoutEffect(() => {
+    if (headerRef.current && onHeaderHeightChange) {
+      onHeaderHeightChange(headerRef.current.offsetHeight);
     }
-    if (tab === "inactivas" && inactivas.length === 0) {
-      return <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Tus promos INACTIVAS se verán aquí.</p>;
-    }
-    if (tab === "pendientes" && pendientes.length === 0) {
-      return <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Tus promos en cola se mostrarán en este espacio.</p>;
-    }
-    return null;
-  };
-
-  const renderPromos = (list) => {
-    if (list.length === 0) return renderEmptyMessage();
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {list.map((promo) => (
-          <div
-            key={promo.id}
-            style={{
-              background: "#fafafa",
-              borderRadius: 14,
-              padding: 20,
-              border: "1px solid #eee",
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{promo.titulo}</div>
-            <div style={{ color: "#555", fontSize: 14, marginBottom: 8 }}>{promo.descripcion}</div>
-            <div style={{ fontSize: 12, color: "#888" }}>Estado: {promo.estado}</div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const currentList =
-    tab === "activas" ? activas : tab === "inactivas" ? inactivas : pendientes;
+  });
 
   return (
-    <div style={{ padding: "16px 16px 120px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h2
-          style={{
-            fontWeight: 700,
-            fontSize: 22,
-            color: "#5E30A5",
-          }}
-        >
-          Mis Promos
-        </h2>
-
-        <button
-          style={{
-            background: "#5E30A5",
-            color: "#fff",
-            padding: "8px 14px",
-            borderRadius: 8,
-            border: "none",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-          onClick={() => console.log("Añadir promo")}
-        >
-          Añadir
-        </button>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          marginBottom: 24,
-          borderBottom: "1px solid #ddd",
-          paddingBottom: 10,
-        }}
-      >
-        {["activas", "inactivas", "pendientes"].map((t) => {
-          const active = tab === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
+    <>
+      {!hideLocationBar && locAllowed === false && (
+        <div style={{ width: "100%", background: BRAND_YELLOW }}>
+          <div
+            style={{
+              maxWidth: 960,
+              margin: "0 auto",
+              padding: "6px 16px",
+            }}
+          >
+            <div
               style={{
-                background: "none",
-                border: "none",
-                padding: "6px 8px",
-                fontSize: 15,
-                fontWeight: active ? 700 : 500,
-                color: active ? "#5E30A5" : "#666",
-                borderBottom: active ? "2px solid #5E30A5" : "2px solid transparent",
-                cursor: "pointer",
+                color: "#6B5E00",
+                borderRadius: 8,
+                padding: "8px 12px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
+                background: "#FFF8D8",
               }}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          );
-        })}
-      </div>
+              <span style={{ fontSize: 13 }}>
+                La app usa tu ubicación para mostrar promos cercanas.
+              </span>
 
-      {loading && <p style={{ padding: "12px 0", color: "#666", textAlign: "center" }}>Cargando promos...</p>}
-      {!loading && error && <p style={{ padding: "12px 0", color: "#c00", textAlign: "center" }}>{error}</p>}
-      {!loading && !error && renderPromos(currentList)}
-    </div>
+              <button
+                onClick={onCloseLocationBar}
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header
+        ref={headerRef}
+        style={{
+          background: BRAND_PURPLE,
+          color: "#fff",
+          paddingTop: "10%",
+          paddingBottom: "4%",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          zIndex: 999,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 960,
+            margin: "0 auto",
+            paddingLeft: "4%",
+            paddingRight: "4%",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                width: "88%",
+                fontSize: "clamp(20px, 6vw, 28px)",
+                fontWeight: 800,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              Bienvenido,{" "}
+              <span style={{ fontWeight: 900 }}>
+                {usuario?.nombre || "usuario"}
+              </span>
+            </div>
+
+            <button
+              onClick={() => onOpenMenu()}
+              style={{
+                width: "12%",
+                background: "transparent",
+                border: 0,
+                color: "#fff",
+                fontSize: "clamp(26px, 7vw, 36px)",
+                cursor: "pointer",
+                textAlign: "right",
+              }}
+            >
+              ☰
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "6%",
+              marginTop: 6,
+              alignItems: "stretch",
+            }}
+          >
+            <div
+              style={{
+                width: "30%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  border: `3px solid ${LOCAL_PURPLE}`,
+                  background: "#fff",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <button
+                  onClick={onOpenTier}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: 4,
+                    background: "rgba(0,0,0,0.45)",
+                    color: "#fff",
+                    border: 0,
+                    padding: "4px 8px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  {usuario?.tier || "Explorador"}
+                </button>
+
+                <img
+                  src={avatarSrc}
+                  alt="avatar"
+                  style={{
+                    width: "80%",
+                    height: "80%",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                width: "65%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                paddingTop: "2px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 14,
+                  opacity: 0.95,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                Encuentra las mejores promos cerca de ti.
+              </div>
+
+              <div style={{ flexGrow: 1 }} />
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
+                }}
+              >
+                <span
+                  style={{
+                    color: REFERRAL_GREEN,
+                    fontWeight: 800,
+                    fontSize: "clamp(14px, 4vw, 17px)",
+                  }}
+                >
+                  {usuario?.referidosCount
+                    ? `${usuario.referidosCount} referidos`
+                    : "0 referidos"}
+                </span>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    cursor: "pointer",
+                  }}
+                  onClick={onOpenGrupo}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 8,
+                        background: "#E6E6E6",
+                        border: "2px solid #fff",
+                        marginLeft: i === 0 ? 0 : -10,
+                      }}
+                    />
+                  ))}
+
+                  <div
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 8,
+                      background: "#ffffff",
+                      border: "2px dashed #CFCFCF",
+                      marginLeft: -10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#6B6B6B",
+                      fontWeight: 700,
+                    }}
+                  >
+                    +
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    </>
   );
 }

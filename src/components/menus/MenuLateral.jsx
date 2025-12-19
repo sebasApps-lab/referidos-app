@@ -3,16 +3,27 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../../store/appStore"; // ← añadir
 
-export default function MenuLateral({ visible, onClose, usuario }) {
+export default function MenuLateral({ visible, onClose }) {
+  const usuario = useAppStore((s) => s.usuario);
+  const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout); // ← añadir
   const navigate = useNavigate();
+
+  if (!visible) return null;
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || usuario.registro_estado !== "completo") return null;
+  if (!usuario.role) return null;
 
   const base =
     usuario?.role === "cliente"
       ? "/cliente"
       : usuario?.role === "negocio"
       ? "/negocio"
-      : "/admin";
+      : usuario.role === "admin"
+      ? "/admin"
+      : "";
+
+  if (!base) return null;
 
   return (
     <>

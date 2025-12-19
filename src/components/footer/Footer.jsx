@@ -1,20 +1,19 @@
 // src/components/footer/Footer.jsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  Home,
-  Tag,
-  QrCode,
-  Camera,
-  Shield,
-  User
-} from "lucide-react";
+import { Home, Tag, QrCode, Camera, Shield, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 
 export default function Footer() {
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
+  const onboarding = useAppStore((s) => s.onboarding);
+  const bootstrap = useAppStore((s) => s.bootstrap);
+
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || !onboarding?.allowAccess || usuario.registro_estado !== "completo") return null;
+  if (!usuario.role) return null;
 
   const role = usuario?.role || "cliente";
   const notiCount =
@@ -64,6 +63,8 @@ export default function Footer() {
       { path: "/admin/panel", label: "Admin", Icon: Shield },
     ];
   }
+
+  if (linksMobile.lenght === 0) return null;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 flex justify-around py-2 z-50">

@@ -11,7 +11,7 @@ export function useBootstrapAuth() {
     const bootstrap = useAppStore((s) => s.bootstrap);
     const usuario = useAppStore((s) => s.usuario);
     const error = useAppStore((s) => s.error);
-    const bootstrapAuth = useAppStore((s) => s.useBootstrapAuth);
+    const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
 
     useEffect(() => {
         //Solo dispara si estamos en modo bootstrap inicial (true).

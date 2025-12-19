@@ -16,6 +16,7 @@ import {
 import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 import { resetOnboardingFlag, runOnboardingCheck } from "../services/onboardingClient";
+import { supabase } from "../lib/supabaseClient";
 
 export const useAppStore = create(
   persist(

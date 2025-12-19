@@ -1,5 +1,6 @@
 // src/components/header/Header.jsx
 import React, { useRef, useLayoutEffect } from "react";
+import { useAppStore } from "../../store/appStore";
 
 const BRAND_PURPLE = "#5E30A5";
 const BRAND_YELLOW = "#FFF3CD";
@@ -10,7 +11,6 @@ const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
 const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
 
 export default function Header({
-  usuario,
   locAllowed,
   hideLocationBar,
   onCloseLocationBar,
@@ -19,7 +19,13 @@ export default function Header({
   onOpenMenu,
   onHeaderHeightChange,
 }) {
+
+  const usuario = useAppStore((s) => s.usuario);
+  const bootstrap = useAppStore((s) => s.bootstrap);
   const headerRef = useRef(null);
+
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || usuario.registro_estado !== "completo") return null;
 
   const avatarSrc =
     usuario?.genero === "f"
