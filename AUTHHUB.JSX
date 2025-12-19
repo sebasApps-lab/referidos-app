@@ -1,19 +1,17 @@
-// src/pages/Auth.jsx
-import React, { useEffect, useRef, useState, useMemo, useLayoutEffect, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  EMAIL_RE,
-  PHONE_RE,
-  CODE_RE,
-  validarCedula,
-  validateEmail,
-  validatePhone,
-} from "../utils/validators";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useLayoutEffect,
+  useCallback,
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { EMAIL_RE, PHONE_RE, CODE_RE, validateEmail } from "../utils/validators";
 import { useAppStore } from "../store/appStore";
 import { signInWithOAuth } from "../services/authService";
 import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
-import { tr } from "framer-motion/client";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
@@ -33,8 +31,8 @@ export default function AuthHub() {
   const cardRef = useRef(null);
   const cardInnerRef = useRef(null);
   const sliderRef = useRef(null);
-  const regPage1Ref = useRef(null); // antes page2: datos del propietario
-  const regPage2Ref = useRef(null); // antes page3: datos del negocio
+  const regPage1Ref = useRef(null); // page2: datos del propietario
+  const regPage2Ref = useRef(null); // page3: datos del negocio
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -146,7 +144,7 @@ export default function AuthHub() {
     ro.observe(active);
     return () => ro.disconnect();
   }, [page, entryStep, measureHeights]);
-  
+
   const goTo = (p) => {
     setAnimating(true);
     setPage(p);
@@ -201,7 +199,7 @@ export default function AuthHub() {
     }
 
     if (!boot.allowAccess || boot.registro_estado !== "completo") {
-      navigate("/auth", { replace: true, state: {openChoice: true} });
+      navigate("/auth", { replace: true, state: { openChoice: true } });
       return;
     }
 
@@ -212,8 +210,7 @@ export default function AuthHub() {
   // SplashChoice (cliente / negocio)
   // -------------------------------------------------------------------
   const openChoiceOverlay = () => {
-    //Si ya hay rol/usuario con registro completo, no abrir
-    if(onboarding?.allowAccess && onboarding?.registro_estado === "completo") return;
+    if (onboarding?.allowAccess && onboarding?.registro_estado === "completo") return;
 
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
@@ -226,7 +223,7 @@ export default function AuthHub() {
         setError("");
 
         const session = (await supabase.auth.getSession()).data.session;
-        if(!session?.user) {
+        if (!session?.user) {
           setError("Sesión no válida");
           return { ok: false };
         }
@@ -236,7 +233,6 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil si no existe, o actualizar si ya existe
         const { data: existing, error: exErr } = await supabase
           .from("usuarios")
           .select("*")
@@ -247,7 +243,7 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil cliente solo si no tenía rol (sin tocar registro_estado)
+        // Crear perfil cliente solo si no tenía rol (sin tocar registro_estado)
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
@@ -265,8 +261,7 @@ export default function AuthHub() {
             return { ok: false };
           }
         }
-        
-        //Refrescar onboarding y navegar
+
         const boot = await bootstrapAuth({ force: true });
         if (!boot?.ok || !boot.usuario) {
           setError(boot?.error || "No se pudo validar onboarding");
@@ -308,7 +303,6 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear o actualizar perfil de negocio (solo si no tenía rol)
         const { data: existing, error: exErr } = await supabase
           .from("usuarios")
           .select("*")
@@ -319,14 +313,14 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil negocio solo si no tenía rol (sin tocar registro_estado)
+        // Crear perfil negocio solo si no tenía rol (sin tocar registro_estado)
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
             .insert({
               id_auth: session.user.id,
               email: authEmail,
-              role: "negocio",            
+              role: "negocio",
             })
             .select()
             .maybeSingle();
@@ -336,7 +330,6 @@ export default function AuthHub() {
           }
         }
 
-        //Refrescar onboarding; si sigue incompleto, abrir formulario
         const boot = await bootstrapAuth({ force: true });
         if (!boot?.ok) {
           setError(boot?.error || "No se pudo validar onboarding");
@@ -348,12 +341,11 @@ export default function AuthHub() {
         const rawDir = neg?.direccion || "";
         const [c1, c2 = ""] = rawDir.split("|");
 
-        //Si falta info, seguir al form de negocio
         setCodigo(code);
         setEntryStep("form");
         setAuthTab("register");
         setPage(2);
-        
+
         setNombreDueno(u?.nombre || "");
         setApellidoDueno(u?.apellido || "");
         setTelefono(u?.telefono || "");
@@ -367,7 +359,7 @@ export default function AuthHub() {
 
         if (boot.allowAccess && u?.registro_estado === "completo") {
           navToApp();
-        }       
+        }
         return { ok: true };
       },
     });
@@ -376,9 +368,9 @@ export default function AuthHub() {
   // -------------------------------------------------------------------
   // Reaccionar al resultado de onboarding (prefill + navegación)
   // -------------------------------------------------------------------
-  useEffect (() => {
-    if (typeof usuario === "undefined") return; //bootstrap no resuelto
-    if (!usuario) return; //sin sesión
+  useEffect(() => {
+    if (typeof usuario === "undefined") return; // bootstrap no resuelto
+    if (!usuario) return; // sin sesión
 
     const u = usuario;
     const boot = onboarding || {};
@@ -390,8 +382,8 @@ export default function AuthHub() {
       return;
     }
 
-    //Si no hay allowAccess: decidir siguientes pasos según rol
-    if (u.role === "admin") return; //admin incompleto -> esperar siguiente ciclo/guard
+    // Si no hay allowAccess: decidir siguientes pasos según rol
+    if (u.role === "admin") return; // admin incompleto -> esperar siguiente ciclo/guard
 
     if (u.role === "cliente") {
       setError(boot.reasons?.join(", ") || "Completa tu registro");
@@ -404,7 +396,7 @@ export default function AuthHub() {
       const [c1, c2 = ""] = rawDir.split("|");
 
       const missingOwner = !u.nombre || !u.apellido || !u.telefono;
-      const missingBusiness = !u.ruc || !neg || !neg?.nombre || !neg?.sector || !neg?.direccion;
+      const missingBusiness = !u.ruc || !neg || !neg.nombre || !neg.sector || !neg.direccion;
 
       setEntryStep("form");
       setAuthTab("register");
@@ -413,7 +405,7 @@ export default function AuthHub() {
       setNombreDueno(u.nombre || "");
       setApellidoDueno(u.apellido || "");
       setTelefono(u.telefono || "");
-      setRuc(u.ruc || "")
+      setRuc(u.ruc || "");
       setNombreNegocio(neg?.nombre || "");
       setSectorNegocio(neg?.sector || "");
       setCalle1(c1);
@@ -429,7 +421,6 @@ export default function AuthHub() {
     setError("");
 
     try {
-      //Crear SOLO la cuenta Auth (sin perfil)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -437,13 +428,11 @@ export default function AuthHub() {
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
-        if(msg.includes("ya existe") || msg.includes("already") || msg.includes("exists") ) {
-          //Correo ya usado: asumir que puede ser cuenta creada con OAuth
+        if (msg.includes("ya existe") || msg.includes("already") || msg.includes("exists")) {
           setError("Esta cuenta ya existe. Si la creaste con Google, usa Google para continuar.");
           setAuthTab("login");
           setEntryStep("email");
           setPage(1);
-          //Redirige a la pantalla de bienvenida con botones OAuth
           navigate("/", { replace: true });
           return;
         }
@@ -451,21 +440,18 @@ export default function AuthHub() {
         return;
       }
 
-      //Asegurar sesión activa
       const session = data?.session ?? (await supabase.auth.getSession()).data.session;
       if (!session?.user) {
         setError("No se pudo iniciar la sesión");
         return;
       }
 
-      //Avanzar a seleccion de rol
       setEntryStep("form");
       setAuthTab("register");
       setPage(2);
       openChoiceOverlay();
     } catch (err) {
-      setError(err?.message || "Error al crear la cuenta")
-
+      setError(err?.message || "Error al crear la cuenta");
     }
   };
 
@@ -483,8 +469,6 @@ export default function AuthHub() {
       setError("No hay sesión activa");
       return;
     }
-    //Perfil debe existir y ser rol negocio (ya seteado en SplashChoice)
-    //Inserta/actualiza datos del propietario en usuarios
     const { data: existing, error: exErr } = await supabase
       .from("usuarios")
       .select("*")
@@ -494,14 +478,15 @@ export default function AuthHub() {
       setError(exErr.message || "No se pudo leer perfil");
       return;
     }
-    if(!existing) {
-      setError("Primero debes seleccionar tipo de cuenta")
+    if (!existing) {
+      setError("Primero debes seleccionar tipo de cuenta");
       return;
     }
     if (existing.role !== "negocio") {
       setError("Tu cuenta no es de negocio");
       return;
     }
+
     const { error } = await supabase
       .from("usuarios")
       .update({
@@ -511,25 +496,25 @@ export default function AuthHub() {
       })
       .eq("id_auth", session.user.id);
 
-      if (error) {
-        setError(error.message || "No se pudo guardar datos del propietario");
-        return;
-      } 
+    if (error) {
+      setError(error.message || "No se pudo guardar datos del propietario");
+      return;
+    }
 
-      const boot = await bootstrapAuth({ force: true });
-      if (!boot?.ok) {
-        setError(boot?.error || "No se pudo validar onboarding");
-        return;
-      }
-      const u = boot.usuario;
-      const neg = boot.negocio ?? null;
-      const missingBusiness = !u?.ruc || !neg?.nombre || !neg?.sector || !neg?.direccion;
+    const boot = await bootstrapAuth({ force: true });
+    if (!boot?.ok) {
+      setError(boot?.error || "No se pudo validar onboarding");
+      return;
+    }
+    const u = boot.usuario;
+    const neg = boot.negocio ?? null;
+    const missingBusiness = !u?.ruc || !neg || !neg.nombre || !neg.sector || !neg.direccion;
 
-      if (boot.allowAccess && u?.registro_estado === "completo" && !missingBusiness) {
-        navToApp();
-        return;
-      }
-      setPage(3);
+    if (boot.allowAccess && u?.registro_estado === "completo" && !missingBusiness) {
+      navToApp();
+      return;
+    }
+    setPage(3);
   };
 
   // -------------------------------------------------------------------
@@ -544,7 +529,6 @@ export default function AuthHub() {
         return;
       }
 
-      //Obtener perfil actual
       const { data: userRow, error: userErr } = await supabase
         .from("usuarios")
         .select("*")
@@ -559,7 +543,7 @@ export default function AuthHub() {
         setError("Falta crear el perfil de usuario antes de registrar el negocio");
         return;
       }
-      if (userRow.role !== "negocio"){
+      if (userRow.role !== "negocio") {
         setError("Tu cuenta no es de negocio");
         return;
       }
@@ -577,30 +561,23 @@ export default function AuthHub() {
       const direccion = calle2
         ? `${(calle1 || "").trim()}|${(calle2 || "").trim()}`
         : (calle1 || "").trim();
-        
-      const negocioPayload = {
+
+      const payload = {
         usuarioid: userRow.id,
         nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
         sector: sectorNegocio || existingNeg?.sector || null,
         direccion: direccion || existingNeg?.direccion || null,
       };
 
-      //Crear/actualizar negocio
       if (existingNeg) {
-        const { error } = await supabase
-          .from("negocios")
-          .update(negocioPayload)
-          .eq("id", existingNeg.id)
+        const { error } = await supabase.from("negocios").update(payload).eq("id", existingNeg.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("negocios")
-          .insert(negocioPayload)
+        const { error } = await supabase.from("negocios").insert(payload);
         if (error) throw error;
       }
 
-      //Actualizar perfil de usuario a completo con datos del dueño
-      const { error: updErr } = await supabase
+      await supabase
         .from("usuarios")
         .update({
           nombre: nombreDueno || userRow.nombre,
@@ -608,22 +585,19 @@ export default function AuthHub() {
           telefono,
           ruc,
         })
-        .eq("id_auth", userId)
-      if (updErr) throw updErr;
+        .eq("id_auth", userId);
 
-      //Refrescar onboarding y navegar
       const boot = await bootstrapAuth({ force: true });
-      if(!boot?.ok) {
+      if (!boot?.ok) {
         setError(boot?.error || "No se pudo validar onboarding");
         return;
       }
 
-      if (!boot.allowAccess) {
+      if (!boot.allowAccess || boot.registro_estado !== "completo") {
         setError(boot.reasons?.join(",") || "Completa tu registro");
         return;
       }
-      
-      //Redirigir
+
       navToApp();
     } catch (err) {
       setError(err?.message || "Error al registrar negocio");
@@ -649,7 +623,8 @@ export default function AuthHub() {
   const startFacebook = () => startOAuth("facebook");
 
   const inputCommon = "w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm";
-  const inputCommon1 = "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
+  const inputCommon1 =
+    "w-full box-border border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]";
 
   const segment = (n) => (
     <div
@@ -696,7 +671,8 @@ export default function AuthHub() {
     setAuthTab("register");
   };
 
-  const primaryEmailLabel = authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "REGISTRARSE";
+  const primaryEmailLabel =
+    authTab === "login" ? (loginLoading ? "Ingresando..." : "INGRESAR") : "REGISTRARSE";
   const primaryEmailHandler = authTab === "login" ? handleLogin : handlePrimaryPage1;
   const primaryEmailDisabled = authTab === "login" ? loginLoading : false;
 
@@ -729,7 +705,7 @@ export default function AuthHub() {
           <div className="bg-white w-full rounded-2xl shadow-xl p-6">
             {error && <p className="text-red-500 text-sm mb-3 text-center">{error}</p>}
 
-            <div className="flex items-center gap-3 mb-5 -mt-2">
+            <div className="flex itemscenter gap-3 mb-5 -mt-2">
               <div className="flex-1">
                 <div
                   className="flex bg-[#f7f5fdff] rounded-xl py-0.75 gap-3"
@@ -809,7 +785,6 @@ export default function AuthHub() {
 
       {entryStep !== "email" && (
         <>
-
           <div
             ref={cardRef}
             className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
@@ -918,13 +893,7 @@ export default function AuthHub() {
 
 function GoogleIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      height="18"
-      viewBox="0 0 18 18"
-      width="18"
-    >
+    <svg aria-hidden="true" focusable="false" height="18" viewBox="0 0 18 18" width="18">
       <path
         d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2087 1.125-.8427 2.0782-1.7959 2.7164v2.2581h2.9082c1.7018-1.5677 2.6836-3.8745 2.6836-6.6149z"
         fill="#4285F4"
@@ -947,13 +916,7 @@ function GoogleIcon() {
 
 function FacebookIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      height="21"
-      viewBox="0 0 24 24"
-      width="21"
-    >
+    <svg aria-hidden="true" focusable="false" height="21" viewBox="0 0 24 24" width="21">
       <path
         fill="#1877F2"
         d="M22 12.07C22 6.48 17.52 2 11.93 2S1.86 6.48 1.86 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H7.9v-2.9h2.4V9.62c0-2.38 1.42-3.7 3.6-3.7 1.04 0 2.13.19 2.13.19v2.34h-1.2c-1.18 0-1.55.73-1.55 1.48v1.77h2.64l-.42 2.9h-2.22V22c4.78-.8 8.44-4.94 8.44-9.93z"
@@ -964,16 +927,14 @@ function FacebookIcon() {
 
 function MailIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      height="24"
-      width="24"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
+    <svg aria-hidden="true" focusable="false" height="24" width="24" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M4 7l7.82 6.165a2 2 0 002.36 0L22 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path
+        d="M4 7l7.82 6.165a2 2 0 002.36 0L22 7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

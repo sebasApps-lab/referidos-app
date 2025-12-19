@@ -5,30 +5,30 @@ import { useLocation } from "react-router-dom";
 import { pwaGuard } from "./router/guards/pwaGuard";
 import AppRoutes from "./routes";
 import ModalProvider from "./modals/ModalProvider";
+import useBootstrapAuth from "./hooks/useBootstrapAuth";
 
 function PwaGuardWrapper({ children }) {
   const usuario = useAppStore((s) => s.usuario);
+  const bootstrap = useAppStore((s) => s.bootstrap);
   const location = useLocation();
 
+  //No redirigir mientras bootstrap está activo
   useEffect(() => {
+    if (bootstrap) return;
     try {
       const redir = pwaGuard(usuario, location.pathname);
       if (redir) window.location.replace(redir);
     } catch (error) {
       if (import.meta.env.DEV) console.error("pwaGuard error", error);
     }
-  }, [usuario, location.pathname]);
+  }, [bootstrap, usuario, location.pathname]);
 
   return children;
 }
 
 export default function App() {
-  const restoreSession = useAppStore((s) => s.restoreSession);
-
-  // 🔥 RESTAURAR SESIÓN AL CARGAR
-  useEffect(() => {
-    restoreSession();
-  }, [restoreSession]);
+  //Arranca bootstrap (session + onboarding) una sola vez
+  useBootstrapAuth();
 
   return (
     <>

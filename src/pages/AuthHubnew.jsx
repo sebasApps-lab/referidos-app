@@ -13,19 +13,19 @@ import { useAppStore } from "../store/appStore";
 import { signInWithOAuth } from "../services/authService";
 import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
-import { tr } from "framer-motion/client";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
-const OAUTH_INTENT_KEY = "oauth_intent";
+const OAUTH_INTENT_KEY =  "oauth_intente";
 
 export default function AuthHub() {
   const navigate = useNavigate();
   const login = useAppStore((s) => s.login);
+  const setUser = useAppStore((s) => s.setUser);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
-  const usuario = useAppStore((s) => s.usuario);
-  const onboarding = useAppStore((s) => s.onboarding);
+  const usuarioStore = useAppStore((s) => s.usuarioStore);
   const { openModal, closeModal } = useModal();
+  const location = useLocation();
 
   const [cardHeight, setCardHeight] = useState(null);
   const [sliderHeight, setSliderHeight] = useState(null);
@@ -85,7 +85,9 @@ export default function AuthHub() {
     let mounted = true;
     if (!codigo || !CODE_RE.test(codigo)) return;
     setCodeChecking(true);
-    fakeValidateCode(codigo).finally(() => mounted && setCodeChecking(false));
+    fakeValidateCode(codigo)
+      .finally(() => mounted && setCodeChecking(false));
+
     return () => {
       mounted = false;
     };
@@ -160,11 +162,14 @@ export default function AuthHub() {
     return true;
   };
 
-  const navToApp = () => navigate("/app", { replace: true });
+  const navByRole = (u) => {
+    if (!u) return;
+    if (u.role === "admin") navigate("/admin/incio", { replace: true });
+    else if (u.role === "negocio") navigate("/negocio/inicio", { replace: true });
+    else navigate("/cliente/inicio", { replace: true });
+  };
 
-  // -------------------------------------------------------------------
-  // LOGIN (email/password) -> Auth + onboarding
-  // -------------------------------------------------------------------
+  // --- LOGIN (email/password) ---
   const handleLogin = async () => {
     setError("");
 
@@ -194,26 +199,21 @@ export default function AuthHub() {
       return;
     }
 
-    const boot = await bootstrapAuth({ force: true });
-    if (!boot?.ok || !boot.usuario) {
-      setError(boot?.error || "No se pudo validar onboarding");
+    //Decidir según onboarding (ya corrido en Login)
+    if (!result.allowAccess || result.registro_estado !== "completo") {
+      navigate("/auth", { replace: true, state: { openChoice: true } });
       return;
     }
 
-    if (!boot.allowAccess || boot.registro_estado !== "completo") {
-      navigate("/auth", { replace: true, state: {openChoice: true} });
-      return;
-    }
-
-    navToApp();
+    navByRole(result.user);
   };
 
-  // -------------------------------------------------------------------
-  // SplashChoice (cliente / negocio)
-  // -------------------------------------------------------------------
+
   const openChoiceOverlay = () => {
     //Si ya hay rol/usuario con registro completo, no abrir
-    if(onboarding?.allowAccess && onboarding?.registro_estado === "completo") return;
+    if(useAppStore.getState().usuario?.role.registro_estado === "completo") {
+      return;
+    }
 
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
@@ -247,7 +247,7 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil cliente solo si no tenía rol (sin tocar registro_estado)
+        //Si ya hay rol, no escribir de nuevo
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
@@ -257,6 +257,7 @@ export default function AuthHub() {
               nombre: authEmail.split("@")[0],
               role: "cliente",
               telefono: telefono || null,
+              registro_estado: "completo",
             })
             .select()
             .maybeSingle();
@@ -267,19 +268,20 @@ export default function AuthHub() {
         }
         
         //Refrescar onboarding y navegar
-        const boot = await bootstrapAuth({ force: true });
+        const boot = await bootstrapAuth();
         if (!boot?.ok || !boot.usuario) {
           setError(boot?.error || "No se pudo validar onboarding");
-          return { ok: false };
+          return { ok: false};
         }
+        setUser(boot.usuario);
 
-        if (!boot.allowAccess || boot.registro_estado !== "completo") {
+        if (!boot.allowAccess) {
           setError(boot.reasons?.join(", ") || "Completa tu registro");
           return { ok: false };
         }
 
         closeModal();
-        navToApp();
+        navByRole(boot.usuario);
         return { ok: true };
       },
 
@@ -319,14 +321,15 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil negocio solo si no tenía rol (sin tocar registro_estado)
+        //Si ya hay rol, no escribir de nuevo
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
             .insert({
               id_auth: session.user.id,
               email: authEmail,
-              role: "negocio",            
+              role: "negocio",
+              registro_estado: "incompleto",              
             })
             .select()
             .maybeSingle();
@@ -337,99 +340,109 @@ export default function AuthHub() {
         }
 
         //Refrescar onboarding; si sigue incompleto, abrir formulario
-        const boot = await bootstrapAuth({ force: true });
+        const boot = await bootstrapAuth();
         if (!boot?.ok) {
           setError(boot?.error || "No se pudo validar onboarding");
           return { ok: false };
         }
+        if (boot.usuario) setUser(boot.usuario);
 
-        const u = boot.usuario;
-        const neg = boot.negocio ?? null;
-        const rawDir = neg?.direccion || "";
-        const [c1, c2 = ""] = rawDir.split("|");
-
-        //Si falta info, seguir al form de negocio
+        //Si falta info,seguir al form de negocio
         setCodigo(code);
         setEntryStep("form");
         setAuthTab("register");
-        setPage(2);
-        
-        setNombreDueno(u?.nombre || "");
-        setApellidoDueno(u?.apellido || "");
-        setTelefono(u?.telefono || "");
-        setRuc(u?.ruc || "");
-        setNombreNegocio(neg?.nombre || "");
-        setSectorNegocio(neg?.sector || "");
-        setCalle1(c1);
-        setCalle2(c2);
-
+        setPage(boot.allowAccess ? 2 : 2); //mantenemos Page 2 para dueño
         closeModal();
-
-        if (boot.allowAccess && u?.registro_estado === "completo") {
-          navToApp();
-        }       
+        if (boot.allowAccess && boot.usuario?.role === "negocio") {
+          navByRole(boot.usuario);
+        }
         return { ok: true };
       },
     });
   };
 
-  // -------------------------------------------------------------------
-  // Reaccionar al resultado de onboarding (prefill + navegación)
-  // -------------------------------------------------------------------
+  const landingHandledRef = useRef(false);
+
   useEffect (() => {
-    if (typeof usuario === "undefined") return; //bootstrap no resuelto
-    if (!usuario) return; //sin sesión
+    if (landingHandledRef.current) return;
 
-    const u = usuario;
-    const boot = onboarding || {};
-    const neg = boot.negocio ?? null;
-    const allowAccess = !!boot.allowAccess;
+    (async () => {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      if(!session?.user) return;
 
-    if (allowAccess && boot.registro_estado === "completo") {
-      navToApp();
-      return;
-    }
+      const boot = await bootstrapAuth();
+      if (!boot?.ok) {
+        setError(boot?.error || "No se pudo validar onboarding");
+        return;
+      }
 
-    //Si no hay allowAccess: decidir siguientes pasos según rol
-    if (u.role === "admin") return; //admin incompleto -> esperar siguiente ciclo/guard
+      landingHandledRef.current = true;
 
-    if (u.role === "cliente") {
-      setError(boot.reasons?.join(", ") || "Completa tu registro");
-      navigate("/auth", { replace: true, state: { openChoice: true } });
-      return;
-    }
+      const u = boot.usuario;
+      const neg = boot.negocio; //puede venir null si no existe negocio.
+      const allowAccess = !!boot.allowAccess;
 
-    if (u.role === "negocio") {
-      const rawDir = neg?.direccion || "";
-      const [c1, c2 = ""] = rawDir.split("|");
+      //Si no hay perfil, o falta rol -> abrir chooser
+      if (!u || !u.role) {
+        setEntryStep("form");
+        setAuthTab("register");
+        setPage(2);
+        openChoiceOverlay();
+        return;
+      }
 
-      const missingOwner = !u.nombre || !u.apellido || !u.telefono;
-      const missingBusiness = !u.ruc || !neg || !neg?.nombre || !neg?.sector || !neg?.direccion;
+      setUser(u);
 
+      if (allowAccess && u.registro_estado === "completo") {
+        navByRole(u);
+        return;
+      }
+
+      //Prefill para negocio: dueño y negocio
+      if (u.role === "negocio") {
+        const rawDir = neg?.direccion || "";
+        const [c1, c2 = ""] = rawDir.split("|");
+
+        const missingOwner = !u.nombre || !u.apellido || !u.telefono;
+        const missingBusiness = !u.ruc || !neg.nombre || !neg.sector || !neg.direccion;
+
+        setEntryStep("form");
+        setAuthTab("register");
+
+        if (missingOwner) {
+          setPage(2);
+        } else if (missingBusiness) {
+          setPage(3);
+        } else {
+          //Negocio con rol pero sin allowAccess por otras razones: deja en form 2 por defecto
+          setPage(2);
+        }
+
+        //Prefill campos de dueño/negocio
+        setNombreDueno(u.nombre || "");
+        setApellidoDueno(u.apellido || "");
+        setTelefono(u.telefono || "");
+        setRuc(u.ruc || "");
+        setNombreNegocio(neg?.nombre || "");
+        setSectorNegocio(neg?.sector || "");
+        setCalle1(c1);
+        setCalle2(c2);
+        return;
+      }
+
+      //Para cliente/admin incompletos: ir a form cliente (page 2)
       setEntryStep("form");
       setAuthTab("register");
-      setPage(missingOwner ? 2 : 3);
+      setPage(2);  
+    })();
+  }, []);
 
-      setNombreDueno(u.nombre || "");
-      setApellidoDueno(u.apellido || "");
-      setTelefono(u.telefono || "");
-      setRuc(u.ruc || "")
-      setNombreNegocio(neg?.nombre || "");
-      setSectorNegocio(neg?.sector || "");
-      setCalle1(c1);
-      setCalle2(c2);
-    }
-  }, [usuario, onboarding, navigate]);
-
-  // -------------------------------------------------------------------
-  // Registro paso 1 (crear cuenta Auth sin perfil)
-  // -------------------------------------------------------------------
   const handlePrimaryPage1 = async () => {
     if (!validatePage1()) return;
     setError("");
 
     try {
-      //Crear SOLO la cuenta Auth (sin perfil)
+      //Crear SOLO la cuanta Auth (sin perfil)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -469,9 +482,6 @@ export default function AuthHub() {
     }
   };
 
-  // -------------------------------------------------------------------
-  // Guardar datos de dueño (page 2 negocio)
-  // -------------------------------------------------------------------
   const handleNext2 = async () => {
     if (!nombreDueno) return setError("Ingrese nombres");
     if (!apellidoDueno) return setError("Ingrese apellidos");
@@ -508,33 +518,18 @@ export default function AuthHub() {
         nombre: nombreDueno,
         apellido: apellidoDueno,
         telefono,
+        registro_estado: existing.registro_estado || "incompleto",
       })
       .eq("id_auth", session.user.id);
 
       if (error) {
         setError(error.message || "No se pudo guardar datos del propietario");
         return;
-      } 
+      }    
 
-      const boot = await bootstrapAuth({ force: true });
-      if (!boot?.ok) {
-        setError(boot?.error || "No se pudo validar onboarding");
-        return;
-      }
-      const u = boot.usuario;
-      const neg = boot.negocio ?? null;
-      const missingBusiness = !u?.ruc || !neg?.nombre || !neg?.sector || !neg?.direccion;
-
-      if (boot.allowAccess && u?.registro_estado === "completo" && !missingBusiness) {
-        navToApp();
-        return;
-      }
-      setPage(3);
+    goTo(3);
   };
 
-  // -------------------------------------------------------------------
-  // Guardar datos de negocio (page 3 negocio)
-  // -------------------------------------------------------------------
   const handleRegister = async () => {
     try {
       const session = (await supabase.auth.getSession())?.data?.session;
@@ -607,16 +602,18 @@ export default function AuthHub() {
           apellido: apellidoDueno || userRow.apellido,
           telefono,
           ruc,
+          registro_estado: "completo",
         })
         .eq("id_auth", userId)
       if (updErr) throw updErr;
 
       //Refrescar onboarding y navegar
-      const boot = await bootstrapAuth({ force: true });
+      const boot = await bootstrapAuth();
       if(!boot?.ok) {
         setError(boot?.error || "No se pudo validar onboarding");
         return;
       }
+      if (boot.usuario) setUser(boot.usuario);
 
       if (!boot.allowAccess) {
         setError(boot.reasons?.join(",") || "Completa tu registro");
@@ -624,7 +621,7 @@ export default function AuthHub() {
       }
       
       //Redirigir
-      navToApp();
+      navigate("/negocio/inicio");
     } catch (err) {
       setError(err?.message || "Error al registrar negocio");
     }

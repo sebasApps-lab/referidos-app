@@ -5,7 +5,6 @@ import {
   signInWithEmail,
   signUpWithEmail,
   signOut,
-  getSessionUserProfile,
 } from "../services/authService";
 import { getActivePromos } from "../services/promoService";
 import {
@@ -21,7 +20,14 @@ import { resetOnboardingFlag, runOnboardingCheck } from "../services/onboardingC
 export const useAppStore = create(
   persist(
     (set, get) => ({
-      usuario: null,
+      // Modelo de estado:
+      // bootstrap === true -> resolviendo sesión+onboarding
+      // usuario === undefined -> onboarding no resulto aún
+      // usuario === null -> sin sesión / no autorizado
+      // usuario === objeto -> usuario devuelto por onboarding (parcial o completo)
+      bootstrap: true,
+      usuario: undefined,
+      onboarding: undefined, // último payload de onboarding (allowAccess/registro_estado/reasons/negocio/provider)
       ratings: {},
       promos: [],
       negocios: [],
@@ -38,8 +44,23 @@ export const useAppStore = create(
             set({ loading: false, error: result.error });
             return { ok: false, error: result.error };
           }
-          set({ usuario: result.user, loading: false });
-          return { ok: true, user: result.user };
+
+          const boot = await get().bootstrapAuth()
+          set({ loading: false });
+          
+          if (!boot.ok) {
+            set({ error: boot.error ?? "No se pudo validar onboarding" });
+            return { ok: false, error: boot.error ?? "No se pudo validar onboarding" };
+          }
+
+          return {
+            ok: true,
+            user: boot.usuario,
+            allowAccess: boot.allowAccess,
+            registro_estado: boot.registro_estado,
+            reasons: boot.reasons,
+            negocio: boot.negocios,
+          };
         } catch (error) {
           const message = handleError(error);
           set({ loading: false, error: message });
@@ -55,8 +76,9 @@ export const useAppStore = create(
             set({ loading: false, error: result.error });
             return { ok: false, error: result.error };
           }
-          set({ usuario: result.user, loading: false });
-          return { ok: true, user: result.user, warning: result.warning };
+          // No seteamos usuario tras signup; se resolverá al hacer login/onboarding
+          set({ loading: false });
+          return { ok: true, data: result.data, warning: result.warning };
         } catch (error) {
           const message = handleError(error);
           set({ loading: false, error: message });
@@ -71,27 +93,59 @@ export const useAppStore = create(
           //opcional: log o toast
         } finally {
           resetOnboardingFlag?.();
-          set({ usuario: null, promos: [], negocios: [] });
+          set({
+            bootstrap: false,
+            usuario: null,
+            onboarding: undefined,
+            promos: [],
+            negocios: [],
+          });
         }
       },  
 
-      restoreSession: async () => {
+      bootstrapAuth: async () => {
         try {
-          const userData = await getSessionUserProfile();
-          if (userData) {
-            set({ usuario: userData });
-          } else{
-            set({ usuario: null });
+          set ({ bootstrap: true, usuario: undefined, onboarding: undefined, error: null });
+
+          const { data: { session } = {} } = await supabase.auth.getSession();
+          if (!session?.access_token) {
             resetOnboardingFlag?.();
-            set( { promos: [], negocios: [] });
+            set({ bootstrap: false, usuario: null, onboarding: null });
+            return { ok: true, usuario: null, allowAccess: false, registro_estado: null, reasons: [] };
           }
-        } catch (error) {
-          //error al leer sesión → limpiar estado para evitar incoherencias
-          set({ usuario: null });
+
           resetOnboardingFlag?.();
-          handleError(error);
+          const check = await runOnboardingCheck();
+          if (!check?.ok) {
+            const errMsg = check?.error || "No se pudo ejecutar onboarding";
+            set({ bootstrap: false, usuario: null, onboarding: check ?? null, error: errMsg });
+            return { ok: false, error: errMsg };
+          }
+
+          const nextUser = check?.usuario ?? null;
+          set({ bootstrap: false, usuario: nextUser, onboarding: check });
+
+          return {
+            ok: true,
+            usuario: nextUser,
+            allowAccess: check.allowAccess ?? false,
+            registro_estado: check.registro_estado ?? null,
+            reasons: check.reasons ?? [],
+            negocio: check.negocio ?? null,
+            provider: check.provider ?? null,
+          };
+        } catch (error) {
+          const message = handleError(error);
+          resetOnboardingFlag?.();
+          set({ bootstrap: false, usuario: null, onboarding: null, error: message });
+          return { ok: false, error: message };
         }
       },
+
+      // Alias temporal mientras migras llamadas antiguas (borrar linea)
+      //===================================================
+      restoreSession: async () => get().bootstrapAuth(),
+      // ==================================================
 
       // PROMOS
       loadPromos: async () => {
@@ -133,7 +187,10 @@ export const useAppStore = create(
     }),
     {
       name: "referidos_app_user",
-      partialize: (state) => ({ usuario: state.usuario }),
+      version: 2,
+      //Para evitar usuarios "fantasma" al arrancar, no persistimos usuario/onboarding
+      partialize: () => ({}),
+      migrate: () => ({}),
     }
   )
 );

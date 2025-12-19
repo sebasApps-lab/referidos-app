@@ -1,19 +1,20 @@
 // src/router/guards/RequireAuth.jsx
-
+import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 
 export default function RequireAuth({ children }) {
   const usuario = useAppStore((state) => state.usuario);
+  const bootstrap = useAppStore((state) => state.bootsrap);
 
-  // Si no hay usuario → bloquear ruta
-  if (!usuario) {
-    return <Navigate to="/" replace />;
+  //Mientras se resuelve bootstrap/onboarding, no redirigir
+  if (bootstrap || typeof usuario === "undefined") {
+    return null; // o un leader para mostrar algo
   }
 
-  // Falta rol o registro incompleto → forzar onboarding
-  if (!usuario.role || usuario.registro_estado !== "completo") {
-    return <Navigate to="/auth" replace state={{ openChoice: true }} />;
+  // Sin sesión/autorización
+  if (usuario === null) {
+    return <Navigate to="/" replace />
   }
 
   return children;

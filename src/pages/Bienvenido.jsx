@@ -1,8 +1,8 @@
 // src/pages/Bienvenido.jsx
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
-import { getSessionUserProfile, signInWithGoogleIdToken } from "../services/authService";
+import { signInWithGoogleIdToken } from "../services/authService";
 import { supabase } from "../lib/supabaseClient";
 import { requestGoogleCredential } from "../utils/googleOneTap";
 
@@ -13,31 +13,38 @@ const GOOGLE_ONE_TAP_CLIENT_ID =
 
 export default function Bienvenido() {
   const setUser = useAppStore((state) => state.setUser);
+  const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
+  const usuario = useAppStore((state) => state.usuario);
+  const bootstrap = useAppStore((state) => state.bootstrap);
+  const onboarding = useAppStore((state) => state.onboarding);
   const navigate = useNavigate();
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSessionRedirect = useCallback(async () => {
-    const user = await getSessionUserProfile();
-    const { data: { session } = {} } = await supabase.auth.getSession();
-    
-    if (user) {
-      setUser(user);
-      if (user.role === "admin") navigate("/admin/inicio", { replace: true });
-      else if (user.role === "negocio") navigate("/negocio/inicio", { replace: true });
-      else navigate("/cliente/inicio", { replace: true });      
-      return true;
+    //Si ya tenemos un usuario completo en store, redirigir por rol
+    if (usuario && usuario.registro_estado === "completo") {
+      if (usuario.role === "admin") navigate("/admin/inicio", { replace: true });
+      else if (usuario.role === "negocio") navigate("/negocio/inicio", { replace: true });
+      else navigate("/cliente/inicio", { replace: true });
     }
 
+    //Si está en bootstrap o no se resolvió onboarding aún, esperar
+    if (bootstrap || typeof usuario === "undefined") {
+      return false;
+    }
+
+    //Si hay sesión Auth pero usuario parcial/incompleto: ir a /auth (onboarding)
+    const { data: { session } = {} } = await supabase.auth.getSession();
     if (session?.user) {
-      // hay sesión pero no perfil/rol -> ir a /auth con SplashChoice
       navigate("/auth", { replace: true, state: { openChoice: true } });
       return true;
     }
 
+    //Sin sesión: quedarse aquí
     return false;
-  }, [navigate, setUser]);
+  }, [bootstrap, navigate, usuario]);
 
   const startGoogle = async () => {
     setError("");
@@ -57,6 +64,12 @@ export default function Bienvenido() {
 
       localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
       await signInWithGoogleIdToken({ token: result.credential });
+
+      //Tras login con Google, correr bootstrap/onboarding y decidir navegación
+      const boot = await bootstrapAuth();
+      if (boot?.ok && boot.usuario) {
+        setUser(boot.usuario);
+      }
       await handleSessionRedirect();
     } catch (err) {
       setError(err?.message || "No se pudo iniciar con Google");
@@ -66,8 +79,11 @@ export default function Bienvenido() {
   };
 
   useEffect(() => {
-    handleSessionRedirect();
-  }, [handleSessionRedirect]);
+    //Al montar, si hay sesión, correr bootstrap (sesión + onboarding)
+    bootstrapAuth().then(() => {
+      handleSessionRedirect();
+    });
+  }, [bootstrap, handleSessionRedirect]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#5E30A5] p-6 pb-28">
@@ -127,8 +143,11 @@ export default function Bienvenido() {
               Continuar con Facebook
             </button>
 
-            <div className="text-center pt-2 text-sm text-gray-500">Si eres nuevo, te ayudaremos a 
-              <Link to="/auth" className="text-sm text-[#5E30A5] font-bold"> crear tu cuenta.</Link>              
+            <div className="text-center pt-2 text-sm text-gray-500">
+              Si eres nuevo, te ayudaremos a{" "}
+              <Link to="/auth" className="text-sm text-[#5E30A5] font-bold">
+                crear tu cuenta.
+              </Link>              
             </div>
           </div>
         </div>
