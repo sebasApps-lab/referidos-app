@@ -10,7 +10,7 @@ export default function AppGate() {
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
 
   useEffect(() => {
-    // 1)Resolver sesión + onboardind si aún no existe
+    // 1)Resolver sesión + onboarding si aún no existe
     if (typeof usuario === "undefined") {
       bootstrapAuth({ force: false });
       return;
@@ -36,7 +36,7 @@ export default function AppGate() {
     } else {
       navigate("/cliente/inicio", { replace: true });
     }
-  }, [usuario, onboarding, bootstrap, bootstrapAuth, navigate]);
+  }, [usuario, onboarding, bootstrapAuth, navigate]);
 
   // Loader simple
   return (

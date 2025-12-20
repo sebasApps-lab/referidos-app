@@ -28,7 +28,6 @@
 
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { UserConfigFnPromise } from "vite";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL");
 const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("PUBLISHABLE_KEY");
