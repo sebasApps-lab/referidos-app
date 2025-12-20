@@ -1,18 +1,21 @@
 // src/router/guards/RequireAuth.jsx
-import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 
 export default function RequireAuth({ children }) {
   const usuario = useAppStore((state) => state.usuario);
-  const bootstrap = useAppStore((state) => state.bootsrap);
+  const bootstrap = useAppStore((state) => state.bootstrap);
 
-  //Mientras se resuelve bootstrap/onboarding, no redirigir
+  //Mientras se resuelve sesión + onboarding
   if (bootstrap || typeof usuario === "undefined") {
-    return null; // o un leader para mostrar algo
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Cargando...
+      </div>
+    );
   }
 
-  // Sin sesión/autorización
+  // Sin sesión
   if (usuario === null) {
     return <Navigate to="/" replace />
   }

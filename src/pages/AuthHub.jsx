@@ -178,33 +178,31 @@ export default function AuthHub() {
 
     if (!result.ok) {
       const msg = (result.error || "").toLowerCase();
-      if (msg.includes("invalid") || msg.includes("credentials") || msg.includes("password")) {
+
+      //UX específica: cuenta creada con Oauth
+      if (
+        msg.includes("invalid") ||
+        msg.includes("credentials") ||
+        msg.includes("password")
+      ) {
         const { data: oauthUser } = await supabase
           .from("usuarios")
           .select("id_auth")
           .eq("email", email)
           .maybeSingle();
+        
         if (oauthUser) {
-          setError("Esta cuenta fue creada con Google. Inicia sesión con Google para continuar.");
+          setError("Esta Cuenta fue creada con Google. Inicia sesión con Google para continuar");
           return;
         }
       }
+
       setError(result.error || "Usuario o contraseña incorrectos");
-      return;
+      return;      
     }
-
-    const boot = await bootstrapAuth({ force: true });
-    if (!boot?.ok || !boot.usuario) {
-      setError(boot?.error || "No se pudo validar onboarding");
-      return;
-    }
-
-    if (!boot.allowAccess || boot.registro_estado !== "completo") {
-      navigate("/auth", { replace: true, state: {openChoice: true} });
-      return;
-    }
-
-    navToApp();
+    // ✅ FIN
+    // El store ya fue actualizado por login + bootstrapAuth interno
+    // La navegación ocurrirá por el useEffect reactivo
   };
 
   // -------------------------------------------------------------------
@@ -267,18 +265,12 @@ export default function AuthHub() {
         
         //Refrescar onboarding y navegar
         const boot = await bootstrapAuth({ force: true });
-        if (!boot?.ok || !boot.usuario) {
-          setError(boot?.error || "No se pudo validar onboarding");
-          return { ok: false };
-        }
 
-        if (!boot.allowAccess || boot.registro_estado !== "completo") {
-          setError(boot.reasons?.join(", ") || "Completa tu registro");
-          return { ok: false };
-        }
+        // ❌ NO decides nada aquí
+        // ❌ NO navegas
+        // ❌ NO lees allowAccess
 
         closeModal();
-        navToApp();
         return { ok: true };
       },
 
@@ -336,8 +328,8 @@ export default function AuthHub() {
         }
 
         //Refrescar onboarding; si sigue incompleto, abrir formulario
-        const boot = await bootstrapAuth({ force: true });
-        if (!boot?.ok) {
+        /*const boot = */await bootstrapAuth({ force: true });
+        /*if (!boot?.ok) {
           setError(boot?.error || "No se pudo validar onboarding");
           return { ok: false };
         }
@@ -360,13 +352,13 @@ export default function AuthHub() {
         setNombreNegocio(neg?.nombre || "");
         setSectorNegocio(neg?.sector || "");
         setCalle1(c1);
-        setCalle2(c2);
+        setCalle2(c2);*/
 
         closeModal();
 
-        if (boot.allowAccess && u?.registro_estado === "completo") {
+        /*if (boot.allowAccess && u?.registro_estado === "completo") {
           navToApp();
-        }       
+        } */      
         return { ok: true };
       },
     });
@@ -515,19 +507,7 @@ export default function AuthHub() {
         return;
       } 
 
-      const boot = await bootstrapAuth({ force: true });
-      if (!boot?.ok) {
-        setError(boot?.error || "No se pudo validar onboarding");
-        return;
-      }
-      const u = boot.usuario;
-      const neg = boot.negocio ?? null;
-      const missingBusiness = !u?.ruc || !neg?.nombre || !neg?.sector || !neg?.direccion;
-
-      if (boot.allowAccess && u?.registro_estado === "completo" && !missingBusiness) {
-        navToApp();
-        return;
-      }
+      await bootstrapAuth({ force: true });
       setPage(3);
   };
 
@@ -610,20 +590,7 @@ export default function AuthHub() {
         .eq("id_auth", userId)
       if (updErr) throw updErr;
 
-      //Refrescar onboarding y navegar
-      const boot = await bootstrapAuth({ force: true });
-      if(!boot?.ok) {
-        setError(boot?.error || "No se pudo validar onboarding");
-        return;
-      }
-
-      if (!boot.allowAccess) {
-        setError(boot.reasons?.join(",") || "Completa tu registro");
-        return;
-      }
-      
-      //Redirigir
-      navToApp();
+      await bootstrapAuth({ force: true });      
     } catch (err) {
       setError(err?.message || "Error al registrar negocio");
     }

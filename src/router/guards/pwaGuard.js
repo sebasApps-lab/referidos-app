@@ -9,26 +9,30 @@ export function isPWA() {
 
 /**
  * Devuelve la ruta de redirección o null.
- * - Ignora mientras bootstrap está activo.
- * - No redirige si el usuario está parcial (registro_estado !== "completo").
+ * - Solo actúa en modo PWA
+ * - No decide nada durante bootstrap
+ * - No interfiere con onboarding incompleto
  */
-export function pwaGuard(usuario, pathname, bootstrap = false) {
+export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
   if (!isPWA()) return null;
 
   //No decidir nada mientras estamos en bootstrap
   if (bootstrap) return null;
 
   // Sin sesión: solo permitir landing/login
-  if (!usuario && pathname !== "/" && pathname !== "/auth") {
-    return "/";
-  }
-
-  //Usuario parcial: no forzar redirecciones por rol
-  if (usuario && usuario.registro_estado !== "completo"){
+  if (!usuario) {
+    if (pathname !== "/" && pathname !== "/auth") {
+      return "/";
+    }
     return null;
   }
 
-  // Redirigir al home correcto según rol
+  //Sesión activa pero onboarding incompleto → NO forzar rutas
+  if (!onboarding?.allowAccess){
+    return null;
+  }
+
+  //Accesso válido → forzar home correcto según role
   if (usuario) {
     if (usuario.role === "cliente" && !pathname.startsWith("/cliente")) {
       return "/cliente/inicio";

@@ -1,18 +1,16 @@
 // src/pages/Bienvenido.jsx
-import { use, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { signInWithGoogleIdToken } from "../services/authService";
-import { supabase } from "../lib/supabaseClient";
 import { requestGoogleCredential } from "../utils/googleOneTap";
 
-const OAUTH_LOGIN_PENDING = "oauth_login_pending";
+const OAUTH_LOGIN_PENDING = "oauth_login_pending"; //Borrar si ya no se le asigna una función
 const GOOGLE_ONE_TAP_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_ONE_TAP_CLIENT_ID ||
   import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function Bienvenido() {
-  const setUser = useAppStore((state) => state.setUser);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
   const usuario = useAppStore((state) => state.usuario);
   const bootstrap = useAppStore((state) => state.bootstrap);
@@ -23,28 +21,20 @@ export default function Bienvenido() {
   const [loading, setLoading] = useState(false);
 
   const handleSessionRedirect = useCallback(async () => {
-    //Si ya tenemos un usuario completo en store, redirigir por rol
-    if (usuario && usuario.registro_estado === "completo") {
-      if (usuario.role === "admin") navigate("/admin/inicio", { replace: true });
-      else if (usuario.role === "negocio") navigate("/negocio/inicio", { replace: true });
-      else navigate("/cliente/inicio", { replace: true });
+    if (bootstrap || typeof usuario === "undefined") return false;
+
+    if (usuario && onboarding?.allowAccess && usuario.registro_estado === "completo") {
+      navigate("/app", { replace: true });
+      return true;
     }
 
-    //Si está en bootstrap o no se resolvió onboarding aún, esperar
-    if (bootstrap || typeof usuario === "undefined") {
-      return false;
-    }
-
-    //Si hay sesión Auth pero usuario parcial/incompleto: ir a /auth (onboarding)
-    const { data: { session } = {} } = await supabase.auth.getSession();
-    if (session?.user) {
+    if (onboarding && onboarding.allowAccess === false) {
       navigate("/auth", { replace: true, state: { openChoice: true } });
       return true;
     }
 
-    //Sin sesión: quedarse aquí
     return false;
-  }, [bootstrap, navigate, usuario]);
+  }, [bootstrap, navigate, usuario, onboarding]);
 
   const startGoogle = async () => {
     setError("");
@@ -65,12 +55,9 @@ export default function Bienvenido() {
       localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
       await signInWithGoogleIdToken({ token: result.credential });
 
-      //Tras login con Google, correr bootstrap/onboarding y decidir navegación
-      const boot = await bootstrapAuth();
-      if (boot?.ok && boot.usuario) {
-        setUser(boot.usuario);
-      }
-      await handleSessionRedirect();
+      //Tras login con Google, correr bootstrap/onboarding y dejar que la UI reaccione
+      await bootstrapAuth({ force: true });
+      handleSessionRedirect();
     } catch (err) {
       setError(err?.message || "No se pudo iniciar con Google");
     } finally {
@@ -79,10 +66,7 @@ export default function Bienvenido() {
   };
 
   useEffect(() => {
-    //Al montar, si hay sesión, correr bootstrap (sesión + onboarding)
-    bootstrapAuth().then(() => {
       handleSessionRedirect();
-    });
   }, [bootstrap, handleSessionRedirect]);
 
   return (

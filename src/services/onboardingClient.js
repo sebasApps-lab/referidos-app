@@ -12,10 +12,3 @@ export async function runOnboardingCheck() {
   if (error) return { ok: false, error: error.message || String(error) };
   return data ?? { ok: false, error: "empty_response" };
 }
-
-//Compatibilidad temporal; ya no hay flag que resetear. (borrar lineas)
-//===========================================
-export function resetOnboardingFlag() {
-  return;
-}
-//============================================

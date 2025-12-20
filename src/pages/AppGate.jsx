@@ -7,17 +7,16 @@ export default function AppGate() {
   const navigate = useNavigate();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
-  const bootstrap = useAppStore((s) => s.bootstrap);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
 
   useEffect(() => {
-    // 1) Si aún no se resolvió el bootstrap, dispararlo
+    // 1)Resolver sesión + onboardind si aún no existe
     if (typeof usuario === "undefined") {
-      bootstrapAuth();
+      bootstrapAuth({ force: false });
       return;
     }
 
-    // 2) Si no hay sesión, fuera
+    // 2) Si no hay sesión → Bienvenido
     if (!usuario) {
       navigate("/", { replace: true });
       return;

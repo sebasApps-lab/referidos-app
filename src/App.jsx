@@ -16,7 +16,12 @@ function PwaGuardWrapper({ children }) {
   useEffect(() => {
     if (bootstrap) return;
     try {
-      const redir = pwaGuard(usuario, location.pathname);
+      const redir = pwaGuard({
+        usuario,
+        onboarding: useAppStore.getState().onboarding,
+        bootstrap,
+        pathname: location.pathname,
+    });
       if (redir) window.location.replace(redir);
     } catch (error) {
       if (import.meta.env.DEV) console.error("pwaGuard error", error);

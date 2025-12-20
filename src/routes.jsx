@@ -10,9 +10,12 @@ import MainLayout from "./layouts/MainLayout";
 // Lazy pages
 const Bienvenido = lazy(() => import("./pages/Bienvenido"));
 const AuthHub = lazy(() => import("./pages/AuthHub"));
+const AppGate = lazy(() => import("./pages/AppGate"));
+
 const ClienteHome = lazy(() => import("./pages/ClienteHome"));
 const NegocioHome = lazy(() => import("./pages/NegocioHome"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
+
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const HistorialCliente = lazy(() => import("./pages/HistorialCliente"));
@@ -25,6 +28,9 @@ export default function AppRoutes() {
       {/* PUBLIC */}
       <Route path="/" element={<Bienvenido />} />
       <Route path="/auth" element={<AuthHub />} />
+
+      {/* APP ENTRY POINT */}
+      <Route path="/app" element={<AppGate />} />
 
       {/* CLIENTE */}
       <Route
@@ -40,6 +46,48 @@ export default function AppRoutes() {
         }
       />
 
+      {/* ESCANEAR CLIENTE*/}
+      <Route
+        path="/cliente/escanear"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <Escanear />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PERFIL CLIENTE*/}
+      <Route
+        path="/cliente/perfil"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <Perfil />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* HISTORIAL CLIENTE */}
+      <Route
+        path="/cliente/historial"
+        element={
+          <RequireAuth>
+            <RequireRole role="cliente">
+              <MainLayout>
+                <HistorialCliente />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
       {/* NEGOCIO */}
       <Route
         path="/negocio/inicio"
@@ -48,6 +96,48 @@ export default function AppRoutes() {
             <RequireRole role="negocio">
               <MainLayout>
                 <NegocioHome />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* ESCANEAR NEGOCIO*/}
+      <Route
+        path="/negocio/escanear"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
+              <MainLayout>
+                <Escanear />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PERFIL NEGOCIO*/}
+      <Route
+        path="/negocio/perfil"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
+              <MainLayout>
+                <Perfil />
+              </MainLayout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+
+      {/* PROMOS NEGOCIO */}
+      <Route
+        path="/negocio/mis-promos"
+        element={
+          <RequireAuth>
+            <RequireRole role="negocio">
+              <MainLayout>
+                <Promos />
               </MainLayout>
             </RequireRole>
           </RequireAuth>
@@ -81,92 +171,7 @@ export default function AppRoutes() {
           </RequireAuth>
         }
       />
-
-      {/* ESCANEAR CLIENTE*/}
-      <Route
-        path="/cliente/escanear"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <MainLayout>
-                <Escanear />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* ESCANEAR NEGOCIO*/}
-      <Route
-        path="/negocio/escanear"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <MainLayout>
-                <Escanear />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* PERFIL CLIENTE*/}
-      <Route
-        path="/cliente/perfil"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <MainLayout>
-                <Perfil />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* PERFIL NEGOCIO*/}
-      <Route
-        path="/negocio/perfil"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <MainLayout>
-                <Perfil />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* HISTORIAL */}
-      <Route
-        path="/cliente/historial"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <MainLayout>
-                <HistorialCliente />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* PROMOS NEGOCIO */}
-      <Route
-        path="/negocio/mis-promos"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <MainLayout>
-                <Promos />
-              </MainLayout>
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-
+      
       {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
