@@ -46,7 +46,8 @@ export const useAppStore = create(
             return { ok: false, error: result.error };
           }
 
-          const boot = await get().bootstrapAuth()
+          //login SIEMPRE fuerza onboarding
+          const boot = await get().bootstrapAuth({ force: true });
           set({ loading: false });
           
           if (!boot.ok) {
@@ -54,14 +55,7 @@ export const useAppStore = create(
             return { ok: false, error: boot.error ?? "No se pudo validar onboarding" };
           }
 
-          return {
-            ok: true,
-            user: boot.usuario,
-            allowAccess: boot.allowAccess,
-            registro_estado: boot.registro_estado,
-            reasons: boot.reasons,
-            negocio: boot.negocios,
-          };
+          return { ok: true };
         } catch (error) {
           const message = handleError(error);
           set({ loading: false, error: message });
@@ -104,18 +98,19 @@ export const useAppStore = create(
         }
       },  
 
-      bootstrapAuth: async () => {
+      bootstrapAuth: async ({ force = false } = {}) => {
         try {
           set ({ bootstrap: true, usuario: undefined, onboarding: undefined, error: null });
 
           const { data: { session } = {} } = await supabase.auth.getSession();
           if (!session?.access_token) {
-            resetOnboardingFlag?.();
+            if (force) resetOnboardingFlag?.();
             set({ bootstrap: false, usuario: null, onboarding: null });
             return { ok: true, usuario: null, allowAccess: false, registro_estado: null, reasons: [] };
           }
 
-          resetOnboardingFlag?.();
+          if (force) resetOnboardingFlag?.();
+
           const check = await runOnboardingCheck();
           if (!check?.ok) {
             const errMsg = check?.error || "No se pudo ejecutar onboarding";
@@ -137,16 +132,10 @@ export const useAppStore = create(
           };
         } catch (error) {
           const message = handleError(error);
-          resetOnboardingFlag?.();
           set({ bootstrap: false, usuario: null, onboarding: null, error: message });
           return { ok: false, error: message };
         }
       },
-
-      // Alias temporal mientras migras llamadas antiguas (borrar linea)
-      //===================================================
-      restoreSession: async () => get().bootstrapAuth(),
-      // ==================================================
 
       // PROMOS
       loadPromos: async () => {

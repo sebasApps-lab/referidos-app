@@ -186,7 +186,6 @@ export default function AuthHub() {
           .maybeSingle();
         if (oauthUser) {
           setError("Esta cuenta fue creada con Google. Inicia sesión con Google para continuar.");
-          navigate("/", { replace: true });
           return;
         }
       }

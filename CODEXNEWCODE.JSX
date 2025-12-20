@@ -1,300 +1,186 @@
-import React, { useRef, useLayoutEffect } from "react";
+// src/store/appStore.js
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  signInWithEmail,
+  signUpWithEmail,
+  signOut,
+} from "../services/authService";
+import { getActivePromos } from "../services/promoService";
+import {
+  generatePromoQr,
+  generateValidQr,
+  getActiveValidQr,
+  redeemValidQr,
+} from "../services/qrService";
+import { addComentario } from "../services/commentService";
+import { handleError } from "../utils/errorUtils";
+import { resetOnboardingFlag, runOnboardingCheck } from "../services/onboardingClient";
+import { supabase } from "../lib/supabaseClient";
 
-const BRAND_PURPLE = "#5E30A5";
-const BRAND_YELLOW = "#FFF3CD";
-const REFERRAL_GREEN = "#A6F28F";
-const LOCAL_PURPLE = "#7C5CD6";
+export const useAppStore = create(
+  persist(
+    (set, get) => ({
+      // Modelo de estado:
+      // bootstrap === true -> resolviendo sesión+onboarding
+      // usuario === undefined -> onboarding no resulto aún
+      // usuario === null -> sin sesión / no autorizado
+      // usuario === objeto -> usuario devuelto por onboarding (parcial o completo)
+      bootstrap: true,
+      usuario: undefined,
+      onboarding: undefined, // último payload de onboarding (allowAccess/registro_estado/reasons/negocio/provider)
+      ratings: {},
+      promos: [],
+      negocios: [],
+      loading: false,
+      error: null,
+      setUser: (usuario) => set({ usuario }),
 
-const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
-const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
+      // AUTH
+      login: async (email, password) => {
+        set({ loading: true, error: null });
+        try {
+          const result = await signInWithEmail(email, password);
+          if (!result.ok) {
+            set({ loading: false, error: result.error });
+            return { ok: false, error: result.error };
+          }
 
-export default function Header({
-  usuario,
-  bootstrap,
-  locAllowed,
-  hideLocationBar,
-  onCloseLocationBar,
-  onOpenTier,
-  onOpenGrupo,
-  onOpenMenu,
-  onHeaderHeightChange,
-}) {
-  const headerRef = useRef(null);
+          // login SIEMPRE fuerza onboarding
+          const boot = await get().bootstrapAuth({ force: true });
+          set({ loading: false });
+          
+          if (!boot.ok) {
+            set({ error: boot.error ?? "No se pudo validar onboarding" });
+            return { ok: false, error: boot.error ?? "No se pudo validar onboarding" };
+          }
 
-  if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || usuario.registro_estado !== "completo") return null;
+          return { ok: true };
+        } catch (error) {
+          const message = handleError(error);
+          set({ loading: false, error: message });
+          return { ok: false, error: message };
+        }
+      },
 
-  const avatarSrc =
-    usuario?.genero === "f"
-      ? AVATAR_FEMALE
-      : usuario?.genero === "m"
-      ? AVATAR_MALE
-      : AVATAR_MALE;
+      register: async ({ email, password, telefono, nombre, role = "cliente" }) => {
+        set({ loading: true, error: null });
+        try {
+          const result = await signUpWithEmail({ email, password, telefono, nombre, role });
+          if (!result.ok) {
+            set({ loading: false, error: result.error });
+            return { ok: false, error: result.error };
+          }
+          // No seteamos usuario tras signup; se resolverá al hacer login/onboarding
+          set({ loading: false });
+          return { ok: true, data: result.data, warning: result.warning };
+        } catch (error) {
+          const message = handleError(error);
+          set({ loading: false, error: message });
+          return { ok: false, error: message };
+        }
+      },
 
-  useLayoutEffect(() => {
-    if (headerRef.current && onHeaderHeightChange) {
-      onHeaderHeightChange(headerRef.current.offsetHeight);
+      logout: async () => {
+        try {
+          await signOut();
+        } catch (e) {
+          //opcional: log o toast
+        } finally {
+          resetOnboardingFlag?.();
+          set({
+            bootstrap: false,
+            usuario: null,
+            onboarding: undefined,
+            promos: [],
+            negocios: [],
+          });
+        }
+      },  
+
+      bootstrapAuth: async ({ force = false } = {}) => {
+        try {
+          set({ bootstrap: true, usuario: undefined, onboarding: undefined, error: null });
+
+          const { data: { session } = {} } = await supabase.auth.getSession();
+          if (!session?.access_token) {
+            if (force) resetOnboardingFlag?.();
+            set({ bootstrap: false, usuario: null, onboarding: null });
+            return { ok: true, usuario: null, allowAccess: false, registro_estado: null, reasons: [] };
+          }
+
+          if (force) resetOnboardingFlag?.();
+
+          const check = await runOnboardingCheck();
+          if (!check?.ok) {
+            const errMsg = check?.error || "No se pudo ejecutar onboarding";
+            set({ bootstrap: false, usuario: null, onboarding: check ?? null, error: errMsg });
+            return { ok: false, error: errMsg };
+          }
+
+          const nextUser = check?.usuario ?? null;
+          set({ bootstrap: false, usuario: nextUser, onboarding: check });
+
+          return {
+            ok: true,
+            usuario: nextUser,
+            allowAccess: check.allowAccess ?? false,
+            registro_estado: check.registro_estado ?? null,
+            reasons: check.reasons ?? [],
+            negocio: check.negocio ?? null,
+            provider: check.provider ?? null,
+          };
+        } catch (error) {
+          const message = handleError(error);
+          set({ bootstrap: false, usuario: null, onboarding: null, error: message });
+          return { ok: false, error: message };
+        }
+      },
+
+      // PROMOS
+      loadPromos: async () => {
+        set({ loading: true });
+        try {
+          const { ok, data, error } = await getActivePromos();
+          if (!ok) {
+            set({ error, loading: false });
+            return { ok: false, error };
+          }
+          set({ promos: data, loading: false });
+          return { ok: true, data };
+        } catch (error) {
+          const message = handleError(error);
+          set({ error: message, loading: false });
+          return { ok: false, error: message };
+        }
+      },
+
+      // RATINGS
+      initRatings: (promos) => {
+        const current = get().ratings;
+        if (Object.keys(current).length > 0) return;
+        const map = {};
+        promos.forEach((p) => {
+          map[p.id] = Math.round((3 + Math.random() * 2) * 10) / 10;
+        });
+        set({ ratings: map });
+      },
+
+      // QR (HMAC)
+      generatePromoQr: (promoId) => generatePromoQr(promoId),
+      generateValidQr: (promoId, opts) => generateValidQr(promoId, opts),
+      getActiveValidQr: (promoId) => getActiveValidQr(promoId),
+      redeemValidQr: (code) => redeemValidQr(code),
+
+      // COMENTARIOS
+      addComentario: (payload) => addComentario(payload),
+    }),
+    {
+      name: "referidos_app_user",
+      version: 2,
+      //Para evitar usuarios "fantasma" al arrancar, no persistimos usuario/onboarding
+      partialize: () => ({}),
+      migrate: () => ({}),
     }
-  });
-
-  return (
-    <>
-      {!hideLocationBar && locAllowed === false && (
-        <div style={{ width: "100%", background: BRAND_YELLOW }}>
-          <div
-            style={{
-              maxWidth: 960,
-              margin: "0 auto",
-              padding: "6px 16px",
-            }}
-          >
-            <div
-              style={{
-                color: "#6B5E00",
-                borderRadius: 8,
-                padding: "8px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
-                background: "#FFF8D8",
-              }}
-            >
-              <span style={{ fontSize: 13 }}>
-                La app usa tu ubicación para mostrar promos cercanas.
-              </span>
-
-              <button
-                onClick={onCloseLocationBar}
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  fontSize: 14,
-                  cursor: "pointer",
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <header
-        ref={headerRef}
-        style={{
-          background: BRAND_PURPLE,
-          color: "#fff",
-          paddingTop: "10%",
-          paddingBottom: "4%",
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          zIndex: 999,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 960,
-            margin: "0 auto",
-            paddingLeft: "4%",
-            paddingRight: "4%",
-            display: "flex",
-            flexDirection: "column",
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              marginBottom: 6,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div
-              style={{
-                width: "88%",
-                fontSize: "clamp(20px, 6vw, 28px)",
-                fontWeight: 800,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              Bienvenido,{" "}
-              <span style={{ fontWeight: 900 }}>
-                {usuario?.nombre || "usuario"}
-              </span>
-            </div>
-
-            <button
-              onClick={() => onOpenMenu()}
-              style={{
-                width: "12%",
-                background: "transparent",
-                border: 0,
-                color: "#fff",
-                fontSize: "clamp(26px, 7vw, 36px)",
-                cursor: "pointer",
-                textAlign: "right",
-              }}
-            >
-              ☰
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "6%",
-              marginTop: 6,
-              alignItems: "stretch",
-            }}
-          >
-            <div
-              style={{
-                width: "30%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  aspectRatio: "1 / 1",
-                  borderRadius: 16,
-                  overflow: "hidden",
-                  border: `3px solid ${LOCAL_PURPLE}`,
-                  background: "#fff",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <button
-                  onClick={onOpenTier}
-                  style={{
-                    position: "absolute",
-                    top: 4,
-                    left: 4,
-                    background: "rgba(0,0,0,0.45)",
-                    color: "#fff",
-                    border: 0,
-                    padding: "4px 8px",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    borderRadius: 6,
-                    cursor: "pointer",
-                  }}
-                >
-                  {usuario?.tier || "Explorador"}
-                </button>
-
-                <img
-                  src={avatarSrc}
-                  alt="avatar"
-                  style={{
-                    width: "80%",
-                    height: "80%",
-                    objectFit: "contain",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                width: "65%",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                paddingTop: "2px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 14,
-                  opacity: 0.95,
-                  overflow: "hidden",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                }}
-              >
-                Encuentra las mejores promos cerca de ti.
-              </div>
-
-              <div style={{ flexGrow: 1 }} />
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                }}
-              >
-                <span
-                  style={{
-                    color: REFERRAL_GREEN,
-                    fontWeight: 800,
-                    fontSize: "clamp(14px, 4vw, 17px)",
-                  }}
-                >
-                  {usuario?.referidosCount
-                    ? `${usuario.referidosCount} referidos`
-                    : "0 referidos"}
-                </span>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                  }}
-                  onClick={onOpenGrupo}
-                >
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 8,
-                        background: "#E6E6E6",
-                        border: "2px solid #fff",
-                        marginLeft: i === 0 ? 0 : -10,
-                      }}
-                    />
-                  ))}
-
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 8,
-                      background: "#ffffff",
-                      border: "2px dashed #CFCFCF",
-                      marginLeft: -10,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#6B6B6B",
-                      fontWeight: 700,
-                    }}
-                  >
-                    +
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-    </>
-  );
-}
+  )
+);
