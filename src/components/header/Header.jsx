@@ -22,10 +22,11 @@ export default function Header({
 
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
+  const onboarding = useAppStore((s) => s.onboarding);
   const headerRef = useRef(null);
 
   if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || usuario.registro_estado !== "completo") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
 
   const avatarSrc =
     usuario?.genero === "f"

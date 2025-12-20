@@ -15,20 +15,23 @@ import {
 } from "../services/qrService";
 import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
-import { resetOnboardingFlag, runOnboardingCheck } from "../services/onboardingClient";
+import { runOnboardingCheck } from "../services/onboardingClient";
 import { supabase } from "../lib/supabaseClient";
 
 export const useAppStore = create(
   persist(
     (set, get) => ({
-      // Modelo de estado:
-      // bootstrap === true -> resolviendo sesión+onboarding
-      // usuario === undefined -> onboarding no resulto aún
-      // usuario === null -> sin sesión / no autorizado
-      // usuario === objeto -> usuario devuelto por onboarding (parcial o completo)
+      /**
+       * MODELO DE ESTADO
+       * bootstrap === true -> resolviendo sesión + onboarding
+       * usuario === undefined -> onboarding aún no respondió
+       * usuario === null -> sin sesión
+       * usuario === objeto -> usuario devuelto por onboarding (parcial o completo)
+       */
+      
       bootstrap: true,
       usuario: undefined,
-      onboarding: undefined, // último payload de onboarding (allowAccess/registro_estado/reasons/negocio/provider)
+      onboarding: undefined, // último payload de onboarding (allowAccess/reasons/negocio/provider)
       ratings: {},
       promos: [],
       negocios: [],
@@ -36,7 +39,9 @@ export const useAppStore = create(
       error: null,
       setUser: (usuario) => set({ usuario }),
 
+      //-----------------------
       // AUTH
+      //-----------------------
       login: async (email, password) => {
         set({ loading: true, error: null });
         try {
@@ -71,7 +76,8 @@ export const useAppStore = create(
             set({ loading: false, error: result.error });
             return { ok: false, error: result.error };
           }
-          // No seteamos usuario tras signup; se resolverá al hacer login/onboarding
+          // No seteamos usuario aquí
+          // El onboarding se resolverá al hacer login
           set({ loading: false });
           return { ok: true, data: result.data, warning: result.warning };
         } catch (error) {
@@ -87,7 +93,6 @@ export const useAppStore = create(
         } catch (e) {
           //opcional: log o toast
         } finally {
-          resetOnboardingFlag?.();
           set({
             bootstrap: false,
             usuario: null,
@@ -96,20 +101,21 @@ export const useAppStore = create(
             negocios: [],
           });
         }
-      },  
+      },
 
+      //---------------------
+      // BOOTSTRAP AUTH
+      //---------------------
       bootstrapAuth: async ({ force = false } = {}) => {
         try {
           set ({ bootstrap: true, usuario: undefined, onboarding: undefined, error: null });
 
           const { data: { session } = {} } = await supabase.auth.getSession();
+          //Sin sesión
           if (!session?.access_token) {
-            if (force) resetOnboardingFlag?.();
             set({ bootstrap: false, usuario: null, onboarding: null });
-            return { ok: true, usuario: null, allowAccess: false, registro_estado: null, reasons: [] };
+            return { ok: true, usuario: null };
           }
-
-          if (force) resetOnboardingFlag?.();
 
           const check = await runOnboardingCheck();
           if (!check?.ok) {
@@ -121,23 +127,16 @@ export const useAppStore = create(
           const nextUser = check?.usuario ?? null;
           set({ bootstrap: false, usuario: nextUser, onboarding: check });
 
-          return {
-            ok: true,
-            usuario: nextUser,
-            allowAccess: check.allowAccess ?? false,
-            registro_estado: check.registro_estado ?? null,
-            reasons: check.reasons ?? [],
-            negocio: check.negocio ?? null,
-            provider: check.provider ?? null,
-          };
+          return { ok: true, usuario: nextUser };
         } catch (error) {
           const message = handleError(error);
           set({ bootstrap: false, usuario: null, onboarding: null, error: message });
           return { ok: false, error: message };
         }
       },
-
+      //--------------------
       // PROMOS
+      //--------------------
       loadPromos: async () => {
         set({ loading: true });
         try {
@@ -154,8 +153,9 @@ export const useAppStore = create(
           return { ok: false, error: message };
         }
       },
-
+      //----------------------
       // RATINGS
+      //----------------------
       initRatings: (promos) => {
         const current = get().ratings;
         if (Object.keys(current).length > 0) return;
@@ -166,13 +166,17 @@ export const useAppStore = create(
         set({ ratings: map });
       },
 
+      //-----------------------
       // QR (HMAC)
+      //-----------------------
       generatePromoQr: (promoId) => generatePromoQr(promoId),
       generateValidQr: (promoId, opts) => generateValidQr(promoId, opts),
       getActiveValidQr: (promoId) => getActiveValidQr(promoId),
       redeemValidQr: (code) => redeemValidQr(code),
 
+      //----------------------
       // COMENTARIOS
+      //----------------------
       addComentario: (payload) => addComentario(payload),
     }),
     {

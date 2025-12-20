@@ -12,7 +12,7 @@ export default function Footer() {
   const bootstrap = useAppStore((s) => s.bootstrap);
 
   if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || !onboarding?.allowAccess || usuario.registro_estado !== "completo") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
   if (!usuario.role) return null;
 
   const role = usuario?.role || "cliente";
@@ -64,7 +64,7 @@ export default function Footer() {
     ];
   }
 
-  if (linksMobile.lenght === 0) return null;
+  if (linksMobile.length === 0) return null;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 flex justify-around py-2 z-50">

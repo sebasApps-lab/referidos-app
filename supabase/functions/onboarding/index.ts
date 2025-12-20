@@ -1,19 +1,34 @@
 // supabase/functions/onboarding/index.ts
 //
-// Health‑check de onboarding que se ejecuta al entrar a inicio/dashboard.
-// Valida el usuario autenticado (token Bearer), sincroniza email del perfil con Auth
-// (bloquea cambios de email hechos desde UI), revisa campos obligatorios por rol
-// y marca registro_estado = "incompleto" si falta algo. Si todo está completo,
-// deja registro_estado = "completo". Responde con flags para que el frontend
-// decida si deja pasar o fuerza el flujo de registro.
+// Health-check de onboarding que se ejecuta al entrar a la app (bootstrap inicial).
+// Valida el usuario autenticado (token Bearer), sincroniza datos técnicos críticos
+// del perfil con Auth (ej. email), y verifica la consistencia y completitud del perfil
+// según el rol del usuario.
 //
-// Notas:
-// - No podemos validar “si tiene contraseña” desde Edge (Supabase no expone eso);
-//   usamos el provider de Auth como mejor señal disponible.
-// - No crea perfiles nuevos si no existen; solo informa que faltan (allowAccess = false).
+// Esta función NO implementa un flujo de registro.
+// Su responsabilidad es únicamente:
+// - Determinar si el usuario puede acceder a la app (`allowAccess`)
+// - Reportar razones técnicas o de negocio por las que no puede acceder (`reasons[]`)
+//
+// El acceso final depende de:
+// - `account_status` (solo `active` permite acceso)
+// - Que no existan inconsistencias o datos obligatorios faltantes
+//
+// Notas importantes:
+// - No se crean perfiles nuevos si no existen.
+// - No se modifican estados de cuenta (`account_status`).
+// - No se toman decisiones temporales (ej. expiración por tiempo).
+// - No se persiste estado derivado de onboarding.
+// - El frontend solo OBSERVA la respuesta; no es fuente de verdad.
+//
+// Limitaciones conocidas:
+// - Supabase Edge no expone si el usuario tiene contraseña.
+//   El provider de Auth se usa como mejor señal disponible.
+
 
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { UserConfigFnPromise } from "vite";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL");
 const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("PUBLISHABLE_KEY");
@@ -25,23 +40,49 @@ if(!supabaseUrl || !publishableKey || !secretKey) {
 
 //Cliente público: valida el token del usuario.
 const supabasePublic = createClient(supabaseUrl, publishableKey);
-//Cliente service-role: lee/actualiza perfiles ignorando RLS (solo para este chequeo controlado).
+//Cliente service-role: lectura/escritura controlada.
 const supabaseAdmin = createClient(supabaseUrl, secretKey);
 
-type RegistroEstado = "completo" | "incompleto";
+type AccountStatus =
+    | "active"
+    | "pending"
+    | "expired"
+    | "blocked"
+    | "suspended"
+    | "deleted";
+
 type OnboardingResult = {
     ok: boolean;
     allowAccess: boolean;
-    registro_estado: RegistroEstado;
-    reasons: string[]; //motivos por los cuales se marca incompleto
-    usuario?: Record<string, unknown> | null;
-    negocio?: Record<string, unknown> | null;
-    provider?: string | null;
+    reasons: string[]; //motivos por los cuales no se da acceso
+    usuario: Record<string, unknown> | null;
+    negocio: Record<string, unknown> | null;
+    provider: string | null;
 };
 
-const OWNER_FIELDS: (keyof any) [] = ["nombre", "apellido", "telefono"];
-const BUSINESS_REQUIRED_IN_USUARIOS: (keyof any)[] = ["ruc"];
-const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof any)[] = ["nombre", "sector", "direccion"];
+type UsuarioProfile = {
+    id: string;
+    id_auth: string;
+    email: string;
+    role: string | null;
+    nombre: string | null;
+    apellido: string | null;
+    telefono: string | null;
+    ruc: string | null;
+    account_status: AccountStatus | null;
+};
+
+type NegocioProfile = {
+    id: string;
+    usuarioid: string;
+    nombre: string | null;
+    sector: string | null;
+    direccion: string | null;
+}
+
+const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "telefono"];
+const BUSINESS_REQUIRED_IN_USUARIOS: (keyof UsuarioProfile)[] = ["ruc"];
+const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre", "sector", "direccion"];
 
 serve (async (req) => {
     const origin = req.headers.get("origin") || "*";
@@ -52,31 +93,69 @@ serve (async (req) => {
     };
 
     if (req.method === "OPTIONS") return new Response("ok", {headers: corsHeaders });
-    if (req.method !== "POST") return json({ ok: false, message: "Method not allowed" }, 405, corsHeaders);
+    if (req.method !== "POST") {
+        return json(
+            {
+                ok: false,
+                allowAccess: false,
+                reasons: ["method_not_allowed"],
+                usuario: null,
+                negocio: null,
+                provider: null,
+            },
+            405,
+            corsHeaders
+        );
+    }
 
     //1) Validar token y obtener usuario Auth
     const authHeader =req.headers.get("authorization") ?? "";
     const token = authHeader.replace("Bearer ", "").trim();
-    if (!token) return json({ ok: false, allowAccess: false, reasons: ["missing_token"] }, 401, corsHeaders);
+    if (!token) {
+        return json(
+            {
+                ok: false,
+                allowAccess: false,
+                reasons: ["missing_token"],
+                usuario: null,
+                negocio: null,
+                provider: null,
+            },
+            401,
+            corsHeaders
+        );
+    }
 
     const {
         data: { user },
         error: userErr,
     } = await supabasePublic.auth.getUser(token);
+
     if (userErr || !user) {
-        return json({ ok: false, allowAccess: false, reasons: ["unauthorized"] }, 401, corsHeaders);
+        return json(
+            {
+                ok: false,
+                allowAccess: false,
+                reasons: ["unauthorized"],
+                usuario: null,
+                negocio: null,
+                provider: null,
+            },
+            401,
+            corsHeaders
+        );
     }
 
     const authEmail = user.email ?? "";
-    const authProvider = user.app_metadata?.provider ?? "email";
+    const provider = user.app_metadata?.provider ?? "email";
     const baseName = authEmail ? authEmail.split("@")[0] : null;
 
-    //2) Obtener perfil en public.usuarios
+    //2) Obtener perfil de public.usuarios
     const { data: profile, error: profileErr } = await supabaseAdmin
         .from("usuarios")
         .select("*")
         .eq("id_auth", user.id)
-        .maybeSingle();
+        .maybeSingle<UsuarioProfile>();
     
     if (profileErr) {
         return json(
@@ -84,7 +163,9 @@ serve (async (req) => {
                 ok: false,
                 allowAccess: false,
                 reasons: ["profile_query_error"],
-                message: profileErr.message ?? "No se pudo leer perfil",
+                usuario: null,
+                negocio: null,
+                provider,
             },
             500,
             corsHeaders
@@ -97,79 +178,86 @@ serve (async (req) => {
             {
                 ok: true,
                 allowAccess: false,
-                registro_estado: "incompleto",
                 reasons: ["missing_profile"],
                 usuario: null,
                 negocio: null,
-                provider: authProvider,                
-            } satisfies OnboardingResult,
+                provider,             
+            },
             200,
             corsHeaders
         );
     }
 
-    //3) Validaciones por rol y sincronizacion de email con Auth
-    let registroEstado: RegistroEstado = "completo";
     const reasons: string[] = [];
-    const patch: Record<string, unknown> = {}; //lo que forzaremos en usuarios (email/estado)
+    const patch: Record<string, unknown> = {};
 
-    const markIncomplete = (reason: string) => {
-        reasons.push(reason);
-        registroEstado = "incompleto";
-    };
+    //3) Estado de cuenta(HARD GATE)
+    const accountStatus = profile.account_status as AccountStatus | null;
 
-    //Forzar email del perfil = email de Auth (bloquea cambios desde UI).
+    if (!accountStatus) {
+        reasons.push("missing_account_status");
+    } else if (accountStatus !== "active") {
+        reasons.push(`account_status:${accountStatus}`);
+    }
+    
+    //4) Sincronizar email Auth → perfil (no bloquea acceso)
     if (authEmail && profile.email !== authEmail) {
         patch.email = authEmail;
-        markIncomplete("email_mismatch_profile_vs_auth");
     }
 
     const role = profile.role;
     if (!role) {
-        markIncomplete("missing_role");
-        //No forzamos role aquí para no pisar datos; frontend debe reenrutar al flujo de seleccion.
+        reasons.push("missing_role");
     }
 
     let negocioRow: Record<string, unknown> | null = null;
 
+    //5) Validaciones por rol
     if (role === "cliente") {
-        if (!authEmail) markIncomplete("missing_auth_email");
-        //Autocompletar nombre solo para cliente
-        if (!profile.nombre && baseName) {
+        if(!profile.nombre && baseName) {
             patch.nombre = baseName;
         }
-        //No podemos saber si tiene contraseña; confiamos en que si inició sesión, tiene un método válido.
-    } else if (role === "negocio") {
-        // a) Datos del propietario en usuarios
+    }
+
+    if (role === "negocio") {
         const missingOwner = OWNER_FIELDS.filter((f) => !profile[f]);
-        if (missingOwner.length) markIncomplete(`missing_owner_fields:${missingOwner.join(",")}`);
+        if (missingOwner.length) {
+            reasons.push(`missing_owner_fields:${missingOwner.join(",")}`);
+        }
 
-        const missingBusinessInUser = BUSINESS_REQUIRED_IN_USUARIOS.filter((f) => !profile[f]);
-        if (missingBusinessInUser.length) markIncomplete(`missing_business_fields_user:${missingBusinessInUser.join(",")}`);
+        const missingBusinessInUser = BUSINESS_REQUIRED_IN_USUARIOS.filter(
+            (f) => !profile[f]
+        );
+        if (missingBusinessInUser.length) {
+            reasons.push(
+                `missing_business_fields_user:${missingBusinessInUser.join(",")}`
+            );
+        }
 
-        //b) Datos del negocio en tabla negocios
         const { data: negData, error: negErr } = await supabaseAdmin
             .from("negocios")
             .select("*")
             .eq("usuarioid", profile.id)
-            .maybeSingle();
+            .maybeSingle<NegocioProfile>();
 
         if (negErr) {
-            markIncomplete("business_query_error");
+            reasons.push("business_query_error");
         } else if (!negData) {
-            markIncomplete("missing_business_row");
+            reasons.push("missing_business_row");
         } else {
             negocioRow = negData;
-            const missingBusiness = BUSINESS_REQUIRED_IN_NEGOCIO.filter((f) => !negData[f]);
-            if (missingBusiness.length) markIncomplete(`missing_business_fields:${missingBusiness.join(",")}`);
+            const missingBusiness = BUSINESS_REQUIRED_IN_NEGOCIO.filter(
+                (f) => !negData[f]
+            );
+            if (missingBusiness.length) {
+                reasons.push(
+                    `missing_business_fields:${missingBusiness.join(",")}`
+                );
+            }
         }
     }
 
-    //4) Actualizar registro_estado (y email si cambió) si es necesario
-    if (registroEstado !== profile.registro_estado) {
-        patch.registro_estado = registroEstado;
-    }
-
+    //6) Aplicar parches técnicos (email/nombre)
     let updatedProfile = profile;
     if (Object.keys(patch).length > 0) {
         const { data: upd, error: updErr } = await supabaseAdmin
@@ -184,36 +272,43 @@ serve (async (req) => {
                 {
                     ok: false,
                     allowAccess: false,
-                    registro_estado: profile.registro_estado ?? "incompleto",
-                    reasons: [...reasons, "profile_update_error"],
-                    message: updErr.message ?? "No se pudo actualizar perfil",
-                    provider: authProvider,
+                    reasons: ["profile_update_error"],
+                    usuario: profile,
+                    negocio: negocioRow,
+                    provider,
                 },
                 500,
                 corsHeaders
             );
         }
+
         updatedProfile = upd ?? profile;
     }
 
-    //5) Responder al frontend
+    //7) Resultado FINAL
+    const allowAccess =
+        accountStatus === "active" && reasons.length === 0;
+
     return json(
         {
             ok: true,
-            allowAccess: registroEstado === "completo" && reasons.length === 0,
-            registro_estado: registroEstado,
+            allowAccess,
             reasons,
             usuario: updatedProfile,
             negocio: negocioRow,
-            provider: authProvider,
+            provider,
         } satisfies OnboardingResult,
         200,
         corsHeaders
     );
 });
 
-function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
-    return new Response(JSON.stringify(body),{
+function json(
+    body: unknown,
+    status = 200,
+    headers: Record<string, string> = {}
+)   {
+    return new Response(JSON.stringify(body), {
         status,
         headers: { "Content-Type": "application/json", ...headers },
     });

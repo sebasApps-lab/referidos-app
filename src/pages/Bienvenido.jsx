@@ -20,10 +20,10 @@ export default function Bienvenido() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSessionRedirect = useCallback(async () => {
+  const handleSessionRedirect = useCallback(() => {
     if (bootstrap || typeof usuario === "undefined") return false;
 
-    if (usuario && onboarding?.allowAccess && usuario.registro_estado === "completo") {
+    if (usuario && onboarding?.allowAccess) {
       navigate("/app", { replace: true });
       return true;
     }

@@ -13,7 +13,6 @@ import { useAppStore } from "../store/appStore";
 import { signInWithOAuth } from "../services/authService";
 import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
-import { tr } from "framer-motion/client";
 
 const CODES_KEY = "registration_codes";
 const DEFAULT_CODES = ["REF-001532", "REF-003765"];
@@ -209,8 +208,8 @@ export default function AuthHub() {
   // SplashChoice (cliente / negocio)
   // -------------------------------------------------------------------
   const openChoiceOverlay = () => {
-    //Si ya hay rol/usuario con registro completo, no abrir
-    if(onboarding?.allowAccess && onboarding?.registro_estado === "completo") return;
+    //Si ya hay rol/usuario y account_status active, no abrir
+    if(onboarding?.allowAccess) return;
 
     openModal("SplashChoiceOverlay", {
       authCreds: { email, password, telefono },
@@ -244,7 +243,7 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil cliente solo si no tenía rol (sin tocar registro_estado)
+        //Crear perfil cliente solo si no tenía rol
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
@@ -264,7 +263,7 @@ export default function AuthHub() {
         }
         
         //Refrescar onboarding y navegar
-        const boot = await bootstrapAuth({ force: true });
+        await bootstrapAuth({ force: true });
 
         // ❌ NO decides nada aquí
         // ❌ NO navegas
@@ -310,7 +309,7 @@ export default function AuthHub() {
           return { ok: false };
         }
 
-        //Crear perfil negocio solo si no tenía rol (sin tocar registro_estado)
+        //Crear perfil negocio solo si no tenía rol
         if (!existing?.role) {
           const { error } = await supabase
             .from("usuarios")
@@ -327,38 +326,10 @@ export default function AuthHub() {
           }
         }
 
-        //Refrescar onboarding; si sigue incompleto, abrir formulario
-        /*const boot = */await bootstrapAuth({ force: true });
-        /*if (!boot?.ok) {
-          setError(boot?.error || "No se pudo validar onboarding");
-          return { ok: false };
-        }
-
-        const u = boot.usuario;
-        const neg = boot.negocio ?? null;
-        const rawDir = neg?.direccion || "";
-        const [c1, c2 = ""] = rawDir.split("|");
-
-        //Si falta info, seguir al form de negocio
-        setCodigo(code);
-        setEntryStep("form");
-        setAuthTab("register");
-        setPage(2);
-        
-        setNombreDueno(u?.nombre || "");
-        setApellidoDueno(u?.apellido || "");
-        setTelefono(u?.telefono || "");
-        setRuc(u?.ruc || "");
-        setNombreNegocio(neg?.nombre || "");
-        setSectorNegocio(neg?.sector || "");
-        setCalle1(c1);
-        setCalle2(c2);*/
+        await bootstrapAuth({ force: true });
 
         closeModal();
 
-        /*if (boot.allowAccess && u?.registro_estado === "completo") {
-          navToApp();
-        } */      
         return { ok: true };
       },
     });
@@ -376,7 +347,7 @@ export default function AuthHub() {
     const neg = boot.negocio ?? null;
     const allowAccess = !!boot.allowAccess;
 
-    if (allowAccess && boot.registro_estado === "completo") {
+    if (allowAccess) {
       navToApp();
       return;
     }
@@ -508,6 +479,8 @@ export default function AuthHub() {
       } 
 
       await bootstrapAuth({ force: true });
+      //No navegar ni decidir aquí; el useEffect reactivo decide.
+      //Mantén UX: si acabó page 2, avanza a page3.
       setPage(3);
   };
 

@@ -6,12 +6,13 @@ import { useAppStore } from "../../store/appStore"; // ← añadir
 export default function MenuLateral({ visible, onClose }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
+  const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout); // ← añadir
   const navigate = useNavigate();
 
   if (!visible) return null;
   if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || usuario.registro_estado !== "completo") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
   if (!usuario.role) return null;
 
   const base =
