@@ -1,5 +1,4 @@
-// src/components/Header.jsx
-
+// src/components/desktop/HeaderAlt.jsx
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -7,19 +6,64 @@ import {
   QrCode,
   Camera,
   Shield,
+  User,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAppStore } from "../../store/appStore";
 
-export default function Header() {
+export default function HeaderAlt() {
   const location = useLocation();
+  const usuario = useAppStore((s) => s.usuario);
+  const onboarding = useAppStore((s) => s.onboarding);
+  const bootstrap = useAppStore((s) => s.bootstrap);
 
-  const links = [
-    { path: "/", label: "Inicio", icon: Home },
-    { path: "/promos", label: "Promos", icon: Tag },
-    { path: "/qr-validos", label: "QR", icon: QrCode },
-    { path: "/scanner", label: "Escanear", icon: Camera },
-    { path: "/admin", label: "Admin", icon: Shield },
-  ];
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
+  if (!usuario.role) return null;
+
+  const role = usuario?.role || "cliente";
+
+  const HOME_PATHS = {
+    cliente: "/cliente/inicio",
+    negocio: "/negocio/inicio",
+    admin: "/admin/inicio",
+  };
+
+  let links = [];
+
+  if (role === "cliente") {
+    links = [
+      { path: "/cliente/inicio", label: "Inicio", icon: Home },
+      { path: "/cliente/escanear", label: "Escanear", icon: QrCode },
+      { path: "/cliente/historial", label: "Historial", icon: Tag },
+      { path: "/cliente/perfil", label: "Perfil", icon: User },
+    ];
+  }
+
+  if (role === "negocio") {
+    links = [
+      { path: "/negocio/inicio", label: "Inicio", icon: Home },
+      { path: "/negocio/escanear", label: "Escanear", icon: Camera },
+      { path: "/negocio/mis-promos", label: "Promos", icon: Tag },
+      { path: "/negocio/perfil", label: "Perfil", icon: User },
+    ];
+  }
+
+  if (role === "admin") {
+    links = [
+      { path: "/admin/inicio", label: "Inicio", icon: Home },
+      { path: "/admin/promos", label: "Promos", icon: Tag },
+      { path: "/admin/qr-validos", label: "QR", icon: QrCode },
+      { path: "/admin/panel", label: "Admin", icon: Shield },
+    ];
+  }
+
+  if (links.length === 0) return null;
+
+  const isActive = (path) =>
+    location.pathname === path ||
+    (path === HOME_PATHS[role] &&
+      location.pathname.startsWith(HOME_PATHS[role]));
 
   return (
     <header className="bg-[#5E30A5] text-[#FFC21C] shadow-lg">
@@ -30,7 +74,7 @@ export default function Header() {
         </h1>
         <nav className="flex gap-6 text-sm">
           {links.map(({ path, label, icon: Icon }) => {
-            const active = location.pathname === path;
+            const active = isActive(path);
             return (
               <Link
                 key={path}
@@ -53,7 +97,7 @@ export default function Header() {
       {/* Mobile: barra inferior animada */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 flex justify-around py-2 z-50">
         {links.map(({ path, label, icon: Icon }) => {
-          const active = location.pathname === path;
+          const active = isActive(path);
           return (
             <Link
               key={path}
@@ -80,7 +124,6 @@ export default function Header() {
                 {label}
               </motion.span>
 
-              {/* Indicador animado debajo del icono activo */}
               {active && (
                 <motion.div
                   layoutId="activeIndicator"
