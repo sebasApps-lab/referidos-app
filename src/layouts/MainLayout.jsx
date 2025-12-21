@@ -5,12 +5,14 @@ import Footer from "../components/footer/Footer";
 import MenuLateral from "../components/menus/MenuLateral";
 import { useAppStore } from "../store/appStore";
 
+const HEADER_COLLAPSED_HEIGHT = 64;
+
 export default function MainLayout({ children }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
 
-  const [headerHeight, setHeaderHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(HEADER_COLLAPSED_HEIGHT);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleHeaderHeight = useCallback((h) => {
