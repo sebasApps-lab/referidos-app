@@ -1,7 +1,7 @@
 // src/components/header/Header.jsx
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 
 const BRAND_PURPLE = "#5E30A5";
@@ -12,7 +12,8 @@ const LOCAL_PURPLE = "#7C5CD6";
 const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
 const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
 
-const COLLAPSED_HEIGHT = 64;
+const COLLAPSED_HEIGHT = 80;
+const SWIPE_THRESHOLD = 40;
 
 export default function Header({
   locAllowed,
@@ -24,9 +25,13 @@ export default function Header({
   onHeaderHeightChange,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [locationBarHeight, setLocationBarHeight] = useState(0);
   const location = useLocation();
   const headerRef = useRef(null);
+  const collapsedRef = useRef(null);
+  const expandedRef = useRef(null);
   const locationBarRef = useRef(null);
+  const swipeRef = useRef({ startY: 0, active: false, handled: false });
 
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
@@ -83,20 +88,61 @@ export default function Header({
     (path === homePath && location.pathname.startsWith(homePath));
 
   useLayoutEffect(() => {
-    if (!onHeaderHeightChange) return;
-
-    if (expanded && headerRef.current) {
-      onHeaderHeightChange(headerRef.current.offsetHeight);
-      return;
-    }
-
-    const locationBarHeight =
+    const currentLocationBarHeight =
       !hideLocationBar && locAllowed === false && locationBarRef.current
         ? locationBarRef.current.offsetHeight
         : 0;
 
-    onHeaderHeightChange(COLLAPSED_HEIGHT + locationBarHeight);
-  }, [expanded, locAllowed, hideLocationBar, onHeaderHeightChange]);
+    if (currentLocationBarHeight !== locationBarHeight) {
+      setLocationBarHeight(currentLocationBarHeight);
+    }
+
+    if (!onHeaderHeightChange) return;
+
+    const collapsedHeight =
+      collapsedRef.current?.offsetHeight || COLLAPSED_HEIGHT;
+    const expandedHeight =
+      expandedRef.current?.offsetHeight || collapsedHeight;
+
+    const nextHeight =
+      (expanded ? expandedHeight : collapsedHeight) + currentLocationBarHeight;
+
+    onHeaderHeightChange(nextHeight);
+  }, [
+    expanded,
+    locAllowed,
+    hideLocationBar,
+    onHeaderHeightChange,
+    locationBarHeight,
+  ]);
+
+  const beginSwipe = (event) => {
+    swipeRef.current.startY = event.clientY;
+    swipeRef.current.active = true;
+    swipeRef.current.handled = false;
+  };
+
+  const moveSwipe = (event, direction) => {
+    const state = swipeRef.current;
+    if (!state.active || state.handled) return;
+
+    const delta = event.clientY - state.startY;
+
+    if (direction === "down" && delta > SWIPE_THRESHOLD) {
+      setExpanded(true);
+      state.handled = true;
+    }
+
+    if (direction === "up" && delta < -SWIPE_THRESHOLD) {
+      setExpanded(false);
+      state.handled = true;
+    }
+  };
+
+  const endSwipe = () => {
+    swipeRef.current.active = false;
+    swipeRef.current.handled = false;
+  };
 
   return (
     <div ref={headerRef} className="fixed top-0 left-0 w-full z-50">
@@ -144,268 +190,313 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-[#5E30A5] text-white shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-          <button
-            type="button"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-2 text-xl font-bold tracking-wide"
-            aria-expanded={expanded}
-            aria-controls="header-expanded"
+      <header
+        ref={collapsedRef}
+        className={`bg-[#5E30A5] text-white shadow-md transition-opacity duration-200 ${
+          expanded ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
+        <div
+          className="max-w-6xl mx-auto px-4"
+          style={{ minHeight: COLLAPSED_HEIGHT }}
+        >
+          <div
+            className="md:hidden flex items-center justify-between py-4"
+            style={{ touchAction: "pan-y" }}
+            onPointerDown={beginSwipe}
+            onPointerMove={(event) => moveSwipe(event, "down")}
+            onPointerUp={endSwipe}
+            onPointerCancel={endSwipe}
           >
-            <span>Referidos App</span>
-            <ChevronDown
-              size={18}
-              className={`md:hidden transition-transform duration-200 ${
-                expanded ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          <nav className="hidden md:flex gap-6 items-center">
-            {links.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`hover:text-[#FFC21C] transition-colors ${
-                  isActive(link.path) ? "text-[#FFC21C]" : ""
-                }`}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="w-12 h-12 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center"
+                aria-label="Abrir perfil"
               >
-                {link.label}
-              </Link>
-            ))}
+                <img
+                  src={avatarSrc}
+                  alt="avatar"
+                  className="w-9 h-9 object-contain"
+                />
+              </button>
 
-            <a
-              href="https://wa.me/593999999999"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-4 bg-[#FFC21C] text-[#5E30A5] font-semibold px-3 py-1 rounded-xl hover:opacity-90 transition"
-            >
-              Soporte
-            </a>
-          </nav>
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/30"
+              >
+                {usuario?.tier || "Explorador"}
+              </button>
+            </div>
 
-          <button onClick={() => onOpenMenu()} className="md:hidden">
-            <Menu size={28} />
-          </button>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold tracking-wide">
+                Referidos App
+              </span>
+              <button onClick={() => onOpenMenu?.()}>
+                <Menu size={28} />
+              </button>
+            </div>
+          </div>
+
+          <div className="hidden md:flex justify-between items-center py-4">
+            <Link to={homePath} className="text-xl font-bold tracking-wide">
+              Referidos App
+            </Link>
+
+            <nav className="flex gap-6 items-center">
+              {links.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`hover:text-[#FFC21C] transition-colors ${
+                    isActive(link.path) ? "text-[#FFC21C]" : ""
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+
+              <a
+                href="https://wa.me/593999999999"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-4 bg-[#FFC21C] text-[#5E30A5] font-semibold px-3 py-1 rounded-xl hover:opacity-90 transition"
+              >
+                Soporte
+              </a>
+            </nav>
+          </div>
         </div>
       </header>
 
       <div
-        id="header-expanded"
-        className="md:hidden overflow-hidden"
+        className="fixed inset-0 md:hidden transition-opacity duration-200"
         style={{
-          maxHeight: expanded ? 520 : 0,
           opacity: expanded ? 1 : 0,
-          transform: expanded ? "translateY(0)" : "translateY(-6px)",
-          transition:
-            "max-height 260ms ease, opacity 200ms ease, transform 200ms ease",
+          pointerEvents: expanded ? "auto" : "none",
+          background: "rgba(0,0,0,0.35)",
         }}
+        onClick={() => setExpanded(false)}
+      />
+
+      <div
+        ref={expandedRef}
+        className="md:hidden absolute left-0 w-full"
+        style={{
+          top: locationBarHeight,
+          background: BRAND_PURPLE,
+          color: "#fff",
+          borderTop: "1px solid rgba(255,255,255,0.15)",
+          transform: expanded ? "translateY(0)" : "translateY(-12px)",
+          opacity: expanded ? 1 : 0,
+          pointerEvents: expanded ? "auto" : "none",
+          transition: "transform 240ms ease, opacity 200ms ease",
+          touchAction: "pan-y",
+        }}
+        onPointerDown={beginSwipe}
+        onPointerMove={(event) => moveSwipe(event, "up")}
+        onPointerUp={endSwipe}
+        onPointerCancel={endSwipe}
       >
         <div
           style={{
-            background: BRAND_PURPLE,
-            color: "#fff",
+            maxWidth: 960,
+            margin: "0 auto",
+            paddingLeft: "4%",
+            paddingRight: "4%",
             paddingTop: "10%",
             paddingBottom: "4%",
-            borderTop: "1px solid rgba(255,255,255,0.15)",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
           }}
         >
           <div
             style={{
-              maxWidth: 960,
-              margin: "0 auto",
-              paddingLeft: "4%",
-              paddingRight: "4%",
+              marginBottom: 6,
               display: "flex",
-              flexDirection: "column",
-              width: "100%",
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
             <div
               style={{
-                marginBottom: 6,
+                width: "88%",
+                fontSize: "clamp(20px, 6vw, 28px)",
+                fontWeight: 800,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              Bienvenido,{" "}
+              <span style={{ fontWeight: 900 }}>
+                {usuario?.nombre || "usuario"}
+              </span>
+            </div>
+
+            <button
+              onClick={() => onOpenMenu?.()}
+              style={{
+                width: "12%",
+                background: "transparent",
+                border: 0,
+                color: "#fff",
+                fontSize: "clamp(26px, 7vw, 36px)",
+                cursor: "pointer",
+                textAlign: "right",
+              }}
+            >
+              <Menu size={26} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "6%",
+              marginTop: 6,
+              alignItems: "stretch",
+            }}
+          >
+            <div
+              style={{
+                width: "30%",
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "flex-start",
               }}
             >
               <div
                 style={{
-                  width: "88%",
-                  fontSize: "clamp(20px, 6vw, 28px)",
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 16,
                   overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  border: `3px solid ${LOCAL_PURPLE}`,
+                  background: "#fff",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                Bienvenido,{" "}
-                <span style={{ fontWeight: 900 }}>
-                  {usuario?.nombre || "usuario"}
-                </span>
-              </div>
+                <button
+                  onClick={onOpenTier}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: 4,
+                    background: "rgba(0,0,0,0.45)",
+                    color: "#fff",
+                    border: 0,
+                    padding: "4px 8px",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  {usuario?.tier || "Explorador"}
+                </button>
 
-              <button
-                onClick={() => onOpenMenu()}
-                style={{
-                  width: "12%",
-                  background: "transparent",
-                  border: 0,
-                  color: "#fff",
-                  fontSize: "clamp(26px, 7vw, 36px)",
-                  cursor: "pointer",
-                  textAlign: "right",
-                }}
-              >
-                <Menu size={26} />
-              </button>
+                <img
+                  src={avatarSrc}
+                  alt="avatar"
+                  style={{
+                    width: "80%",
+                    height: "80%",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
             </div>
 
             <div
               style={{
+                width: "65%",
                 display: "flex",
-                gap: "6%",
-                marginTop: 6,
-                alignItems: "stretch",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                paddingTop: "2px",
               }}
             >
               <div
                 style={{
-                  width: "30%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "flex-start",
+                  fontSize: 14,
+                  opacity: 0.95,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
                 }}
               >
-                <div
-                  style={{
-                    width: "100%",
-                    aspectRatio: "1 / 1",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    border: `3px solid ${LOCAL_PURPLE}`,
-                    background: "#fff",
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <button
-                    onClick={onOpenTier}
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      left: 4,
-                      background: "rgba(0,0,0,0.45)",
-                      color: "#fff",
-                      border: 0,
-                      padding: "4px 8px",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 6,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {usuario?.tier || "Explorador"}
-                  </button>
-
-                  <img
-                    src={avatarSrc}
-                    alt="avatar"
-                    style={{
-                      width: "80%",
-                      height: "80%",
-                      objectFit: "contain",
-                    }}
-                  />
-                </div>
+                Encuentra las mejores promos cerca de ti.
               </div>
+
+              <div style={{ flexGrow: 1 }} />
 
               <div
                 style={{
-                  width: "65%",
                   display: "flex",
-                  flexDirection: "column",
                   justifyContent: "space-between",
-                  paddingTop: "2px",
+                  alignItems: "flex-end",
                 }}
               >
-                <div
+                <span
                   style={{
-                    fontSize: 14,
-                    opacity: 0.95,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
+                    color: REFERRAL_GREEN,
+                    fontWeight: 800,
+                    fontSize: "clamp(14px, 4vw, 17px)",
                   }}
                 >
-                  Encuentra las mejores promos cerca de ti.
-                </div>
-
-                <div style={{ flexGrow: 1 }} />
+                  {usuario?.referidosCount
+                    ? `${usuario.referidosCount} referidos`
+                    : "0 referidos"}
+                </span>
 
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-end",
+                    alignItems: "center",
+                    cursor: "pointer",
                   }}
+                  onClick={onOpenGrupo}
                 >
-                  <span
-                    style={{
-                      color: REFERRAL_GREEN,
-                      fontWeight: 800,
-                      fontSize: "clamp(14px, 4vw, 17px)",
-                    }}
-                  >
-                    {usuario?.referidosCount
-                      ? `${usuario.referidosCount} referidos`
-                      : "0 referidos"}
-                  </span>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      cursor: "pointer",
-                    }}
-                    onClick={onOpenGrupo}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 8,
-                          background: "#E6E6E6",
-                          border: "2px solid #fff",
-                          marginLeft: i === 0 ? 0 : -10,
-                        }}
-                      />
-                    ))}
-
+                  {[0, 1, 2].map((i) => (
                     <div
+                      key={i}
                       style={{
                         width: 26,
                         height: 26,
                         borderRadius: 8,
-                        background: "#ffffff",
-                        border: "2px dashed #CFCFCF",
-                        marginLeft: -10,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#6B6B6B",
-                        fontWeight: 700,
+                        background: "#E6E6E6",
+                        border: "2px solid #fff",
+                        marginLeft: i === 0 ? 0 : -10,
                       }}
-                    >
-                      +
-                    </div>
+                    />
+                  ))}
+
+                  <div
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 8,
+                      background: "#ffffff",
+                      border: "2px dashed #CFCFCF",
+                      marginLeft: -10,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#6B6B6B",
+                      fontWeight: 700,
+                    }}
+                  >
+                    +
                   </div>
                 </div>
               </div>

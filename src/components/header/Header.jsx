@@ -1,7 +1,7 @@
 // src/components/header/Header.jsx
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, ChevronDown } from "lucide-react";
+import { Menu, Users } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 
 const BRAND_PURPLE = "#5E30A5";
@@ -12,7 +12,8 @@ const LOCAL_PURPLE = "#7C5CD6";
 const AVATAR_FEMALE = "https://cdn-icons-png.flaticon.com/512/4474/4474849.png";
 const AVATAR_MALE = "https://cdn-icons-png.flaticon.com/512/4474/4474855.png";
 
-const COLLAPSED_HEIGHT = 64;
+const COLLAPSED_HEIGHT = 80;
+const SWIPE_THRESHOLD = 40;
 
 export default function Header({
   locAllowed,
@@ -24,9 +25,13 @@ export default function Header({
   onHeaderHeightChange,
 })  {
   const [expanded, setExpanded] = useState(false);
+  const [locationBarHeight, setLocationBarHeight] = useState(0);
   const location = useLocation();
   const headerRef = useRef(null);
+  const collapsedRef = useRef(null);
+  const expandedRef = useRef(null);
   const locationBarRef = useRef(null);
+  const swipeRef = useRef({ startY: 0, active: false, handled: false });
 
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
@@ -83,133 +88,217 @@ export default function Header({
     (path === homePath && location.pathname.startsWith(homePath));
 
   useLayoutEffect(() => {
-    if(!onHeaderHeightChange) return;
-
-    if (expanded && headerRef.current) {
-      onHeaderHeightChange(headerRef.current.offsetHeight);
-      return;
-    }
-
-    const locationBarHeight =
+    const currentLocationBarHeight =
       !hideLocationBar && locAllowed === false && locationBarRef.current
         ? locationBarRef.current.offsetHeight
         : 0;
+    
+    if (currentLocationBarHeight !== locationBarHeight) {
+      setLocationBarHeight(currentLocationBarHeight);
+    }
 
-    onHeaderHeightChange(COLLAPSED_HEIGHT + locationBarHeight);
-  }, [expanded, locAllowed, hideLocationBar, onHeaderHeightChange]);
+    if(!onHeaderHeightChange) return;
+
+    const collapsedHeight =
+      collapsedRef.current?.offsetHeight || COLLAPSED_HEIGHT;
+    const expandedHeight =
+      expandedRef.current?.offsetHeight || collapsedHeight;
+
+    const nextHeight =
+      (expanded ? expandedHeight : collapsedHeight) + currentLocationBarHeight;    
+
+    onHeaderHeightChange(nextHeight);
+  }, [
+    expanded,
+    locAllowed,
+    hideLocationBar,
+    onHeaderHeightChange
+  ]);
+
+  const beginSwipe = (event) => {
+    swipeRef.current.startY = event.clientY;
+    swipeRef.current.active = true;
+    swipeRef.current.handled = false;
+  };
+
+  const moveSwipe = (event, direction) => {
+    const state = swipeRef.current;
+    if (!state.active || state.handled) return;
+
+    const delta = event.clientY - state.startY;
+
+    if (direction === "down" && delta > SWIPE_THRESHOLD) {
+      setExpanded(true);
+      state.handled = true;
+    }
+
+    if (direction === "up" && delta < -SWIPE_THRESHOLD) {
+      setExpanded(false);
+      state.handled = true;
+    }
+  };
+
+  const endSwipe = () => {
+    swipeRef.current.active = false;
+    swipeRef.current.handled = false;
+  };
 
   return (
-    <div ref={headerRef} className="fixed top-0 left-0 w-full z-50">
-      {!hideLocationBar && locAllowed === false && (
-        <div 
-          ref={locationBarRef}
-          style={{ width: "100%", background: BRAND_YELLOW }}
-        >
+      <div ref={headerRef} className="fixed top-0 left-0 w-full z-50">
+        {!hideLocationBar && locAllowed === false && (
           <div
-            style={{
-              maxWidth: 960,
-              margin: "0 auto",
-              padding: "6px 16px",
-            }}
+            ref={locationBarRef}
+            style={{ width: "100%", background: BRAND_YELLOW }}
           >
             <div
               style={{
-                color: "#6B5E00",
-                borderRadius: 8,
-                padding: "8px 12px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
-                background: "#FFF8D8",
+                maxWidth: 960,
+                margin: "0 auto",
+                padding: "6px 16px",
               }}
             >
-              <span style={{ fontSize: 13 }}>
-                La app usa tu ubicacion para mostrar promos cercanas.
-              </span>
-
-              <button
-                onClick={onCloseLocationBar}
+              <div
                 style={{
-                  background: "transparent",
-                  border: 0,
-                  fontSize: 14,
-                  cursor: "pointer",
+                  color: "#6B5E00",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.04)",
+                  background: "#FFF8D8",
                 }}
               >
-                X
-              </button>
+                <span style={{ fontSize: 13 }}>
+                  La app usa tu ubicacion para mostrar promos cercanas.
+                </span>
+  
+                <button
+                  onClick={onCloseLocationBar}
+                  style={{
+                    background: "transparent",
+                    border: 0,
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  X
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      <header className="bg-[#5E30A5] text-white shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-          <button
-            type="button"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="flex items-center gap-2 text-xl font-bold tracking-wide"
-            aria-expanded={expanded}
-            aria-controls="header-expanded"
+        )}
+  
+        <header
+          ref={collapsedRef}
+          className={`bg-[#5E30A5] text-white shadow-md transition-opacity duration-200 ${
+            expanded ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <div
+            className="max-w-6xl mx-auto px-4"
+            style={{ minHeight: COLLAPSED_HEIGHT }}
           >
-            <span>Referidos App</span>
-            <ChevronDown
-              size={18}
-              className={`md:hidden transition-transform duration-200 ${
-                expanded ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          <nav className="hidden md:flex gap-6 items-center">
-            {links.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`hover:text-[#FFC21C] transition-colors ${
-                  isActive(link.path) ? "text-[#FFC21C]" : ""
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-
-            <a
-              href="https://wa.me/593999999999"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-4 bg-[#FFC21C] text-[#5E30A5] font-semibold px-3 py-1 rounded-xl hover:opacity-90 transition"
+            <div
+              className="md:hidden flex items-center justify-between py-4"
+              style={{ touchAction: "pan-y" }}
+              onPointerDown={beginSwipe}
+              onPointerMove={(event) => moveSwipe(event, "down")}
+              onPointerUp={endSwipe}
+              onPointerCancel={endSwipe}
             >
-              Soporte
-            </a>
-          </nav>
-
-          <button onClick={() => onOpenMenu()} className="md:hidden">
-            <Menu size={28} />
-          </button>
-        </div>
-      </header>
-
-      <div
-        id="header-expanded"
-        className="md:hidden overflow-hidden"
-        style={{
-          maxHeight: expanded ? 520 : 0,
-          opacity: expanded ? 1 : 0,
-          transform: expanded ? "translateY(0)" : "translateY(-6px)",
-          transition:
-            "max-height 260ms ease, opacity 200ms ease, transform 200ms ease",
-        }}
-      >
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="w-12 h-12 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center"
+                  aria-label="Abrir perfil"
+                >
+                  <img
+                    src={avatarSrc}
+                    alt="avatar"
+                    className="w-9 h-9 object-contain"
+                  />
+                </button>
+  
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="px-4 py-1.5 rounded-full text-sm font-semibold bg-white/10 border border-white/30"
+                >
+                  {usuario?.tier || "Explorador"}
+                </button>
+              </div>
+  
+              <div className="flex items-center gap-5">
+                <span className="text-base font-semibold tracking-wide">
+                  Referidos App
+                </span>
+                <button onClick={() => onOpenMenu?.()}>
+                  <Menu size={28} />
+                </button>
+              </div>
+            </div>
+  
+            <div className="hidden md:flex justify-between items-center py-4">
+              <Link to={homePath} className="text-xl font-bold tracking-wide">
+                Referidos App
+              </Link>
+  
+              <nav className="flex gap-6 items-center">
+                {links.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`hover:text-[#FFC21C] transition-colors ${
+                      isActive(link.path) ? "text-[#FFC21C]" : ""
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+  
+                <a
+                  href="https://wa.me/593999999999"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-4 bg-[#FFC21C] text-[#5E30A5] font-semibold px-3 py-1 rounded-xl hover:opacity-90 transition"
+                >
+                  Soporte
+                </a>
+              </nav>
+            </div>
+          </div>
+        </header>
+  
         <div
+          className="fixed inset-0 md:hidden transition-opacity duration-200"
           style={{
+            opacity: expanded ? 1 : 0,
+            pointerEvents: expanded ? "auto" : "none",
+            background: "rgba(0,0,0,0.35)",
+          }}
+          onClick={() => setExpanded(false)}
+        />
+  
+        <div
+          ref={expandedRef}
+          className="md:hidden absolute left-0 w-full"
+          style={{
+            top: locationBarHeight,
             background: BRAND_PURPLE,
             color: "#fff",
-            paddingTop: "10%",
-            paddingBottom: "4%",
             borderTop: "1px solid rgba(255,255,255,0.15)",
+            transform: expanded ? "translateY(0)" : "translateY(-12px)",
+            opacity: expanded ? 1 : 0,
+            pointerEvents: expanded ? "auto" : "none",
+            transition: "transform 240ms ease, opacity 200ms ease",
+            touchAction: "pan-y",
           }}
+          onPointerDown={beginSwipe}
+          onPointerMove={(event) => moveSwipe(event, "up")}
+          onPointerUp={endSwipe}
+          onPointerCancel={endSwipe}
         >
           <div
             style={{
@@ -217,6 +306,8 @@ export default function Header({
               margin: "0 auto",
               paddingLeft: "4%",
               paddingRight: "4%",
+              paddingTop: "10%",
+              paddingBottom: "4%",
               display: "flex",
               flexDirection: "column",
               width: "100%",
@@ -245,9 +336,9 @@ export default function Header({
                   {usuario?.nombre || "usuario"}
                 </span>
               </div>
-
+  
               <button
-                onClick={() => onOpenMenu()}
+                onClick={() => onOpenMenu?.()}
                 style={{
                   width: "12%",
                   background: "transparent",
@@ -261,7 +352,7 @@ export default function Header({
                 <Menu size={26} />
               </button>
             </div>
-
+  
             <div
               style={{
                 display: "flex",
@@ -311,7 +402,7 @@ export default function Header({
                   >
                     {usuario?.tier || "Explorador"}
                   </button>
-
+  
                   <img
                     src={avatarSrc}
                     alt="avatar"
@@ -323,7 +414,7 @@ export default function Header({
                   />
                 </div>
               </div>
-
+  
               <div
                 style={{
                   width: "65%",
@@ -345,9 +436,9 @@ export default function Header({
                 >
                   Encuentra las mejores promos cerca de ti.
                 </div>
-
+  
                 <div style={{ flexGrow: 1 }} />
-
+  
                 <div
                   style={{
                     display: "flex",
@@ -366,7 +457,7 @@ export default function Header({
                       ? `${usuario.referidosCount} referidos`
                       : "0 referidos"}
                   </span>
-
+  
                   <div
                     style={{
                       display: "flex",
@@ -388,7 +479,7 @@ export default function Header({
                         }}
                       />
                     ))}
-
+  
                     <div
                       style={{
                         width: 26,
@@ -413,6 +504,5 @@ export default function Header({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
