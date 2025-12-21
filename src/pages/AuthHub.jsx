@@ -15,7 +15,7 @@ import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
 
 const CODES_KEY = "registration_codes";
-const DEFAULT_CODES = ["REF-001532", "REF-003765"];
+const DEFAULT_CODES = ["REF-123456", "REF-654321"];
 const OAUTH_INTENT_KEY = "oauth_intent";
 
 export default function AuthHub() {
@@ -253,6 +253,7 @@ export default function AuthHub() {
               nombre: authEmail.split("@")[0],
               role: "cliente",
               telefono: telefono || null,
+              account_status: "active",
             })
             .select()
             .maybeSingle();
@@ -316,7 +317,8 @@ export default function AuthHub() {
             .insert({
               id_auth: session.user.id,
               email: authEmail,
-              role: "negocio",            
+              role: "negocio",
+              account_status: "pending",           
             })
             .select()
             .maybeSingle();
@@ -338,9 +340,35 @@ export default function AuthHub() {
   // -------------------------------------------------------------------
   // Reaccionar al resultado de onboarding (prefill + navegación)
   // -------------------------------------------------------------------
+  const choiceOpenedRef = useRef(false);
+
+  //Reset del ref cuando el flujo de auth se reinicia
+  useEffect(() => {
+    if (typeof usuario === "undefined") {
+      choiceOpenedRef.current = false;
+    }
+  }, [usuario]);
+
   useEffect (() => {
     if (typeof usuario === "undefined") return; //bootstrap no resuelto
-    if (!usuario) return; //sin sesión
+
+    //1) Sesión válida pero SIN perfil
+    if (usuario === null) {
+      if (!choiceOpenedRef.current) {
+        choiceOpenedRef.current = true;
+        openChoiceOverlay();
+      }
+      return;
+    }
+
+    //2) Perfil existe pero SIN rol
+    if (!usuario.role) {
+      if (!choiceOpenedRef.current) {
+        choiceOpenedRef.current = true;
+        openChoiceOverlay();
+      }
+      return;
+    }
 
     const u = usuario;
     const boot = onboarding || {};
