@@ -8,7 +8,7 @@ const cards = [
   { key: "negocio", title: "Negocio", desc: "Administra promos y canjes para tus sucursales." },
 ];
 
-const DEFAULT_CODES = ["REF-123456", "REF-654321"];
+//const DEFAULT_CODES = ["REF-123456", "REF-654321"];
 
 const isPartialFormat = (code) => {
   if (!code) return true;
@@ -56,7 +56,7 @@ export default function ModalSplashChoiceOverlay({
       return;
     }
     setError("");
-    setShowCodeModal(true);
+    //setShowCodeModal(true); Ya no se solicita código de registro para negocio.
   };
 
   const handleCodeChange = (val) => {
@@ -64,12 +64,14 @@ export default function ModalSplashChoiceOverlay({
     setCode(upper);
     const formatOk = isPartialFormat(upper);
     setCodeFormatOk(formatOk);
-    const ok = formatOk && CODE_RE.test(upper) && DEFAULT_CODES.includes(upper);
-    setCodeValid(ok);
+    // Validación de código de registro (comentada)
+    //const ok = formatOk && CODE_RE.test(upper) && DEFAULT_CODES.includes(upper);
+    //setCodeValid(ok);
   };
 
   const confirmCode = () => {
-    if (!codeValid || persisting) return;
+    // Validación de código de registro (comentada)
+    //if (!codeValid || persisting) return;
     proceedNegocio(code);
     setShowCodeModal(false);
   };

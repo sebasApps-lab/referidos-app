@@ -14,8 +14,8 @@ import { signInWithOAuth } from "../services/authService";
 import { useModal } from "../modals/useModal";
 import { supabase } from "../lib/supabaseClient";
 
-const CODES_KEY = "registration_codes";
-const DEFAULT_CODES = ["REF-123456", "REF-654321"];
+//const CODES_KEY = "registration_codes";
+//const DEFAULT_CODES = ["REF-123456", "REF-654321"];
 const OAUTH_INTENT_KEY = "oauth_intent";
 
 export default function AuthHub() {
@@ -63,12 +63,15 @@ export default function AuthHub() {
     (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
     import.meta.env.VITE_AUTH_REDIRECT_URL;
 
+  /*
   useEffect(() => {
     if (!localStorage.getItem(CODES_KEY)) {
       localStorage.setItem(CODES_KEY, JSON.stringify(DEFAULT_CODES));
     }
   }, []);
+  */
 
+  /*
   async function fakeValidateCode(code) {
     await new Promise((r) => setTimeout(r, 250));
     try {
@@ -79,7 +82,9 @@ export default function AuthHub() {
       return { ok: false };
     }
   }
+  */
 
+  /*
   useEffect(() => {
     let mounted = true;
     if (!codigo || !CODE_RE.test(codigo)) return;
@@ -89,6 +94,7 @@ export default function AuthHub() {
       mounted = false;
     };
   }, [codigo]);
+  */
 
   const sliderGap = 28;
   const containerStyle = useMemo(
@@ -277,6 +283,7 @@ export default function AuthHub() {
       onNegocio: async (code) => {
         setError("");
 
+        /*
         if (!CODE_RE.test(code)) {
           setError("Código de registro inválido");
           return { ok: false };
@@ -287,6 +294,7 @@ export default function AuthHub() {
           setError("Código de registro inválido");
           return { ok: false };
         }
+        */
 
         const session = (await supabase.auth.getSession()).data.session;
         if (!session?.user) {
