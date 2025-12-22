@@ -204,72 +204,49 @@ export default function Header({
         <div className="max-w-6xl mx-auto px-4">
           <div
             ref={collapsedRef}
-            className="md:hidden relative"
+            className="md:hidden flex items-center justify-between py-4"
             style={{ minHeight: COLLAPSED_HEIGHT, touchAction: "pan-y" }}
             onPointerDown={beginSwipe}
             onPointerMove={handlePointerMove}
             onPointerUp={endSwipe}
             onPointerCancel={endSwipe}
           >
-            <button
-              onClick={() => onOpenMenu?.()}
-              className="absolute right-0 top-1/2 -translate-y-1/2"
-            >
-              <Menu size={28} />
-            </button>
+            <div className="relative h-12 w-[200px]">
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className={`absolute left-0 top-0 z-10 w-12 h-12 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center origin-top-left transition-transform duration-300 ${
+                  expanded ? "translate-y-25 scale-200" : "translate-y-0 scale-100"
+                }`}
+                aria-label="Abrir perfil"
+              >
+                <img
+                  src={avatarSrc}
+                  alt="avatar"
+                  className="w-9 h-9 object-contain"
+                />
+              </button>
 
-            <div
-              className={`absolute inset-0 flex items-center transition-all duration-200 ${
-                expanded
-                  ? "opacity-0 -translate-y-1 pointer-events-none"
-                  : "opacity-100 translate-y-0"
-              }`}
-              style={{ paddingRight: 48 }}
-            >
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(true)}
-                  className="w-12 h-12 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center"
-                  aria-label="Abrir perfil"
-                >
-                  <img
-                    src={avatarSrc}
-                    alt="avatar"
-                    className="w-9 h-9 object-contain"
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setExpanded(true)}
-                  className="px-4 py-1.5 rounded-full text-sm font-semibold bg-white/10 border border-white/30"
-                >
-                  {usuario?.tier || "Explorador"}
-                </button>
-              </div>
-
-              <div className="ml-auto text-base font-semibold tracking-wide">
-                Referidos App
-              </div>
+              <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className={`absolute rounded-lg font-semibold bg-white/10 border border-white/30 transition-all duration-300 ${
+                  expanded
+                    ? "left-3 top-1.5 translate-y-0 scale-105 px-5 py-2 text-base"
+                    : "left-[56px] top-1/2 -translate-y-1/2 px-4 py-1.5 text-xs"
+                }`}
+              >
+                {usuario?.tier || "Explorador"}
+              </button>
             </div>
 
-            <div
-              className={`absolute inset-0 flex items-center transition-all duration-200 ${
-                expanded
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-              }`}
-              style={{ paddingRight: 48 }}
-            >
-              <div className="flex flex-col">
-                <span className="text-[11px] uppercase tracking-wider text-white/70">
-                  Bienvenido
-                </span>
-                <span className="text-lg font-extrabold truncate">
-                  {usuario?.nombre || "usuario"}
-                </span>
-              </div>
+            <div className="flex items-center gap-5">
+              <span className="text-base font-semibold tracking-wide">
+                Referidos App
+              </span>
+              <button onClick={() => onOpenMenu?.()}>
+                <Menu size={28} />
+              </button>
             </div>
           </div>
 
@@ -279,10 +256,9 @@ export default function Header({
             style={{
               maxHeight: expanded ? 520 : 0,
               opacity: expanded ? 1 : 0,
-              transform: expanded ? "translateY(0)" : "translateY(-6px)",
               pointerEvents: expanded ? "auto" : "none",
               transition:
-                "max-height 260ms ease, opacity 200ms ease, transform 200ms ease",
+                "max-height 280ms ease, opacity 200ms ease",
               touchAction: "pan-y",
             }}
             onPointerDown={beginSwipe}
@@ -290,62 +266,50 @@ export default function Header({
             onPointerUp={endSwipe}
             onPointerCancel={endSwipe}
           >
-            <div className="max-w-6xl mx-auto px-4 pt-3 pb-4">
-              <div className="mt-1 grid grid-cols-[112px_1fr] gap-4 items-stretch">
-                <div className="relative rounded-2xl bg-white/10 border border-white/15 p-2 flex items-center justify-center">
-                  <button
-                    onClick={onOpenTier}
-                    className="absolute top-2 left-2 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-black/40 text-white"
-                  >
-                    {usuario?.tier || "Explorador"}
-                  </button>
-
-                  <div className="w-20 h-20 rounded-xl bg-white flex items-center justify-center">
-                    <img
-                      src={avatarSrc}
-                      alt="avatar"
-                      className="w-16 h-16 object-contain"
-                    />
-                  </div>
+            <div className="max-w-6xl mx-auto px-4 pt-2 pb-4">
+              <div className="relative pt-3 pl-24">
+                <div className="absolute left-0 right-0 -top-2 h-px bg-white/10" />
+                <div className="text-m uppercase tracking-wider text-white/70">
+                  Bienvenido
+                </div>
+                <div className="text-xl font-extrabold truncate">
+                  {usuario?.nombre || "usuario"}
+                </div>
+                <div
+                  className="mt-1 text-sm text-white/85"
+                  style={{
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  Encuentra las mejores promos cerca de ti.
                 </div>
 
-                <div className="rounded-2xl bg-white/10 border border-white/15 p-3 flex flex-col">
+                <div className="mt-4 flex items-end justify-between">
+                  <span className="text-[#A6F28F] font-bold text-sm">
+                    {usuario?.referidosCount
+                      ? `${usuario.referidosCount} referidos`
+                      : "0 referidos"}
+                  </span>
+
                   <div
-                    className="text-sm text-white/90"
-                    style={{
-                      overflow: "hidden",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                    }}
+                    className="flex items-center cursor-pointer"
+                    onClick={onOpenGrupo}
                   >
-                    Encuentra las mejores promos cerca de ti.
-                  </div>
-
-                  <div className="mt-3 flex items-end justify-between">
-                    <span className="text-[#A6F28F] font-bold text-sm">
-                      {usuario?.referidosCount
-                        ? `${usuario.referidosCount} referidos`
-                        : "0 referidos"}
-                    </span>
-
-                    <div
-                      className="flex items-center cursor-pointer"
-                      onClick={onOpenGrupo}
-                    >
-                      {[0, 1, 2].map((i) => (
-                        <div
-                          key={i}
-                          className="w-7 h-7 rounded-lg bg-[#E6E6E6] border-2 border-white"
-                          style={{ marginLeft: i === 0 ? 0 : -10 }}
-                        />
-                      ))}
+                    {[0, 1, 2].map((i) => (
                       <div
-                        className="w-7 h-7 rounded-lg bg-white border-2 border-dashed border-[#CFCFCF] flex items-center justify-center text-[#6B6B6B] font-bold"
-                        style={{ marginLeft: -10 }}
-                      >
-                        +
-                      </div>
+                        key={i}
+                        className="w-7 h-7 rounded-lg bg-[#E6E6E6] border-2 border-white"
+                        style={{ marginLeft: i === 0 ? 0 : -10 }}
+                      />
+                    ))}
+                    <div
+                      className="w-7 h-7 rounded-lg bg-white border-2 border-dashed border-[#CFCFCF] flex items-center justify-center text-[#6B6B6B] font-bold"
+                      style={{ marginLeft: -10 }}
+                    >
+                      +
                     </div>
                   </div>
                 </div>

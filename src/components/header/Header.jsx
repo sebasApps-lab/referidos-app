@@ -230,10 +230,10 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => setExpanded(true)}
-                className={`absolute rounded-full font-semibold bg-white/10 border border-white/30 transition-all duration-300 ${
+                className={`absolute rounded-lg font-semibold bg-white/10 border border-white/30 transition-all duration-300 ${
                   expanded
-                    ? "left-0 top-1.5 translate-y-0 scale-110 px-5 py-2 text-base"
-                    : "left-[56px] top-1/2 -translate-y-1/2 px-4 py-1.5 text-sm"
+                    ? "left-3 top-1.5 translate-y-0 scale-105 px-5 py-2 text-base"
+                    : "left-[56px] top-1/2 -translate-y-1/2 px-4 py-1.5 text-xs"
                 }`}
               >
                 {usuario?.tier || "Explorador"}
