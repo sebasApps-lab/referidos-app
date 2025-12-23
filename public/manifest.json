@@ -1,23 +1,23 @@
 {
-  "short_name": "Referidos",
-  "name": "Referidos App",
+  "name": "Migo App",
+  "short_name": "Migo",
+  "description": "Promociones y referidos con QR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#5E30A5",
+  "theme_color": "#5E30A5",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "theme_color": "#5E30A5",
-  "background_color": "#ffffff",
-  "orientation": "portrait",
-  "description": "Aplicación de referidos para clientes y negocios."
+  ]
 }

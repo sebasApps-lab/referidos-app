@@ -9,6 +9,9 @@ import "./styles/no-scrollbar.css";
 
 
 import "./index.css"; // si usas Tailwind o estilos globales
+import { registerSW } from "virtual:pwa-register";
+
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
