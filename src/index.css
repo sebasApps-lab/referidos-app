@@ -37,3 +37,13 @@ html {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.negocio-title-lines {
+  transition-property: max-height;
+  transition-timing-function: ease;
+  transition-duration: 0ms;
+}
+
+.negocio-title-lines--collapse {
+  transition-duration: 280ms;
+}

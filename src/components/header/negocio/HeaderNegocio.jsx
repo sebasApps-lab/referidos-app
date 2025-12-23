@@ -94,6 +94,7 @@ export default function HeaderNegocio({
                   clipPath: expanded
                     ? "none"
                     : "polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%, 10% 50%)",
+                  transition: "clip-path 420ms ease, border-radius 520ms ease",
                 }}
               >
                 {SUBSCRIPTION_DEFAULT}
@@ -115,14 +116,20 @@ export default function HeaderNegocio({
                 ? "top-0 translate-y-[235px] -translate-x-9 text-2xl font-extrabold"
                 : "top-1/2 -translate-y-1/2 translate-x-[22px] text-m font-semibold"
             }`}
-            style={{
-              overflow: "hidden",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-            }}
           >
-            {nombreNegocio}
+            <span
+              className={`negocio-title-lines ${
+                expanded ? "" : "negocio-title-lines--collapse"
+              }`}
+              style={{
+                overflow: "hidden",
+                display: "block",
+                lineHeight: "1.15",
+                maxHeight: expanded ? "2.3em" : "1.15em",
+              }}
+            >
+              {nombreNegocio}
+            </span>
           </button>
         </div>
 
