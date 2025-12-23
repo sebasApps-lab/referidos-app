@@ -85,17 +85,22 @@ export default function HeaderNegocio({
           >
             <div className="relative w-14 h-14">
               <span
-                className="absolute px-3 py-0.5 text-[10px] font-semibold tracking-wide text-white bg-orange-400/50 border border-orange-200/60 pointer-events-none"
+                className={`absolute px-3 py-0.5 text-[10px] font-semibold tracking-wide text-white bg-orange-400/50 border border-orange-200/60 pointer-events-none ${
+                  expanded ? "rounded-md" : ""
+                }`}
                 style={{
                   top: -6,
                   right: -12,
-                  clipPath:
-                    "polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%, 10% 50%)",
+                  clipPath: expanded
+                    ? "none"
+                    : "polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%, 10% 50%)",
                 }}
               >
                 {SUBSCRIPTION_DEFAULT}
                 <span
-                  className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/10 border border-[#FDBA74]"
+                  className={`absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border border-[#FDBA74] ${
+                    expanded ? "hidden" : "bg-transparent"
+                  }`}
                   aria-hidden="true"
                 />
               </span>
