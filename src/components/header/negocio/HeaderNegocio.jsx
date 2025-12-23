@@ -59,28 +59,55 @@ export default function HeaderNegocio({
         onPointerCancel={onSwipeEnd}
       >
         <div className="relative flex-1 min-w-0 h-12">
-          <button
-            type="button"
-            onClick={handleExpand}
-            className={`absolute top-0.5 z-20 w-11 h-11 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center transition-transform duration-300 ${
+          <div
+            className={`absolute top-0.5 z-20 transition-transform duration-300 ${
               expanded
                 ? "translate-x-0 translate-y-[68px] scale-[0.65]"
                 : "translate-x-4 translate-y-0 scale-100"
             }`}
-            aria-label="Abrir negocio"
           >
-            <CategoryIcon size={22} className="text-[#FFC21C]" />
-            <span className="absolute -bottom-2 left-6 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-white/15 border border-white/30 tracking-wide">
-              {SUBSCRIPTION_DEFAULT}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={handleExpand}
+              className="relative w-11 h-11 rounded-xl border-2 border-white/30 bg-white/10 overflow-hidden flex items-center justify-center"
+              aria-label="Abrir negocio"
+            >
+              <CategoryIcon size={22} className="text-[#FFC21C]" />
+            </button>
+          </div>
+
+          <div
+            className={`absolute left-0 top-0.3 z-30 origin-top-left transition-transform duration-300 ${
+              expanded
+              ? "-translate-x-3 translate-y-4 scale-[1.70]"
+              : "translate-x-5 translate-y-0 scale-100"
+            }`}
+          >
+            <div className="relative w-14 h-14">
+              <span
+                className="absolute px-3 py-0.5 text-[10px] font-semibold tracking-wide text-white bg-orange-400/50 border border-orange-200/60 pointer-events-none"
+                style={{
+                  top: -6,
+                  right: -12,
+                  clipPath:
+                    "polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%, 10% 50%)",
+                }}
+              >
+                {SUBSCRIPTION_DEFAULT}
+                <span
+                  className="absolute left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/10 border border-[#FDBA74]"
+                  aria-hidden="true"
+                />
+              </span>
+            </div>
+          </div>
 
           <button
             type="button"
             onClick={handleExpand}
             className={`absolute right-12 z-10 left-[46px] text-left leading-tight transition-all duration-300 origin-left ${
               expanded
-                ? "top-0 translate-y-[78px] translate-x-0 text-2xl font-extrabold"
+                ? "top-0 translate-y-[235px] -translate-x-9 text-2xl font-extrabold"
                 : "top-1/2 -translate-y-1/2 translate-x-[22px] text-m font-semibold"
             }`}
             style={{
@@ -94,9 +121,14 @@ export default function HeaderNegocio({
           </button>
         </div>
 
-        <button onClick={() => onOpenMenu?.()} className="ml-3">
-          <Menu size={28} />
-        </button>
+        <div className="flex items-center gap-5 pr-4">
+          <span className="text-base font-semibold tracking-wide">
+            Referidos App
+          </span>
+          <button onClick={() => onOpenMenu?.()}>
+            <Menu size={28} />
+          </button>
+        </div>
       </div>
 
       <div
