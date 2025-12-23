@@ -49,7 +49,7 @@ export default function MainLayout({ children }) {
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
-          paddingBottom: 64,
+          paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
           paddingTop: headerHeight,
           position: "relative",
         }}
