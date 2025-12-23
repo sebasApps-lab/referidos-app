@@ -20,7 +20,7 @@ const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const HistorialCliente = lazy(() => import("./pages/HistorialCliente"));
 const Escanear = lazy(() => import("./pages/Escanear"));
-const Promos = lazy(() => import("./pages/Promos"));
+const Gestionar = lazy(() => import("./pages/Gestionar"));
 
 export default function AppRoutes() {
   return (
@@ -130,14 +130,14 @@ export default function AppRoutes() {
         }
       />
 
-      {/* PROMOS NEGOCIO */}
+      {/* GESTIONAR NEGOCIO */}
       <Route
-        path="/negocio/mis-promos"
+        path="/negocio/gestionar"
         element={
           <RequireAuth>
             <RequireRole role="negocio">
               <MainLayout>
-                <Promos />
+                <Gestionar />
               </MainLayout>
             </RequireRole>
           </RequireAuth>
