@@ -1,7 +1,7 @@
 // src/components/footer/Footer.jsx
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Tag, QrCode, Camera, Shield, User } from "lucide-react";
+import { Home, Tag, QrCode, Camera, Shield, User, Octagon, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 
@@ -20,6 +20,18 @@ export default function Footer() {
     usuario?.notificaciones?.length ||
     usuario?.notificacionesCount ||
     0;
+
+   // ICONO COMPUESTO 'GESTIONAR'
+  const GestionarIcon = ({ size = 22 }) => (
+    <span
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <Octagon size={size} />
+      <Plus size={Math.round(size * 0.6)} className="absolute" />
+    </span>
+  );
+
 
   // RUTAS INICIO POR ROL
   const HOME_PATHS = {
@@ -50,7 +62,7 @@ export default function Footer() {
     linksMobile = [
       { path: "/negocio/inicio", label: "Inicio", Icon: Home },
       { path: "/negocio/escanear", label: "Escanear", Icon: Camera },
-      { path: "/negocio/mis-promos", label: "Promos", Icon: Tag },
+      { path: "/negocio/gestionar", label: "Gestionar", Icon: GestionarIcon },
       { path: "/negocio/perfil", label: "Perfil", Icon: User },
     ];
   }
@@ -89,7 +101,7 @@ export default function Footer() {
             </motion.div>
 
             <motion.span
-              className="mt-1"
+              className={label === "Gestionar" ? "mt-0" : "mt-1"}
               animate={{
                 opacity: active ? 1 : 0.7,
                 color: active ? "#FFFFFF" : "#CBB3F0",
