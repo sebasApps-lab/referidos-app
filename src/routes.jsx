@@ -14,7 +14,15 @@ const AppGate = lazy(() => import("./pages/AppGate"));
 
 const ClienteHome = lazy(() => import("./pages/ClienteHome"));
 const NegocioHome = lazy(() => import("./pages/NegocioHome"));
-const AdminHome = lazy(() => import("./pages/AdminHome"));
+const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
+const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
+const AdminNegocios = lazy(() => import("./pages/admin/AdminNegocios"));
+const AdminPromos = lazy(() => import("./pages/admin/AdminPromos"));
+const AdminQRs = lazy(() => import("./pages/admin/AdminQRs"));
+const AdminReportes = lazy(() => import("./pages/admin/AdminReportes"));
+const AdminLogs = lazy(() => import("./pages/admin/AdminLogs"));
+const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
+const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
@@ -150,9 +158,87 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="admin">
-              <MainLayout>
-                <AdminHome />
-              </MainLayout>
+              <AdminInicio />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/usuarios"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminUsuarios />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/negocios"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminNegocios />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/promos"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminPromos />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/qrs"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminQRs />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/reportes"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminReportes />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/logs"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminLogs />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/datos"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDatos />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/sistema"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSistema />
             </RequireRole>
           </RequireAuth>
         }
