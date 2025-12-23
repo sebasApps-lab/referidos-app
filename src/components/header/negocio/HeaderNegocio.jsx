@@ -1,5 +1,5 @@
 // src/components/header/HeaderNegocio.jsx
-import React from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Menu, Store, Utensils } from "lucide-react";
 
 const BRAND_PURPLE = "#5E30A5";
@@ -38,6 +38,64 @@ export default function HeaderNegocio({
   const ownerRole = "Propietario";
   const handleExpand = () => setExpanded(true);
   const CategoryIcon = Utensils;
+  const titleMeasureRef = useRef(null);
+  const [splitIndex, setSplitIndex] = useState(null);
+  const [isCollapsing, setIsCollapsing] = useState(false);
+  const [revealActive, setRevealActive] = useState(false);
+
+  const firstPart =
+    typeof splitIndex === "number"
+      ? nombreNegocio.slice(0, splitIndex)
+      : nombreNegocio;
+  const restPart =
+    typeof splitIndex === "number" ? nombreNegocio.slice(splitIndex) : "";
+  const showReveal = !expanded && isCollapsing && restPart.length > 0;
+
+  useLayoutEffect(() => {
+    if (!expanded || !titleMeasureRef.current) return;
+    const node = titleMeasureRef.current;
+    const text = node.textContent || "";
+    const textNode = node.firstChild;
+    if (!text || !textNode) return;
+
+    const range = document.createRange();
+    let low = 0;
+    let high = text.length;
+    let best = text.length;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, mid);
+      const rects = range.getClientRects();
+      if (rects.length <= 1) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    setSplitIndex(best);
+  }, [expanded, nombreNegocio]);
+
+  useEffect(() => {
+    if (expanded) {
+      setIsCollapsing(false);
+      setRevealActive(false);
+      return;
+    }
+
+    setIsCollapsing(true);
+    setRevealActive(false);
+    const raf = requestAnimationFrame(() => setRevealActive(true));
+    const timeout = setTimeout(() => setIsCollapsing(false), 280);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
+  }, [expanded]);
 
   const tornStyle = {
     backgroundColor: BRAND_PURPLE,
@@ -126,7 +184,31 @@ export default function HeaderNegocio({
                 display: "block",
                 lineHeight: "1.15",
                 maxHeight: expanded ? "2.3em" : "1.15em",
+                whiteSpace: expanded ? "normal" : "nowrap",
               }}
+            >
+              {showReveal ? firstPart : nombreNegocio}
+              {showReveal && (
+                <span
+                  className="inline-block align-bottom overflow-hidden"
+                  style={{
+                    maxWidth: revealActive ? "1000px" : "0px",
+                    transition: "max-width 260ms ease",
+                  }}
+                >
+                  {restPart}
+                </span>
+              )}
+            </span>
+            <span
+              ref={titleMeasureRef}
+              className="absolute inset-0 opacity-0 pointer-events-none"
+              style={{
+                display: "block",
+                lineHeight: "1.15",
+                whiteSpace: "normal",
+              }}
+              aria-hidden="true"
             >
               {nombreNegocio}
             </span>
