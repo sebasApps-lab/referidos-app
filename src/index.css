@@ -17,6 +17,7 @@ html, body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  overscroll-behavior-y: contain;
 
   /* Evita zoom por gestos en móvil */
   touch-action: manipulation;
