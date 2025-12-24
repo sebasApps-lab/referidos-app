@@ -72,23 +72,22 @@ html {
   align-items: center;
   width: max-content;
   padding: 6px 12px;
-  border-radius: 9999px;
+  border-radius: 0 0 14px 14px;
   background: #5E30A5;
-  box-shadow: 0 12px 20px rgba(18, 7, 40, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 14px 18px rgba(18, 7, 40, 0.22);
   white-space: nowrap;
 }
 
 .location-surface::before {
   content: "";
   position: absolute;
-  top: -8px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 14px;
+  width: 34px;
+  height: 10px;
   background: #5E30A5;
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 14px 14px;
 }
 
 .location-text-reveal {
@@ -97,7 +96,7 @@ html {
 }
 
 .location-text-reveal[data-state="open"] {
-  animation: location-text-reveal 480ms ease-out 90ms both;
+  animation: location-text-reveal 120ms ease-out 90ms both;
 }
 
 @keyframes location-text-reveal {

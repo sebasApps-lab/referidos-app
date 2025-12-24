@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell, MapPin, Timer } from "lucide-react";
 import {
@@ -15,12 +15,22 @@ export default function ClienteHeader({
 }) {
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationVisible, setLocationVisible] = useState(false);
+  const scrollDistanceRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   const tier = getTierMeta(usuario);
   const displayName = getUserShortName(usuario);
   const notiCount =
     usuario?.notificaciones?.length || usuario?.notificacionesCount || 0;
   const safeAvatar = getAvatarSrc(usuario, avatarSrc);
   const locationLabel = "La Carolina";
+  const scrollCloseThreshold = 38;
+
+  const getScrollTop = (target) => {
+    if (target && typeof target.scrollTop === "number") {
+      return target.scrollTop;
+    }
+    return document.scrollingElement?.scrollTop || window.scrollY || 0;
+  };
 
   useEffect(() => {
     if (locationOpen) return;
@@ -28,6 +38,27 @@ export default function ClienteHeader({
     const id = setTimeout(() => setLocationVisible(false), 240);
     return () => clearTimeout(id);
   }, [locationOpen, locationVisible]);
+
+  useEffect(() => {
+    if (!locationOpen) return undefined;
+    scrollDistanceRef.current = 0;
+    lastScrollTopRef.current = getScrollTop(document.scrollingElement);
+    const handleScroll = (event) => {
+      const current = getScrollTop(event.target);
+      const delta = current - lastScrollTopRef.current;
+      lastScrollTopRef.current = current;
+      if (!Number.isFinite(delta)) return;
+      scrollDistanceRef.current += Math.abs(delta);
+      if (scrollDistanceRef.current >= scrollCloseThreshold) {
+        setLocationOpen(false);
+      }
+    };
+    const captureOpts = { passive: true, capture: true };
+    document.addEventListener("scroll", handleScroll, captureOpts);
+    return () => {
+      document.removeEventListener("scroll", handleScroll, captureOpts);
+    };
+  }, [locationOpen]);
 
   return (
     <div className="bg-[#5E30A5] text-white shadow-sm">
@@ -39,7 +70,7 @@ export default function ClienteHeader({
                 <img
                   src={safeAvatar}
                   alt="avatar"
-                  className="h-11 w-11 rounded-2xl border border-white/20 bg-white object-cover"
+                  className="h-9 w-9 rounded-2xl border border-white/20 bg-white object-cover"
                 />
                 <span
                   className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold"
@@ -79,7 +110,7 @@ export default function ClienteHeader({
                     <MapPin size={14} />
                   </button>
                   {locationVisible && (
-                    <div className="absolute left-1/2 top-full -translate-x-1/2 mt-1 z-20">
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 mt-3 z-20">
                       <div
                         data-state={locationOpen ? "open" : "closed"}
                         className="location-popover"
