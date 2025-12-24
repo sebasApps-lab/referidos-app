@@ -42,7 +42,6 @@ export default function MainLayout({ children }) {
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
-          paddingBottom: 64,
           paddingTop: headerHeight,
           position: "relative",
         }}

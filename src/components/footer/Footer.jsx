@@ -79,7 +79,7 @@ export default function Footer() {
   if (linksMobile.length === 0) return null;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 z-50">
+    <nav className="md:hidden w-full bg-[#5E30A5] border-t border-white/20 shrink-0">
       <div className="flex justify-around py-2">
         {linksMobile.map(({ path, label, Icon, badge }) => {
           const active = isActive(path);
