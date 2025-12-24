@@ -47,96 +47,96 @@ export default function PersonalData({ usuario, setUser, verification }) {
   };
 
   return (
-    <section className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-sm space-y-5">
+    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-[#1D1B1A]">Datos personales</h3>
-        <p className="text-xs text-black/50">
+        <h3 className="text-sm font-semibold text-[#2F1A55]">Datos personales</h3>
+        <p className="text-xs text-slate-500">
           Manten tu informacion actualizada.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Nombres
           </label>
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white/80 px-3 py-2">
-            <User size={16} className="text-black/40" />
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+            <User size={16} className="text-slate-400" />
             <input
               value={form.nombres}
               onChange={handleChange("nombres")}
-              className="w-full bg-transparent text-sm text-black/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Apellidos
           </label>
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white/80 px-3 py-2">
-            <User size={16} className="text-black/40" />
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+            <User size={16} className="text-slate-400" />
             <input
               value={form.apellidos}
               onChange={handleChange("apellidos")}
-              className="w-full bg-transparent text-sm text-black/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Direccion
           </label>
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white/80 px-3 py-2">
-            <MapPin size={16} className="text-black/40" />
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+            <MapPin size={16} className="text-slate-400" />
             <input
               value={form.direccion}
               onChange={handleChange("direccion")}
-              className="w-full bg-transparent text-sm text-black/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Email {verification.emailVerified ? "(verificado)" : "(sin verificar)"}
           </label>
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white/80 px-3 py-2">
-            <Mail size={16} className="text-black/40" />
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+            <Mail size={16} className="text-slate-400" />
             <input
               value={form.email}
               onChange={handleChange("email")}
-              className="w-full bg-transparent text-sm text-black/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
             />
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Telefono {verification.phoneVerified ? "(verificado)" : "(sin verificar)"}
           </label>
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white/80 px-3 py-2">
-            <Phone size={16} className="text-black/40" />
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+            <Phone size={16} className="text-slate-400" />
             <input
               value={form.telefono}
               onChange={handleChange("telefono")}
-              className="w-full bg-transparent text-sm text-black/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {needsSensitiveVerification && (
-        <div className="rounded-2xl border border-[#F59E0B33] bg-[#F59E0B0F] p-4 text-xs text-black/60 space-y-2">
-          <p className="font-semibold text-[#F59E0B]">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-slate-600 space-y-2">
+          <p className="font-semibold text-amber-600">
             Confirmacion requerida para cambios sensibles.
           </p>
           <input
             type="password"
             placeholder="Contrasena actual"
-            className="w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none"
+            className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
           />
           <button
             type="button"
             onClick={() => setConfirmedSensitive(true)}
-            className="rounded-2xl bg-[#1D1B1A] px-3 py-2 text-xs font-semibold text-white"
+            className="rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
           >
             Confirmar con contrasena
           </button>
@@ -148,15 +148,15 @@ export default function PersonalData({ usuario, setUser, verification }) {
           type="button"
           onClick={handleSave}
           disabled={!verifiedForSensitive}
-          className={`rounded-2xl px-4 py-2 text-xs font-semibold shadow ${
+          className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm ${
             verifiedForSensitive
-              ? "bg-[#1D1B1A] text-white"
-              : "bg-black/10 text-black/40 cursor-not-allowed"
+              ? "bg-[#5E30A5] text-white hover:bg-[#4B2488]"
+              : "bg-[#E9E2F7] text-slate-400 cursor-not-allowed"
           }`}
         >
           Guardar cambios
         </button>
-        <span className="text-xs text-black/50">
+        <span className="text-xs text-slate-500">
           {status ||
             (verifiedForSensitive
               ? "Actualiza tu informacion cuando lo necesites."

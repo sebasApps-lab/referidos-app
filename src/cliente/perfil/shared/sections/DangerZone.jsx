@@ -58,13 +58,13 @@ export default function DangerZone({ usuario, setUser }) {
   };
 
   return (
-    <section className="rounded-3xl border border-red-200 bg-red-50 p-6 shadow-sm space-y-5">
+    <section className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm space-y-5">
       <div className="flex items-center gap-2 text-red-600">
         <AlertTriangle size={18} />
         <h3 className="text-sm font-semibold">Zona peligrosa</h3>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-white/80 p-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-black/70">Cerrar sesion</p>
           <p className="text-[11px] text-black/50">
@@ -81,7 +81,7 @@ export default function DangerZone({ usuario, setUser }) {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-white/80 p-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-black/70">Desactivar cuenta</p>
           <p className="text-[11px] text-black/50">

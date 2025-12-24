@@ -27,9 +27,9 @@ export default function PromoCard({ promo, rating, variant = "carousel" }) {
     <div className={wrapperClass}>
       <article
         onClick={goDetalle}
-        className="group cursor-pointer rounded-3xl overflow-hidden border border-white/60 shadow-[0_14px_40px_rgba(15,23,42,0.08)] bg-white/90 transition hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(15,23,42,0.14)]"
+        className="group cursor-pointer rounded-2xl overflow-hidden border border-[#E9E2F7] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
       >
-        <div className="relative h-40 bg-[#ECE7E1]">
+        <div className="relative h-40 bg-[#F8F5FF]">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
@@ -38,13 +38,13 @@ export default function PromoCard({ promo, rating, variant = "carousel" }) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/15 to-transparent" />
           <div className="absolute left-3 top-3 flex items-center gap-2">
-            <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black/70 shadow-sm">
+            <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#5E30A5] shadow-sm">
               {sector}
             </span>
           </div>
           {displayRating && (
-            <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-[#F9D976] px-2 py-1 text-[11px] font-semibold text-black shadow">
-              <Star size={12} className="text-black" />
+            <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] shadow-sm">
+              <Star size={12} className="text-[#5E30A5]" />
               {displayRating}
             </div>
           )}
@@ -52,17 +52,17 @@ export default function PromoCard({ promo, rating, variant = "carousel" }) {
 
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-sm font-semibold text-[#1D1B1A] leading-snug line-clamp-2">
+            <h3 className="text-sm font-semibold text-[#2F1A55] leading-snug line-clamp-2">
               {titulo}
             </h3>
           </div>
 
-          <p className="mt-2 text-xs text-black/60 leading-relaxed line-clamp-3">
+          <p className="mt-2 text-xs text-slate-500 leading-relaxed line-clamp-3">
             {descripcion}
           </p>
 
-          <div className="mt-3 flex items-center justify-between text-xs text-black/50">
-            <span className="inline-flex items-center gap-1 text-[#3D5A80] font-semibold">
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={12} />
               {nombreLocal}
             </span>

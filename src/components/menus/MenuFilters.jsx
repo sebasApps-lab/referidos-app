@@ -8,23 +8,23 @@ export default function MenuFilters({ onClose }) {
   const [orden, setOrden] = useState("");
 
   return (
-    <div className="mx-4 mb-4 rounded-3xl border border-white/60 bg-white/90 shadow-[0_20px_40px_rgba(15,23,42,0.1)] backdrop-blur">
-      <div className="px-5 pt-5 pb-3 border-b border-black/5 flex items-center justify-between">
+    <div className="mx-4 mb-4 rounded-2xl border border-[#E9E2F7] bg-white shadow-sm">
+      <div className="px-5 pt-5 pb-3 border-b border-[#E9E2F7] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="h-9 w-9 rounded-2xl bg-[#E07A5F] text-white flex items-center justify-center">
+          <span className="h-9 w-9 rounded-xl bg-[#5E30A5]/10 text-[#5E30A5] flex items-center justify-center">
             <Filter size={18} />
           </span>
           <div>
-            <p className="text-sm font-semibold text-[#1D1B1A]">Filtros</p>
-            <p className="text-xs text-black/50">
-              Ajusta tus promos favoritas
+            <p className="text-sm font-semibold text-[#2F1A55]">Filtros</p>
+            <p className="text-xs text-slate-500">
+              Ajusta resultados de forma simple
             </p>
           </div>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-xs font-semibold text-black/50 hover:text-black"
+          className="text-xs font-semibold text-slate-400 hover:text-[#5E30A5]"
         >
           Cerrar
         </button>
@@ -32,13 +32,13 @@ export default function MenuFilters({ onClose }) {
 
       <div className="px-5 py-4 grid gap-4">
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Categoria
           </label>
           <select
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+            className="mt-2 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
           >
             <option value="">Todas</option>
             <option>Restaurantes</option>
@@ -50,23 +50,23 @@ export default function MenuFilters({ onClose }) {
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-black/70">Sector</label>
+          <label className="text-xs font-semibold text-[#2F1A55]">Sector</label>
           <input
             value={sector}
             onChange={(e) => setSector(e.target.value)}
             placeholder="Ej. Centro, Norte, Sur"
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+            className="mt-2 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
           />
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Descuento minimo
           </label>
           <select
             value={descuento}
             onChange={(e) => setDescuento(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+            className="mt-2 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
           >
             <option value="">Cualquiera</option>
             <option>10%+</option>
@@ -78,13 +78,13 @@ export default function MenuFilters({ onClose }) {
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-black/70">
+          <label className="text-xs font-semibold text-[#2F1A55]">
             Ordenar por
           </label>
           <select
             value={orden}
             onChange={(e) => setOrden(e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+            className="mt-2 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
           >
             <option value="">Relevancia</option>
             <option>Mayor descuento</option>
@@ -98,7 +98,7 @@ export default function MenuFilters({ onClose }) {
       <div className="px-5 pb-5 flex items-center gap-3">
         <button
           type="button"
-          className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black/60 hover:text-black"
+          className="flex-1 rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-sm font-semibold text-slate-500 hover:text-[#5E30A5]"
           onClick={() => {
             setCategoria("");
             setSector("");
@@ -110,7 +110,7 @@ export default function MenuFilters({ onClose }) {
         </button>
         <button
           type="button"
-          className="flex-1 rounded-2xl bg-[#E07A5F] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          className="flex-1 rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
           onClick={onClose}
         >
           <span className="inline-flex items-center gap-2">

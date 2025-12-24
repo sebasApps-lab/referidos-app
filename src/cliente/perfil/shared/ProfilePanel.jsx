@@ -11,16 +11,16 @@ export default function ProfilePanel({ activeTab, sections, usuario, setUser }) 
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-3xl border border-white/70 bg-white/90 p-4 shadow-sm">
+      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-black/45">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
               Estado de cuenta
             </p>
-            <h2 className="text-base font-semibold text-[#1D1B1A]">
+            <h2 className="text-base font-semibold text-[#2F1A55]">
               {verification.accountVerified ? "Cuenta verificada" : "Cuenta sin verificar"}
             </h2>
-            <p className="text-xs text-black/50">
+            <p className="text-xs text-slate-500">
               Rol: {getRoleLabel(usuario)} - Miembro desde{" "}
               {formatReadableDate(usuario?.created_at || usuario?.createdAt)}
             </p>
@@ -28,8 +28,8 @@ export default function ProfilePanel({ activeTab, sections, usuario, setUser }) 
           <span
             className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
               verification.accountVerified
-                ? "bg-[#10B98122] text-[#10B981]"
-                : "bg-[#F59E0B22] text-[#F59E0B]"
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-amber-50 text-amber-600"
             }`}
           >
             {verification.accountVerified ? "Verificada" : "Sin verificar"}
@@ -40,7 +40,7 @@ export default function ProfilePanel({ activeTab, sections, usuario, setUser }) 
       {Section ? (
         <Section usuario={usuario} setUser={setUser} verification={verification} />
       ) : (
-        <div className="rounded-3xl border border-white/70 bg-white/90 p-6 text-sm text-black/50">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-6 text-sm text-slate-500">
           Selecciona una seccion para continuar.
         </div>
       )}

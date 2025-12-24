@@ -21,7 +21,7 @@ const StatusBanner = ({ status, message }) => {
     valido: { color: "#10B981", text: "Valido" },
     canjeado: { color: "#1DA1F2", text: "Canjeado" },
     expirado: { color: "#EF4444", text: "Expirado" },
-    info: { color: "#E07A5F", text: "Info" },
+    info: { color: "#5E30A5", text: "Info" },
   };
   const cfg = map[status] || map.info;
 
@@ -42,9 +42,9 @@ const StatusBanner = ({ status, message }) => {
 const ResultCard = ({ data }) => {
   if (!data) return null;
   return (
-    <div className="w-full rounded-3xl border border-white/60 bg-white/90 shadow p-4 flex flex-col gap-2">
+    <div className="w-full rounded-2xl border border-[#E9E2F7] bg-white shadow-sm p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-black/50">Estado</p>
+        <p className="text-xs text-slate-500">Estado</p>
         <span
           className="px-3 py-1 rounded-full text-[10px] font-semibold"
           style={{
@@ -67,22 +67,22 @@ const ResultCard = ({ data }) => {
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-[#1D1B1A]">
+        <p className="text-sm font-semibold text-[#2F1A55]">
           {sanitizeText(data.promoTitulo || "Promo")}
         </p>
-        <p className="text-xs text-black/60">
+        <p className="text-xs text-slate-500">
           Cliente: {sanitizeText(data.clienteNombre || data.clienteId || "N/D")}
         </p>
-        <p className="text-xs text-black/60">
+        <p className="text-xs text-slate-500">
           Negocio: {sanitizeText(data.negocioNombre || "N/D")}
         </p>
         {data.status === "valido" && data.expiresAt && (
-          <p className="text-[11px] text-black/45">
+          <p className="text-[11px] text-slate-400">
             Expira: {new Date(data.expiresAt).toLocaleTimeString()}
           </p>
         )}
         {data.status === "canjeado" && data.redeemedAt && (
-          <p className="text-[11px] text-black/45">
+          <p className="text-[11px] text-slate-400">
             Canjeado: {new Date(data.redeemedAt).toLocaleTimeString()}
           </p>
         )}
@@ -173,11 +173,11 @@ export default function EscanerView() {
   return (
     <div className="flex flex-col flex-1 w-full px-4 pb-12 pt-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-base font-semibold text-[#1D1B1A]">
+        <h1 className="text-base font-semibold text-[#2F1A55]">
           {isNegocio ? "Escaner de canje" : "Escanea tu QR"}
         </h1>
         {processing && (
-          <span className="text-xs text-black/50">Procesando...</span>
+          <span className="text-xs text-slate-400">Procesando...</span>
         )}
       </div>
 

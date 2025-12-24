@@ -12,15 +12,15 @@ export default function ProfileTabs({ tabs, active, onChange }) {
             onClick={() => onChange(tab.key)}
             className={`min-w-[180px] md:min-w-0 text-left rounded-2xl border transition ${
               isActive
-                ? "border-black/10 bg-[#1D1B1A] text-white shadow"
-                : "border-white/60 bg-white/90 text-black/60 hover:text-black"
+                ? "border-[#5E30A5] bg-[#5E30A5] text-white shadow-sm"
+                : "border-[#E9E2F7] bg-white text-slate-500 hover:text-[#5E30A5]"
             }`}
           >
             <div className="px-4 py-3 flex items-center gap-3">
               {Icon && (
                 <span
-                  className={`h-9 w-9 rounded-2xl flex items-center justify-center ${
-                    isActive ? "bg-white/15 text-white" : "bg-white text-[#E07A5F]"
+                  className={`h-9 w-9 rounded-xl flex items-center justify-center ${
+                    isActive ? "bg-white/20 text-white" : "bg-[#F3EEFF] text-[#5E30A5]"
                   }`}
                 >
                   <Icon size={18} />

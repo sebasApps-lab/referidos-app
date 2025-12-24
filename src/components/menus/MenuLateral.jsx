@@ -31,7 +31,7 @@ export default function MenuLateral({ visible, onClose }) {
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 backdrop-blur-sm bg-black/40 transition-opacity ${
+        className={`fixed inset-0 bg-black/40 transition-opacity ${
           visible ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         style={{ zIndex: 2000 }}
@@ -43,53 +43,47 @@ export default function MenuLateral({ visible, onClose }) {
         }`}
         style={{ zIndex: 2100 }}
       >
-        <div
-          className="h-full flex flex-col gap-6 p-6 border-l border-white/40 shadow-2xl"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88))",
-          }}
-        >
+        <div className="h-full flex flex-col gap-6 p-6 border-l border-[#E9E2F7] bg-white shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
                 src={getAvatarSrc(usuario)}
                 alt="avatar"
-                className="h-12 w-12 rounded-2xl border border-white shadow-sm object-cover"
+                className="h-12 w-12 rounded-2xl border border-[#E9E2F7] bg-white object-cover"
               />
               <div>
-                <p className="text-sm font-semibold text-[#1D1B1A]">
+                <p className="text-sm font-semibold text-[#2F1A55]">
                   {usuario?.nombre || "Usuario"}
                 </p>
-                <p className="text-xs text-black/50">{getRoleLabel(usuario)}</p>
+                <p className="text-xs text-slate-500">{getRoleLabel(usuario)}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="h-9 w-9 rounded-2xl border border-black/10 bg-white/80 flex items-center justify-center"
+              className="h-9 w-9 rounded-xl border border-[#E9E2F7] bg-white flex items-center justify-center text-slate-400 hover:text-[#5E30A5]"
               aria-label="Cerrar menu"
             >
               <X size={16} />
             </button>
           </div>
 
-          <nav className="flex flex-col gap-3 text-sm text-black/70">
+          <nav className="flex flex-col gap-3 text-sm text-slate-600">
             <Link
               to={`${base}/perfil`}
               onClick={onClose}
-              className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white/80 px-4 py-3 hover:shadow-sm"
+              className="flex items-center gap-3 rounded-xl border border-[#E9E2F7] bg-white px-4 py-3 hover:border-[#5E30A5]/40"
             >
-              <User size={18} className="text-[#3D5A80]" />
+              <User size={18} className="text-[#5E30A5]" />
               Mi perfil
             </Link>
 
             <Link
               to={`${base}/qr-validos`}
               onClick={onClose}
-              className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white/80 px-4 py-3 hover:shadow-sm"
+              className="flex items-center gap-3 rounded-xl border border-[#E9E2F7] bg-white px-4 py-3 hover:border-[#5E30A5]/40"
             >
-              <QrCode size={18} className="text-[#E07A5F]" />
+              <QrCode size={18} className="text-[#5E30A5]" />
               Mis QR validos
             </Link>
           </nav>
@@ -104,7 +98,7 @@ export default function MenuLateral({ visible, onClose }) {
                   navigate("/", { replace: true });
                 }
               }}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
             >
               <LogOut size={18} />
               Cerrar sesion

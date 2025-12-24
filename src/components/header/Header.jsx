@@ -202,13 +202,12 @@ export default function Header({
       )}
 
       <header
-        className={`${isCliente ? "text-[#1D1B1A]" : "text-white"} shadow-md`}
+        className={`${isCliente ? "text-[#2F1A55]" : "text-white"} shadow-md`}
         style={
           isCliente
             ? {
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85))",
-                borderBottom: "1px solid rgba(0,0,0,0.04)",
+                background: "#FFFFFF",
+                borderBottom: "1px solid #E9E2F7",
               }
             : { background: "#5E30A5" }
         }
@@ -254,7 +253,7 @@ export default function Header({
             <Link
               to={homePath}
               className={`text-xl font-bold tracking-wide ${
-                isCliente ? "text-[#1D1B1A]" : "text-white"
+                isCliente ? "text-[#2F1A55]" : "text-white"
               }`}
             >
               Referidos App
@@ -267,8 +266,8 @@ export default function Header({
                   to={link.path}
                   className={`transition-colors ${
                     isCliente
-                      ? `hover:text-[#1D1B1A] ${
-                          isActive(link.path) ? "text-[#E07A5F]" : "text-black/60"
+                      ? `hover:text-[#5E30A5] ${
+                          isActive(link.path) ? "text-[#5E30A5]" : "text-slate-500"
                         }`
                       : `hover:text-[#FFC21C] ${
                           isActive(link.path) ? "text-[#FFC21C]" : ""
@@ -285,7 +284,7 @@ export default function Header({
                 rel="noopener noreferrer"
                 className={`ml-4 font-semibold px-3 py-1 rounded-xl transition ${
                   isCliente
-                    ? "bg-[#1D1B1A] text-white hover:opacity-90"
+                    ? "bg-[#5E30A5] text-white hover:bg-[#4B2488]"
                     : "bg-[#FFC21C] text-[#5E30A5] hover:opacity-90"
                 }`}
               >

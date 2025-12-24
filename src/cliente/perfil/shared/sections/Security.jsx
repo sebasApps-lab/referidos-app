@@ -30,39 +30,39 @@ export default function Security() {
   };
 
   return (
-    <section className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-sm space-y-6">
+    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-[#1D1B1A]">Seguridad</h3>
-        <p className="text-xs text-black/50">
+        <h3 className="text-sm font-semibold text-[#2F1A55]">Seguridad</h3>
+        <p className="text-xs text-slate-500">
           Gestiona metodos de acceso y cuentas vinculadas.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 space-y-3">
-        <p className="text-xs font-semibold text-black/70">Contrasena</p>
+      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 space-y-3">
+        <p className="text-xs font-semibold text-[#2F1A55]">Contrasena</p>
         <input
           type="password"
           placeholder="Contrasena actual"
-          className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70 focus:outline-none"
+          className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
         />
         <input
           type="password"
           placeholder="Nueva contrasena"
-          className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70 focus:outline-none"
+          className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
         />
         <button
           type="button"
-          className="rounded-2xl bg-[#1D1B1A] px-4 py-2 text-xs font-semibold text-white"
+          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
         >
           Cambiar contrasena
         </button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-black/10 bg-white/80 p-4 flex items-center justify-between">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Fingerprint size={18} className="text-[#2D6A6E]" />
-            <span className="text-xs font-semibold text-black/70">
+            <Fingerprint size={18} className="text-[#5E30A5]" />
+            <span className="text-xs font-semibold text-[#2F1A55]">
               Huella
             </span>
           </div>
@@ -70,16 +70,16 @@ export default function Security() {
             type="button"
             onClick={() => verified && setFingerprintEnabled((prev) => !prev)}
             className={`h-8 w-8 rounded-full border ${
-              fingerprintEnabled ? "bg-[#10B981] border-[#10B981]" : "bg-gray-200 border-gray-300"
+              fingerprintEnabled ? "bg-emerald-400 border-emerald-400" : "bg-slate-200 border-slate-300"
             }`}
             aria-label="Toggle huella"
           />
         </div>
 
-        <div className="rounded-2xl border border-black/10 bg-white/80 p-4 flex items-center justify-between">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Lock size={18} className="text-[#C2410C]" />
-            <span className="text-xs font-semibold text-black/70">
+            <Lock size={18} className="text-[#5E30A5]" />
+            <span className="text-xs font-semibold text-[#2F1A55]">
               PIN
             </span>
           </div>
@@ -87,20 +87,20 @@ export default function Security() {
             type="button"
             onClick={() => verified && setPinEnabled((prev) => !prev)}
             className={`h-8 w-8 rounded-full border ${
-              pinEnabled ? "bg-[#10B981] border-[#10B981]" : "bg-gray-200 border-gray-300"
+              pinEnabled ? "bg-emerald-400 border-emerald-400" : "bg-slate-200 border-slate-300"
             }`}
             aria-label="Toggle pin"
           />
         </div>
       </div>
 
-      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 space-y-3">
+      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-black/70">Cuentas vinculadas</p>
+          <p className="text-xs font-semibold text-[#2F1A55]">Cuentas vinculadas</p>
           <button
             type="button"
             onClick={() => setVerified(true)}
-            className="rounded-2xl bg-[#1D1B1A] px-3 py-1 text-[11px] font-semibold text-white"
+            className="rounded-xl bg-[#5E30A5] px-3 py-1 text-[11px] font-semibold text-white"
           >
             Verificar
           </button>
@@ -111,9 +111,9 @@ export default function Security() {
             return (
               <div
                 key={provider}
-                className="flex items-center justify-between rounded-2xl border border-black/5 bg-white px-3 py-2"
+                className="flex items-center justify-between rounded-xl border border-[#E9E2F7] bg-white px-3 py-2"
               >
-                <span className="text-xs text-black/60">{provider}</span>
+                <span className="text-xs text-slate-500">{provider}</span>
                 <button
                   type="button"
                   onClick={() => verified && toggleProvider(provider)}
@@ -129,14 +129,14 @@ export default function Security() {
           })}
         </div>
         {!verified && (
-          <p className="text-[11px] text-black/45">
+          <p className="text-[11px] text-slate-400">
             Verifica para activar cambios en huella, PIN y cuentas vinculadas.
           </p>
         )}
       </div>
 
-      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 flex items-center gap-3 text-xs text-black/55">
-        <KeyRound size={16} className="text-[#3D5A80]" />
+      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
+        <KeyRound size={16} className="text-[#5E30A5]" />
         Cambios sensibles requieren verificacion antes de guardarse.
       </div>
 
@@ -144,15 +144,15 @@ export default function Security() {
         <button
           type="button"
           onClick={handleSave}
-          className={`rounded-2xl px-4 py-2 text-xs font-semibold shadow ${
+          className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm ${
             verified
-              ? "bg-[#1D1B1A] text-white"
-              : "bg-black/10 text-black/40 cursor-not-allowed"
+              ? "bg-[#5E30A5] text-white hover:bg-[#4B2488]"
+              : "bg-[#E9E2F7] text-slate-400 cursor-not-allowed"
           }`}
         >
           Guardar cambios
         </button>
-        <span className="text-xs text-black/50">{status}</span>
+        <span className="text-xs text-slate-500">{status}</span>
       </div>
     </section>
   );

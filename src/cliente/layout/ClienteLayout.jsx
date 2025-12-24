@@ -33,28 +33,14 @@ export default function ClienteLayout({ children }) {
     <div
       className="relative min-h-screen overflow-hidden"
       style={{
-        "--cliente-bg": "#F8F4EE",
-        "--cliente-surface": "#FFFDF9",
-        "--cliente-ink": "#1D1B1A",
-        "--cliente-accent": "#E07A5F",
-        "--cliente-accent-2": "#3D5A80",
-        "--cliente-heading": '"Fraunces", "Manrope", serif',
-        background:
-          "radial-gradient(circle at top, #FFF7EC 0%, #F8F4EE 45%, #F2EAE1 100%)",
-        fontFamily: '"Manrope", "Segoe UI", sans-serif',
+        "--cliente-bg": "#FAF8FF",
+        "--cliente-surface": "#FFFFFF",
+        "--cliente-ink": "#2F1A55",
+        "--cliente-accent": "#5E30A5",
+        "--cliente-accent-2": "#4B2488",
+        background: "#FAF8FF",
       }}
     >
-      <div
-        aria-hidden="true"
-        className="absolute -top-20 -right-20 h-64 w-64 rounded-full blur-3xl opacity-40"
-        style={{ background: "#F2C6A0" }}
-      />
-      <div
-        aria-hidden="true"
-        className="absolute bottom-0 -left-20 h-72 w-72 rounded-full blur-3xl opacity-30"
-        style={{ background: "#BFD7EA" }}
-      />
-
       <div className="relative z-10 flex min-h-screen flex-col">
         <div ref={headerRef} className="fixed top-0 left-0 right-0 z-40">
           <ClienteHeader
@@ -70,7 +56,7 @@ export default function ClienteLayout({ children }) {
           }`}
           style={{
             paddingTop: headerHeight,
-            paddingBottom: "calc(92px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
             minHeight: 0,
             overflowY: "auto",
           }}

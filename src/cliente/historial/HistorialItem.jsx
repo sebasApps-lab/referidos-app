@@ -78,7 +78,7 @@ export default function HistorialItem({ item, variant }) {
 
   return (
     <article
-      className="relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 shadow-sm"
+      className="relative overflow-hidden rounded-2xl border border-[#E9E2F7] bg-white shadow-sm cursor-pointer"
       onClick={goDetalle}
     >
       {variant === "activos" && (
@@ -89,22 +89,22 @@ export default function HistorialItem({ item, variant }) {
 
       <div className="flex gap-4 p-4">
         <div
-          className="h-24 w-24 rounded-2xl bg-[#ECE7E1] bg-cover bg-center flex-shrink-0"
+          className="h-24 w-24 rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
         />
         <div className="flex flex-col gap-2 flex-1">
           <div>
-            <h3 className="text-sm font-semibold text-[#1D1B1A] line-clamp-2">
+            <h3 className="text-sm font-semibold text-[#2F1A55] line-clamp-2">
               {safePromo.titulo}
             </h3>
-            <p className="text-xs text-black/55 line-clamp-2">
+            <p className="text-xs text-slate-500 line-clamp-2">
               {safePromo.descripcion}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-[11px] text-black/50">
-            <span className="inline-flex items-center gap-1 text-[#3D5A80] font-semibold">
+          <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={12} />
               {safePromo.nombreLocal}
             </span>

@@ -110,13 +110,10 @@ export default function ClientePerfil() {
     <div className="px-4 py-6">
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
         <div>
-          <h1
-            className="text-lg font-semibold text-[#1D1B1A]"
-            style={{ fontFamily: "var(--cliente-heading)" }}
-          >
+          <h1 className="text-lg font-semibold text-[#2F1A55]">
             Perfil de cliente
           </h1>
-          <p className="text-xs text-black/50">
+          <p className="text-xs text-slate-500">
             Gestiona tu informacion personal y de seguridad.
           </p>
         </div>

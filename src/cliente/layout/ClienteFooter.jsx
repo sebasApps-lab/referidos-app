@@ -32,16 +32,10 @@ export default function ClienteFooter() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#E9E2F7] bg-white"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div
-        className="flex items-center gap-6 px-5 py-3 rounded-[28px] shadow-lg border border-white/60 backdrop-blur"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86))",
-        }}
-      >
+      <div className="flex items-center justify-around py-2">
         {links.map(({ path, label, Icon, badge }) => {
           const active = isActive(path);
           return (
@@ -53,8 +47,8 @@ export default function ClienteFooter() {
               <motion.div
                 initial={false}
                 animate={{
-                  scale: active ? 1.2 : 1,
-                  color: active ? "#1D1B1A" : "#6B6B6B",
+                  scale: active ? 1.15 : 1,
+                  color: active ? "#5E30A5" : "#94A3B8",
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18 }}
               >
@@ -64,7 +58,7 @@ export default function ClienteFooter() {
                 className="mt-1"
                 animate={{
                   opacity: active ? 1 : 0.7,
-                  color: active ? "#1D1B1A" : "#6B6B6B",
+                  color: active ? "#5E30A5" : "#94A3B8",
                 }}
               >
                 {label}
@@ -72,13 +66,12 @@ export default function ClienteFooter() {
               {active && (
                 <motion.div
                   layoutId="clienteActiveIndicator"
-                  className="absolute -bottom-1 h-1 w-8 rounded-full"
-                  style={{ background: "#E07A5F" }}
+                  className="absolute -bottom-1 h-1 w-8 rounded-full bg-[#5E30A5]"
                   transition={{ type: "spring", stiffness: 240, damping: 18 }}
                 />
               )}
               {badge > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-[#E07A5F] rounded-full shadow">
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-[#5E30A5] rounded-full shadow">
                   {badge > 99 ? "99+" : badge}
                 </span>
               )}

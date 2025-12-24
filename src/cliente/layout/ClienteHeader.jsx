@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Bell, Menu, Sparkles } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import {
   getAvatarSrc,
   getTierMeta,
@@ -22,13 +22,7 @@ export default function ClienteHeader({
   const referidos = formatCompactNumber(usuario?.referidosCount || 0);
 
   return (
-    <div
-      className="border-b border-black/5 shadow-sm backdrop-blur"
-      style={{
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9))",
-      }}
-    >
+    <div className="border-b border-[#E9E2F7] bg-white shadow-sm">
       <div className="max-w-6xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <Link to="/cliente/perfil" className="flex items-center gap-3">
@@ -36,14 +30,13 @@ export default function ClienteHeader({
               <img
                 src={safeAvatar}
                 alt="avatar"
-                className="h-11 w-11 rounded-2xl border border-white shadow-sm object-cover"
+                className="h-11 w-11 rounded-2xl border border-[#E9E2F7] bg-white object-cover"
               />
               <span
                 className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold"
                 style={{
                   background: tier.accent,
                   color: "white",
-                  boxShadow: `0 6px 16px ${tier.glow}`,
                 }}
               >
                 {tier.badge}
@@ -51,28 +44,20 @@ export default function ClienteHeader({
             </div>
 
             <div className="flex flex-col leading-tight">
-              <span className="text-xs uppercase tracking-[0.2em] text-black/45">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-[#5E30A5]/70">
                 Referidos
               </span>
-              <span
-                className="text-base font-semibold"
-                style={{ color: "var(--cliente-ink)" }}
-              >
+              <span className="text-base font-semibold text-[#2F1A55]">
                 {displayName}
               </span>
-              <div className="flex items-center gap-2 text-[11px] text-black/50">
+              <div className="flex items-center gap-2 text-[11px] text-slate-500">
                 <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
-                  style={{
-                    background: `${tier.glow}66`,
-                    color: tier.accent,
-                    border: `1px solid ${tier.glow}`,
-                  }}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[#5E30A5]"
+                  style={{ background: "#F3EEFF" }}
                 >
-                  <Sparkles size={12} />
                   {tier.label}
                 </span>
-                <span className="text-[10px] text-black/40">
+                <span className="text-[10px] text-slate-400">
                   {referidos} referidos
                 </span>
               </div>
@@ -83,12 +68,12 @@ export default function ClienteHeader({
             <button
               type="button"
               onClick={onOpenNotifications}
-              className="relative h-10 w-10 rounded-2xl flex items-center justify-center border border-black/10 bg-white/80 text-black/70 shadow-sm transition hover:shadow-md"
+              className="relative h-10 w-10 rounded-2xl flex items-center justify-center border border-[#E9E2F7] bg-white text-[#5E30A5] shadow-sm transition hover:border-[#5E30A5]/40"
               aria-label="Notificaciones"
             >
               <Bell size={18} />
               {notiCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-[#E07A5F] text-white text-[10px] font-semibold flex items-center justify-center px-1">
+                <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-[#5E30A5] text-white text-[10px] font-semibold flex items-center justify-center px-1">
                   {notiCount > 99 ? "99+" : notiCount}
                 </span>
               )}
@@ -96,7 +81,7 @@ export default function ClienteHeader({
             <button
               type="button"
               onClick={onOpenMenu}
-              className="h-10 w-10 rounded-2xl flex items-center justify-center border border-black/10 bg-white/80 text-black/70 shadow-sm transition hover:shadow-md"
+              className="h-10 w-10 rounded-2xl flex items-center justify-center border border-[#E9E2F7] bg-white text-[#5E30A5] shadow-sm transition hover:border-[#5E30A5]/40"
               aria-label="Abrir menu"
             >
               <Menu size={18} />

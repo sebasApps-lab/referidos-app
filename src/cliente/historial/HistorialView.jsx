@@ -15,17 +15,17 @@ const Tabs = ({ active, onChange }) => {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 rounded-3xl border border-white/60 bg-white/90 p-2 shadow-sm">
+    <div className="flex flex-wrap gap-2 rounded-2xl border border-[#E9E2F7] bg-white p-2 shadow-sm">
       {tabs.map((t) => {
         const isActive = active === t.key;
         return (
           <button
             key={t.key}
             onClick={() => onChange(t.key)}
-            className={`px-4 py-2 rounded-2xl text-xs font-semibold transition ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
               isActive
-                ? "bg-[#1D1B1A] text-white shadow"
-                : "bg-transparent text-black/50 hover:text-black"
+                ? "bg-[#5E30A5] text-white shadow-sm"
+                : "bg-transparent text-slate-500 hover:text-[#5E30A5]"
             }`}
           >
             {t.label}
@@ -93,7 +93,7 @@ export default function HistorialView() {
         </p>
         <Link
           to="/cliente/inicio"
-          className="mt-4 bg-[#1D1B1A] text-white px-4 py-2 rounded-2xl shadow"
+          className="mt-4 bg-[#5E30A5] text-white px-4 py-2 rounded-xl shadow-sm transition hover:bg-[#4B2488]"
         >
           Volver al inicio
         </Link>
@@ -107,13 +107,10 @@ export default function HistorialView() {
     <div className="flex flex-col items-center px-4 py-6 gap-6">
       <div className="w-full max-w-3xl space-y-4">
         <div>
-          <h1
-            className="text-lg font-semibold text-[#1D1B1A]"
-            style={{ fontFamily: "var(--cliente-heading)" }}
-          >
+          <h1 className="text-lg font-semibold text-[#2F1A55]">
             Historial de promos
           </h1>
-          <p className="text-xs text-black/50">
+          <p className="text-xs text-slate-500">
             Consulta los QR activos, canjeados o expirados.
           </p>
         </div>
@@ -121,7 +118,7 @@ export default function HistorialView() {
         <Tabs active={historyTab} onChange={setHistoryTab} />
 
         {loading && (
-          <p className="text-sm text-black/60">Cargando historial...</p>
+          <p className="text-sm text-slate-500">Cargando historial...</p>
         )}
         {error && !loading && (
           <p className="text-sm text-red-500">{error}</p>

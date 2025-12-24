@@ -20,12 +20,12 @@ export default function Sessions() {
   };
 
   return (
-    <section className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-sm space-y-5">
+    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-[#1D1B1A]">
+        <h3 className="text-sm font-semibold text-[#2F1A55]">
           Sesiones y dispositivos
         </h3>
-        <p className="text-xs text-black/50">
+        <p className="text-xs text-slate-500">
           Controla los accesos activos en tu cuenta.
         </p>
       </div>
@@ -36,17 +36,17 @@ export default function Sessions() {
           return (
             <div
               key={session.id}
-              className="rounded-2xl border border-black/10 bg-white/80 p-4 flex items-center justify-between gap-3"
+              className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
-                <span className="h-10 w-10 rounded-2xl bg-[#E07A5F] text-white flex items-center justify-center">
+                <span className="h-10 w-10 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
                   <Icon size={18} />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold text-black/70">
+                  <p className="text-xs font-semibold text-[#2F1A55]">
                     {session.device}
                   </p>
-                  <p className="text-[11px] text-black/45">
+                  <p className="text-[11px] text-slate-400">
                     {session.location} - {session.lastActive}
                   </p>
                 </div>
@@ -54,7 +54,7 @@ export default function Sessions() {
               <button
                 type="button"
                 onClick={() => handleClose(session.id)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-3 py-2 text-[11px] font-semibold text-black/60"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-[11px] font-semibold text-slate-500 hover:text-[#5E30A5]"
               >
                 <LogOut size={14} />
                 Cerrar sesion
@@ -67,7 +67,7 @@ export default function Sessions() {
       <button
         type="button"
         onClick={handleCloseAll}
-        className="rounded-2xl bg-[#1D1B1A] px-4 py-2 text-xs font-semibold text-white"
+        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
       >
         Cerrar todas
       </button>

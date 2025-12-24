@@ -5,11 +5,11 @@ export default function InicioPromos({ sections, ratings }) {
   return (
     <section id="cliente-promos" className="mt-6">
       <div className="px-4 mb-4">
-        <h2 className="text-sm font-semibold text-[#1D1B1A]">
+        <h2 className="text-sm font-semibold text-[#2F1A55]">
           Promos seleccionadas
         </h2>
-        <p className="text-xs text-black/50">
-          Listas pensadas para tu estilo y tu ubicacion.
+        <p className="text-xs text-slate-500">
+          Listas simples y claras para explorar rapido.
         </p>
       </div>
       <div className="space-y-6">

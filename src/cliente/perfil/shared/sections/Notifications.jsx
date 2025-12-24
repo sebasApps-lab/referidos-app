@@ -6,7 +6,7 @@ const Toggle = ({ active, onChange }) => (
     type="button"
     onClick={onChange}
     className={`w-12 h-7 rounded-full border transition flex items-center ${
-      active ? "bg-[#10B981] border-[#10B981] justify-end" : "bg-gray-200 border-gray-300 justify-start"
+      active ? "bg-[#5E30A5] border-[#5E30A5] justify-end" : "bg-slate-200 border-slate-300 justify-start"
     }`}
   >
     <span className="h-5 w-5 rounded-full bg-white shadow-sm mx-1" />
@@ -36,12 +36,12 @@ export default function Notifications() {
   };
 
   return (
-    <section className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-sm space-y-6">
+    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-[#1D1B1A]">
+        <h3 className="text-sm font-semibold text-[#2F1A55]">
           Notificaciones
         </h3>
-        <p className="text-xs text-black/50">
+        <p className="text-xs text-slate-500">
           Elige como quieres recibir tus alertas.
         </p>
       </div>
@@ -53,11 +53,11 @@ export default function Notifications() {
       ].map((item) => (
         <div
           key={item.key}
-          className="rounded-2xl border border-black/10 bg-white/80 p-4 space-y-3"
+          className="rounded-2xl border border-[#E9E2F7] bg-white p-4 space-y-3"
         >
-          <p className="text-xs font-semibold text-black/70">{item.label}</p>
+          <p className="text-xs font-semibold text-[#2F1A55]">{item.label}</p>
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-2 text-xs text-black/55">
+            <span className="inline-flex items-center gap-2 text-xs text-slate-500">
               <Bell size={14} />
               Push
             </span>
@@ -67,7 +67,7 @@ export default function Notifications() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-2 text-xs text-black/55">
+            <span className="inline-flex items-center gap-2 text-xs text-slate-500">
               <Mail size={14} />
               Email
             </span>
@@ -83,11 +83,11 @@ export default function Notifications() {
         <button
           type="button"
           onClick={handleSave}
-          className="rounded-2xl bg-[#1D1B1A] px-4 py-2 text-xs font-semibold text-white shadow"
+          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
         >
           Guardar cambios
         </button>
-        <span className="text-xs text-black/50">{status}</span>
+        <span className="text-xs text-slate-500">{status}</span>
       </div>
     </section>
   );

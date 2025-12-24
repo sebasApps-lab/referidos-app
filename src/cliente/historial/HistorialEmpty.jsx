@@ -9,14 +9,14 @@ const EMPTY_COPY = {
 
 export default function HistorialEmpty({ variant }) {
   return (
-    <div className="rounded-3xl border border-white/70 bg-white/90 p-6 text-center shadow-sm">
-      <div className="mx-auto h-12 w-12 rounded-2xl bg-[#3D5A80] text-white flex items-center justify-center">
+    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-6 text-center shadow-sm">
+      <div className="mx-auto h-12 w-12 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
         <Tag size={20} />
       </div>
-      <p className="mt-3 text-sm font-semibold text-[#1D1B1A]">
+      <p className="mt-3 text-sm font-semibold text-[#2F1A55]">
         {EMPTY_COPY[variant] || EMPTY_COPY.activos}
       </p>
-      <p className="mt-1 text-xs text-black/50">
+      <p className="mt-1 text-xs text-slate-500">
         Tus QR apareceran aqui apenas se generen.
       </p>
     </div>

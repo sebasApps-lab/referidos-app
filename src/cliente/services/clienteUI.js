@@ -6,20 +6,20 @@ const AVATAR_NEUTRAL =
 const TIER_META = {
   explorador: {
     label: "Explorador",
-    accent: "#2D6A6E",
-    glow: "#9FE6E8",
+    accent: "#5E30A5",
+    glow: "#EFE9FA",
     badge: "E",
   },
   impulsor: {
     label: "Impulsor",
-    accent: "#7C3AED",
-    glow: "#D9B8FF",
+    accent: "#4B2488",
+    glow: "#E9E2F7",
     badge: "I",
   },
   embajador: {
     label: "Embajador",
-    accent: "#C2410C",
-    glow: "#FDBA74",
+    accent: "#2F1A55",
+    glow: "#E4DAF2",
     badge: "B",
   },
 };

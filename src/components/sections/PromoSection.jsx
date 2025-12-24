@@ -16,10 +16,10 @@ export default function PromoSection({ title, promos, ratings }) {
           <button
             onClick={() => scroll("left")}
             disabled={!canLeft}
-            className={`h-9 w-9 rounded-2xl border border-black/10 flex items-center justify-center transition ${
+            className={`h-9 w-9 rounded-xl border border-[#E9E2F7] flex items-center justify-center transition ${
               canLeft
-                ? "bg-white text-black shadow-sm hover:shadow-md"
-                : "bg-black/5 text-black/30 cursor-not-allowed"
+                ? "bg-white text-[#5E30A5] shadow-sm hover:border-[#5E30A5]/40"
+                : "bg-[#F8F5FF] text-slate-300 cursor-not-allowed"
             }`}
             aria-label="Anterior"
           >
@@ -28,10 +28,10 @@ export default function PromoSection({ title, promos, ratings }) {
           <button
             onClick={() => scroll("right")}
             disabled={!canRight}
-            className={`h-9 w-9 rounded-2xl border border-black/10 flex items-center justify-center transition ${
+            className={`h-9 w-9 rounded-xl border border-[#E9E2F7] flex items-center justify-center transition ${
               canRight
-                ? "bg-white text-black shadow-sm hover:shadow-md"
-                : "bg-black/5 text-black/30 cursor-not-allowed"
+                ? "bg-white text-[#5E30A5] shadow-sm hover:border-[#5E30A5]/40"
+                : "bg-[#F8F5FF] text-slate-300 cursor-not-allowed"
             }`}
             aria-label="Siguiente"
           >
@@ -43,7 +43,7 @@ export default function PromoSection({ title, promos, ratings }) {
       {canLeft && (
         <button
           onClick={() => scroll("left")}
-          className="md:hidden absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-white/90 p-2 shadow rounded-full border border-white/70"
+          className="md:hidden absolute left-1 top-1/2 -translate-y-1/2 z-20 bg-white p-2 shadow rounded-full border border-[#E9E2F7]"
           aria-label="Anterior"
         >
           <ChevronLeft size={16} />
@@ -53,7 +53,7 @@ export default function PromoSection({ title, promos, ratings }) {
       {canRight && (
         <button
           onClick={() => scroll("right")}
-          className="md:hidden absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-white/90 p-2 shadow rounded-full border border-white/70"
+          className="md:hidden absolute right-1 top-1/2 -translate-y-1/2 z-20 bg-white p-2 shadow rounded-full border border-[#E9E2F7]"
           aria-label="Siguiente"
         >
           <ChevronRight size={16} />

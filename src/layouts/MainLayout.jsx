@@ -30,13 +30,7 @@ export default function MainLayout({ children }) {
         display: "flex",
         flexDirection: "column",
         minHeight: "100dvh",
-        background: isCliente
-          ? "radial-gradient(circle at top, #FFF7EC 0%, #F8F4EE 45%, #F2EAE1 100%)"
-          : "#FFFFFF",
-        fontFamily: isCliente ? '"Manrope", "Segoe UI", sans-serif' : undefined,
-        "--cliente-heading": isCliente
-          ? '"Fraunces", "Manrope", serif'
-          : undefined,
+        background: isCliente ? "#FAF8FF" : "#FFFFFF",
       }}
     >
       {/* HEADER */}
@@ -47,7 +41,7 @@ export default function MainLayout({ children }) {
         onOpenMenu={() => setMenuOpen(true)}
       />
 
-      {/* CONTENIDO (difumina cuando menú está abierto) */}
+      {/* CONTENIDO (difumina cuando menu esta abierto) */}
       <main
         className={`hide-scrollbar transition-all duration-300 ${
           menuOpen ? "blur-sm" : ""

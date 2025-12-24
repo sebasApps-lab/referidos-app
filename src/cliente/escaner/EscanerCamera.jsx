@@ -84,8 +84,7 @@ export default function EscanerCamera({
   return (
     <div className="relative w-full max-w-sm self-center">
       <div
-        className="relative w-full aspect-square rounded-[28px] overflow-hidden shadow-2xl border"
-        style={{ borderColor: "#E07A5F" }}
+        className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-sm border border-[#E9E2F7] bg-white"
       >
         <video
           ref={videoRef}
@@ -95,8 +94,8 @@ export default function EscanerCamera({
           muted
         />
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-full h-1 bg-[#E07A5F] animate-pulse" />
-          <div className="absolute inset-6 rounded-[24px] border border-white/40" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-[#5E30A5] animate-pulse" />
+          <div className="absolute inset-6 rounded-2xl border border-white/40" />
         </div>
       </div>
     </div>

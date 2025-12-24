@@ -74,7 +74,7 @@ export default function ClienteInicio() {
 
       {searching ? (
         <div className="mt-6 px-4">
-          <h3 className="text-sm font-semibold text-[#1D1B1A] mb-3">
+          <h3 className="text-sm font-semibold text-[#2F1A55] mb-3">
             Resultados
           </h3>
           {safeResults.length === 0 ? (
