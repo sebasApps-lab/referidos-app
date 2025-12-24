@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, ListOrdered, MapPin } from "lucide-react";
+import { Bell, MapPin, Timer } from "lucide-react";
 import {
   getAvatarSrc,
   getTierMeta,
@@ -13,13 +13,21 @@ export default function ClienteHeader({
   onOpenMenu,
   onOpenNotifications,
 }) {
-  const [showLocation, setShowLocation] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationVisible, setLocationVisible] = useState(false);
   const tier = getTierMeta(usuario);
   const displayName = getUserShortName(usuario);
   const notiCount =
     usuario?.notificaciones?.length || usuario?.notificacionesCount || 0;
   const safeAvatar = getAvatarSrc(usuario, avatarSrc);
   const locationLabel = "La Carolina";
+
+  useEffect(() => {
+    if (locationOpen) return;
+    if (!locationVisible) return;
+    const id = setTimeout(() => setLocationVisible(false), 240);
+    return () => clearTimeout(id);
+  }, [locationOpen, locationVisible]);
 
   return (
     <div className="bg-[#5E30A5] text-white shadow-sm">
@@ -53,14 +61,45 @@ export default function ClienteHeader({
                 >
                   {displayName}
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setShowLocation((prev) => !prev)}
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-                  aria-label="Mostrar ubicacion"
-                >
-                  <MapPin size={14} />
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!locationOpen) {
+                        setLocationVisible(true);
+                        setLocationOpen(true);
+                      } else {
+                        setLocationOpen(false);
+                      }
+                    }}
+                    className="h-7 w-7 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
+                    aria-label="Mostrar ubicacion"
+                    aria-expanded={locationOpen}
+                  >
+                    <MapPin size={14} />
+                  </button>
+                  {locationVisible && (
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 mt-1 z-20">
+                      <div
+                        data-state={locationOpen ? "open" : "closed"}
+                        className="location-popover"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {}}
+                          className="location-surface"
+                        >
+                          <span
+                            data-state={locationOpen ? "open" : "closed"}
+                            className="location-text-reveal"
+                          >
+                            {locationLabel}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -85,22 +124,11 @@ export default function ClienteHeader({
               className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
               aria-label="En cola"
             >
-              <ListOrdered size={18} />
+              <Timer size={18} />
             </button>
           </div>
         </div>
       </div>
-      {showLocation && (
-        <div className="px-4 pb-3">
-          <button
-            type="button"
-            onClick={() => {}}
-            className="inline-flex items-center text-xs font-semibold text-white/90"
-          >
-            {locationLabel}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
