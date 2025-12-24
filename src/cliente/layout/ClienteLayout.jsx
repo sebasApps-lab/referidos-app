@@ -43,7 +43,7 @@ export default function ClienteLayout({ children }) {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden"
+      className="relative min-h-screen overflow-x-hidden"
       style={{
         "--cliente-bg": "#FAF8FF",
         "--cliente-surface": "#FFFFFF",

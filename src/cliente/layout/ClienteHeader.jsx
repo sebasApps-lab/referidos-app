@@ -25,7 +25,11 @@ export default function ClienteHeader({
   useEffect(() => {
     if (locationOpen) return;
     if (!locationVisible) return;
+<<<<<<< HEAD
     const id = setTimeout(() => setLocationVisible(false), 180);
+=======
+    const id = setTimeout(() => setLocationVisible(false), 240);
+>>>>>>> refactor-ui
     return () => clearTimeout(id);
   }, [locationOpen, locationVisible]);
 
@@ -79,6 +83,7 @@ export default function ClienteHeader({
                     <MapPin size={14} />
                   </button>
                   {locationVisible && (
+<<<<<<< HEAD
                     <div className="absolute left-1/2 top-full -translate-x-1/2 mt-2 z-20">
                       <button
                         type="button"
@@ -93,6 +98,26 @@ export default function ClienteHeader({
                           {locationLabel}
                         </span>
                       </button>
+=======
+                    <div className="absolute left-1/2 top-full -translate-x-1/2 mt-1 z-20">
+                      <div
+                        data-state={locationOpen ? "open" : "closed"}
+                        className="location-popover"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {}}
+                          className="location-surface"
+                        >
+                          <span
+                            data-state={locationOpen ? "open" : "closed"}
+                            className="location-text-reveal"
+                          >
+                            {locationLabel}
+                          </span>
+                        </button>
+                      </div>
+>>>>>>> refactor-ui
                     </div>
                   )}
                 </div>
