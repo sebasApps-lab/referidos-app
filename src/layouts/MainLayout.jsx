@@ -24,14 +24,7 @@ export default function MainLayout({ children }) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100dvh",
-        background: "#FFFFFF",
-      }}
-    >
+    <div className="min-h-dvh safe-area flex flex-col bg-white">
       {/* HEADER */}
       <Header
         usuario={usuario}

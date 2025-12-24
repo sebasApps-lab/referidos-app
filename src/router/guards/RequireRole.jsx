@@ -10,7 +10,7 @@ export default function RequireRole({ children, role }) {
   //Esperar bootstrap
   if (bootstrap || typeof usuario === "undefined") {
     return(
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh safe-area flex flex-col items-center justify-center">
         Cargando...
       </div>
     );

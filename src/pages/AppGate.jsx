@@ -40,7 +40,7 @@ export default function AppGate() {
 
   // Loader simple
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white">
+    <div className="min-h-dvh safe-area flex flex-col items-center justify-center bg-[#5E30A5] text-white">
       Cargando…
     </div>
   );

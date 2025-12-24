@@ -51,7 +51,7 @@ export default function ModalProvider() {
         justifyContent: "center",
         padding: isFullScreenOverlay ? "0" : "24px 14px",
         overflow: "hidden",
-        minHeight: viewportH ? `${viewportH}px` : "100vh",
+        minHeight: viewportH ? `${viewportH}px` : "100dvh",
         height: viewportH ? `${viewportH}px` : "100dvh",
         boxSizing: "border-box",
         zIndex: 9999,

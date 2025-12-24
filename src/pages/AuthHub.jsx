@@ -676,7 +676,7 @@ export default function AuthHub() {
   const primaryEmailDisabled = authTab === "login" ? loginLoading : false;
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-[#5E30A5] p-6 relative">
+    <div className="flex flex-col items-center min-h-dvh safe-area bg-[#5E30A5] p-6 relative">
       <h1 className="text-white text-3xl font-extrabold mt-12 mb-2 text-center">REFERIDOS APP</h1>
 
       {showBackButton && (

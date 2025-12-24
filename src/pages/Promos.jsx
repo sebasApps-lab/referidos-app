@@ -16,7 +16,7 @@ export default function Promos() {
   const { data, usuario } = useContext(AppContext);
 
   return (
-    <div className="min-h-screen bg-white p-4">
+    <div className="min-h-dvh safe-area bg-white p-4">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-[#5E30A5]">Promociones activas</h1>
         <p className="text-sm text-gray-600">Explora o gestiona tus promociones.</p>

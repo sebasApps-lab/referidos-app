@@ -77,7 +77,7 @@ export default function ModalSplashChoiceOverlay({
   };
 
   return (
-    <div className="w-screen h-screen bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
+    <div className="w-screen h-dvh safe-area bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
       <button
         onClick={() => {
           if (onBack) onBack();
