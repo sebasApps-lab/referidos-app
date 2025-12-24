@@ -6,6 +6,7 @@ import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteUI } from "../hooks/useClienteUI";
+import InicioHero from "./InicioHero";
 import InicioBeneficios from "./InicioBeneficios";
 import InicioEmptyState from "./InicioEmptyState";
 import InicioPromosPreview from "./InicioPromosPreview";
@@ -56,6 +57,7 @@ export default function ClienteInicio() {
 
   return (
     <div className="pb-16">
+      <InicioHero usuario={usuario} />
       <div className="mt-6 space-y-4">
         <SearchBar value={query} onChange={setQuery} onFilters={toggleFilters} />
         {filtersOpen && <MenuFilters onClose={() => setFiltersOpen(false)} />}
