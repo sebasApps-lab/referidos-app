@@ -1,63 +1,25 @@
-// src/components/ui/SearchBar.jsx
+import { Search, SlidersHorizontal } from "lucide-react";
+
 export default function SearchBar({ value, onChange, onFilters }) {
   return (
-    <div style={{ padding: "0 16px", marginBottom: 12 }}>
-      <div
-        style={{
-          background: "#F5F5F7",
-          borderRadius: 12,
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          boxShadow: "0 6px 14px rgba(16,24,40,0.03)",
-        }}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          stroke="#5E30A5"
-          strokeWidth="1.8"
-          style={{ marginRight: 10 }}
-          fill="none"
-        >
-          <circle cx="11" cy="11" r="6" />
-          <path d="M21 21l-4.35-4.35" />
-        </svg>
-
+    <div className="px-4">
+      <div className="flex items-center gap-3 rounded-3xl border border-white/60 bg-white/90 px-4 py-3 shadow-[0_12px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+        <span className="text-[#E07A5F]">
+          <Search size={18} />
+        </span>
         <input
-          placeholder="Buscar local"
+          placeholder="Buscar promos o locales"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{
-            border: 0,
-            outline: "none",
-            background: "transparent",
-            fontWeight: 600,
-            color: "#5E30A5",
-            width: "100%",
-          }}
+          className="flex-1 bg-transparent text-sm font-semibold text-[#1D1B1A] placeholder:text-black/40 focus:outline-none"
         />
-
         <button
+          type="button"
           onClick={onFilters}
-          style={{
-            background: "transparent",
-            border: "none",
-            marginLeft: 10,
-            cursor: "pointer",
-          }}
+          className="h-9 w-9 rounded-2xl border border-black/10 bg-white/80 flex items-center justify-center text-black/60 hover:text-black"
+          aria-label="Abrir filtros"
         >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#6B6B6B"
-            strokeWidth="1.6"
-          >
-            <path d="M4 6h16M7 12h10M10 18h4" />
-          </svg>
+          <SlidersHorizontal size={16} />
         </button>
       </div>
     </div>

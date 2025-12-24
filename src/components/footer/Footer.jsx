@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, Tag, QrCode, Camera, Shield, User, Octagon, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
+import ClienteFooter from "../../cliente/layout/ClienteFooter";
 
 export default function Footer() {
   const location = useLocation();
@@ -16,6 +17,10 @@ export default function Footer() {
   if (!usuario.role) return null;
 
   const role = usuario?.role || "cliente";
+
+  if (role === "cliente") {
+    return <ClienteFooter />;
+  }
   const notiCount =
     usuario?.notificaciones?.length ||
     usuario?.notificacionesCount ||

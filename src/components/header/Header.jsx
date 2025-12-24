@@ -47,6 +47,7 @@ export default function Header({
       : AVATAR_MALE;
 
   const role = usuario?.role || "cliente";
+  const isCliente = role === "cliente";
   const HOME_PATHS = {
     cliente: "/cliente/inicio",
     negocio: "/negocio/inicio",
@@ -200,7 +201,18 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-[#5E30A5] text-white shadow-md">
+      <header
+        className={`${isCliente ? "text-[#1D1B1A]" : "text-white"} shadow-md`}
+        style={
+          isCliente
+            ? {
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85))",
+                borderBottom: "1px solid rgba(0,0,0,0.04)",
+              }
+            : { background: "#5E30A5" }
+        }
+      >
         {isNegocio ? (
           <HeaderNegocio
             usuario={usuario}
@@ -239,7 +251,12 @@ export default function Header({
             ref={desktopRef}
             className="hidden md:flex justify-between items-center py-4"
           >
-            <Link to={homePath} className="text-xl font-bold tracking-wide">
+            <Link
+              to={homePath}
+              className={`text-xl font-bold tracking-wide ${
+                isCliente ? "text-[#1D1B1A]" : "text-white"
+              }`}
+            >
               Referidos App
             </Link>
 
@@ -248,8 +265,14 @@ export default function Header({
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`hover:text-[#FFC21C] transition-colors ${
-                    isActive(link.path) ? "text-[#FFC21C]" : ""
+                  className={`transition-colors ${
+                    isCliente
+                      ? `hover:text-[#1D1B1A] ${
+                          isActive(link.path) ? "text-[#E07A5F]" : "text-black/60"
+                        }`
+                      : `hover:text-[#FFC21C] ${
+                          isActive(link.path) ? "text-[#FFC21C]" : ""
+                        }`
                   }`}
                 >
                   {link.label}
@@ -260,7 +283,11 @@ export default function Header({
                 href="https://wa.me/593999999999"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-4 bg-[#FFC21C] text-[#5E30A5] font-semibold px-3 py-1 rounded-xl hover:opacity-90 transition"
+                className={`ml-4 font-semibold px-3 py-1 rounded-xl transition ${
+                  isCliente
+                    ? "bg-[#1D1B1A] text-white hover:opacity-90"
+                    : "bg-[#FFC21C] text-[#5E30A5] hover:opacity-90"
+                }`}
               >
                 Soporte
               </a>

@@ -12,7 +12,10 @@ const Bienvenido = lazy(() => import("./pages/Bienvenido"));
 const AuthHub = lazy(() => import("./pages/AuthHub"));
 const AppGate = lazy(() => import("./pages/AppGate"));
 
-const ClienteHome = lazy(() => import("./pages/ClienteHome"));
+const ClienteInicio = lazy(() => import("./pages/cliente/ClienteInicio"));
+const ClienteEscaner = lazy(() => import("./pages/cliente/ClienteEscaner"));
+const ClienteHistorial = lazy(() => import("./pages/cliente/ClienteHistorial"));
+const ClientePerfil = lazy(() => import("./pages/cliente/ClientePerfil"));
 const NegocioHome = lazy(() => import("./pages/NegocioHome"));
 const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
 const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
@@ -26,7 +29,6 @@ const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 const Perfil = lazy(() => import("./pages/Perfil"));
-const HistorialCliente = lazy(() => import("./pages/HistorialCliente"));
 const Escanear = lazy(() => import("./pages/Escanear"));
 const Gestionar = lazy(() => import("./pages/Gestionar"));
 
@@ -46,9 +48,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <MainLayout>
-                <ClienteHome />
-              </MainLayout>
+              <ClienteInicio />
             </RequireRole>
           </RequireAuth>
         }
@@ -60,9 +60,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <MainLayout>
-                <Escanear />
-              </MainLayout>
+              <ClienteEscaner />
             </RequireRole>
           </RequireAuth>
         }
@@ -74,9 +72,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <MainLayout>
-                <Perfil />
-              </MainLayout>
+              <ClientePerfil />
             </RequireRole>
           </RequireAuth>
         }
@@ -88,9 +84,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <MainLayout>
-                <HistorialCliente />
-              </MainLayout>
+              <ClienteHistorial />
             </RequireRole>
           </RequireAuth>
         }

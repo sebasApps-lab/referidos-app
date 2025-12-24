@@ -11,6 +11,7 @@ export default function MainLayout({ children }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
+  const isCliente = usuario?.role === "cliente";
 
   const [headerHeight, setHeaderHeight] = useState(HEADER_COLLAPSED_HEIGHT);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,7 +30,13 @@ export default function MainLayout({ children }) {
         display: "flex",
         flexDirection: "column",
         minHeight: "100dvh",
-        background: "#FFFFFF",
+        background: isCliente
+          ? "radial-gradient(circle at top, #FFF7EC 0%, #F8F4EE 45%, #F2EAE1 100%)"
+          : "#FFFFFF",
+        fontFamily: isCliente ? '"Manrope", "Segoe UI", sans-serif' : undefined,
+        "--cliente-heading": isCliente
+          ? '"Fraunces", "Manrope", serif'
+          : undefined,
       }}
     >
       {/* HEADER */}

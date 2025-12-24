@@ -1,7 +1,5 @@
-// src/components/menus/MenuFilters.jsx
 import React, { useState } from "react";
-
-const BRAND_PURPLE = "#5E30A5";
+import { Filter, SlidersHorizontal } from "lucide-react";
 
 export default function MenuFilters({ onClose }) {
   const [categoria, setCategoria] = useState("");
@@ -10,78 +8,97 @@ export default function MenuFilters({ onClose }) {
   const [orden, setOrden] = useState("");
 
   return (
-    <div
-      style={{
-        background: "#FFF",
-        borderRadius: 12,
-        padding: 16,
-        margin: "8px 16px",
-        boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-      }}
-    >
-      <h2
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          color: BRAND_PURPLE,
-          marginBottom: 12,
-        }}
-      >
-        Filtros
-      </h2>
-
-      <label style={{ fontSize: 13, fontWeight: 600 }}>Categoría</label>
-      <select
-        value={categoria}
-        onChange={(e) => setCategoria(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="">Todas</option>
-        <option>Restaurantes</option>
-        <option>Moda</option>
-        <option>Tecnología</option>
-        <option>Belleza</option>
-        <option>Educación</option>
-      </select>
-
-      <label style={{ fontSize: 13, fontWeight: 600 }}>Sector</label>
-      <input
-        value={sector}
-        onChange={(e) => setSector(e.target.value)}
-        placeholder="Ej. Centro, Norte, Sur..."
-        style={inputStyle}
-      />
-
-      <label style={{ fontSize: 13, fontWeight: 600 }}>Descuento mínimo</label>
-      <select
-        value={descuento}
-        onChange={(e) => setDescuento(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="">Cualquiera</option>
-        <option>10%+</option>
-        <option>20%+</option>
-        <option>30%+</option>
-        <option>40%+</option>
-        <option>50%+</option>
-      </select>
-
-      <label style={{ fontSize: 13, fontWeight: 600 }}>Ordenar por</label>
-      <select
-        value={orden}
-        onChange={(e) => setOrden(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="">Relevancia</option>
-        <option>Mayor descuento</option>
-        <option>Nuevas</option>
-        <option>Más cercanas</option>
-        <option>Mejor valoradas</option>
-      </select>
-
-      <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+    <div className="mx-4 mb-4 rounded-3xl border border-white/60 bg-white/90 shadow-[0_20px_40px_rgba(15,23,42,0.1)] backdrop-blur">
+      <div className="px-5 pt-5 pb-3 border-b border-black/5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-9 w-9 rounded-2xl bg-[#E07A5F] text-white flex items-center justify-center">
+            <Filter size={18} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-[#1D1B1A]">Filtros</p>
+            <p className="text-xs text-black/50">
+              Ajusta tus promos favoritas
+            </p>
+          </div>
+        </div>
         <button
-          style={btnClearStyle}
+          type="button"
+          onClick={onClose}
+          className="text-xs font-semibold text-black/50 hover:text-black"
+        >
+          Cerrar
+        </button>
+      </div>
+
+      <div className="px-5 py-4 grid gap-4">
+        <div>
+          <label className="text-xs font-semibold text-black/70">
+            Categoria
+          </label>
+          <select
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+          >
+            <option value="">Todas</option>
+            <option>Restaurantes</option>
+            <option>Moda</option>
+            <option>Tecnologia</option>
+            <option>Belleza</option>
+            <option>Educacion</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-black/70">Sector</label>
+          <input
+            value={sector}
+            onChange={(e) => setSector(e.target.value)}
+            placeholder="Ej. Centro, Norte, Sur"
+            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-black/70">
+            Descuento minimo
+          </label>
+          <select
+            value={descuento}
+            onChange={(e) => setDescuento(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+          >
+            <option value="">Cualquiera</option>
+            <option>10%+</option>
+            <option>20%+</option>
+            <option>30%+</option>
+            <option>40%+</option>
+            <option>50%+</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-black/70">
+            Ordenar por
+          </label>
+          <select
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-black/70 focus:outline-none focus:ring-2 focus:ring-[#E07A5F]/40"
+          >
+            <option value="">Relevancia</option>
+            <option>Mayor descuento</option>
+            <option>Nuevas</option>
+            <option>Mas cercanas</option>
+            <option>Mejor valoradas</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="px-5 pb-5 flex items-center gap-3">
+        <button
+          type="button"
+          className="flex-1 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black/60 hover:text-black"
           onClick={() => {
             setCategoria("");
             setSector("");
@@ -91,50 +108,17 @@ export default function MenuFilters({ onClose }) {
         >
           Limpiar
         </button>
-
-        <button style={btnApplyStyle} onClick={onClose}>
-          Aplicar
+        <button
+          type="button"
+          className="flex-1 rounded-2xl bg-[#E07A5F] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90"
+          onClick={onClose}
+        >
+          <span className="inline-flex items-center gap-2">
+            <SlidersHorizontal size={14} />
+            Aplicar
+          </span>
         </button>
       </div>
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: 10,
-  border: "1px solid #CCC",
-  marginBottom: 12,
-  fontSize: 13,
-};
-
-const selectStyle = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: 10,
-  border: "1px solid #CCC",
-  marginBottom: 12,
-  fontSize: 13,
-  background: "#FFF",
-};
-
-const btnApplyStyle = {
-  flex: 1,
-  background: "#5E30A5",
-  color: "white",
-  border: 0,
-  padding: "10px",
-  borderRadius: 10,
-  fontWeight: 600,
-};
-
-const btnClearStyle = {
-  flex: 1,
-  background: "#EEE",
-  color: "#444",
-  border: 0,
-  padding: "10px",
-  borderRadius: 10,
-  fontWeight: 600,
-};
