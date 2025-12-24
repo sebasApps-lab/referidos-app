@@ -4,11 +4,7 @@
   "description": "Promociones y referidos con QR",
   "start_url": "/",
   "scope": "/",
-  "display": "fullscreen",
-  "display_override": [
-    "fullscreen",
-    "standalone"
-  ],
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#5E30A5",
   "theme_color": "#5E30A5",

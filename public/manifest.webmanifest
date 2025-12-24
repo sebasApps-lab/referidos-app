@@ -5,11 +5,7 @@
   "id": "/",
   "start_url": "/",
   "scope": "/",
-  "display": "fullscreen",
-  "display_override": [
-    "fullscreen",
-    "standalone"
-  ],
+  "display": "standalone",
   "background_color": "#5E30A5",
   "theme_color": "#5E30A5",
   "orientation": "portrait",
