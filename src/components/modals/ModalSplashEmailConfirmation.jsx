@@ -61,7 +61,7 @@ export default function ModalSplashEmailConfirmation({
   };
 
   return (
-    <div className="w-screen h-dvh safe-area bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
+    <div className="w-screen h-dvh bg-[#5E30A5] text-white flex items-center justify-center p-6 relative">
       {onSkip && (
         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <button

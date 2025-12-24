@@ -70,7 +70,7 @@ export default function Bienvenido() {
   }, [bootstrap, handleSessionRedirect]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh safe-area bg-[#5E30A5] p-6 pb-28">
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-[#5E30A5] p-6 pb-28">
       <h1 className="text-white text-3xl font-extrabold mb-6">REFERIDOS APP</h1>
 
       <div className="relative w-full max-w-sm">

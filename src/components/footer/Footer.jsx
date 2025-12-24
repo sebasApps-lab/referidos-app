@@ -79,10 +79,7 @@ export default function Footer() {
   if (linksMobile.length === 0) return null;
 
   return (
-    <nav
-      className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 z-50"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
+    <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 z-50">
       <div className="flex justify-around py-2">
         {linksMobile.map(({ path, label, Icon, badge }) => {
           const active = isActive(path);
@@ -131,18 +128,6 @@ export default function Footer() {
           );
         })}
       </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: "calc(-1 * env(safe-area-inset-bottom))",
-          height: "env(safe-area-inset-bottom)",
-          background: "#5E30A5",
-        }}
-      />
     </nav>
   );
 }

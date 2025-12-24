@@ -24,7 +24,7 @@ export default function MainLayout({ children }) {
   }
 
   return (
-    <div className="min-h-dvh safe-area flex flex-col bg-white">
+    <div className="min-h-dvh flex flex-col bg-white">
       {/* HEADER */}
       <Header
         usuario={usuario}
@@ -42,7 +42,7 @@ export default function MainLayout({ children }) {
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
-          paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+          paddingBottom: 64,
           paddingTop: headerHeight,
           position: "relative",
         }}

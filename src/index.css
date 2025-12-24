@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* Safe-area helpers (disabled for now)
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -9,6 +10,7 @@
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
 }
+*/
 
 .min-h-dvh {
   min-height: 100dvh;

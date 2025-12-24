@@ -161,7 +161,7 @@ export default function HistorialCliente() {
 
   if (!usuario) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-dvh safe-area bg-white text-center p-4">
+      <div className="flex flex-col items-center justify-center min-h-dvh bg-white text-center p-4">
         <p className="text-lg text-gray-700">Debes iniciar sesión para ver tu historial.</p>
         <Link
           to="/cliente/inicio"

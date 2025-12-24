@@ -13,7 +13,7 @@ export default function AdminLayout({ children, title, subtitle }) {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-dvh safe-area bg-[#F6F2FB] text-slate-700">
+    <div className="min-h-dvh bg-[#F6F2FB] text-slate-700">
       <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="lg:pl-64">

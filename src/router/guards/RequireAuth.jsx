@@ -9,7 +9,7 @@ export default function RequireAuth({ children }) {
   //Mientras se resuelve sesión + onboarding
   if (bootstrap || typeof usuario === "undefined") {
     return (
-      <div className="min-h-dvh safe-area flex flex-col items-center justify-center">
+      <div className="min-h-dvh flex flex-col items-center justify-center">
         Cargando...
       </div>
     );
