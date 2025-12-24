@@ -80,55 +80,69 @@ export default function Footer() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 flex justify-around py-2 z-50"
-      style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+      className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 z-50"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {linksMobile.map(({ path, label, Icon, badge }) => {
-        const active = isActive(path);
+      <div className="flex justify-around py-2">
+        {linksMobile.map(({ path, label, Icon, badge }) => {
+          const active = isActive(path);
 
-        return (
-          <Link
-            key={path}
-            to={path}
-            className="relative flex flex-col items-center text-[11px] font-medium"
-          >
-            <motion.div
-              initial={false}
-              animate={{
-                scale: active ? 1.2 : 1,
-                color: active ? "#FFFFFF" : "#CBB3F0",
-              }}
-              transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          return (
+            <Link
+              key={path}
+              to={path}
+              className="relative flex flex-col items-center text-[11px] font-medium"
             >
-              <Icon size={22} />
-            </motion.div>
-
-            <motion.span
-              className={label === "Gestionar" ? "mt-0" : "mt-1"}
-              animate={{
-                opacity: active ? 1 : 0.7,
-                color: active ? "#FFFFFF" : "#CBB3F0",
-              }}
-            >
-              {label}
-            </motion.span>
-
-            {active && (
               <motion.div
-                layoutId="activeIndicator"
-                className="absolute -bottom-[2px] w-6 h-[2px] bg-white rounded-full"
-                transition={{ type: "spring", stiffness: 250, damping: 20 }}
-              />
-            )}
+                initial={false}
+                animate={{
+                  scale: active ? 1.2 : 1,
+                  color: active ? "#FFFFFF" : "#CBB3F0",
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 15 }}
+              >
+                <Icon size={22} />
+              </motion.div>
 
-            {badge > 0 && (
-              <span className="absolute -top-1 right-3 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-500 rounded-full shadow">
-                {badge > 99 ? "99+" : badge}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+              <motion.span
+                className={label === "Gestionar" ? "mt-0" : "mt-1"}
+                animate={{
+                  opacity: active ? 1 : 0.7,
+                  color: active ? "#FFFFFF" : "#CBB3F0",
+                }}
+              >
+                {label}
+              </motion.span>
+
+              {active && (
+                <motion.div
+                  layoutId="activeIndicator"
+                  className="absolute -bottom-[2px] w-6 h-[2px] bg-white rounded-full"
+                  transition={{ type: "spring", stiffness: 250, damping: 20 }}
+                />
+              )}
+
+              {badge > 0 && (
+                <span className="absolute -top-1 right-3 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-500 rounded-full shadow">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: "calc(-1 * env(safe-area-inset-bottom))",
+          height: "env(safe-area-inset-bottom)",
+          background: "#5E30A5",
+        }}
+      />
     </nav>
   );
 }
