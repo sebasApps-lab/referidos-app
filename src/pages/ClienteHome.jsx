@@ -5,7 +5,7 @@ import PromoSection from "../components/sections/PromoSection";
 import SearchBar from "../components/ui/SearchBar";
 import { usePromoSearch } from "../hooks/usePromoSearch";
 import MenuFilters from "../components/menus/MenuFilters";
-import PromoCard from "../components/cards/PromoCard";
+import PromoCardCercanas from "../components/cards/PromoCardCercanas";
 import { sanitizeText } from "../utils/sanitize";
 
 export default function ClienteHome() {
@@ -68,7 +68,12 @@ export default function ClienteHome() {
           {searchResults.length === 0 && <p>No se encontró el local.</p>}
 
           {safeResults.map((p) => (
-            <PromoCard key={p.id} promo={p} rating={ratings[p.id]} />
+            <PromoCardCercanas
+              key={p.id}
+              promo={p}
+              rating={ratings[p.id]}
+              className="w-full"
+            />
           ))}
         </div>
       ) : (

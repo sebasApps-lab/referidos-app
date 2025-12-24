@@ -151,6 +151,13 @@ export function getDisplayLocation(usuario) {
   return usuario?.ubicacion || usuario?.ciudad || "Sin ubicacion";
 }
 
+export function getCercanasTitle(usuario) {
+  const hasLocation = Boolean(
+    usuario?.ubicacion || usuario?.ciudad || usuario?.sector || usuario?.lat
+  );
+  return hasLocation ? "Cerca de ti" : "Promociones sugeridas";
+}
+
 export function getSessionListFallback() {
   return [
     {

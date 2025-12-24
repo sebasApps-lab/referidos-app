@@ -2,14 +2,16 @@ import React, { useEffect, useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
 import SearchBar from "../../components/ui/SearchBar";
 import MenuFilters from "../../components/menus/MenuFilters";
-import PromoCard from "../../components/cards/PromoCard";
+import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
+import PromoCardHot from "../../components/cards/PromoCardHot";
+import PromoCardNuevas from "../../components/cards/PromoCardNuevas";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteUI } from "../hooks/useClienteUI";
-import InicioHero from "./InicioHero";
 import InicioPromos from "./InicioPromos";
 import InicioBeneficios from "./InicioBeneficios";
 import InicioEmptyState from "./InicioEmptyState";
+import { getCercanasTitle } from "../services/clienteUI";
 
 export default function ClienteInicio() {
   const { filtersOpen, toggleFilters, setFiltersOpen } = useClienteUI();
@@ -33,9 +35,9 @@ export default function ClienteInicio() {
   const searchResults = filterPromos(promos);
   const searching = query.trim().length > 0;
 
-  const recomendadas = promos.slice(0, 5);
+  const sugeridas = promos.slice(0, 5);
   const hot = promos.slice(5, 10);
-  const cercanas = promos.slice(10, 15);
+  const nuevas = promos.slice(10, 15);
 
   const safeResults = useMemo(
     () =>
@@ -50,9 +52,26 @@ export default function ClienteInicio() {
   );
 
   const sections = [
-    { title: "Promos sugeridas", promos: recomendadas },
-    { title: "Cerca de ti", promos: cercanas },
-    { title: "Hot ahora", promos: hot },
+    {
+      id: "nuevas",
+      title: "Nuevas",
+      promos: nuevas,
+      CardComponent: PromoCardNuevas,
+      autoScroll: true,
+      autoScrollInterval: 5000,
+    },
+    {
+      id: "cercanas",
+      title: getCercanasTitle(usuario),
+      promos: sugeridas,
+      CardComponent: PromoCardCercanas,
+    },
+    {
+      id: "hot",
+      title: "Hot",
+      promos: hot,
+      CardComponent: PromoCardHot,
+    },
   ];
 
   if (loading) {
@@ -65,8 +84,6 @@ export default function ClienteInicio() {
 
   return (
     <div className="pb-16">
-      <InicioHero usuario={usuario} />
-
       <div className="mt-6 space-y-4">
         <SearchBar value={query} onChange={setQuery} onFilters={toggleFilters} />
         {filtersOpen && <MenuFilters onClose={() => setFiltersOpen(false)} />}
@@ -85,11 +102,11 @@ export default function ClienteInicio() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {safeResults.map((p) => (
-                <PromoCard
+                <PromoCardCercanas
                   key={p.id}
                   promo={p}
                   rating={ratings[p.id]}
-                  variant="grid"
+                  className="w-full"
                 />
               ))}
             </div>

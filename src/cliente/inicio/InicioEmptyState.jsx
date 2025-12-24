@@ -20,7 +20,7 @@ export default function InicioEmptyState({ variant = "promos", onClear }) {
 
   return (
     <section className="mt-8 px-4">
-      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-6 text-center shadow-sm">
+      <div className="mx-auto max-w-sm text-center">
         <div className="mx-auto h-14 w-14 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
           <Sparkles size={22} />
         </div>

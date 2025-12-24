@@ -25,6 +25,13 @@ export function useCarousel(ref) {
     setTimeout(update, 200);
   };
 
+  const scrollToStart = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ left: 0, behavior: "smooth" });
+    setTimeout(update, 200);
+  };
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -39,5 +46,5 @@ export function useCarousel(ref) {
     };
   }, [ref]);
 
-  return { canLeft, canRight, scroll };
+  return { canLeft, canRight, scroll, scrollToStart };
 }

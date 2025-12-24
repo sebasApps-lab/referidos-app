@@ -1,12 +1,36 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import PromoCard from "../cards/PromoCard";
+import PromoCardCercanas from "../cards/PromoCardCercanas";
 import SectionTitle from "./SectionTitle";
 import { useCarousel } from "../../hooks/useCarousel";
+import { useAutoCarousel } from "../../hooks/useAutoCarousel";
 
-export default function PromoSection({ title, promos, ratings }) {
+export default function PromoSection({
+  title,
+  promos,
+  ratings,
+  CardComponent = PromoCardCercanas,
+  autoScroll = false,
+  autoScrollInterval = 5000,
+}) {
   const ref = useRef(null);
-  const { canLeft, canRight, scroll } = useCarousel(ref);
+  const { canLeft, canRight, scroll, scrollToStart } = useCarousel(ref);
+
+  useAutoCarousel({
+    enabled: autoScroll && promos?.length > 1,
+    intervalMs: autoScrollInterval,
+    onTick: () => {
+      if (canRight) {
+        scroll("right");
+        return;
+      }
+      if (canLeft) {
+        scrollToStart();
+      }
+    },
+  });
+
+  if (!promos || promos.length === 0) return null;
 
   return (
     <div className="mb-8 relative">
@@ -65,7 +89,7 @@ export default function PromoSection({ title, promos, ratings }) {
         className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth px-2 pt-2"
       >
         {promos.map((p) => (
-          <PromoCard key={p.id} promo={p} rating={ratings[p.id]} />
+          <CardComponent key={p.id} promo={p} rating={ratings?.[p.id]} />
         ))}
       </div>
     </div>

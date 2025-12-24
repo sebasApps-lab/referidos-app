@@ -5,7 +5,7 @@ import { useAppStore } from "../store/appStore";
 import { sanitizeText } from "../utils/sanitize";
 import { getQrHistory } from "../services/qrService";
 import { handleError } from "../utils/errorUtils";
-import PromoCard from "../components/cards/PromoCard";
+import PromoCardCercanas from "../components/cards/PromoCardCercanas";
 
 const VALID_WINDOW_MS = 30 * 60 * 1000;
 
@@ -106,7 +106,11 @@ const CardHistorial = ({ item, variant }) => {
       {variant === "activos" && <PacmanTimer timeLeftMs={item.timeLeftMs} />}
       {variant === "canjeados" && <StatusBadge variant="canjeado" />}
       {variant === "expirados" && <StatusBadge variant="expirado" />}
-      <PromoCard promo={safePromo} rating={item.rating || 4.5} />
+      <PromoCardCercanas
+        promo={safePromo}
+        rating={item.rating || 4.5}
+        className="w-full"
+      />
     </div>
   );
 };
