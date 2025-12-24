@@ -23,8 +23,20 @@ export default function ClienteLayout({ children }) {
 
   useLayoutEffect(() => {
     updateHeaderHeight();
-    window.addEventListener("resize", updateHeaderHeight);
-    return () => window.removeEventListener("resize", updateHeaderHeight);
+    let observer;
+    if (typeof ResizeObserver !== "undefined" && headerRef.current) {
+      observer = new ResizeObserver(() => updateHeaderHeight());
+      observer.observe(headerRef.current);
+    } else {
+      window.addEventListener("resize", updateHeaderHeight);
+    }
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      } else {
+        window.removeEventListener("resize", updateHeaderHeight);
+      }
+    };
   }, [updateHeaderHeight]);
 
   if (bootstrap || typeof usuario === "undefined") return null;

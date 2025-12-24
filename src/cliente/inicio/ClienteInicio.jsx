@@ -3,15 +3,12 @@ import { useAppStore } from "../../store/appStore";
 import SearchBar from "../../components/ui/SearchBar";
 import MenuFilters from "../../components/menus/MenuFilters";
 import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
-import PromoCardHot from "../../components/cards/PromoCardHot";
-import PromoCardNuevas from "../../components/cards/PromoCardNuevas";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteUI } from "../hooks/useClienteUI";
-import InicioPromos from "./InicioPromos";
 import InicioBeneficios from "./InicioBeneficios";
 import InicioEmptyState from "./InicioEmptyState";
-import { getCercanasTitle } from "../services/clienteUI";
+import InicioPromosPreview from "./InicioPromosPreview";
 
 export default function ClienteInicio() {
   const { filtersOpen, toggleFilters, setFiltersOpen } = useClienteUI();
@@ -35,9 +32,7 @@ export default function ClienteInicio() {
   const searchResults = filterPromos(promos);
   const searching = query.trim().length > 0;
 
-  const sugeridas = promos.slice(0, 5);
-  const hot = promos.slice(5, 10);
-  const nuevas = promos.slice(10, 15);
+  const usePromosPreview = true;
 
   const safeResults = useMemo(
     () =>
@@ -50,29 +45,6 @@ export default function ClienteInicio() {
       })),
     [searchResults]
   );
-
-  const sections = [
-    {
-      id: "nuevas",
-      title: "Nuevas",
-      promos: nuevas,
-      CardComponent: PromoCardNuevas,
-      autoScroll: true,
-      autoScrollInterval: 5000,
-    },
-    {
-      id: "cercanas",
-      title: getCercanasTitle(usuario),
-      promos: sugeridas,
-      CardComponent: PromoCardCercanas,
-    },
-    {
-      id: "hot",
-      title: "Hot",
-      promos: hot,
-      CardComponent: PromoCardHot,
-    },
-  ];
 
   if (loading) {
     return (
@@ -112,11 +84,14 @@ export default function ClienteInicio() {
             </div>
           )}
         </div>
-      ) : promos.length === 0 ? (
+      ) : !usePromosPreview && promos.length === 0 ? (
         <InicioEmptyState variant="promos" />
       ) : (
         <>
+          <InicioPromosPreview />
+          {/*
           <InicioPromos sections={sections} ratings={ratings} />
+          */}
           <InicioBeneficios usuario={usuario} />
         </>
       )}
