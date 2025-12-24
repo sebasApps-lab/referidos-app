@@ -48,3 +48,35 @@ html {
 .negocio-title-lines--collapse {
   transition-duration: 280ms;
 }
+
+.location-popover {
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-6px) scaleY(0.96);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.location-popover[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  pointer-events: auto;
+}
+
+.location-text-reveal {
+  display: inline-block;
+  clip-path: inset(0 100% 0 0);
+}
+
+.location-text-reveal[data-state="open"] {
+  animation: location-text-reveal 420ms ease-out 80ms both;
+}
+
+@keyframes location-text-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
