@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
-import SearchBar from "../../components/ui/SearchBar";
 import MenuFilters from "../../components/menus/MenuFilters";
 import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
@@ -57,9 +56,13 @@ export default function ClienteInicio() {
 
   return (
     <div className="pb-16">
-      <InicioHero usuario={usuario} />
-      <div className="mt-6 space-y-4">
-        <SearchBar value={query} onChange={setQuery} onFilters={toggleFilters} />
+      <InicioHero
+        usuario={usuario}
+        searchValue={query}
+        onSearchChange={setQuery}
+        onSearchFilters={toggleFilters}
+      />
+      <div className="mt-4">
         {filtersOpen && <MenuFilters onClose={() => setFiltersOpen(false)} />}
       </div>
 

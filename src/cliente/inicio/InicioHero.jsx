@@ -1,13 +1,19 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Compass, Link2, Rocket, Crown } from "lucide-react";
+import { Compass, Link2, Rocket, Crown } from "lucide-react";
 import {
   formatCompactNumber,
   getTierJourney,
   getTierProgress,
 } from "../services/clienteUI";
+import SearchBar from "../../components/ui/SearchBar";
 
-export default function InicioHero({ usuario, onExplore }) {
+export default function InicioHero({
+  usuario,
+  searchValue,
+  onSearchChange,
+  onSearchFilters,
+}) {
   const { points, progress, nextGoal } = getTierProgress(usuario);
   const { current, next, currentKey, nextKey } = getTierJourney(usuario);
   const iconMap = {
@@ -20,17 +26,6 @@ export default function InicioHero({ usuario, onExplore }) {
   const NextIcon = iconMap[nextKey] || Link2;
   const referidos = Math.min(99, Number(usuario?.referidosCount || 0));
   const referidosDigits = String(referidos).padStart(2, "0").split("");
-
-  const handleExplore = () => {
-    if (onExplore) {
-      onExplore();
-      return;
-    }
-    const target = document.getElementById("cliente-promos");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
 
   return (
     <motion.section
@@ -87,15 +82,12 @@ export default function InicioHero({ usuario, onExplore }) {
             <div className="scoreboard-label">REFERIDOS</div>
           </div>
 
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              onClick={handleExplore}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#5E30A5] shadow-sm transition hover:bg-white/90"
-            >
-              Explorar promociones
-              <ArrowRight size={16} />
-            </button>
+          <div className="mt-5">
+            <SearchBar
+              value={searchValue}
+              onChange={onSearchChange}
+              onFilters={onSearchFilters}
+            />
           </div>
         </div>
       </div>
