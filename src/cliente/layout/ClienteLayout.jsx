@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ClienteHeader from "./ClienteHeader";
 import ClienteFooter from "./ClienteFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
@@ -14,7 +14,9 @@ export default function ClienteLayout({ children }) {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(FALLBACK_HEADER_HEIGHT);
+  const [headerElevated, setHeaderElevated] = useState(false);
   const headerRef = useRef(null);
+  const mainRef = useRef(null);
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerRef.current) return;
@@ -39,6 +41,33 @@ export default function ClienteLayout({ children }) {
     };
   }, [updateHeaderHeight]);
 
+  const updateHeaderElevation = useCallback(() => {
+    const mainTop = mainRef.current?.scrollTop || 0;
+    const docTop =
+      document.scrollingElement?.scrollTop || window.scrollY || 0;
+    const next = mainTop > 0 || docTop > 0;
+    setHeaderElevated((prev) => (prev === next ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    updateHeaderElevation();
+    const current = mainRef.current;
+    if (current) {
+      current.addEventListener("scroll", updateHeaderElevation, {
+        passive: true,
+      });
+    }
+    window.addEventListener("scroll", updateHeaderElevation, {
+      passive: true,
+    });
+    return () => {
+      if (current) {
+        current.removeEventListener("scroll", updateHeaderElevation);
+      }
+      window.removeEventListener("scroll", updateHeaderElevation);
+    };
+  }, [updateHeaderElevation]);
+
   if (bootstrap || typeof usuario === "undefined") return null;
 
   return (
@@ -59,10 +88,12 @@ export default function ClienteLayout({ children }) {
             usuario={usuario}
             avatarSrc={getAvatarSrc(usuario)}
             onOpenMenu={() => setMenuOpen(true)}
+            isElevated={headerElevated}
           />
         </div>
 
         <main
+          ref={mainRef}
           className={`hide-scrollbar flex-1 transition-all duration-300 ${
             menuOpen ? "blur-sm" : ""
           }`}

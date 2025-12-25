@@ -12,6 +12,7 @@ export default function ClienteHeader({
   avatarSrc,
   onOpenMenu,
   onOpenNotifications,
+  isElevated = false,
 }) {
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationVisible, setLocationVisible] = useState(false);
@@ -60,8 +61,12 @@ export default function ClienteHeader({
     };
   }, [locationOpen]);
 
+  const headerClass = isElevated
+    ? "bg-[#5E30A5] text-white shadow-[0_14px_28px_rgba(20,7,44,0.45)]"
+    : "bg-[#5E30A5] text-white shadow-none";
+
   return (
-    <div className="bg-[#5E30A5] text-white shadow-sm">
+    <div className={headerClass}>
       <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
