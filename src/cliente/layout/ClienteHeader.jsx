@@ -97,50 +97,50 @@ export default function ClienteHeader({
                 >
                   {displayName}
                 </Link>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!locationOpen) {
-                        setLocationVisible(true);
-                        setLocationOpen(true);
-                      } else {
-                        setLocationOpen(false);
-                      }
-                    }}
-                    className="h-7 w-7 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-                    aria-label="Mostrar ubicacion"
-                    aria-expanded={locationOpen}
-                  >
-                    <MapPin size={14} />
-                  </button>
-                  {locationVisible && (
-                    <div className="absolute left-1/2 top-full -translate-x-1/2 mt-3 z-20">
-                      <div
-                        data-state={locationOpen ? "open" : "closed"}
-                        className="location-popover"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {}}
-                          className="location-surface"
-                        >
-                          <span
-                            data-state={locationOpen ? "open" : "closed"}
-                            className="location-text-reveal"
-                          >
-                            {locationLabel}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-1">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!locationOpen) {
+                    setLocationVisible(true);
+                    setLocationOpen(true);
+                  } else {
+                    setLocationOpen(false);
+                  }
+                }}
+                className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
+                aria-label="Mostrar ubicacion"
+                aria-expanded={locationOpen}
+              >
+                <MapPin size={18} />
+              </button>
+              {locationVisible && (
+                <div className="absolute left-1/2 top-full -translate-x-1/2 z-20">
+                  <div
+                    data-state={locationOpen ? "open" : "closed"}
+                    className="location-popover"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {}}
+                      className="location-surface"
+                    >
+                      <span
+                        data-state={locationOpen ? "open" : "closed"}
+                        className="location-text-reveal"
+                      >
+                        {locationLabel}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={onOpenNotifications}
