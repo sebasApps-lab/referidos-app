@@ -5,7 +5,7 @@ export default function SearchBar({ value, onChange, onFilters }) {
         style={{
           background: "#F5F5F7",
           borderRadius: 9999,
-          padding: "8px 14px",
+          padding: "7px 14px",
           display: "flex",
           alignItems: "center",
           boxShadow: "0 6px 14px rgba(16,24,40,0.03)",

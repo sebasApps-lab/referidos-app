@@ -37,7 +37,7 @@ export default function InicioHero({
       data-hero-container
     >
       <div className="hero-bleed text-white shadow-sm">
-        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-4">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-3">
           <div className="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
             <div
               className="h-full rounded-full"
