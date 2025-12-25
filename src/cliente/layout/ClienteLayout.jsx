@@ -79,6 +79,7 @@ export default function ClienteLayout({ children }) {
         "--cliente-ink": "#2F1A55",
         "--cliente-accent": "#5E30A5",
         "--cliente-accent-2": "#4B2488",
+        "--cliente-header-height": `${headerHeight}px`,
         background: "#FAF8FF",
       }}
     >
@@ -94,6 +95,7 @@ export default function ClienteLayout({ children }) {
 
         <main
           ref={mainRef}
+          id="cliente-main-scroll"
           className={`hide-scrollbar flex-1 transition-all duration-300 ${
             menuOpen ? "blur-sm" : ""
           }`}

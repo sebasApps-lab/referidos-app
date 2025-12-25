@@ -62,11 +62,11 @@ export default function ClienteHeader({
   }, [locationOpen]);
 
   const headerClass = isElevated
-    ? "bg-[#5E30A5] text-white shadow-[0_14px_28px_rgba(20,7,44,0.45)]"
-    : "bg-[#5E30A5] text-white shadow-none";
+    ? "relative bg-[#5E30A5] text-white shadow-md"
+    : "relative bg-[#5E30A5] text-white shadow-none";
 
   return (
-    <div className={headerClass}>
+    <div id="cliente-header" className={headerClass}>
       <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -165,6 +165,10 @@ export default function ClienteHeader({
           </div>
         </div>
       </div>
+      <div
+        id="cliente-header-search-dock"
+        className="absolute left-0 right-0 top-full z-40"
+      />
     </div>
   );
 }

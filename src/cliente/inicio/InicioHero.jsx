@@ -13,6 +13,7 @@ export default function InicioHero({
   searchValue,
   onSearchChange,
   onSearchFilters,
+  hideSearch = false,
 }) {
   const { points, progress, nextGoal } = getTierProgress(usuario);
   const { current, next, currentKey, nextKey } = getTierJourney(usuario);
@@ -33,9 +34,10 @@ export default function InicioHero({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
       className="pt-0"
+      data-hero-container
     >
-      <div className="relative bg-[#5E30A5] text-white rounded-b-4xl shadow-sm">
-        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-4 pt-[15px]">
+      <div className="hero-bleed text-white shadow-sm">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-4">
           <div className="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
             <div
               className="h-full rounded-full"
@@ -82,7 +84,12 @@ export default function InicioHero({
             <div className="scoreboard-label">REFERIDOS</div>
           </div>
 
-          <div className="mt-5">
+          <div
+            className="mt-5"
+            data-hero-searchbar
+            aria-hidden={hideSearch}
+            style={{ visibility: hideSearch ? "hidden" : "visible" }}
+          >
             <SearchBar
               value={searchValue}
               onChange={onSearchChange}
