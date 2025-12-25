@@ -26,7 +26,6 @@ export default function InicioHero({
   const CurrentIcon = iconMap[currentKey] || Compass;
   const NextIcon = iconMap[nextKey] || Link2;
   const referidos = Math.min(99, Number(usuario?.referidosCount || 0));
-  const referidosDigits = String(referidos).padStart(2, "0").split("");
 
   return (
     <motion.section
@@ -38,15 +37,20 @@ export default function InicioHero({
     >
       <div className="hero-bleed text-white shadow-sm">
         <div className="relative z-10 max-w-6xl mx-auto px-4 pb-3">
-          <div className="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.round(progress * 100)}%`,
-                background:
-                  "linear-gradient(90deg, rgba(255,255,255,0.85), #FFFFFF)",
-              }}
-            />
+          <div className="relative h-5 w-full rounded-full bg-white/15 overflow-hidden">
+            <div className="absolute inset-0">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.round(progress * 100)}%`,
+                  background:
+                    "linear-gradient(90deg, rgba(255,255,255,0.85), #FFFFFF)",
+                }}
+              />
+            </div>
+            <div className="relative z-10 flex h-full items-center justify-end pr-3 text-[11px] font-medium text-white/85">
+              {formatCompactNumber(points)} / {formatCompactNumber(nextGoal)}
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-3 items-end gap-3">
@@ -59,8 +63,15 @@ export default function InicioHero({
                 Actual
               </span>
             </div>
-            <div className="text-center text-xs text-white/80">
-              {formatCompactNumber(points)} / {formatCompactNumber(nextGoal)}
+            <div className="relative flex justify-center -top-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#E5D6FF] -mt-0.5">
+                <span className="flex items-center gap-2 text-[11px] font-semibold text-[#E5D6FF]">
+                  Referidos
+                </span>
+                <span className="text-[11px] font-semibold text-[#E5D6FF]">
+                  {referidos}
+                </span>
+              </div>
             </div>
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-2 text-xs font-semibold text-white/70">
@@ -73,15 +84,10 @@ export default function InicioHero({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <div className="scoreboard">
-              {referidosDigits.map((digit, index) => (
-                <div key={`${digit}-${index}`} className="scoreboard-digit">
-                  <span className="scoreboard-digit-text">{digit}</span>
-                </div>
-              ))}
-            </div>
-            <div className="scoreboard-label">REFERIDOS</div>
+          <div className="mt-4 flex justify-center">
+            <p className="max-w-[275px] text-center text-[18px] font-light leading-snug text-white">
+              Encuentra promos y suma puntos sin complicarte.
+            </p>
           </div>
 
           <div
