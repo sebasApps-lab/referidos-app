@@ -34,8 +34,8 @@ export default function InicioHero({
       transition={{ duration: 0.6 }}
       className="pt-0"
     >
-      <div className="relative bg-[#5E30A5] text-white rounded-b-2xl shadow-sm">
-        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-[15px]">
+      <div className="relative bg-[#5E30A5] text-white rounded-b-4xl shadow-sm">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-4 pt-[15px]">
           <div className="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
             <div
               className="h-full rounded-full"
