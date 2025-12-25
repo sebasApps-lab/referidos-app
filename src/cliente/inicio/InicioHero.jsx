@@ -5,13 +5,11 @@ import {
   formatCompactNumber,
   getTierMeta,
   getTierProgress,
-  getUserShortName,
 } from "../services/clienteUI";
 
 export default function InicioHero({ usuario, onExplore }) {
   const tier = getTierMeta(usuario);
   const { points, nextGoal, progress } = getTierProgress(usuario);
-  const displayName = getUserShortName(usuario);
 
   const handleExplore = () => {
     if (onExplore) {
@@ -29,31 +27,22 @@ export default function InicioHero({ usuario, onExplore }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="px-4 pt-6"
+      className="pt-0"
     >
-      <div className="relative overflow-hidden rounded-2xl border border-[#E9E2F7] bg-white shadow-sm">
-        <div className="relative z-10 p-6">
+      <div className="relative bg-white border-b border-[#E9E2F7] rounded-b-2xl shadow-sm">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 py-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-[#5E30A5]/70">
-                Hola, {displayName}
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold text-[#2F1A55] leading-snug">
+              <h1 className="text-2xl font-semibold text-[#2F1A55] leading-snug">
                 Encuentra promos y suma puntos sin complicarte.
               </h1>
             </div>
 
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-center">
+            <div className="flex flex-col items-start gap-1">
               <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
                 Tu tier
               </span>
-              <div
-                className="flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold"
-                style={{
-                  background: "#F3EEFF",
-                  color: tier.accent,
-                }}
-              >
+              <div className="flex items-center gap-2 text-sm font-semibold text-[#5E30A5]">
                 <Sparkles size={14} />
                 {tier.label}
               </div>
@@ -63,8 +52,8 @@ export default function InicioHero({ usuario, onExplore }) {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-3 rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3">
+          <div className="mt-4 flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
               <div className="text-2xl font-semibold text-[#5E30A5]">
                 {formatCompactNumber(usuario?.referidosCount || 0)}
               </div>
@@ -89,7 +78,7 @@ export default function InicioHero({ usuario, onExplore }) {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleExplore}
