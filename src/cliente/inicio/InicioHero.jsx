@@ -1,16 +1,25 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Compass, Link2, Rocket, Crown } from "lucide-react";
 import {
   formatCompactNumber,
-  getTierMeta,
+  getTierJourney,
   getTierProgress,
 } from "../services/clienteUI";
 
 export default function InicioHero({ usuario, onExplore }) {
-  const tier = getTierMeta(usuario);
-  const { points, progress } = getTierProgress(usuario);
-  const nextTierLabel = "Conector";
+  const { points, progress, nextGoal } = getTierProgress(usuario);
+  const { current, next, currentKey, nextKey } = getTierJourney(usuario);
+  const iconMap = {
+    explorador: Compass,
+    conector: Link2,
+    impulsor: Rocket,
+    embajador: Crown,
+  };
+  const CurrentIcon = iconMap[currentKey] || Compass;
+  const NextIcon = iconMap[nextKey] || Link2;
+  const referidos = Math.min(99, Number(usuario?.referidosCount || 0));
+  const referidosDigits = String(referidos).padStart(2, "0").split("");
 
   const handleExplore = () => {
     if (onExplore) {
@@ -30,37 +39,52 @@ export default function InicioHero({ usuario, onExplore }) {
       transition={{ duration: 0.6 }}
       className="pt-0"
     >
-      <div className="relative bg-white border-b border-[#E9E2F7] rounded-b-2xl shadow-sm">
-        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-[5px]">
-          <div className="h-2 w-full rounded-full bg-[#F3EEFF] overflow-hidden">
+      <div className="relative bg-[#5E30A5] text-white rounded-b-2xl shadow-sm">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-[15px]">
+          <div className="h-2.5 w-full rounded-full bg-white/20 overflow-hidden">
             <div
               className="h-full rounded-full"
               style={{
                 width: `${Math.round(progress * 100)}%`,
-                background: "#5E30A5",
+                background:
+                  "linear-gradient(90deg, rgba(255,255,255,0.85), #FFFFFF)",
               }}
             />
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-              <Sparkles size={14} />
-              {nextTierLabel}
+          <div className="mt-3 grid grid-cols-3 items-end gap-3">
+            <div className="flex flex-col items-start gap-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                <CurrentIcon size={14} />
+                {current.label}
+              </div>
+              <span className="text-[9px] uppercase tracking-[0.2em] text-white/60">
+                Actual
+              </span>
             </div>
-            <div className="text-lg font-semibold text-[#2F1A55]">
-              {formatCompactNumber(points)}
+            <div className="text-center text-xs text-white/80">
+              {formatCompactNumber(points)} / {formatCompactNumber(nextGoal)}
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#5E30A5]">
-              <Sparkles size={14} />
-              {tier.label}
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-white/70">
+                <NextIcon size={14} />
+                {next.label}
+              </div>
+              <span className="text-[9px] uppercase tracking-[0.2em] text-white/60">
+                Siguiente
+              </span>
             </div>
           </div>
 
           <div className="mt-4 flex flex-col items-center text-center">
-            <div className="text-2xl font-semibold text-[#5E30A5]">
-              {formatCompactNumber(usuario?.referidosCount || 0)}
+            <div className="scoreboard">
+              {referidosDigits.map((digit, index) => (
+                <div key={`${digit}-${index}`} className="scoreboard-digit">
+                  <span className="scoreboard-digit-text">{digit}</span>
+                </div>
+              ))}
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="mt-2 text-xs text-white/70">
               Referidos acumulados
             </div>
           </div>
@@ -69,7 +93,7 @@ export default function InicioHero({ usuario, onExplore }) {
             <button
               type="button"
               onClick={handleExplore}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#5E30A5] shadow-sm transition hover:bg-white/90"
             >
               Explorar promociones
               <ArrowRight size={16} />

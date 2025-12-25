@@ -10,6 +10,12 @@ const TIER_META = {
     glow: "#EFE9FA",
     badge: "E",
   },
+  conector: {
+    label: "Conector",
+    accent: "#4B2488",
+    glow: "#E9E2F7",
+    badge: "C",
+  },
   impulsor: {
     label: "Impulsor",
     accent: "#4B2488",
@@ -29,6 +35,8 @@ const ROLE_LABELS = {
   negocio: "Negocio",
   admin: "Admin",
 };
+
+const TIER_ORDER = ["explorador", "conector", "impulsor", "embajador"];
 
 export function formatCompactNumber(value) {
   const number = Number(value);
@@ -64,11 +72,30 @@ export function getRoleLabel(usuario) {
 }
 
 export function getTierMeta(usuario) {
+  const key = getTierKey(usuario);
+  return TIER_META[key] || TIER_META.explorador;
+}
+
+export function getTierKey(usuario) {
   const raw =
     (usuario?.tier || usuario?.nivel || usuario?.plan || "explorador")
       .toString()
       .toLowerCase();
-  return TIER_META[raw] || TIER_META.explorador;
+  return TIER_ORDER.includes(raw) ? raw : "explorador";
+}
+
+export function getTierJourney(usuario) {
+  const currentKey = getTierKey(usuario);
+  const currentIndex = TIER_ORDER.indexOf(currentKey);
+  const nextIndex =
+    currentIndex >= 0 ? Math.min(currentIndex + 1, TIER_ORDER.length - 1) : 0;
+  const nextKey = TIER_ORDER[nextIndex];
+  return {
+    currentKey,
+    nextKey,
+    current: TIER_META[currentKey] || TIER_META.explorador,
+    next: TIER_META[nextKey] || TIER_META.explorador,
+  };
 }
 
 export function getTierProgress(usuario) {
