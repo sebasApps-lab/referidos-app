@@ -76,7 +76,7 @@ export default function InicioHero({ usuario, onExplore }) {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col items-center text-center">
+          <div className="mt-4 flex items-center justify-center gap-3">
             <div className="scoreboard">
               {referidosDigits.map((digit, index) => (
                 <div key={`${digit}-${index}`} className="scoreboard-digit">
@@ -84,9 +84,7 @@ export default function InicioHero({ usuario, onExplore }) {
                 </div>
               ))}
             </div>
-            <div className="mt-2 text-xs text-white/70">
-              Referidos acumulados
-            </div>
+            <div className="scoreboard-label">REFERIDOS</div>
           </div>
 
           <div className="mt-4 flex justify-center">
