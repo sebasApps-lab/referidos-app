@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import PromoCardCercanas from "../cards/PromoCardCercanas";
 import SectionTitle from "./SectionTitle";
@@ -12,21 +12,39 @@ export default function PromoSection({
   CardComponent = PromoCardCercanas,
   autoScroll = false,
   autoScrollInterval = 5000,
-  loop = false,
+  loop = true,
   loopPeek = 0,
 }) {
   const ref = useRef(null);
+  const [autoActive, setAutoActive] = useState(true);
+  const resumeTimerRef = useRef(null);
+  const resumeDelayMs = 4000;
   const loopEnabled = loop && promos?.length > 1;
   const { canLeft, canRight, scroll, scrollToStart } = useCarousel(ref, {
     loop: loopEnabled,
     itemsCount: promos?.length || 0,
     loopPeek,
+    onInteract: () => {
+      if (!autoScroll) return;
+      setAutoActive(false);
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current);
+      }
+      resumeTimerRef.current = setTimeout(() => {
+        setAutoActive(true);
+        scroll("right");
+      }, resumeDelayMs);
+    },
   });
 
   useAutoCarousel({
-    enabled: autoScroll && promos?.length > 1,
+    enabled: autoScroll && promos?.length > 1 && autoActive,
     intervalMs: autoScrollInterval,
     onTick: () => {
+      if (loopEnabled) {
+        scroll("right");
+        return;
+      }
       if (canRight) {
         scroll("right");
         return;
@@ -38,6 +56,14 @@ export default function PromoSection({
   });
 
   if (!promos || promos.length === 0) return null;
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current) {
+        clearTimeout(resumeTimerRef.current);
+      }
+    };
+  }, []);
 
   const renderItems = loopEnabled
     ? [0, 1, 2].flatMap((loopIndex) =>

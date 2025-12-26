@@ -3,12 +3,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 export function useCarousel(
   ref,
-  { loop = false, itemsCount = 0, loopPeek = 0 } = {}
+  { loop = false, itemsCount = 0, loopPeek = 0, onInteract } = {}
 ) {
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
   const loopInitRef = useRef(false);
   const segmentRef = useRef(0);
+  const jumpingRef = useRef(false);
   const loopEnabled = loop && itemsCount > 1;
 
   const getSegment = useCallback((el) => {
@@ -36,19 +37,33 @@ export function useCarousel(
     loopInitRef.current = true;
   }, [getPeek, getSegment, loopEnabled, ref]);
 
+  const jumpTo = useCallback((el, nextLeft) => {
+    if (!el || jumpingRef.current) return;
+    jumpingRef.current = true;
+    const prevBehavior = el.style.scrollBehavior;
+    el.style.scrollBehavior = "auto";
+    el.scrollLeft = nextLeft;
+    requestAnimationFrame(() => {
+      el.style.scrollBehavior = prevBehavior || "";
+      jumpingRef.current = false;
+    });
+  }, []);
+
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
 
     if (loopEnabled) {
+      if (jumpingRef.current) return;
       const segment = segmentRef.current || getSegment(el);
       if (segment) {
         segmentRef.current = segment;
-        const boundary = Math.min(48, segment * 0.08);
+        const peek = getPeek(el);
+        const boundary = Math.max(4, Math.min(24, Math.floor(peek * 0.5) || 12));
         if (el.scrollLeft <= boundary) {
-          el.scrollLeft += segment;
+          jumpTo(el, el.scrollLeft + segment);
         } else if (el.scrollLeft >= segment * 2 + boundary) {
-          el.scrollLeft -= segment;
+          jumpTo(el, el.scrollLeft - segment);
         }
       }
 
@@ -60,7 +75,7 @@ export function useCarousel(
 
     setCanLeft(el.scrollLeft > 5);
     setCanRight(el.scrollWidth - el.clientWidth - el.scrollLeft > 5);
-  }, [getSegment, loopEnabled, ref]);
+  }, [getPeek, getSegment, loopEnabled, ref]);
 
   const scroll = (dir) => {
     const el = ref.current;
@@ -109,13 +124,22 @@ export function useCarousel(
 
     update();
     el.addEventListener("scroll", update);
+    const handleInteract = () => {
+      onInteract?.();
+    };
+    el.addEventListener("pointerdown", handleInteract);
+    el.addEventListener("touchstart", handleInteract);
+    el.addEventListener("wheel", handleInteract, { passive: true });
     window.addEventListener("resize", update);
 
     return () => {
       el.removeEventListener("scroll", update);
+      el.removeEventListener("pointerdown", handleInteract);
+      el.removeEventListener("touchstart", handleInteract);
+      el.removeEventListener("wheel", handleInteract);
       window.removeEventListener("resize", update);
     };
-  }, [ref, update]);
+  }, [onInteract, ref, update]);
 
   return { canLeft, canRight, scroll, scrollToStart };
 }
