@@ -1,15 +1,7 @@
-import { useRef } from "react";
 import PromoCardHot from "../cards/PromoCardHot";
+import PromoSection from "../sections/PromoSection";
 import SectionTitle from "../sections/SectionTitle";
-import { useAutoCarousel } from "../../hooks/useAutoCarousel";
-import { useCarousel } from "../../hooks/useCarousel";
-
-const FALLBACK_HOT = [
-  { id: "hot-1", titulo: "Promo hot 1", nombreLocal: "Local 1" },
-  { id: "hot-2", titulo: "Promo hot 2", nombreLocal: "Local 2" },
-  { id: "hot-3", titulo: "Promo hot 3", nombreLocal: "Local 3" },
-  { id: "hot-4", titulo: "Promo hot 4", nombreLocal: "Local 4" },
-];
+import { HOT_PROMOS } from "../../cliente/inicio/InicioPromosPreview";
 
 const DEFAULT_SUGGESTIONS = [
   "Pizza",
@@ -27,40 +19,21 @@ export default function SearchIdle({
   onSelectSuggestion,
 }) {
   const safePromos =
-    Array.isArray(hotPromos) && hotPromos.length > 0 ? hotPromos : FALLBACK_HOT;
-  const ref = useRef(null);
-  const { canLeft, canRight, scroll, scrollToStart } = useCarousel(ref);
-
-  useAutoCarousel({
-    enabled: safePromos.length > 1,
-    intervalMs: 5000,
-    onTick: () => {
-      if (canRight) {
-        scroll("right");
-        return;
-      }
-      if (canLeft) {
-        scrollToStart();
-      }
-    },
-  });
+    Array.isArray(hotPromos) && hotPromos.length > 0
+      ? hotPromos
+      : HOT_PROMOS;
 
   return (
     <div className="mt-6 px-4">
       <div className="mb-6">
-        <SectionTitle>Hot</SectionTitle>
-        <div
-          ref={ref}
-          className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth"
-        >
-          {safePromos.map((promo) => (
-            <PromoCardHot
-              key={promo.id}
-              promo={promo}
-              rating={ratings?.[promo.id]}
-            />
-          ))}
-        </div>
+        <PromoSection
+          title="Hot"
+          promos={safePromos}
+          ratings={ratings}
+          CardComponent={PromoCardHot}
+          autoScroll
+          autoScrollInterval={5000}
+        />
       </div>
 
       <div>

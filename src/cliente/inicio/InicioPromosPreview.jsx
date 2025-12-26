@@ -157,6 +157,8 @@ const MOCK_PROMOS = [
   },
 ];
 
+export const HOT_PROMOS = MOCK_PROMOS.slice(10, 15);
+
 const SECTIONS = [
   {
     id: "nuevas",
@@ -175,7 +177,7 @@ const SECTIONS = [
   {
     id: "hot",
     title: "Hot",
-    promos: MOCK_PROMOS.slice(10, 15),
+    promos: HOT_PROMOS,
     CardComponent: PromoCardHot,
   },
 ];
