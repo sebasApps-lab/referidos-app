@@ -167,18 +167,21 @@ const SECTIONS = [
     CardComponent: PromoCardNuevas,
     autoScroll: true,
     autoScrollInterval: 5000,
+    loop: true,
   },
   {
     id: "cercanas",
     title: "Cerca de ti",
     promos: MOCK_PROMOS.slice(5, 10),
     CardComponent: PromoCardCercanas,
+    loop: true,
   },
   {
     id: "hot",
     title: "Hot",
     promos: HOT_PROMOS,
     CardComponent: PromoCardHot,
+    loop: true,
   },
 ];
 

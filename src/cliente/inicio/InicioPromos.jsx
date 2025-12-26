@@ -15,6 +15,8 @@ export default function InicioPromos({ sections, ratings }) {
           CardComponent={section.CardComponent}
           autoScroll={section.autoScroll}
           autoScrollInterval={section.autoScrollInterval}
+          loop={section.loop}
+          loopPeek={section.loopPeek}
         />
       ))}
     </section>

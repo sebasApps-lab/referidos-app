@@ -33,6 +33,7 @@ export default function SearchIdle({
           CardComponent={PromoCardHot}
           autoScroll
           autoScrollInterval={5000}
+          loop
         />
       </div>
 

@@ -12,9 +12,16 @@ export default function PromoSection({
   CardComponent = PromoCardCercanas,
   autoScroll = false,
   autoScrollInterval = 5000,
+  loop = false,
+  loopPeek = 0,
 }) {
   const ref = useRef(null);
-  const { canLeft, canRight, scroll, scrollToStart } = useCarousel(ref);
+  const loopEnabled = loop && promos?.length > 1;
+  const { canLeft, canRight, scroll, scrollToStart } = useCarousel(ref, {
+    loop: loopEnabled,
+    itemsCount: promos?.length || 0,
+    loopPeek,
+  });
 
   useAutoCarousel({
     enabled: autoScroll && promos?.length > 1,
@@ -31,6 +38,15 @@ export default function PromoSection({
   });
 
   if (!promos || promos.length === 0) return null;
+
+  const renderItems = loopEnabled
+    ? [0, 1, 2].flatMap((loopIndex) =>
+        promos.map((promo) => ({
+          promo,
+          key: `${promo.id}-${loopIndex}`,
+        }))
+      )
+    : promos.map((promo) => ({ promo, key: promo.id }));
 
   return (
     <div className="mb-8 relative">
@@ -88,8 +104,12 @@ export default function PromoSection({
         ref={ref}
         className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth px-2 pt-2"
       >
-        {promos.map((p) => (
-          <CardComponent key={p.id} promo={p} rating={ratings?.[p.id]} />
+        {renderItems.map(({ promo, key }) => (
+          <CardComponent
+            key={key}
+            promo={promo}
+            rating={ratings?.[promo.id]}
+          />
         ))}
       </div>
     </div>
