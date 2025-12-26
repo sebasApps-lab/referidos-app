@@ -44,23 +44,15 @@ export default function SearchBar({
         </button>
       ) : null}
       <div style={{ padding: "0 2px", marginBottom: 0, width: "100%" }}>
-        <div
-          style={{
-            background: "#F5F5F7",
-            borderRadius: 9999,
-            padding: "7px 14px",
-            display: "flex",
-            alignItems: "center",
-            boxShadow: "0 6px 14px rgba(16,24,40,0.03)",
-          }}
-        >
+        <div className="search-input-shell">
           <svg
             width="20"
             height="20"
             viewBox="0 0 24 24"
-            stroke="#5E30A5"
+            stroke="currentColor"
             strokeWidth="2"
             style={{ marginRight: 10 }}
+            className="search-input-icon"
             fill="none"
           >
             <circle cx="11" cy="11" r="6" />
@@ -73,12 +65,8 @@ export default function SearchBar({
             onChange={(e) => onChange(e.target.value)}
             onFocus={onFocus}
             autoFocus={autoFocus}
+            className="search-input-field"
             style={{
-              border: 0,
-              outline: "none",
-              background: "transparent",
-              fontWeight: 600,
-              color: "#5E30A5",
               width: "100%",
             }}
           />

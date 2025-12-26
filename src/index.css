@@ -154,6 +154,56 @@ html {
   transform: translate(2px, 3px) skewX(-8deg);
 }
 
+.search-input-shell {
+  background: #F5F5F7;
+  border-radius: 9999px;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.03);
+  border: 1px solid transparent;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.search-input-icon {
+  color: #5E30A5;
+  opacity: 0.6;
+  transition: color 160ms ease;
+}
+
+.search-input-field {
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-weight: 600;
+  color: #5E30A5;
+}
+
+.search-input-field::placeholder {
+  color: #5E30A5;
+  opacity: 0.6;
+}
+
+.search-input-shell:focus-within {
+  border-color: #2F1A55;
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.03),
+    0 0 0 1px #2F1A55;
+}
+
+.search-input-shell:focus-within .search-input-icon,
+.search-input-shell:focus-within .search-input-field {
+  color: #5E30A5;
+}
+
+.search-input-shell:focus-within .search-input-field::placeholder {
+  color: #5E30A5;
+  opacity: 1;
+}
+
+.search-input-shell:focus-within .search-input-icon {
+  opacity: 1;
+}
+
 @keyframes location-text-reveal {
   from {
     clip-path: inset(0 100% 0 0);
