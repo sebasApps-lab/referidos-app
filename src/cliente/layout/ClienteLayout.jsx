@@ -4,10 +4,11 @@ import ClienteFooter from "./ClienteFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
 import { useAppStore } from "../../store/appStore";
 import { getAvatarSrc } from "../services/clienteUI";
+import { ClienteHeaderProvider } from "./ClienteHeaderContext";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
-export default function ClienteLayout({ children }) {
+function ClienteLayoutInner({ children }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
@@ -125,5 +126,13 @@ export default function ClienteLayout({ children }) {
         />
       </div>
     </div>
+  );
+}
+
+export default function ClienteLayout({ children }) {
+  return (
+    <ClienteHeaderProvider>
+      <ClienteLayoutInner>{children}</ClienteLayoutInner>
+    </ClienteHeaderProvider>
   );
 }

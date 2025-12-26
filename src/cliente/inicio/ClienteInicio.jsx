@@ -12,6 +12,7 @@ import SearchResults from "../../components/search/SearchResults";
 import { useSearchMode } from "../../components/search/useSearchMode";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
+import { useClienteHeader } from "../layout/ClienteHeaderContext";
 import { useClienteUI } from "../hooks/useClienteUI";
 import { useSearchDock } from "../hooks/useSearchDock";
 import InicioHero from "./InicioHero";
@@ -47,6 +48,7 @@ export default function ClienteInicio() {
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
   const searchDocked = useSearchDock();
+  const { setHeaderOptions } = useClienteHeader();
 
   const usePromosPreview = true;
 
@@ -64,6 +66,16 @@ export default function ClienteInicio() {
 
   const mode = isSearching ? "search" : "default";
   const showSearchDock = searchDocked || mode === "search";
+
+  useEffect(() => {
+    setHeaderOptions({
+      mode,
+      onSearchBack: onCancel,
+    });
+    return () => {
+      setHeaderOptions({ mode: "default", onSearchBack: null });
+    };
+  }, [mode, onCancel, setHeaderOptions]);
 
   if (loading) {
     return (
@@ -85,18 +97,19 @@ export default function ClienteInicio() {
                   panelClassName="hero-search-dock"
                   panelProps={{ "aria-hidden": !showSearchDock }}
                 >
-                  <SearchbarPanel
-                    value={query}
-                    onChange={setQuery}
-                    onFilters={toggleFilters}
-                    onFocus={onFocus}
-                    onCancel={onCancel}
-                    showBack={mode === "search"}
-                  />
-                </HeaderPanelContainer>,
-                dockTarget
-              )
-            : null
+              <SearchbarPanel
+                value={query}
+                onChange={setQuery}
+                onFilters={toggleFilters}
+                onFocus={onFocus}
+                onCancel={onCancel}
+                showBack={false}
+                autoFocus={mode === "search"}
+              />
+            </HeaderPanelContainer>,
+            dockTarget
+          )
+        : null
         }
         results={
           hasQuery ? (

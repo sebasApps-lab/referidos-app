@@ -6,6 +6,8 @@ import {
   QueuePanel,
 } from "../../components/header-panels";
 import { HeaderActions, UserIdentity } from "../../components/header-elements";
+import SearchHeader from "../../components/search/SearchHeader";
+import { useClienteHeader } from "./ClienteHeaderContext";
 import {
   getAvatarSrc,
   getTierMeta,
@@ -23,6 +25,7 @@ export default function ClienteHeader({
   const [locationVisible, setLocationVisible] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const { mode, onSearchBack } = useClienteHeader();
   const scrollDistanceRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   const tier = getTierMeta(usuario);
@@ -69,87 +72,97 @@ export default function ClienteHeader({
     };
   }, [locationOpen, notificationsOpen, queueOpen]);
 
+  useEffect(() => {
+    if (mode !== "search") return;
+    setLocationOpen(false);
+    setLocationVisible(false);
+    setNotificationsOpen(false);
+    setQueueOpen(false);
+  }, [mode]);
+
   const headerClass = isElevated
     ? "relative bg-[#5E30A5] text-white shadow-md"
     : "relative bg-[#5E30A5] text-white shadow-none";
 
   return (
     <div id="cliente-header" className={headerClass}>
-      <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
-        <div className="flex items-center justify-between gap-4">
-          <UserIdentity
-            avatarSrc={safeAvatar}
-            tier={tier}
-            displayName={displayName}
-          />
+      {mode === "search" ? (
+        <SearchHeader title="REFERIDOS" onBack={onSearchBack} />
+      ) : (
+        <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+          <div className="flex items-center justify-between gap-4">
+            <UserIdentity
+              avatarSrc={safeAvatar}
+              tier={tier}
+              displayName={displayName}
+            />
 
-          <HeaderActions
-            onToggleLocation={() => {
-              setNotificationsOpen(false);
-              setQueueOpen(false);
-              if (!locationOpen) {
-                setLocationVisible(true);
-                setLocationOpen(true);
-              } else {
-                setLocationOpen(false);
+            <HeaderActions
+              onToggleLocation={() => {
+                setNotificationsOpen(false);
+                setQueueOpen(false);
+                if (!locationOpen) {
+                  setLocationVisible(true);
+                  setLocationOpen(true);
+                } else {
+                  setLocationOpen(false);
+                }
+              }}
+              locationOpen={locationOpen}
+              locationPanel={
+                locationVisible ? (
+                  <HeaderPanelContainer
+                    open={locationOpen}
+                    wrapperClassName="header-panel-anchor"
+                    panelClassName="hero-search-dock"
+                    panelProps={{ "aria-hidden": !locationOpen }}
+                  >
+                    <LocationPanel open={locationOpen} />
+                  </HeaderPanelContainer>
+                ) : null
               }
-            }}
-            locationOpen={locationOpen}
-            locationPanel={
-              locationVisible ? (
+              onToggleNotifications={() => {
+                setLocationOpen(false);
+                setQueueOpen(false);
+                setNotificationsOpen((prev) => !prev);
+                if (typeof onOpenNotifications === "function") {
+                  onOpenNotifications();
+                }
+              }}
+              notificationsOpen={notificationsOpen}
+              notificationsPanel={
                 <HeaderPanelContainer
-                  open={locationOpen}
+                  open={notificationsOpen}
                   wrapperClassName="header-panel-anchor"
                   panelClassName="hero-search-dock"
-                  panelProps={{ "aria-hidden": !locationOpen }}
+                  panelProps={{ "aria-hidden": !notificationsOpen }}
                 >
-                  <LocationPanel
-                    open={locationOpen}
+                  <NotificationsPanel
+                    notifications={usuario?.notificaciones || []}
                   />
                 </HeaderPanelContainer>
-              ) : null
-            }
-            onToggleNotifications={() => {
-              setLocationOpen(false);
-              setQueueOpen(false);
-              setNotificationsOpen((prev) => !prev);
-              if (typeof onOpenNotifications === "function") {
-                onOpenNotifications();
               }
-            }}
-            notificationsOpen={notificationsOpen}
-            notificationsPanel={
-              <HeaderPanelContainer
-                open={notificationsOpen}
-                wrapperClassName="header-panel-anchor"
-                panelClassName="hero-search-dock"
-                panelProps={{ "aria-hidden": !notificationsOpen }}
-              >
-                <NotificationsPanel
-                  notifications={usuario?.notificaciones || []}
-                />
-              </HeaderPanelContainer>
-            }
-            onToggleQueue={() => {
-              setLocationOpen(false);
-              setNotificationsOpen(false);
-              setQueueOpen((prev) => !prev);
-            }}
-            queueOpen={queueOpen}
-            queuePanel={
-              <HeaderPanelContainer
-                open={queueOpen}
-                wrapperClassName="header-panel-anchor"
-                panelClassName="hero-search-dock"
-                panelProps={{ "aria-hidden": !queueOpen }}
-              >
-                <QueuePanel />
-              </HeaderPanelContainer>
-            }
-            notiCount={notiCount}
-          />
+              onToggleQueue={() => {
+                setLocationOpen(false);
+                setNotificationsOpen(false);
+                setQueueOpen((prev) => !prev);
+              }}
+              queueOpen={queueOpen}
+              queuePanel={
+                <HeaderPanelContainer
+                  open={queueOpen}
+                  wrapperClassName="header-panel-anchor"
+                  panelClassName="hero-search-dock"
+                  panelProps={{ "aria-hidden": !queueOpen }}
+                >
+                  <QueuePanel />
+                </HeaderPanelContainer>
+              }
+              notiCount={notiCount}
+            />
+          </div>
         </div>
-      </div>
+      )}
       <div
         id="cliente-header-search-dock"
         className="absolute left-0 right-0 top-full z-40"

@@ -7,6 +7,7 @@ export default function SearchbarPanel({
   onFocus,
   onCancel,
   showBack = false,
+  autoFocus = false,
 }) {
   return (
     <div className="hero-search-surface">
@@ -18,7 +19,7 @@ export default function SearchbarPanel({
           onFocus={onFocus}
           onCancel={onCancel}
           showBack={showBack}
-          autoFocus={showBack}
+          autoFocus={autoFocus}
         />
       </div>
     </div>
