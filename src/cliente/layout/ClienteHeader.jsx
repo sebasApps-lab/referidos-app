@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { Bell, MapPin, Timer } from "lucide-react";
+import {
+  HeaderPanelContainer,
+  LocationPanel,
+  NotificationsPanel,
+  QueuePanel,
+} from "../../components/header-panels";
+import { HeaderActions, UserIdentity } from "../../components/header-elements";
 import {
   getAvatarSrc,
   getTierMeta,
@@ -16,6 +21,8 @@ export default function ClienteHeader({
 }) {
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationVisible, setLocationVisible] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const scrollDistanceRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   const tier = getTierMeta(usuario);
@@ -23,7 +30,6 @@ export default function ClienteHeader({
   const notiCount =
     usuario?.notificaciones?.length || usuario?.notificacionesCount || 0;
   const safeAvatar = getAvatarSrc(usuario, avatarSrc);
-  const locationLabel = "La Carolina";
   const scrollCloseThreshold = 38;
 
   const getScrollTop = (target) => {
@@ -69,100 +75,77 @@ export default function ClienteHeader({
     <div id="cliente-header" className={headerClass}>
       <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Link to="/cliente/perfil">
-                <img
-                  src={safeAvatar}
-                  alt="avatar"
-                  className="h-9 w-9 rounded-2xl border border-white/20 bg-white object-cover"
-                />
-                <span
-                  className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold"
-                  style={{
-                    background: tier.accent,
-                    color: "white",
-                  }}
-                >
-                  {tier.badge}
-                </span>
-              </Link>
-            </div>
+          <UserIdentity
+            avatarSrc={safeAvatar}
+            tier={tier}
+            displayName={displayName}
+          />
 
-            <div className="flex flex-col leading-tight">
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/cliente/perfil"
-                  className="text-sm font-semibold text-white"
+          <HeaderActions
+            onToggleLocation={() => {
+              setNotificationsOpen(false);
+              setQueueOpen(false);
+              if (!locationOpen) {
+                setLocationVisible(true);
+                setLocationOpen(true);
+              } else {
+                setLocationOpen(false);
+              }
+            }}
+            locationOpen={locationOpen}
+            locationPanel={
+              locationVisible ? (
+                <HeaderPanelContainer
+                  open={locationOpen}
+                  wrapperClassName="header-panel-anchor"
+                  panelClassName="hero-search-dock"
+                  panelProps={{ "aria-hidden": !locationOpen }}
                 >
-                  {displayName}
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!locationOpen) {
-                    setLocationVisible(true);
-                    setLocationOpen(true);
-                  } else {
-                    setLocationOpen(false);
-                  }
-                }}
-                className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-                aria-label="Mostrar ubicacion"
-                aria-expanded={locationOpen}
+                  <LocationPanel
+                    open={locationOpen}
+                  />
+                </HeaderPanelContainer>
+              ) : null
+            }
+            onToggleNotifications={() => {
+              setLocationOpen(false);
+              setQueueOpen(false);
+              setNotificationsOpen((prev) => !prev);
+              if (typeof onOpenNotifications === "function") {
+                onOpenNotifications();
+              }
+            }}
+            notificationsOpen={notificationsOpen}
+            notificationsPanel={
+              <HeaderPanelContainer
+                open={notificationsOpen}
+                wrapperClassName="header-panel-anchor"
+                panelClassName="hero-search-dock"
+                panelProps={{ "aria-hidden": !notificationsOpen }}
               >
-                <MapPin size={18} />
-              </button>
-              {locationVisible && (
-                <div className="absolute left-1/2 top-full -translate-x-1/2 z-20">
-                  <div
-                    data-state={locationOpen ? "open" : "closed"}
-                    className="location-popover"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {}}
-                      className="location-surface"
-                    >
-                      <span
-                        data-state={locationOpen ? "open" : "closed"}
-                        className="location-text-reveal"
-                      >
-                        {locationLabel}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onOpenNotifications}
-              className="relative h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-              aria-label="Notificaciones"
-            >
-              <Bell size={18} />
-              {notiCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-white text-[#5E30A5] text-[10px] font-semibold flex items-center justify-center px-1">
-                  {notiCount > 99 ? "99+" : notiCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-              aria-label="En cola"
-            >
-              <Timer size={18} />
-            </button>
-          </div>
+                <NotificationsPanel
+                  notifications={usuario?.notificaciones || []}
+                />
+              </HeaderPanelContainer>
+            }
+            onToggleQueue={() => {
+              setLocationOpen(false);
+              setNotificationsOpen(false);
+              setQueueOpen((prev) => !prev);
+            }}
+            queueOpen={queueOpen}
+            queuePanel={
+              <HeaderPanelContainer
+                open={queueOpen}
+                wrapperClassName="header-panel-anchor"
+                panelClassName="hero-search-dock"
+                panelProps={{ "aria-hidden": !queueOpen }}
+              >
+                <QueuePanel />
+              </HeaderPanelContainer>
+            }
+            notiCount={notiCount}
+          />
         </div>
       </div>
       <div

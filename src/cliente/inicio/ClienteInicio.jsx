@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { useAppStore } from "../../store/appStore";
 import MenuFilters from "../../components/menus/MenuFilters";
 import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
-import SearchBar from "../../components/ui/SearchBar";
+import {
+  HeaderPanelContainer,
+  SearchbarPanel,
+} from "../../components/header-panels";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteUI } from "../hooks/useClienteUI";
@@ -67,21 +70,17 @@ export default function ClienteInicio() {
     <div className="pb-16">
       {dockTarget
         ? createPortal(
-            <div
-              className="hero-search-dock"
-              data-state={searchDocked ? "open" : "closed"}
-              aria-hidden={!searchDocked}
+            <HeaderPanelContainer
+              open={searchDocked}
+              panelClassName="hero-search-dock"
+              panelProps={{ "aria-hidden": !searchDocked }}
             >
-              <div className="hero-search-surface">
-                <div className="max-w-6xl mx-auto px-4 pb-3 pt-0">
-                  <SearchBar
-                    value={query}
-                    onChange={setQuery}
-                    onFilters={toggleFilters}
-                  />
-                </div>
-              </div>
-            </div>,
+              <SearchbarPanel
+                value={query}
+                onChange={setQuery}
+                onFilters={toggleFilters}
+              />
+            </HeaderPanelContainer>,
             dockTarget
           )
         : null}

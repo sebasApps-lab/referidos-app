@@ -66,28 +66,29 @@ html {
   pointer-events: auto;
 }
 
-.location-surface {
+.location-surface,
+.header-panel-surface {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: max-content;
-  padding: 6px 12px;
-  border-radius: 0 0 14px 14px;
+  display: block;
+  width: min(260px, 90vw);
+  padding: 12px 12px 14px;
+  border-radius: 0 0 16px 16px;
   background: #5E30A5;
   box-shadow: 0 14px 18px rgba(18, 7, 40, 0.22);
-  white-space: nowrap;
+  white-space: normal;
 }
 
-.location-surface::before {
+.location-surface::before,
+.header-panel-surface::before {
   content: "";
   position: absolute;
   top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 34px;
+  width: 38px;
   height: 10px;
   background: #5E30A5;
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 16px 16px;
 }
 
 .location-text-reveal {
@@ -97,6 +98,32 @@ html {
 
 .location-text-reveal[data-state="open"] {
   animation: location-text-reveal 120ms ease-out 90ms both;
+}
+
+.header-panel-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.header-panel-list {
+  width: 100%;
+  text-align: left;
+}
+
+.header-panel-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.header-panel-anchor {
+  position: fixed;
+  left: 50%;
+  top: var(--cliente-header-height, 0px);
+  transform: translateX(-50%);
+  z-index: 40;
 }
 
 @keyframes location-text-reveal {
