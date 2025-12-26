@@ -12,7 +12,6 @@ export default function InicioHero({
   usuario,
   searchValue,
   onSearchChange,
-  onSearchFilters,
   onSearchFocus,
   hideSearch = false,
 }) {
@@ -100,7 +99,6 @@ export default function InicioHero({
             <SearchBar
               value={searchValue}
               onChange={onSearchChange}
-              onFilters={onSearchFilters}
               onFocus={onSearchFocus}
             />
           </div>

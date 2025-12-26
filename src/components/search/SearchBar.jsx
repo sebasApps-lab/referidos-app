@@ -109,6 +109,7 @@ export default function SearchBar({
             </button>
           ) : null}
 
+        {onFilters ? (
           <button
             type="button"
             onClick={onFilters}
@@ -131,6 +132,7 @@ export default function SearchBar({
               <path d="M4 6h16M7 12h10M10 18h4" />
             </svg>
           </button>
+        ) : null}
         </div>
       </div>
     </div>

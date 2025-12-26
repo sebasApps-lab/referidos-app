@@ -21,7 +21,7 @@ import InicioEmptyState from "./InicioEmptyState";
 import InicioPromosPreview from "./InicioPromosPreview";
 
 export default function ClienteInicio() {
-  const { filtersOpen, toggleFilters, setFiltersOpen } = useClienteUI();
+  const { filtersOpen, setFiltersOpen } = useClienteUI();
   const [dockTarget, setDockTarget] = useState(null);
 
   const loadPromos = useAppStore((s) => s.loadPromos);
@@ -100,7 +100,6 @@ export default function ClienteInicio() {
               <SearchbarPanel
                 value={query}
                 onChange={setQuery}
-                onFilters={toggleFilters}
                 onFocus={onFocus}
                 onCancel={onCancel}
                 showBack={false}
@@ -137,7 +136,6 @@ export default function ClienteInicio() {
           usuario={usuario}
           searchValue={query}
           onSearchChange={setQuery}
-          onSearchFilters={toggleFilters}
           onSearchFocus={onFocus}
           hideSearch={showSearchDock}
         />

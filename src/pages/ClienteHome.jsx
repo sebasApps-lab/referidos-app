@@ -57,7 +57,6 @@ export default function ClienteHome() {
       <SearchBar
         value={query}
         onChange={setQuery}
-        onFilters={() => setShowFiltros(!showFiltros)}
       />
 
       {showFiltros && <MenuFilters onClose={() => setShowFiltros(false)} />}
