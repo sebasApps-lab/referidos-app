@@ -70,7 +70,7 @@ html {
 .header-panel-surface {
   position: relative;
   display: block;
-  width: min(260px, 90vw);
+  width: min(240px, 90vw);
   padding: 12px 12px 14px;
   border-radius: 0 0 16px 16px;
   background: #5E30A5;
@@ -120,9 +120,8 @@ html {
 
 .header-panel-anchor {
   position: fixed;
-  left: 50%;
+  right: 16px;
   top: var(--cliente-header-height, 0px);
-  transform: translateX(-50%);
   z-index: 40;
 }
 
