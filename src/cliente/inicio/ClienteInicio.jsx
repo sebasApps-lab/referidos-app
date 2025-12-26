@@ -10,6 +10,7 @@ import {
 import SearchContainer from "../../components/search/SearchContainer";
 import SearchResults from "../../components/search/SearchResults";
 import { useSearchMode } from "../../components/search/useSearchMode";
+import SearchIdle from "../../components/search/SearchIdle";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteHeader } from "../layout/ClienteHeaderContext";
@@ -63,6 +64,8 @@ export default function ClienteInicio() {
       })),
     [searchResults]
   );
+
+  const hotPromos = useMemo(() => promos.slice(0, 8), [promos]);
 
   const mode = isSearching ? "search" : "default";
   const showSearchDock = searchDocked || mode === "search";
@@ -129,7 +132,13 @@ export default function ClienteInicio() {
               listClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               titleClassName="text-sm font-semibold text-[#2F1A55] mb-3"
             />
-          ) : null
+          ) : (
+            <SearchIdle
+              hotPromos={hotPromos}
+              ratings={ratings}
+              onSelectSuggestion={(term) => setQuery(term)}
+            />
+          )
         }
       >
         <InicioHero
