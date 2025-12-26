@@ -4,7 +4,7 @@ import ClienteFooter from "./ClienteFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
 import { useAppStore } from "../../store/appStore";
 import { getAvatarSrc } from "../services/clienteUI";
-import { ClienteHeaderProvider } from "./ClienteHeaderContext";
+import { ClienteHeaderProvider, useClienteHeader } from "./ClienteHeaderContext";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -16,8 +16,13 @@ function ClienteLayoutInner({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(FALLBACK_HEADER_HEIGHT);
   const [headerElevated, setHeaderElevated] = useState(false);
+  const [viewportMetrics, setViewportMetrics] = useState({
+    height: 0,
+    offsetTop: 0,
+  });
   const headerRef = useRef(null);
   const mainRef = useRef(null);
+  const { mode } = useClienteHeader();
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerRef.current) return;
@@ -41,6 +46,28 @@ function ClienteLayoutInner({ children }) {
       }
     };
   }, [updateHeaderHeight]);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const vv = window.visualViewport;
+      const height = vv?.height ?? window.innerHeight;
+      const offsetTop = vv?.offsetTop ?? 0;
+      setViewportMetrics((prev) =>
+        prev.height === height && prev.offsetTop === offsetTop
+          ? prev
+          : { height, offsetTop }
+      );
+    };
+    updateViewport();
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
 
   const updateHeaderElevation = useCallback(() => {
     const mainTop = mainRef.current?.scrollTop || 0;
@@ -71,9 +98,11 @@ function ClienteLayoutInner({ children }) {
 
   if (bootstrap || typeof usuario === "undefined") return null;
 
+  const viewportHeight = viewportMetrics.height;
+
   return (
     <div
-      className="relative min-h-screen overflow-x-hidden"
+      className="relative overflow-x-hidden"
       style={{
         "--cliente-bg": "#FAF8FF",
         "--cliente-surface": "#FFFFFF",
@@ -81,11 +110,19 @@ function ClienteLayoutInner({ children }) {
         "--cliente-accent": "#5E30A5",
         "--cliente-accent-2": "#4B2488",
         "--cliente-header-height": `${headerHeight}px`,
+        "--cliente-viewport-offset": `${viewportMetrics.offsetTop}px`,
         background: "#FAF8FF",
+        height: viewportHeight ? `${viewportHeight}px` : "100dvh",
+        minHeight: viewportHeight ? `${viewportHeight}px` : "100vh",
+        overflow: "hidden",
       }}
     >
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <div ref={headerRef} className="fixed top-0 left-0 right-0 z-40">
+      <div className="relative z-10 flex h-full min-h-0 flex-col">
+        <div
+          ref={headerRef}
+          className="fixed left-0 right-0 z-40"
+          style={{ top: "var(--cliente-viewport-offset, 0px)" }}
+        >
           <ClienteHeader
             usuario={usuario}
             avatarSrc={getAvatarSrc(usuario)}
@@ -116,7 +153,7 @@ function ClienteLayoutInner({ children }) {
           </div>
         </main>
 
-        <ClienteFooter />
+        {mode !== "search" ? <ClienteFooter /> : null}
 
         <MenuLateral
           visible={menuOpen}

@@ -121,7 +121,10 @@ html {
 .header-panel-anchor {
   position: fixed;
   right: 16px;
-  top: var(--cliente-header-height, 0px);
+  top: calc(
+    var(--cliente-header-height, 0px) +
+      var(--cliente-viewport-offset, 0px)
+  );
   z-index: 60;
 }
 
