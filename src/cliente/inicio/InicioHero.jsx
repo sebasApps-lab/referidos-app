@@ -6,13 +6,14 @@ import {
   getTierJourney,
   getTierProgress,
 } from "../services/clienteUI";
-import SearchBar from "../../components/ui/SearchBar";
+import SearchBar from "../../components/search/SearchBar";
 
 export default function InicioHero({
   usuario,
   searchValue,
   onSearchChange,
   onSearchFilters,
+  onSearchFocus,
   hideSearch = false,
 }) {
   const { points, progress, nextGoal } = getTierProgress(usuario);
@@ -100,6 +101,7 @@ export default function InicioHero({
               value={searchValue}
               onChange={onSearchChange}
               onFilters={onSearchFilters}
+              onFocus={onSearchFocus}
             />
           </div>
         </div>

@@ -26,7 +26,8 @@ export default function ClienteHome() {
     if (promos.length > 0) initRatings(promos);
   }, [promos, initRatings]);
 
-  const { query, setQuery, filterPromos } = usePromoSearch();
+  const [query, setQuery] = useState("");
+  const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
   const searching = query.trim().length > 0;
 

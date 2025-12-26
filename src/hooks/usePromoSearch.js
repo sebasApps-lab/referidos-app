@@ -1,8 +1,4 @@
-import { useState } from "react";
-
-export function usePromoSearch() {
-  const [query, setQuery] = useState("");
-
+export function usePromoSearch(query = "") {
   const filterPromos = (promos) => {
     if (!query.trim()) return promos;
 
@@ -23,5 +19,5 @@ export function usePromoSearch() {
     });
   };
 
-  return { query, setQuery, filterPromos };
+  return { filterPromos };
 }

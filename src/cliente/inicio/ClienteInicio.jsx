@@ -7,6 +7,9 @@ import {
   HeaderPanelContainer,
   SearchbarPanel,
 } from "../../components/header-panels";
+import SearchContainer from "../../components/search/SearchContainer";
+import SearchResults from "../../components/search/SearchResults";
+import { useSearchMode } from "../../components/search/useSearchMode";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import { useClienteUI } from "../hooks/useClienteUI";
@@ -39,9 +42,10 @@ export default function ClienteInicio() {
     setDockTarget(document.getElementById("cliente-header-search-dock"));
   }, []);
 
-  const { query, setQuery, filterPromos } = usePromoSearch();
+  const { query, setQuery, isSearching, onFocus, onCancel } = useSearchMode();
+  const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
-  const searching = query.trim().length > 0;
+  const hasQuery = query.trim().length > 0;
   const searchDocked = useSearchDock();
 
   const usePromosPreview = true;
@@ -58,6 +62,9 @@ export default function ClienteInicio() {
     [searchResults]
   );
 
+  const mode = isSearching ? "search" : "default";
+  const showSearchDock = searchDocked || mode === "search";
+
   if (loading) {
     return (
       <div className="py-16 text-center text-sm text-black/60">
@@ -68,67 +75,77 @@ export default function ClienteInicio() {
 
   return (
     <div className="pb-16">
-      {dockTarget
-        ? createPortal(
-            <HeaderPanelContainer
-              open={searchDocked}
-              panelClassName="hero-search-dock"
-              panelProps={{ "aria-hidden": !searchDocked }}
-            >
-              <SearchbarPanel
-                value={query}
-                onChange={setQuery}
-                onFilters={toggleFilters}
-              />
-            </HeaderPanelContainer>,
-            dockTarget
-          )
-        : null}
-      <InicioHero
-        usuario={usuario}
-        searchValue={query}
-        onSearchChange={setQuery}
-        onSearchFilters={toggleFilters}
-        hideSearch={searchDocked}
-      />
-      <div className="mt-4">
-        {filtersOpen && <MenuFilters onClose={() => setFiltersOpen(false)} />}
-      </div>
-
-      {searching ? (
-        <div className="mt-6 px-4">
-          <h3 className="text-sm font-semibold text-[#2F1A55] mb-3">
-            Resultados
-          </h3>
-          {safeResults.length === 0 ? (
-            <InicioEmptyState
-              variant="search"
-              onClear={() => setQuery("")}
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {safeResults.map((p) => (
+      <SearchContainer
+        mode={mode}
+        searchBar={
+          showSearchDock && dockTarget
+            ? createPortal(
+                <HeaderPanelContainer
+                  open={showSearchDock}
+                  panelClassName="hero-search-dock"
+                  panelProps={{ "aria-hidden": !showSearchDock }}
+                >
+                  <SearchbarPanel
+                    value={query}
+                    onChange={setQuery}
+                    onFilters={toggleFilters}
+                    onFocus={onFocus}
+                    onCancel={onCancel}
+                    showBack={mode === "search"}
+                  />
+                </HeaderPanelContainer>,
+                dockTarget
+              )
+            : null
+        }
+        results={
+          hasQuery ? (
+            <SearchResults
+              title="Resultados"
+              items={safeResults}
+              renderItem={(p) => (
                 <PromoCardCercanas
                   key={p.id}
                   promo={p}
                   rating={ratings[p.id]}
                   className="w-full"
                 />
-              ))}
-            </div>
+              )}
+              emptyState={<InicioEmptyState variant="search" onClear={onCancel} />}
+              showEmpty
+              wrapperClassName="mt-6 px-4"
+              listClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              titleClassName="text-sm font-semibold text-[#2F1A55] mb-3"
+            />
+          ) : null
+        }
+      >
+        <InicioHero
+          usuario={usuario}
+          searchValue={query}
+          onSearchChange={setQuery}
+          onSearchFilters={toggleFilters}
+          onSearchFocus={onFocus}
+          hideSearch={showSearchDock}
+        />
+        <div className="mt-4">
+          {filtersOpen && (
+            <MenuFilters onClose={() => setFiltersOpen(false)} />
           )}
         </div>
-      ) : !usePromosPreview && promos.length === 0 ? (
-        <InicioEmptyState variant="promos" />
-      ) : (
-        <>
-          <InicioPromosPreview />
-          {/*
-          <InicioPromos sections={sections} ratings={ratings} />
-          */}
-          <InicioBeneficios usuario={usuario} />
-        </>
-      )}
+
+        {!usePromosPreview && promos.length === 0 ? (
+          <InicioEmptyState variant="promos" />
+        ) : (
+          <>
+            <InicioPromosPreview />
+            {/*
+            <InicioPromos sections={sections} ratings={ratings} />
+            */}
+            <InicioBeneficios usuario={usuario} />
+          </>
+        )}
+      </SearchContainer>
     </div>
   );
 }
