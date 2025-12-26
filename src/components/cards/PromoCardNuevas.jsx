@@ -15,7 +15,7 @@ export default function PromoCardNuevas({ promo }) {
   const ubicacion = sanitizeText(promo.ubicacion || promo.sector || "Ubicacion");
 
   return (
-    <div className="flex-shrink-0 w-[90%] sm:w-[420px] pr-4">
+    <div className="flex-shrink-0 w-[90%] sm:w-[420px] pr-3">
       <article
         onClick={goDetalle}
         className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex"

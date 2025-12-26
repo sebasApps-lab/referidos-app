@@ -15,7 +15,7 @@ export default function PromoCardCercanas({ promo, className }) {
   const ubicacion = sanitizeText(promo.ubicacion || promo.sector || "Ubicacion");
 
   const wrapperClass =
-    className || "flex-shrink-0 w-[88%] sm:w-[340px] pr-4";
+    className || "flex-shrink-0 w-[88%] sm:w-[340px] pr-3";
 
   return (
     <div className={wrapperClass}>

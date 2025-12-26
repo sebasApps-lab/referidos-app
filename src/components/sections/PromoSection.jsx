@@ -128,7 +128,7 @@ export default function PromoSection({
 
       <div
         ref={ref}
-        className="flex overflow-x-auto gap-3 no-scrollbar scroll-smooth px-2 pt-2"
+        className="flex overflow-x-auto gap-2 no-scrollbar scroll-smooth px-2 pt-2"
       >
         {renderItems.map(({ promo, key }) => (
           <CardComponent
