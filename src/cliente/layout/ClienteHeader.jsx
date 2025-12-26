@@ -87,7 +87,7 @@ export default function ClienteHeader({
   return (
     <div id="cliente-header" className={headerClass}>
       {mode === "search" ? (
-        <SearchHeader title="REFERIDOS" onBack={onSearchBack} />
+        <SearchHeader title="Qrew" onBack={onSearchBack} />
       ) : (
         <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
           <div className="flex items-center justify-between gap-4">
