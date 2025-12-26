@@ -122,7 +122,7 @@ html {
   position: fixed;
   right: 16px;
   top: var(--cliente-header-height, 0px);
-  z-index: 40;
+  z-index: 60;
 }
 
 @keyframes location-text-reveal {
