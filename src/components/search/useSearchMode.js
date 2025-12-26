@@ -9,8 +9,6 @@ export function useSearchMode({ defaultQuery = "" } = {}) {
     setQueryState(next);
     if (trimmed.length > 0) {
       setActive(true);
-    } else {
-      setActive(false);
     }
   }, []);
 
