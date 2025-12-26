@@ -47,7 +47,7 @@ export default function ClienteHeader({
   }, [locationOpen, locationVisible]);
 
   useEffect(() => {
-    if (!locationOpen) return undefined;
+    if (!locationOpen && !notificationsOpen && !queueOpen) return undefined;
     scrollDistanceRef.current = 0;
     lastScrollTopRef.current = getScrollTop(document.scrollingElement);
     const handleScroll = (event) => {
@@ -58,6 +58,8 @@ export default function ClienteHeader({
       scrollDistanceRef.current += Math.abs(delta);
       if (scrollDistanceRef.current >= scrollCloseThreshold) {
         setLocationOpen(false);
+        setNotificationsOpen(false);
+        setQueueOpen(false);
       }
     };
     const captureOpts = { passive: true, capture: true };
@@ -65,7 +67,7 @@ export default function ClienteHeader({
     return () => {
       document.removeEventListener("scroll", handleScroll, captureOpts);
     };
-  }, [locationOpen]);
+  }, [locationOpen, notificationsOpen, queueOpen]);
 
   const headerClass = isElevated
     ? "relative bg-[#5E30A5] text-white shadow-md"
