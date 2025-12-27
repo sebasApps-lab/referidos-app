@@ -16,7 +16,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const descripcion = sanitizeText(promo.descripcion || "Sin descripcion");
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
 
-  const baseClass = className || "flex-shrink-0 w-[210px] pr-3";
+  const baseClass = className || "flex-shrink-0 w-[235px] pr-3";
   const {
     className: wrapperClassName,
     style: wrapperStyle,
@@ -34,7 +34,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     >
       <article
         onClick={goDetalle}
-        className="cursor-pointer rounded-[26px] shadow-lg overflow-hidden relative text-white aspect-[2/1]"
+        className="cursor-pointer rounded-[26px] shadow-lg overflow-hidden relative text-white aspect-[2.1/1]"
       >
         <div className="absolute inset-0">
           <div className="absolute inset-y-0 left-0 w-[65%]">
