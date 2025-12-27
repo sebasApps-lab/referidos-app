@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
 import badgeHot from "../../assets/badges/badge-promo-hot.png";
 import embersBg from "../../assets/images/embers-bg.png";
@@ -15,7 +14,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const descripcion = sanitizeText(promo.descripcion || "Sin descripcion");
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
 
-  const baseClass = className || "flex-shrink-0 w-[260px] pr-0";
+  const baseClass = className || "flex-shrink-0 w-[310px] pr-0";
   const {
     className: wrapperClassName,
     style: wrapperStyle,
@@ -33,7 +32,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     >
       <article
         onClick={goDetalle}
-        className="cursor-pointer rounded-[22px] shadow-lg overflow-hidden relative text-white aspect-[2.1/1] min-h-[123px]"
+        className="cursor-pointer rounded-[20px] shadow-lg overflow-hidden relative text-white aspect-[2/1] min-h-[150px]"
       >
         <div className="absolute inset-0">
           <div className="absolute inset-y-0 left-0 w-[65%]">
@@ -77,27 +76,42 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
           </div>
         </div>
 
-        <div className="relative z-10 ml-[35%] flex h-full flex-col px-4 py-3">
+        <div className="relative z-10 h-full flex flex-col px-0 pt-2 pb-3">
           <div
-            className="relative inline-flex w-fit -mt-2.5"
+            className="relative inline-flex w-fit ml-[41%]"
             style={{ opacity: 0.85, mixBlendMode: "screen" }}
           >
-            <img src={badgeHot} alt="Hot" className="h-7 w-auto" />
+            <img src={badgeHot} alt="Hot" className="h-9 w-auto" />
           </div>
 
-          <h3 className="mt-2 text-sm font-semibold leading-snug text-white line-clamp-1">
-            {titulo}
-          </h3>
-          <p className="mt-1 text-xs text-white/85 line-clamp-2">
-            {descripcion}
-          </p>
+          <div className="-mt-1 ml-[41%] px-3">
+            <h3 className="text-[16px] font-bold leading-snug text-white line-clamp-2">
+              {titulo}
+            </h3>
+            <p className="text-[12px] text-white/85 line-clamp-3 min-h-[3.5em]">
+              {descripcion}
+            </p>
 
-          <div className="mt-2 h-px w-full bg-[#F6C35B]/45" />
+            <div className="mt-2 h-px w-full bg-[#FFFFFF]/45" />
 
-          <div className="mt-2 space-y-1 text-[11px] text-white/90">
-            <div className="flex items-center gap-2">
-              <MapPin size={12} className="text-[#F6C35B]" />
-              <span className="font-semibold">{nombreLocal}</span>
+            <div className="mt-2 space-y-1 text-[12px] text-white/90">
+              <div className="flex items-center gap-2">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                className="text-[#F6C35B]"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M12 22s8-6.2 8-12a8 8 0 1 0-16 0c0 5.8 8 12 8 12Zm0-9a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"
+                />
+              </svg>
+                <span className="font-semibold">{nombreLocal}</span>
+              </div>
             </div>
           </div>
         </div>
