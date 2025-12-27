@@ -31,7 +31,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     >
       <article
         onClick={goDetalle}
-        className="cursor-pointer rounded-xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex"
+        className="cursor-pointer rounded-xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex aspect-[2/1.1]"
       >
         <div className="h-20 w-20 bg-[#F3EEFF] flex-shrink-0">
           {promo.imagen ? (
