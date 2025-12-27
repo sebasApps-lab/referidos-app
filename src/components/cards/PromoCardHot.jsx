@@ -52,8 +52,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
         setMarqueeDuration("0s");
         return;
       }
-      const gap = 12;
-      const distance = textWidth + gap;
+      const distance = Math.max(0, textWidth - availableWidth / 2);
       const duration = Math.min(12, Math.max(6, distance / 24));
       setMarqueeDistance(distance);
       setMarqueeDuration(`${duration}s`);
@@ -118,7 +117,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
 
     animationTimerRef.current = setTimeout(() => {
       setIsAnimating(true);
-    }, 3000);
+    }, 2000);
 
     return () => {
       if (animationTimerRef.current) {
@@ -243,14 +242,6 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
                 <span ref={localTextRef} className="hot-local-marquee-text">
                   {nombreLocal}
                 </span>
-                {isAnimating ? (
-                  <span
-                    className="hot-local-marquee-text"
-                    aria-hidden="true"
-                  >
-                    {nombreLocal}
-                  </span>
-                ) : null}
               </span>
             </span>
           </div>

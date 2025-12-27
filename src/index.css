@@ -355,15 +355,15 @@ html {
     transform: translateX(0);
     opacity: 1;
   }
-  65% {
+  60% {
     transform: translateX(calc(-1 * var(--hot-marquee-distance, 0px)));
     opacity: 1;
   }
-  75% {
+  70% {
     transform: translateX(calc(-1 * var(--hot-marquee-distance, 0px)));
     opacity: 0;
   }
-  76% {
+  71% {
     transform: translateX(0);
     opacity: 0;
   }
