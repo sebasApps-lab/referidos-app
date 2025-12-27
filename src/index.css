@@ -346,7 +346,7 @@ html {
 
 .hot-local-marquee--animate .hot-local-marquee-track,
 .hot-local-marquee-track--animate {
-  animation: hot-local-marquee var(--hot-marquee-duration, 6s) linear infinite;
+  animation: hot-local-marquee var(--hot-marquee-duration, 6s) linear 1;
   will-change: transform, opacity;
 }
 

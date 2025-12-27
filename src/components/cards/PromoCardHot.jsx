@@ -21,7 +21,9 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const [marqueeDuration, setMarqueeDuration] = useState("6s");
   const [isCardVisible, setIsCardVisible] = useState(false);
   const [isNameVisible, setIsNameVisible] = useState(false);
-  const shouldMarquee = isMarquee && isCardVisible && isNameVisible;
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationTimerRef = useRef(null);
+  const visibilityEligible = isMarquee && isCardVisible && isNameVisible;
 
   const baseClass = className || "flex-shrink-0 w-[310px] pr-0";
   const {
@@ -77,6 +79,34 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
       }
     };
   }, [nombreLocal]);
+
+  useEffect(() => {
+    if (animationTimerRef.current) {
+      clearTimeout(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+
+    if (!visibilityEligible || isAnimating) return undefined;
+
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return undefined;
+    }
+
+    animationTimerRef.current = setTimeout(() => {
+      setIsAnimating(true);
+    }, 3000);
+
+    return () => {
+      if (animationTimerRef.current) {
+        clearTimeout(animationTimerRef.current);
+        animationTimerRef.current = null;
+      }
+    };
+  }, [visibilityEligible, isAnimating]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
@@ -177,7 +207,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             <span
               ref={localWrapperRef}
               className={`hot-local-marquee -ml-1 text-[12px] font-semibold tracking-[0.10em] text-white/985 uppercase ${
-                shouldMarquee ? "hot-local-marquee--animate" : ""
+                isAnimating ? "hot-local-marquee--animate" : ""
               }`}
               style={{
                 "--hot-marquee-distance": `${marqueeDistance}px`,
@@ -186,13 +216,14 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             >
               <span
                 className={`hot-local-marquee-track ${
-                  shouldMarquee ? "hot-local-marquee-track--animate" : ""
+                  isAnimating ? "hot-local-marquee-track--animate" : ""
                 }`}
+                onAnimationEnd={() => setIsAnimating(false)}
               >
                 <span ref={localTextRef} className="hot-local-marquee-text">
                   {nombreLocal}
                 </span>
-                {shouldMarquee ? (
+                {isAnimating ? (
                   <span
                     className="hot-local-marquee-text"
                     aria-hidden="true"
