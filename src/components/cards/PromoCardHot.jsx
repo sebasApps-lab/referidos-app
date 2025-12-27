@@ -80,8 +80,8 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
 
         <div className="relative z-10 ml-[35%] flex h-full flex-col px-4 py-3">
           <div
-            className="relative inline-flex w-fit"
-            style={{ opacity: 0.92 }}
+            className="relative inline-flex w-fit -mt-2.5"
+            style={{ opacity: 0.85, mixBlendMode: "screen" }}
           >
             <img src={badgeHot} alt="Hot" className="h-7 w-auto" />
           </div>
