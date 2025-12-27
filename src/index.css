@@ -323,3 +323,61 @@ html {
   height: var(--cliente-header-height, 0px);
   background: #5E30A5;
 }
+
+.hot-local-marquee {
+  position: relative;
+  max-width: 170px;
+  overflow: hidden;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.hot-local-marquee-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+}
+
+.hot-local-marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.hot-local-marquee--animate .hot-local-marquee-track,
+.hot-local-marquee-track--animate {
+  animation: hot-local-marquee var(--hot-marquee-duration, 6s) linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes hot-local-marquee {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  65% {
+    transform: translateX(calc(-1 * var(--hot-marquee-distance, 0px)));
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(calc(-1 * var(--hot-marquee-distance, 0px)));
+    opacity: 0;
+  }
+  76% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hot-local-marquee--animate .hot-local-marquee-track,
+  .hot-local-marquee-track--animate {
+    animation: none;
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

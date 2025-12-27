@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { sanitizeText } from "../../utils/sanitize";
 import badgeHot from "../../assets/badges/badge-promo-hot.png";
@@ -13,6 +13,11 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const titulo = sanitizeText(promo.titulo || "Promo hot");
   const descripcion = sanitizeText(promo.descripcion || "Sin descripcion");
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
+  const localWrapperRef = useRef(null);
+  const localTextRef = useRef(null);
+  const [isMarquee, setIsMarquee] = useState(false);
+  const [marqueeDistance, setMarqueeDistance] = useState(0);
+  const [marqueeDuration, setMarqueeDuration] = useState("6s");
 
   const baseClass = className || "flex-shrink-0 w-[310px] pr-0";
   const {
@@ -23,6 +28,51 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const mergedClassName = [baseClass, wrapperClassName]
     .filter(Boolean)
     .join(" ");
+
+  useEffect(() => {
+    const wrapper = localWrapperRef.current;
+    const text = localTextRef.current;
+    if (!wrapper || !text) return undefined;
+
+    const update = () => {
+      const availableWidth = wrapper.clientWidth;
+      const textWidth = text.scrollWidth;
+      const overflow = textWidth > availableWidth + 1;
+      setIsMarquee(overflow);
+      if (!overflow) {
+        setMarqueeDistance(0);
+        setMarqueeDuration("0s");
+        return;
+      }
+      const gap = 12;
+      const distance = textWidth + gap;
+      const duration = Math.min(12, Math.max(6, distance / 24));
+      setMarqueeDistance(distance);
+      setMarqueeDuration(`${duration}s`);
+    };
+
+    update();
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(update)
+        : null;
+
+    if (resizeObserver) {
+      resizeObserver.observe(wrapper);
+      resizeObserver.observe(text);
+    } else {
+      window.addEventListener("resize", update);
+    }
+
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      } else {
+        window.removeEventListener("resize", update);
+      }
+    };
+  }, [nombreLocal]);
 
   return (
     <div
@@ -82,8 +132,33 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             style={{ opacity: 0.85, mixBlendMode: "screen" }}
           >
             <img src={badgeHot} alt="Hot" className="h-8 w-auto" />
-            <span className="text-[12px] font-semibold tracking-[0.10em] text-white/985 uppercase -ml-1">
-              {nombreLocal}
+            <span
+              ref={localWrapperRef}
+              className={`hot-local-marquee -ml-1 text-[12px] font-semibold tracking-[0.10em] text-white/985 uppercase ${
+                isMarquee ? "hot-local-marquee--animate" : ""
+              }`}
+              style={{
+                "--hot-marquee-distance": `${marqueeDistance}px`,
+                "--hot-marquee-duration": marqueeDuration,
+              }}
+            >
+              <span
+                className={`hot-local-marquee-track ${
+                  isMarquee ? "hot-local-marquee-track--animate" : ""
+                }`}
+              >
+                <span ref={localTextRef} className="hot-local-marquee-text">
+                  {nombreLocal}
+                </span>
+                {isMarquee ? (
+                  <span
+                    className="hot-local-marquee-text"
+                    aria-hidden="true"
+                  >
+                    {nombreLocal}
+                  </span>
+                ) : null}
+              </span>
             </span>
           </div>
 
