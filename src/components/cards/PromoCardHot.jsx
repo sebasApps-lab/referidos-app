@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 import { sanitizeText } from "../../utils/sanitize";
 
@@ -55,10 +55,6 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             <div className="inline-flex items-center gap-1">
               <MapPin size={10} />
               {ubicacion}
-            </div>
-            <div className="inline-flex items-center gap-1">
-              <Calendar size={10} />
-              {formatDateIsoToDdMmYyyy(promo.fin)}
             </div>
           </div>
         </div>
