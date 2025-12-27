@@ -1,7 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin } from "lucide-react";
-import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
+import { MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
 import badgeHot from "../../assets/badges/badge-promo-hot.png";
 import embersBg from "../../assets/images/embers-bg.png";
@@ -99,10 +98,6 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             <div className="flex items-center gap-2">
               <MapPin size={12} className="text-[#F6C35B]" />
               <span className="font-semibold">{nombreLocal}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar size={12} className="text-[#F6C35B]" />
-              <span>Hasta {formatDateIsoToDdMmYyyy(promo.fin)}</span>
             </div>
           </div>
         </div>
