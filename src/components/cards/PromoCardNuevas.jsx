@@ -46,7 +46,7 @@ export default function PromoCardNuevas({ promo, className, wrapperProps }) {
           )}
         </div>
         <div className="flex-1 p-4">
-          <h3 className="text-sm font-semibold text-[#2F1A55] line-clamp-2">
+          <h3 className="text-sm font-semibold text-[#2F1A55] line-clamp-1">
             {titulo}
           </h3>
           <p className="mt-1 text-xs text-slate-500 line-clamp-2">
@@ -59,10 +59,6 @@ export default function PromoCardNuevas({ promo, className, wrapperProps }) {
             <span className="inline-flex items-center gap-1">
               <MapPin size={11} />
               {ubicacion}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Calendar size={11} />
-              {formatDateIsoToDdMmYyyy(promo.fin)}
             </span>
           </div>
         </div>
