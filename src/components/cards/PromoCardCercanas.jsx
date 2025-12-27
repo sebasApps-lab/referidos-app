@@ -35,7 +35,7 @@ export default function PromoCardCercanas({ promo, className, wrapperProps }) {
         onClick={goDetalle}
         className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden"
       >
-        <div className="h-44 bg-[#F8F5FF]">
+        <div className="h-52 bg-[#F8F5FF]">
           {promo.imagen ? (
             <img
               src={promo.imagen}
@@ -47,10 +47,10 @@ export default function PromoCardCercanas({ promo, className, wrapperProps }) {
           )}
         </div>
         <div className="p-4">
-          <h3 className="text-[15px] font-semibold text-[#2F1A55] line-clamp-2">
+          <h3 className="text-[16px] font-semibold text-[#2F1A55] line-clamp-2">
             {titulo}
           </h3>
-          <p className="mt-1 text-xs text-slate-500 line-clamp-2">
+          <p className="mt-1 text-sm text-slate-500 line-clamp-3">
             {descripcion}
           </p>
           <div className="mt-3 h-px bg-[#E9E2F7]" />
@@ -58,11 +58,11 @@ export default function PromoCardCercanas({ promo, className, wrapperProps }) {
             {nombreLocal}
           </div>
           <div className="mt-2 space-y-1 text-xs text-slate-500">
-            <div className="inline-flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <MapPin size={12} />
               {ubicacion}
             </div>
-            <div className="inline-flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Calendar size={12} />
               Hasta {formatDateIsoToDdMmYyyy(promo.fin)}
             </div>
