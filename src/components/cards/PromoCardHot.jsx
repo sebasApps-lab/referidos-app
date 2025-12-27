@@ -23,6 +23,8 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const [isNameVisible, setIsNameVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const animationTimerRef = useRef(null);
+  const stableVisibilityTimerRef = useRef(null);
+  const [isVisibilityStable, setIsVisibilityStable] = useState(false);
   const visibilityEligible = isMarquee && isCardVisible && isNameVisible;
 
   const baseClass = className || "flex-shrink-0 w-[310px] pr-0";
@@ -81,12 +83,30 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   }, [nombreLocal]);
 
   useEffect(() => {
+    if (stableVisibilityTimerRef.current) {
+      clearTimeout(stableVisibilityTimerRef.current);
+      stableVisibilityTimerRef.current = null;
+    }
+
+    stableVisibilityTimerRef.current = setTimeout(() => {
+      setIsVisibilityStable(visibilityEligible);
+    }, 150);
+
+    return () => {
+      if (stableVisibilityTimerRef.current) {
+        clearTimeout(stableVisibilityTimerRef.current);
+        stableVisibilityTimerRef.current = null;
+      }
+    };
+  }, [visibilityEligible]);
+
+  useEffect(() => {
     if (animationTimerRef.current) {
       clearTimeout(animationTimerRef.current);
       animationTimerRef.current = null;
     }
 
-    if (!visibilityEligible || isAnimating) return undefined;
+    if (!isVisibilityStable || isAnimating) return undefined;
 
     if (
       typeof window !== "undefined" &&
@@ -106,7 +126,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
         animationTimerRef.current = null;
       }
     };
-  }, [visibilityEligible, isAnimating]);
+  }, [isVisibilityStable, isAnimating]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
@@ -131,9 +151,9 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     const nameObserver = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        setIsNameVisible(entry.intersectionRatio >= 1);
+        setIsNameVisible(entry.intersectionRatio >= 0.98);
       },
-      { threshold: [0, 0.5, 1] }
+      { threshold: [0, 0.5, 0.98, 1] }
     );
 
     cardObserver.observe(card);
