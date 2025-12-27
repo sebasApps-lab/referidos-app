@@ -24,7 +24,7 @@ export default function SearchIdle({
       : HOT_PROMOS;
 
   return (
-    <div className="mt-6 px-4">
+    <div className="mt-6">
       <div className="mb-6">
         <PromoSection
           title="Hot"
@@ -37,7 +37,7 @@ export default function SearchIdle({
         />
       </div>
 
-      <div>
+      <div className="px-4">
         <SectionTitle>Busquedas sugeridas</SectionTitle>
         <div className="flex flex-wrap gap-2">
           {suggestions.map((term) => (
