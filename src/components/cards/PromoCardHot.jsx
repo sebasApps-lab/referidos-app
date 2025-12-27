@@ -78,10 +78,13 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
 
         <div className="relative z-10 h-full flex flex-col px-0 pt-2 pb-3">
           <div
-            className="relative inline-flex w-fit ml-[41%]"
+            className="relative inline-flex w-fit ml-[41%] items-center gap-0.5"
             style={{ opacity: 0.85, mixBlendMode: "screen" }}
           >
             <img src={badgeHot} alt="Hot" className="h-8 w-auto" />
+            <span className="text-[12px] font-semibold tracking-[0.10em] text-white/985 uppercase -ml-1">
+              {nombreLocal}
+            </span>
           </div>
 
           <div className="-mt-1 ml-[41%] px-3">
