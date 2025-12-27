@@ -37,7 +37,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
         className="cursor-pointer rounded-[26px] shadow-lg overflow-hidden relative text-white aspect-[2/1]"
       >
         <div className="absolute inset-0">
-          <div className="absolute inset-y-0 left-0 w-1/2">
+          <div className="absolute inset-y-0 left-0 w-[65%]">
             {promo.imagen ? (
               <img
                 src={promo.imagen}
@@ -56,23 +56,29 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             aria-hidden="true"
           />
 
-          <div className="absolute inset-y-0 left-[45%] w-[55%]">
+          <div
+            className="absolute inset-y-0 left-[35%] w-[65%]"
+            style={{
+              WebkitMaskImage:
+                "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 10%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 30%, rgba(0,0,0,1) 100%)",
+              maskImage:
+                "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 10%, rgba(0,0,0,0.6) 15%, rgba(0,0,0,1) 30%, rgba(0,0,0,1) 100%)",
+              WebkitMaskSize: "100% 100%",
+              maskSize: "100% 100%",
+              WebkitMaskRepeat: "no-repeat",
+              maskRepeat: "no-repeat",
+            }}
+          >
             <img
               src={embersBg}
               alt=""
               className="h-full w-full object-cover mix-blend-screen"
               aria-hidden="true"
-              style={{
-                WebkitMaskImage:
-                  "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.25) 8%, rgba(0,0,0,1) 16%)",
-                maskImage:
-                  "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.25) 8%, rgba(0,0,0,1) 16%)",
-              }}
             />
           </div>
         </div>
 
-        <div className="relative z-10 ml-[45%] flex h-full flex-col px-4 py-3">
+        <div className="relative z-10 ml-[35%] flex h-full flex-col px-4 py-3">
           <div
             className="relative inline-flex w-fit"
             style={{ opacity: 0.92 }}
