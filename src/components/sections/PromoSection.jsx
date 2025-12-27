@@ -67,12 +67,23 @@ export default function PromoSection({
 
   const renderItems = loopEnabled
     ? [0, 1, 2].flatMap((loopIndex) =>
-        promos.map((promo) => ({
+        promos.map((promo, index) => ({
           promo,
           key: `${promo.id}-${loopIndex}`,
+          loopIndex,
+          index,
         }))
       )
-    : promos.map((promo) => ({ promo, key: promo.id }));
+    : promos.map((promo, index) => ({
+        promo,
+        key: promo.id,
+        loopIndex: 0,
+        index,
+      }));
+
+  const snapProps = {
+    style: { scrollSnapAlign: "center", scrollSnapStop: "always" },
+  };
 
   return (
     <div className="mb-8 relative">
@@ -129,12 +140,19 @@ export default function PromoSection({
       <div
         ref={ref}
         className="flex overflow-x-auto gap-2 no-scrollbar scroll-smooth px-2 pt-2"
+        style={{ scrollSnapType: "x mandatory" }}
       >
-        {renderItems.map(({ promo, key }) => (
+        {renderItems.map(({ promo, key, loopIndex, index }) => (
           <CardComponent
             key={key}
             promo={promo}
             rating={ratings?.[promo.id]}
+            wrapperProps={{
+              ...snapProps,
+              "data-carousel-item": true,
+              "data-carousel-index": index,
+              "data-carousel-dup": loopIndex,
+            }}
           />
         ))}
       </div>

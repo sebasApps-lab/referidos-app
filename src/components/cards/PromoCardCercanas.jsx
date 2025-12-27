@@ -4,7 +4,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 import { sanitizeText } from "../../utils/sanitize";
 
-export default function PromoCardCercanas({ promo, className }) {
+export default function PromoCardCercanas({ promo, className, wrapperProps }) {
   const navigate = useNavigate();
   if (!promo) return null;
 
@@ -16,9 +16,21 @@ export default function PromoCardCercanas({ promo, className }) {
 
   const wrapperClass =
     className || "flex-shrink-0 w-[88%] sm:w-[340px] pr-3";
+  const {
+    className: wrapperClassName,
+    style: wrapperStyle,
+    ...restWrapperProps
+  } = wrapperProps || {};
+  const mergedClassName = [wrapperClass, wrapperClassName]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className={wrapperClass}>
+    <div
+      className={mergedClassName}
+      style={wrapperStyle}
+      {...restWrapperProps}
+    >
       <article
         onClick={goDetalle}
         className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden"

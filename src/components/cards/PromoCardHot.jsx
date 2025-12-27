@@ -4,7 +4,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 import { sanitizeText } from "../../utils/sanitize";
 
-export default function PromoCardHot({ promo }) {
+export default function PromoCardHot({ promo, className, wrapperProps }) {
   const navigate = useNavigate();
   if (!promo) return null;
 
@@ -13,8 +13,22 @@ export default function PromoCardHot({ promo }) {
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
   const ubicacion = sanitizeText(promo.ubicacion || promo.sector || "Ubicacion");
 
+  const baseClass = className || "flex-shrink-0 w-[210px] pr-3";
+  const {
+    className: wrapperClassName,
+    style: wrapperStyle,
+    ...restWrapperProps
+  } = wrapperProps || {};
+  const mergedClassName = [baseClass, wrapperClassName]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="flex-shrink-0 w-[210px] pr-3">
+    <div
+      className={mergedClassName}
+      style={wrapperStyle}
+      {...restWrapperProps}
+    >
       <article
         onClick={goDetalle}
         className="cursor-pointer rounded-xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex"
