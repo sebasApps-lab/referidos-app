@@ -81,14 +81,14 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             className="relative inline-flex w-fit ml-[41%]"
             style={{ opacity: 0.85, mixBlendMode: "screen" }}
           >
-            <img src={badgeHot} alt="Hot" className="h-9 w-auto" />
+            <img src={badgeHot} alt="Hot" className="h-8 w-auto" />
           </div>
 
           <div className="-mt-1 ml-[41%] px-3">
-            <h3 className="text-[16px] font-bold leading-snug text-white line-clamp-2">
+            <h3 className="text-[15px] font-bold leading-snug text-white line-clamp-2 min-h-[2.1em]">
               {titulo}
             </h3>
-            <p className="text-[12px] text-white/85 line-clamp-3 min-h-[3.5em]">
+            <p className="text-[12px] text-white/85 line-clamp-3 min-h-[3.3em]">
               {descripcion}
             </p>
 
