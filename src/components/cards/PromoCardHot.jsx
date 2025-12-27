@@ -34,12 +34,6 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
         onClick={goDetalle}
         className="cursor-pointer rounded-[20px] shadow-lg overflow-hidden relative text-white aspect-[2/1] min-h-[150px]"
       >
-        <div
-          className="absolute left-3 top-3 z-20 inline-flex items-center rounded-full border border-black px-2.5 py-1 text-[11px] font-semibold"
-          style={{ background: "rgba(125,125,125,0.75)", color: "#000" }}
-        >
-          {nombreLocal}
-        </div>
         <div className="absolute inset-0">
           <div className="absolute inset-y-0 left-0 w-[65%]">
             {promo.imagen ? (
