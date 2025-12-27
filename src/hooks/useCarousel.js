@@ -8,6 +8,7 @@ export function useCarousel(
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
   const loopInitRef = useRef(false);
+  const readyRef = useRef(false);
   const segmentRef = useRef(0);
   const jumpingRef = useRef(false);
   const loopEnabled = loop && itemsCount > 1;
@@ -35,6 +36,7 @@ export function useCarousel(
     const offset = Math.max(0, Math.min(segment - 1, peek));
     el.scrollLeft = segment - offset;
     loopInitRef.current = true;
+    readyRef.current = true;
   }, [getPeek, getSegment, loopEnabled, ref]);
 
   const jumpTo = useCallback((el, nextLeft) => {
@@ -54,6 +56,7 @@ export function useCarousel(
     if (!el) return;
 
     if (loopEnabled) {
+      if (!readyRef.current) return;
       if (jumpingRef.current) return;
       const segment = segmentRef.current || getSegment(el);
       if (segment) {
@@ -109,6 +112,7 @@ export function useCarousel(
   useLayoutEffect(() => {
     if (!loopEnabled) {
       loopInitRef.current = false;
+      readyRef.current = false;
       return undefined;
     }
     const id = requestAnimationFrame(() => {
@@ -123,6 +127,9 @@ export function useCarousel(
     if (!el) return;
 
     update();
+    if (loopEnabled && !readyRef.current) {
+      return undefined;
+    }
     el.addEventListener("scroll", update);
     const handleInteract = () => {
       onInteract?.();
