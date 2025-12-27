@@ -13,11 +13,15 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
   const titulo = sanitizeText(promo.titulo || "Promo hot");
   const descripcion = sanitizeText(promo.descripcion || "Sin descripcion");
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
+  const cardRef = useRef(null);
   const localWrapperRef = useRef(null);
   const localTextRef = useRef(null);
   const [isMarquee, setIsMarquee] = useState(false);
   const [marqueeDistance, setMarqueeDistance] = useState(0);
   const [marqueeDuration, setMarqueeDuration] = useState("6s");
+  const [isCardVisible, setIsCardVisible] = useState(false);
+  const [isNameVisible, setIsNameVisible] = useState(false);
+  const shouldMarquee = isMarquee && isCardVisible && isNameVisible;
 
   const baseClass = className || "flex-shrink-0 w-[310px] pr-0";
   const {
@@ -74,6 +78,43 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     };
   }, [nombreLocal]);
 
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      setIsCardVisible(true);
+      setIsNameVisible(true);
+      return undefined;
+    }
+
+    const card = cardRef.current;
+    const name = localWrapperRef.current;
+
+    if (!card || !name) return undefined;
+
+    const cardObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setIsCardVisible(entry.intersectionRatio >= 0.6);
+      },
+      { threshold: [0, 0.6, 1] }
+    );
+
+    const nameObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setIsNameVisible(entry.intersectionRatio >= 1);
+      },
+      { threshold: [0, 0.5, 1] }
+    );
+
+    cardObserver.observe(card);
+    nameObserver.observe(name);
+
+    return () => {
+      cardObserver.disconnect();
+      nameObserver.disconnect();
+    };
+  }, []);
+
   return (
     <div
       className={mergedClassName}
@@ -81,6 +122,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
       {...restWrapperProps}
     >
       <article
+        ref={cardRef}
         onClick={goDetalle}
         className="cursor-pointer rounded-[20px] shadow-lg overflow-hidden relative text-white aspect-[2/1] min-h-[150px]"
       >
@@ -135,7 +177,7 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             <span
               ref={localWrapperRef}
               className={`hot-local-marquee -ml-1 text-[12px] font-semibold tracking-[0.10em] text-white/985 uppercase ${
-                isMarquee ? "hot-local-marquee--animate" : ""
+                shouldMarquee ? "hot-local-marquee--animate" : ""
               }`}
               style={{
                 "--hot-marquee-distance": `${marqueeDistance}px`,
@@ -144,13 +186,13 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             >
               <span
                 className={`hot-local-marquee-track ${
-                  isMarquee ? "hot-local-marquee-track--animate" : ""
+                  shouldMarquee ? "hot-local-marquee-track--animate" : ""
                 }`}
               >
                 <span ref={localTextRef} className="hot-local-marquee-text">
                   {nombreLocal}
                 </span>
-                {isMarquee ? (
+                {shouldMarquee ? (
                   <span
                     className="hot-local-marquee-text"
                     aria-hidden="true"
