@@ -84,22 +84,6 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             style={{ opacity: 0.92 }}
           >
             <img src={badgeHot} alt="Hot" className="h-7 w-auto" />
-            <span
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(75deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.25) 100%)",
-                mixBlendMode: "multiply",
-              }}
-            />
-            <span
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(175deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0) 18%)",
-                mixBlendMode: "multiply",
-              }}
-            />
           </div>
 
           <h3 className="mt-2 text-sm font-semibold leading-snug text-white line-clamp-1">
