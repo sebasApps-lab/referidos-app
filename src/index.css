@@ -356,7 +356,7 @@ html {
     opacity: 1;
   }
   60% {
-    transform: translateX(calc(-1 * var(--hot-marquee-distance, 0px)));
+    transform: translateX(calc(-0.85 * var(--hot-marquee-distance, 0px)));
     opacity: 1;
   }
   70% {
