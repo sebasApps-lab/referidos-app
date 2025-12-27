@@ -17,6 +17,7 @@ export default function InicioPromos({ sections, ratings }) {
           autoScrollInterval={section.autoScrollInterval}
           loop={section.loop}
           loopPeek={section.loopPeek}
+          gapClassName={section.gapClassName}
         />
       ))}
     </section>

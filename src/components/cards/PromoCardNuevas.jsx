@@ -14,7 +14,7 @@ export default function PromoCardNuevas({ promo, className, wrapperProps }) {
   const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
   const ubicacion = sanitizeText(promo.ubicacion || promo.sector || "Ubicacion");
 
-  const baseClass = className || "flex-shrink-0 w-[90%] sm:w-[420px] pr-3";
+  const baseClass = className || "flex-shrink-0 w-[90%] sm:w-[420px] pr-0";
   const {
     className: wrapperClassName,
     style: wrapperStyle,

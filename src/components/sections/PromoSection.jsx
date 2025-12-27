@@ -14,6 +14,7 @@ export default function PromoSection({
   autoScrollInterval = 5000,
   loop = true,
   loopPeek = 0,
+  gapClassName = "gap-2",
 }) {
   const ref = useRef(null);
   const [autoActive, setAutoActive] = useState(true);
@@ -139,7 +140,7 @@ export default function PromoSection({
 
       <div
         ref={ref}
-        className="flex overflow-x-auto gap-2 no-scrollbar scroll-smooth px-2 pt-2"
+        className={`flex overflow-x-auto ${gapClassName} no-scrollbar scroll-smooth px-2 pt-2`}
         style={{ scrollSnapType: "x mandatory" }}
       >
         {renderItems.map(({ promo, key, loopIndex, index }) => (
