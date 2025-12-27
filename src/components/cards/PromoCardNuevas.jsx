@@ -32,7 +32,7 @@ export default function PromoCardNuevas({ promo, className, wrapperProps }) {
     >
       <article
         onClick={goDetalle}
-        className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex"
+        className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden flex aspect-[5/2]"
       >
         <div className="w-32 sm:w-36 bg-[#F3EEFF] flex-shrink-0">
           {promo.imagen ? (

@@ -35,7 +35,7 @@ export default function PromoCardCercanas({ promo, className, wrapperProps }) {
         onClick={goDetalle}
         className="cursor-pointer rounded-2xl border border-[#E9E2F7] bg-white shadow-sm overflow-hidden"
       >
-        <div className="h-52 bg-[#F8F5FF]">
+        <div className="h-40 bg-[#F8F5FF]">
           {promo.imagen ? (
             <img
               src={promo.imagen}
