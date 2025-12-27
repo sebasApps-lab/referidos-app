@@ -13,6 +13,7 @@ import { useSearchMode } from "../../components/search/useSearchMode";
 import SearchIdle from "../../components/search/SearchIdle";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
+import LoaderOverlay from "../../components/ui/LoaderOverlay";
 import { useClienteHeader } from "../layout/ClienteHeaderContext";
 import { useClienteUI } from "../hooks/useClienteUI";
 import { useSearchDock } from "../hooks/useSearchDock";
@@ -20,6 +21,7 @@ import InicioHero from "./InicioHero";
 import InicioBeneficios from "./InicioBeneficios";
 import InicioEmptyState from "./InicioEmptyState";
 import InicioPromosPreview from "./InicioPromosPreview";
+import ClienteInicioSkeleton from "./ClienteInicioSkeleton";
 
 export default function ClienteInicio() {
   const { filtersOpen, setFiltersOpen } = useClienteUI();
@@ -82,9 +84,9 @@ export default function ClienteInicio() {
 
   if (loading) {
     return (
-      <div className="py-16 text-center text-sm text-black/60">
-        Cargando promociones...
-      </div>
+      <LoaderOverlay>
+        <ClienteInicioSkeleton />
+      </LoaderOverlay>
     );
   }
 
