@@ -9,13 +9,13 @@ import HistorialEmpty from "./HistorialEmpty";
 
 const Tabs = ({ active, onChange }) => {
   const tabs = [
-    { key: "activos", label: "QR activos" },
-    { key: "canjeados", label: "QR canjeados" },
-    { key: "expirados", label: "QR expirados" },
+    { key: "activos", label: "ACTIVOS" },
+    { key: "canjeados", label: "CANJEADOS" },
+    { key: "expirados", label: "EXPIRADOS" },
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 rounded-2xl border border-[#E9E2F7] bg-white p-2 shadow-sm">
+    <div className="flex flex-wrap justify-center gap-2 rounded-2xl border border-[#E9E2F7] bg-white p-2 shadow-sm">
       {tabs.map((t) => {
         const isActive = active === t.key;
         return (
@@ -106,12 +106,10 @@ export default function HistorialView() {
   return (
     <div className="flex flex-col items-center px-4 py-6 gap-6">
       <div className="w-full max-w-3xl space-y-4">
-        <div>
-          <h1 className="text-lg font-semibold text-[#2F1A55]">
-            Historial de promos
-          </h1>
-          <p className="text-xs text-slate-500">
-            Consulta los QR activos, canjeados o expirados.
+        <div className="text-center my-2">
+          <p className="text-base text-slate-500">
+            Consulta los codigos activos,
+            <span className="block">canjeados o expirados.</span>
           </p>
         </div>
 
