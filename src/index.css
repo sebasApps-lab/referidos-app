@@ -285,13 +285,14 @@ html {
 
 .hero-search-dock {
   transform-origin: top center;
-  transition: opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
 }
 
 .hero-search-dock[data-state="closed"] {
   opacity: 0;
-  transform: translateY(-10px) scaleY(0.98);
+  transform: translate3d(0, -12px, 0) scaleY(0.96);
   pointer-events: none;
 }
 

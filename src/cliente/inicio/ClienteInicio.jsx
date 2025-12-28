@@ -95,25 +95,25 @@ export default function ClienteInicio() {
       <SearchContainer
         mode={mode}
         searchBar={
-          showSearchDock && dockTarget
+          dockTarget
             ? createPortal(
                 <HeaderPanelContainer
                   open={showSearchDock}
                   panelClassName="hero-search-dock"
                   panelProps={{ "aria-hidden": !showSearchDock }}
                 >
-              <SearchbarPanel
-                value={query}
-                onChange={setQuery}
-                onFocus={onFocus}
-                onCancel={onCancel}
-                showBack={false}
-                autoFocus={mode === "search"}
-              />
-            </HeaderPanelContainer>,
-            dockTarget
-          )
-        : null
+                  <SearchbarPanel
+                    value={query}
+                    onChange={setQuery}
+                    onFocus={onFocus}
+                    onCancel={onCancel}
+                    showBack={false}
+                    autoFocus={mode === "search"}
+                  />
+                </HeaderPanelContainer>,
+                dockTarget
+              )
+            : null
         }
         results={
           hasQuery ? (
