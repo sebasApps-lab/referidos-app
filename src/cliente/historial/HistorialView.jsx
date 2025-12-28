@@ -15,21 +15,25 @@ const Tabs = ({ active, onChange }) => {
   ];
 
   return (
-    <div className="flex flex-wrap justify-center gap-2">
-      {tabs.map((t) => {
+    <div className="flex flex-wrap items-center justify-center">
+      {tabs.map((t, index) => {
         const isActive = active === t.key;
         return (
-          <button
-            key={t.key}
-            onClick={() => onChange(t.key)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
-              isActive
-                ? "bg-[#5E30A5] text-white shadow-sm"
-                : "bg-transparent text-slate-500 hover:text-[#5E30A5]"
-            }`}
-          >
-            {t.label}
-          </button>
+          <React.Fragment key={t.key}>
+            <button
+              onClick={() => onChange(t.key)}
+              className={`relative px-2 pt-2 -mb-3 text-[13px] font-semibold tracking-[0.22em] transition ${
+                isActive
+                  ? "text-white"
+                  : "text-white/60 hover:text-white/80"
+              }`}
+            >
+              {t.label}
+            </button>
+            {index < tabs.length - 1 && (
+              <span className="mx-2 h-3 w-px translate-y-2.5 bg-gradient-to-b from-white/0 via-white/40 to-white/0" />
+            )}
+          </React.Fragment>
         );
       })}
     </div>
@@ -104,17 +108,22 @@ export default function HistorialView() {
   const currentList = grouped[historyTab] || [];
 
   return (
-    <div className="flex flex-col items-center px-4 py-6 gap-6">
-      <div className="w-full max-w-3xl space-y-4">
-        <div className="text-center my-2">
-          <p className="text-base text-slate-500">
-            Consulta los codigos activos,
-            <span className="block">canjeados o expirados.</span>
-          </p>
+    <div className="pb-10">
+      <section className="hero-bleed historial-hero text-white">
+        <div className="relative z-10 max-w-3xl mx-auto px-4 pt-1 pb-5">
+          <div className="text-center">
+            <p className="max-w-[325px] mx-auto text-center text-[18px] font-light leading-snug text-white">
+              Consulta tus codigos activos, canjeados
+              <span className="block">o expirados.</span>
+            </p>
+          </div>
+          <div className="mt-2 flex justify-center">
+            <Tabs active={historyTab} onChange={setHistoryTab} />
+          </div>
         </div>
+      </section>
 
-        <Tabs active={historyTab} onChange={setHistoryTab} />
-
+      <div className="w-full max-w-3xl mx-auto px-4 pt-12 space-y-4">
         {loading && (
           <p className="text-sm text-slate-500">Cargando historial...</p>
         )}

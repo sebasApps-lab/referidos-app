@@ -78,7 +78,7 @@ export default function HistorialItem({ item, variant }) {
 
   return (
     <article
-      className="relative overflow-hidden rounded-2xl border border-[#E9E2F7] bg-white shadow-sm cursor-pointer"
+      className="relative overflow-hidden rounded-2xl border border-[#EEE8FA] bg-white/95 shadow-[0_6px_16px_rgba(47,26,85,0.06)] cursor-pointer"
       onClick={goDetalle}
     >
       {variant === "activos" && (
@@ -89,17 +89,17 @@ export default function HistorialItem({ item, variant }) {
 
       <div className="flex gap-4 p-4">
         <div
-          className="h-24 w-24 rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0"
+          className="h-24 w-24 rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
         />
         <div className="flex flex-col gap-2 flex-1">
           <div>
-            <h3 className="text-sm font-semibold text-[#2F1A55] line-clamp-2">
+            <h3 className="text-[15px] font-semibold text-[#2F1A55] line-clamp-2">
               {safePromo.titulo}
             </h3>
-            <p className="text-xs text-slate-500 line-clamp-2">
+            <p className="text-[13px] text-slate-500 line-clamp-2">
               {safePromo.descripcion}
             </p>
           </div>

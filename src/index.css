@@ -333,6 +333,10 @@ html {
   border-radius: 0 0 2.5rem 2.5rem;
 }
 
+.historial-hero.hero-bleed {
+  border-radius: 0 0 1rem 1rem;
+}
+
 .hero-bleed::before {
   content: "";
   position: absolute;
