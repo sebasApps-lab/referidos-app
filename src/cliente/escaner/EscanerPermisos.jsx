@@ -17,7 +17,7 @@ export default function EscanerPermisos({
     : "Activa el permiso de camara o ingresa el codigo manualmente.";
 
   return (
-    <div className="w-full text-left">
+    <div className="w-full rounded-2xl border border-[#E9E2F7] bg-white p-5 text-left shadow-[0_3px_8px_rgba(47,26,85,0.08)]">
       <div className="flex items-start gap-3">
         <span className="h-10 w-10 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
           {!camSupported ? <CameraOff size={18} /> : <ShieldAlert size={18} />}
