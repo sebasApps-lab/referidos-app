@@ -76,6 +76,12 @@ export default function EscanerView() {
   const setScannerPermissionPrompted = useAppStore(
     (s) => s.setScannerPermissionPrompted
   );
+  const manualFallbackShown = useAppStore(
+    (s) => s.scannerManualFallbackShown
+  );
+  const setManualFallbackShown = useAppStore(
+    (s) => s.setScannerManualFallbackShown
+  );
   const isNegocio = usuario?.role === "negocio";
 
   const [cameraAvailable, setCameraAvailable] = useState(null);
@@ -86,7 +92,6 @@ export default function EscanerView() {
   const [statusType, setStatusType] = useState("info");
   const [result, setResult] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [manualFallbackVisible, setManualFallbackVisible] = useState(false);
   const [manualRequested, setManualRequested] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -228,22 +233,16 @@ export default function EscanerView() {
     !scannerPermissionPrompted && camGranted !== true && cameraAvailable !== false;
   const showPermisos =
     scannerPermissionPrompted && (!canScan || camGranted !== true);
-  const showManual = manualFallbackVisible;
+  const showManual = manualFallbackShown;
   const manualReady =
     manualValue.replace(/[^0-9a-zA-Z]/g, "").length === 6;
   const manualDisabled = processing || !manualReady;
 
-  useEffect(() => {
-    if (!showPermisos) {
-      setManualRequested(false);
-    }
-  }, [showPermisos]);
-
   const handleManualOpen = useCallback(() => {
     if (manualRequested) return;
     setManualRequested(true);
-    setManualFallbackVisible(true);
-  }, [manualRequested]);
+    setManualFallbackShown(true);
+  }, [manualRequested, setManualFallbackShown]);
 
   return (
     <div

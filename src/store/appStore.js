@@ -60,12 +60,15 @@ export const useAppStore = create(
       promosRefreshing: false,
       promosVisible: false,
       scannerPermissionPrompted: false,
+      scannerManualFallbackShown: false,
       negocios: [],
       loading: false,
       error: null,
       setUser: (usuario) => set({ usuario }),
       setScannerPermissionPrompted: (value) =>
         set({ scannerPermissionPrompted: value }),
+      setScannerManualFallbackShown: (value) =>
+        set({ scannerManualFallbackShown: value }),
 
       //-----------------------
       // AUTH
@@ -128,6 +131,7 @@ export const useAppStore = create(
             promos: [],
             negocios: [],
             scannerPermissionPrompted: false,
+            scannerManualFallbackShown: false,
           });
         }
       },
