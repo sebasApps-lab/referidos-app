@@ -65,7 +65,7 @@ export default function EscanerPermisos({
                 : "bg-[#5E30A5] hover:bg-[#4B2488]"
             }`}
           >
-            Ingresar codigo manualmente
+            Ingresar codigo
           </button>
         </div>
       </div>
