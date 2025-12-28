@@ -87,6 +87,7 @@ export default function EscanerView() {
   const [result, setResult] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [manualFallbackVisible, setManualFallbackVisible] = useState(false);
+  const [manualRequested, setManualRequested] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
     setScanSupported("BarcodeDetector" in window);
@@ -230,8 +231,26 @@ export default function EscanerView() {
   const showManual = manualFallbackVisible;
   const manualDisabled = processing || !manualValue.trim();
 
+  useEffect(() => {
+    if (!showPermisos) {
+      setManualRequested(false);
+    }
+  }, [showPermisos]);
+
+  const handleManualOpen = useCallback(() => {
+    if (manualRequested) return;
+    setManualRequested(true);
+    setManualFallbackVisible(true);
+  }, [manualRequested]);
+
   return (
-    <div className="flex flex-col flex-1 w-full px-4 pb-12 pt-4">
+    <div
+      className="flex flex-col flex-1 w-full px-4 pb-12 pt-4"
+      style={{
+        minHeight:
+          "calc(100dvh - var(--cliente-header-height, 0px) - 80px - env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="flex justify-between items-center mb-4">
         {isNegocio ? (
           <h1 className="text-base font-semibold text-[#2F1A55]">
@@ -310,22 +329,41 @@ export default function EscanerView() {
         )}
 
         {showPermisos && (
-          <div
-            className={`flex flex-col items-center gap-4 ${
-              showManual ? "justify-start" : "flex-1 justify-center"
-            }`}
-          >
-            <div className="w-full max-w-lg">
-              <EscanerPermisos
-                camSupported={canScan}
-                camGranted={camGranted}
-                onManual={() => setManualFallbackVisible(true)}
-                onRequestCamera={requestCameraPermission}
-                showButton={!showManual}
-              />
-            </div>
-            {showManual && (
-              <div className="w-full max-w-lg">
+          <div className="relative flex-1">
+            <div
+              className={`absolute left-0 right-0 flex flex-col items-center gap-4 ${
+                showManual ? "top-6 translate-y-0" : "top-1/2 -translate-y-1/2"
+              }`}
+              style={{
+                transition: "top 520ms ease, transform 520ms ease",
+                willChange: "top, transform",
+              }}
+            >
+              <div className="w-full max-w-lg transition-transform duration-500 ease-out">
+                <EscanerPermisos
+                  camSupported={canScan}
+                  camGranted={camGranted}
+                  onManual={handleManualOpen}
+                  onRequestCamera={requestCameraPermission}
+                  showButton={!showManual}
+                  manualDisabled={manualRequested}
+                />
+              </div>
+              <div
+                className={`w-full max-w-lg overflow-hidden ${
+                  showManual ? "" : "pointer-events-none"
+                }`}
+                style={{
+                  maxHeight: showManual ? 420 : 0,
+                  opacity: showManual ? 1 : 0,
+                  transform: showManual ? "translateY(0)" : "translateY(-8px)",
+                  transition: `max-height 420ms ease ${
+                    showManual ? "160ms" : "0ms"
+                  }, opacity 260ms ease ${showManual ? "160ms" : "0ms"}, transform 260ms ease ${
+                    showManual ? "160ms" : "0ms"
+                  }`,
+                }}
+              >
                 <EscanerFallback
                   value={manualValue}
                   onChange={setManualValue}
@@ -333,7 +371,7 @@ export default function EscanerView() {
                   disabled={manualDisabled}
                 />
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

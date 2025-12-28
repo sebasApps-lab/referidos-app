@@ -1,5 +1,5 @@
 import React from "react";
-import { CameraOff, ShieldAlert } from "lucide-react";
+import { CameraOff, Settings, ShieldAlert } from "lucide-react";
 
 export default function EscanerPermisos({
   camSupported,
@@ -7,15 +7,14 @@ export default function EscanerPermisos({
   onManual,
   onRequestCamera,
   showButton = true,
+  manualDisabled = false,
 }) {
   if (camSupported && camGranted) return null;
 
-  const title = !camSupported
-    ? "Cámara no disponible"
-    : "Permiso denegado";
+  const title = !camSupported ? "Camara no disponible" : "Permiso denegado";
   const description = !camSupported
-    ? "Tu navegador no soporta el escaneo automático. Aún puedes ingresar los códigos manualmente."
-    : "Activa el permiso de cámara o ingresa el código manualmente.";
+    ? "Tu navegador no soporta el escaneo automatico. Aun puedes ingresar los codigos manualmente."
+    : "Activa el permiso de camara o ingresa el codigo manualmente.";
 
   return (
     <div className="rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-sm text-left">
@@ -26,30 +25,48 @@ export default function EscanerPermisos({
         <div>
           <h3 className="text-sm font-semibold text-[#2F1A55]">{title}</h3>
           <p className="text-xs text-slate-500 mt-1">{description}</p>
-          <div
-            className={`mt-3 flex flex-wrap gap-2 ${
-              showButton ? "justify-start" : "justify-center"
+        </div>
+      </div>
+      <div
+        className={`flex flex-wrap items-center justify-center gap-2 ${
+          showButton ? "mt-4" : "mt-3"
+        }`}
+      >
+        {typeof onRequestCamera === "function" && (
+          <button
+            type="button"
+            onClick={onRequestCamera}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#F3EEFF] px-3 py-2 text-xs font-semibold text-[#5E30A5] transition-all duration-300 ease-out hover:bg-[#E9DFFF]"
+          >
+            <Settings size={14} />
+            Activar camara
+          </button>
+        )}
+        <div
+          className={`overflow-hidden ${
+            showButton ? "" : "pointer-events-none"
+          }`}
+          style={{
+            maxWidth: showButton ? 260 : 0,
+            maxHeight: showButton ? 80 : 0,
+            opacity: showButton ? 1 : 0,
+            transform: showButton ? "translateY(0)" : "translateY(-4px)",
+            transition:
+              "opacity 140ms ease, transform 140ms ease, max-width 180ms ease 140ms",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onManual}
+            disabled={manualDisabled}
+            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-300 ease-out ${
+              manualDisabled
+                ? "bg-[#5E30A5]/70 cursor-not-allowed"
+                : "bg-[#5E30A5] hover:bg-[#4B2488]"
             }`}
           >
-            {typeof onRequestCamera === "function" && (
-              <button
-                type="button"
-                onClick={onRequestCamera}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#5E30A5] px-3 py-2 text-xs font-semibold text-[#5E30A5] transition hover:bg-[#F3EEFF]"
-              >
-                Activar cámara
-              </button>
-            )}
-            {showButton && (
-              <button
-                type="button"
-                onClick={onManual}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
-              >
-                Ingresar código
-              </button>
-            )}
-          </div>
+            Ingresar codigo
+          </button>
         </div>
       </div>
     </div>
