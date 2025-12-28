@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Camera, QrCode } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { redeemValidQr } from "../../services/qrService";
 import { handleError } from "../../utils/errorUtils";
@@ -13,30 +14,6 @@ const parseCode = (raw) => {
   if (value.startsWith("qrv-")) return { type: "valid", code: value };
   if (value.startsWith("qrs-")) return { type: "static", code: value };
   throw new Error("QR no reconocido");
-};
-
-const StatusBanner = ({ status, message }) => {
-  if (!status && !message) return null;
-  const map = {
-    valido: { color: "#10B981", text: "Valido" },
-    canjeado: { color: "#1DA1F2", text: "Canjeado" },
-    expirado: { color: "#EF4444", text: "Expirado" },
-    info: { color: "#5E30A5", text: "Info" },
-  };
-  const cfg = map[status] || map.info;
-
-  return (
-    <div
-      className="w-full rounded-2xl px-4 py-3 text-xs font-semibold border shadow-sm"
-      style={{
-        background: `${cfg.color}12`,
-        color: cfg.color,
-        borderColor: `${cfg.color}55`,
-      }}
-    >
-      {cfg.text}: {message}
-    </div>
-  );
 };
 
 const ResultCard = ({ data }) => {
@@ -93,16 +70,94 @@ const ResultCard = ({ data }) => {
 
 export default function EscanerView() {
   const usuario = useAppStore((s) => s.usuario);
+  const scannerPermissionPrompted = useAppStore(
+    (s) => s.scannerPermissionPrompted
+  );
+  const setScannerPermissionPrompted = useAppStore(
+    (s) => s.setScannerPermissionPrompted
+  );
   const isNegocio = usuario?.role === "negocio";
 
-  const [camSupported, setCamSupported] = useState(true);
-  const [camGranted, setCamGranted] = useState(true);
+  const [cameraAvailable, setCameraAvailable] = useState(null);
+  const [scanSupported, setScanSupported] = useState(null);
+  const [camGranted, setCamGranted] = useState(null);
   const [manualValue, setManualValue] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
   const [statusType, setStatusType] = useState("info");
   const [result, setResult] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [manualFallbackVisible, setManualFallbackVisible] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setScanSupported("BarcodeDetector" in window);
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    setCameraAvailable(!!navigator.mediaDevices?.getUserMedia);
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (!navigator.permissions?.query) return;
+    let active = true;
+    navigator.permissions
+      .query({ name: "camera" })
+      .then((status) => {
+        if (!active) return;
+        if (status.state === "granted") {
+          setCamGranted(true);
+          if (!scannerPermissionPrompted) {
+            setScannerPermissionPrompted(true);
+          }
+        } else if (status.state === "denied") {
+          setCamGranted(false);
+          if (!scannerPermissionPrompted) {
+            setScannerPermissionPrompted(true);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [scannerPermissionPrompted, setScannerPermissionPrompted]);
+
+  const isPwaAndroid = useMemo(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return false;
+    }
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator.standalone ||
+      false;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    return Boolean(standalone && isAndroid);
+  }, []);
+
+  const requestCameraPermission = useCallback(() => {
+    setScannerPermissionPrompted(true);
+    if (typeof navigator === "undefined") return;
+    if (isPwaAndroid) {
+      window.location.href =
+        "intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;end";
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraAvailable(false);
+      setCamGranted(false);
+      return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "environment" } })
+      .then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+        setCamGranted(true);
+      })
+      .catch(() => {
+        setCamGranted(false);
+      });
+  }, [isPwaAndroid, setScannerPermissionPrompted]);
 
   const handleCode = async (raw) => {
     if (!raw || processing) return;
@@ -166,8 +221,13 @@ export default function EscanerView() {
     }
   };
 
-  const showCamera = camSupported && camGranted;
-  const showManual = !camSupported || !camGranted || manualFallbackVisible;
+  const canScan = scanSupported !== false && cameraAvailable !== false;
+  const showCamera = canScan && camGranted === true;
+  const showPermissionIntro =
+    !scannerPermissionPrompted && camGranted !== true && cameraAvailable !== false;
+  const showPermisos =
+    scannerPermissionPrompted && (!canScan || camGranted !== true);
+  const showManual = manualFallbackVisible;
   const manualDisabled = processing || !manualValue.trim();
 
   return (
@@ -185,42 +245,103 @@ export default function EscanerView() {
         )}
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-1 flex-col">
         {showCamera && !showManual && (
-          <EscanerCamera
-            active={showCamera && !showManual}
-            disabled={processing}
-            onDetected={handleCode}
-            onSupportChange={setCamSupported}
-            onPermissionChange={setCamGranted}
-            onFallback={() => setManualFallbackVisible(true)}
-            onStatus={(msg) => {
-              setStatusMsg(msg);
-              setStatusType("info");
-            }}
-          />
+          <div className="space-y-4">
+            <EscanerCamera
+              active={showCamera && !showManual}
+              disabled={processing}
+              onDetected={handleCode}
+              onSupportChange={setScanSupported}
+              onPermissionChange={setCamGranted}
+              onFallback={() => {
+                setCamGranted(false);
+              }}
+              onStatus={(msg) => {
+                setStatusMsg(msg);
+                setStatusType("info");
+              }}
+            />
+          </div>
         )}
 
-        <EscanerPermisos
-          camSupported={camSupported}
-          camGranted={camGranted}
-          onManual={() => setManualFallbackVisible(true)}
-        />
+        {showPermissionIntro && (
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-[#F7F2FF] via-white to-white" />
+            <div className="absolute -top-20 -right-10 h-52 w-52 rounded-full bg-[#E9DFFF] opacity-70 blur-3xl" />
+            <div className="absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#EFE7FF] opacity-80 blur-3xl" />
+            <div className="relative z-10 w-full max-w-md px-6 py-12 text-center">
+              <div className="relative mx-auto h-36 w-36">
+                <div className="absolute inset-0 rounded-[36px] bg-[#F3EEFF] shadow-[0_20px_50px_rgba(94,48,165,0.18)]" />
+                <div className="absolute inset-0 flex items-center justify-center text-[#5E30A5]">
+                  <Camera size={62} strokeWidth={1.6} />
+                </div>
+                <div className="absolute -bottom-3 -right-3 h-12 w-12 rounded-full border-2 border-white bg-[#5E30A5] text-white flex items-center justify-center shadow-sm">
+                  <QrCode size={18} strokeWidth={2} />
+                </div>
+              </div>
 
-        {showManual && (
-          <EscanerFallback
-            value={manualValue}
-            onChange={setManualValue}
-            onSubmit={() => handleCode(manualValue)}
-            disabled={manualDisabled}
-          />
+              <h2 className="mt-8 text-2xl font-semibold text-[#2F1A55]">
+                Activa la camara para escanear codigos
+              </h2>
+              <p className="mt-3 text-[15px] text-slate-500">
+                Al permitir el acceso a la camara podras leer tus codigos en
+                segundos.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={requestCameraPermission}
+                  className="w-full rounded-2xl bg-[#5E30A5] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
+                >
+                  Continuar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScannerPermissionPrompted(true)}
+                  className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3.5 text-sm font-semibold text-[#5E30A5] transition hover:bg-[#F5F3FF]"
+                >
+                  En otro momento
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPermisos && (
+          <div
+            className={`flex flex-col items-center gap-4 ${
+              showManual ? "justify-start" : "flex-1 justify-center"
+            }`}
+          >
+            <div className="w-full max-w-lg">
+              <EscanerPermisos
+                camSupported={canScan}
+                camGranted={camGranted}
+                onManual={() => setManualFallbackVisible(true)}
+                onRequestCamera={requestCameraPermission}
+                showButton={!showManual}
+              />
+            </div>
+            {showManual && (
+              <div className="w-full max-w-lg">
+                <EscanerFallback
+                  value={manualValue}
+                  onChange={setManualValue}
+                  onSubmit={() => handleCode(manualValue)}
+                  disabled={manualDisabled}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       <div className="mt-5 flex flex-col gap-3 w-full max-w-lg self-center">
-        <StatusBanner status={statusType} message={statusMsg} />
         <ResultCard data={result} />
       </div>
     </div>
   );
 }
+

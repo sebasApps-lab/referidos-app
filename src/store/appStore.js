@@ -59,10 +59,13 @@ export const useAppStore = create(
       promosLoadedAt: null,
       promosRefreshing: false,
       promosVisible: false,
+      scannerPermissionPrompted: false,
       negocios: [],
       loading: false,
       error: null,
       setUser: (usuario) => set({ usuario }),
+      setScannerPermissionPrompted: (value) =>
+        set({ scannerPermissionPrompted: value }),
 
       //-----------------------
       // AUTH
@@ -124,6 +127,7 @@ export const useAppStore = create(
             onboarding: undefined,
             promos: [],
             negocios: [],
+            scannerPermissionPrompted: false,
           });
         }
       },
