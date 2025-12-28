@@ -81,18 +81,26 @@ export default function EscanerFallback({
     });
   };
 
+  const getFirstEmptyIndex = useCallback(
+    () => slots.findIndex((char) => !char),
+    [slots]
+  );
+
+  const getLastFilledIndex = useCallback(() => {
+    for (let i = slots.length - 1; i >= 0; i -= 1) {
+      if (slots[i]) return i;
+    }
+    return -1;
+  }, [slots]);
+
   const updateSlot = (index, nextValue) => {
     const cleaned = (nextValue || "").replace(/[^0-9a-zA-Z]/g, "");
-    if (!cleaned) {
-      const nextSlots = [...slots];
-      nextSlots[index] = "";
-      onChange(nextSlots.join(""));
-      return;
-    }
+    if (!cleaned) return;
 
     const chars = cleaned.split("");
     const nextSlots = [...slots];
-    let cursor = index;
+    const firstEmpty = getFirstEmptyIndex();
+    let cursor = firstEmpty === -1 ? nextSlots.length - 1 : firstEmpty;
     chars.forEach((char) => {
       if (cursor < nextSlots.length) {
         nextSlots[cursor] = char;
@@ -107,27 +115,15 @@ export default function EscanerFallback({
     }
   };
 
-  const handleKeyDown = (index, event) => {
-    if (event.key === "Backspace") {
-      if (slots[index]) {
-        const nextSlots = [...slots];
-        nextSlots[index] = "";
-        onChange(nextSlots.join(""));
-        return;
-      }
-      if (index > 0) {
-        event.preventDefault();
-        const nextSlots = [...slots];
-        nextSlots[index - 1] = "";
-        onChange(nextSlots.join(""));
-        focusInput(index - 1);
-      }
-    } else if (event.key === "ArrowLeft" && index > 0) {
+  const handleKeyDown = (event) => {
+    if (event.key === "Backspace" || event.key === "Delete") {
       event.preventDefault();
-      focusInput(index - 1);
-    } else if (event.key === "ArrowRight" && index < slots.length - 1) {
-      event.preventDefault();
-      focusInput(index + 1);
+      const lastFilled = getLastFilledIndex();
+      if (lastFilled === -1) return;
+      const nextSlots = [...slots];
+      nextSlots[lastFilled] = "";
+      onChange(nextSlots.join(""));
+      focusInput(lastFilled);
     }
   };
 
@@ -147,6 +143,12 @@ export default function EscanerFallback({
   }, []);
 
   const handleInputFocus = useCallback(() => {
+    const firstEmpty = getFirstEmptyIndex();
+    const targetIndex = firstEmpty === -1 ? slots.length - 1 : firstEmpty;
+    if (inputRefs.current[targetIndex] !== document.activeElement) {
+      focusInput(targetIndex);
+      return;
+    }
     const isCoarse =
       typeof window !== "undefined" &&
       window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -164,7 +166,7 @@ export default function EscanerFallback({
       setTimeout(() => centerRowInView("smooth"), 120),
       setTimeout(() => centerRowInView("smooth"), 360),
     ];
-  }, [centerRowInView]);
+  }, [centerRowInView, getFirstEmptyIndex, slots.length]);
 
   const handleInputBlur = useCallback(() => {
     if (restoreTimerRef.current) {
@@ -207,7 +209,7 @@ export default function EscanerFallback({
             key={`code-${index}`}
             value={char}
             onChange={(e) => updateSlot(index, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(index, e)}
+            onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             ref={(el) => {
@@ -225,7 +227,7 @@ export default function EscanerFallback({
               key={`code-${index}`}
               value={char}
               onChange={(e) => updateSlot(index, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
+              onKeyDown={handleKeyDown}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               ref={(el) => {
