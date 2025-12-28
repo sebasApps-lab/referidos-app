@@ -17,7 +17,7 @@ export default function EscanerPermisos({
     : "Activa el permiso de camara o ingresa el codigo manualmente.";
 
   return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-sm text-left">
+    <div className="w-full text-left">
       <div className="flex items-start gap-3">
         <span className="h-10 w-10 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
           {!camSupported ? <CameraOff size={18} /> : <ShieldAlert size={18} />}
@@ -65,7 +65,7 @@ export default function EscanerPermisos({
                 : "bg-[#5E30A5] hover:bg-[#4B2488]"
             }`}
           >
-            Ingresar codigo
+            Ingresar codigo manualmente
           </button>
         </div>
       </div>

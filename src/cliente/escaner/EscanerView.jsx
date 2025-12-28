@@ -251,18 +251,20 @@ export default function EscanerView() {
           "calc(100dvh - var(--cliente-header-height, 0px) - 80px - env(safe-area-inset-bottom))",
       }}
     >
-      <div className="flex justify-between items-center mb-4">
-        {isNegocio ? (
-          <h1 className="text-base font-semibold text-[#2F1A55]">
-            Escaner de canje
-          </h1>
-        ) : (
-          <div />
-        )}
-        {processing && (
-          <span className="text-xs text-slate-400">Procesando...</span>
-        )}
-      </div>
+      {!showPermissionIntro && (
+        <div className="flex justify-between items-center mb-4">
+          {isNegocio ? (
+            <h1 className="text-base font-semibold text-[#2F1A55]">
+              Escaner de canje
+            </h1>
+          ) : (
+            <div />
+          )}
+          {processing && (
+            <span className="text-xs text-slate-400">Procesando...</span>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col">
         {showCamera && !showManual && (
@@ -285,7 +287,12 @@ export default function EscanerView() {
         )}
 
         {showPermissionIntro && (
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+          <div
+            className="relative flex flex-1 -mx-4 -mt-4 items-center justify-center overflow-hidden"
+            style={{
+              marginBottom: "calc(-80px - env(safe-area-inset-bottom))",
+            }}
+          >
             <div className="absolute inset-0 bg-gradient-to-b from-[#F7F2FF] via-white to-white" />
             <div className="absolute -top-20 -right-10 h-52 w-52 rounded-full bg-[#E9DFFF] opacity-70 blur-3xl" />
             <div className="absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#EFE7FF] opacity-80 blur-3xl" />
@@ -331,7 +338,7 @@ export default function EscanerView() {
         {showPermisos && (
           <div className="relative flex-1">
             <div
-              className={`absolute left-0 right-0 flex flex-col items-center gap-4 ${
+              className={`absolute left-0 right-0 flex flex-col items-center ${
                 showManual ? "top-6 translate-y-0" : "top-1/2 -translate-y-1/2"
               }`}
               style={{
@@ -350,35 +357,36 @@ export default function EscanerView() {
                 />
               </div>
               <div
-                className={`w-full max-w-lg overflow-hidden ${
+                className={`absolute left-0 right-0 top-full mt-4 flex justify-center ${
                   showManual ? "" : "pointer-events-none"
                 }`}
                 style={{
-                  maxHeight: showManual ? 420 : 0,
                   opacity: showManual ? 1 : 0,
                   transform: showManual ? "translateY(0)" : "translateY(-8px)",
-                  transition: `max-height 420ms ease ${
+                  transition: `opacity 260ms ease ${
                     showManual ? "160ms" : "0ms"
-                  }, opacity 260ms ease ${showManual ? "160ms" : "0ms"}, transform 260ms ease ${
-                    showManual ? "160ms" : "0ms"
-                  }`,
+                  }, transform 260ms ease ${showManual ? "160ms" : "0ms"}`,
                 }}
               >
-                <EscanerFallback
-                  value={manualValue}
-                  onChange={setManualValue}
-                  onSubmit={() => handleCode(manualValue)}
-                  disabled={manualDisabled}
-                />
+                <div className="w-full max-w-lg">
+                  <EscanerFallback
+                    value={manualValue}
+                    onChange={setManualValue}
+                    onSubmit={() => handleCode(manualValue)}
+                    disabled={manualDisabled}
+                  />
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 w-full max-w-lg self-center">
-        <ResultCard data={result} />
-      </div>
+      {!showPermissionIntro && (
+        <div className="mt-5 flex flex-col gap-3 w-full max-w-lg self-center">
+          <ResultCard data={result} />
+        </div>
+      )}
     </div>
   );
 }
