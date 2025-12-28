@@ -20,6 +20,7 @@ export function useCarousel(
   const snappingRef = useRef(false);
   const snapTimerRef = useRef(null);
   const reanchorTimerRef = useRef(null);
+  const finalSnapTimerRef = useRef(null);
   const skipSnapUntilRef = useRef(0);
   const lastScrollLeftRef = useRef(0);
   const lastScrollTimeRef = useRef(0);
@@ -27,6 +28,7 @@ export function useCarousel(
   const interactingRef = useRef(false);
   const interactionTimerRef = useRef(null);
   const idleThresholdMs = 140;
+  const stableIdleMs = 220;
   const loopEnabled = loop && itemsCount > 1;
 
   const getItems = useCallback(
@@ -308,6 +310,24 @@ export function useCarousel(
       });
     };
 
+    const ensureFinalSnap = () => {
+      if (!loopEnabled || !snap) return true;
+      if (jumpingRef.current || snappingRef.current) return false;
+      if (interactingRef.current) return true;
+      const idleFor = performance.now() - lastScrollTimeRef.current;
+      if (idleFor < stableIdleMs) return false;
+      const items = getItems(el);
+      if (!items.length) return true;
+      const closest = getClosestItem(el, items, null);
+      if (!closest) return true;
+      snappingRef.current = true;
+      centerItem(el, closest.item, "smooth");
+      requestAnimationFrame(() => {
+        snappingRef.current = false;
+      });
+      return true;
+    };
+
     const scheduleSnap = () => {
       if (!snap) return;
       if (loopEnabled && !readyRef.current) return;
@@ -330,6 +350,19 @@ export function useCarousel(
       }, snapDelay);
     };
 
+    const scheduleFinalSnap = () => {
+      if (!loopEnabled) return;
+      if (finalSnapTimerRef.current) {
+        clearTimeout(finalSnapTimerRef.current);
+      }
+      finalSnapTimerRef.current = setTimeout(() => {
+        const done = ensureFinalSnap();
+        if (!done) {
+          scheduleFinalSnap();
+        }
+      }, stableIdleMs + 40);
+    };
+
     const scheduleReanchor = () => {
       if (!loopEnabled) return;
       if (reanchorTimerRef.current) {
@@ -344,6 +377,7 @@ export function useCarousel(
         if (!done) {
           scheduleReanchor();
         }
+        scheduleFinalSnap();
       }, reanchorDelayMs);
     };
 
@@ -361,6 +395,7 @@ export function useCarousel(
         scheduleSnap();
       }
       scheduleReanchor();
+      scheduleFinalSnap();
     };
 
     update();
@@ -394,6 +429,7 @@ export function useCarousel(
         scheduleSnap();
       }
       scheduleReanchor();
+      scheduleFinalSnap();
     };
     el.addEventListener("pointerdown", handleInteract);
     el.addEventListener("touchstart", handleInteract);
@@ -419,6 +455,9 @@ export function useCarousel(
       }
       if (reanchorTimerRef.current) {
         clearTimeout(reanchorTimerRef.current);
+      }
+      if (finalSnapTimerRef.current) {
+        clearTimeout(finalSnapTimerRef.current);
       }
       if (interactionTimerRef.current) {
         clearTimeout(interactionTimerRef.current);
