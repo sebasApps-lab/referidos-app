@@ -18,9 +18,31 @@ import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
 import { supabase } from "../lib/supabaseClient";
 
+let promosRefreshTimer = null;
+let promosVisibilityHandler = null;
+let promosAutoRefreshActive = false;
+
 export const useAppStore = create(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const schedulePromosRefresh = () => {
+        if (!promosAutoRefreshActive) return;
+        if (promosRefreshTimer) {
+          clearTimeout(promosRefreshTimer);
+          promosRefreshTimer = null;
+        }
+        if (typeof document === "undefined") return;
+        if (document.visibilityState === "hidden") return;
+        const { promosVisible } = get();
+        const intervalMs = promosVisible ? 60000 : 300000;
+        promosRefreshTimer = setTimeout(async () => {
+          if (!promosAutoRefreshActive) return;
+          await get().loadPromos({ silent: true, force: true });
+          schedulePromosRefresh();
+        }, intervalMs);
+      };
+
+      return {
       /**
        * MODELO DE ESTADO
        * bootstrap === true -> resolviendo sesión + onboarding
@@ -34,6 +56,9 @@ export const useAppStore = create(
       onboarding: undefined, // último payload de onboarding (allowAccess/reasons/negocio/provider)
       ratings: {},
       promos: [],
+      promosLoadedAt: null,
+      promosRefreshing: false,
+      promosVisible: false,
       negocios: [],
       loading: false,
       error: null,
@@ -137,20 +162,74 @@ export const useAppStore = create(
       //--------------------
       // PROMOS
       //--------------------
-      loadPromos: async () => {
-        set({ loading: true });
+      loadPromos: async ({ silent = false, force = false } = {}) => {
+        const loadedAt = get().promosLoadedAt;
+        if (!force && loadedAt) {
+          return { ok: true, cached: true };
+        }
+        if (silent) {
+          set({ promosRefreshing: true });
+        } else {
+          set({ loading: true, error: null });
+        }
         try {
           const { ok, data, error } = await getActivePromos();
           if (!ok) {
-            set({ error, loading: false });
+            set({ error, loading: false, promosRefreshing: false });
             return { ok: false, error };
           }
-          set({ promos: data, loading: false });
+          set({
+            promos: data,
+            loading: false,
+            promosRefreshing: false,
+            promosLoadedAt: Date.now(),
+          });
           return { ok: true, data };
         } catch (error) {
           const message = handleError(error);
-          set({ error: message, loading: false });
+          set({ error: message, loading: false, promosRefreshing: false });
           return { ok: false, error: message };
+        }
+      },
+      startPromosAutoRefresh: () => {
+        if (promosAutoRefreshActive) return;
+        promosAutoRefreshActive = true;
+
+        if (!promosVisibilityHandler && typeof document !== "undefined") {
+          promosVisibilityHandler = () => {
+            if (!promosAutoRefreshActive) return;
+            if (document.visibilityState === "hidden") {
+              if (promosRefreshTimer) {
+                clearTimeout(promosRefreshTimer);
+                promosRefreshTimer = null;
+              }
+              return;
+            }
+            schedulePromosRefresh();
+          };
+          document.addEventListener("visibilitychange", promosVisibilityHandler);
+        }
+
+        schedulePromosRefresh();
+      },
+      stopPromosAutoRefresh: () => {
+        promosAutoRefreshActive = false;
+        if (promosRefreshTimer) {
+          clearTimeout(promosRefreshTimer);
+          promosRefreshTimer = null;
+        }
+        if (promosVisibilityHandler && typeof document !== "undefined") {
+          document.removeEventListener(
+            "visibilitychange",
+            promosVisibilityHandler
+          );
+          promosVisibilityHandler = null;
+        }
+      },
+      setPromosVisible: (visible) => {
+        set({ promosVisible: visible });
+        if (promosAutoRefreshActive) {
+          schedulePromosRefresh();
         }
       },
       //----------------------
@@ -178,7 +257,8 @@ export const useAppStore = create(
       // COMENTARIOS
       //----------------------
       addComentario: (payload) => addComentario(payload),
-    }),
+      };
+    },
     {
       name: "referidos_app_user",
       version: 2,

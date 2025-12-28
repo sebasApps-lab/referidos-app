@@ -28,15 +28,21 @@ export default function ClienteInicio() {
   const [dockTarget, setDockTarget] = useState(null);
 
   const loadPromos = useAppStore((s) => s.loadPromos);
+  const startPromosAutoRefresh = useAppStore((s) => s.startPromosAutoRefresh);
+  const setPromosVisible = useAppStore((s) => s.setPromosVisible);
   const promos = useAppStore((s) => s.promos);
+  const promosLoadedAt = useAppStore((s) => s.promosLoadedAt);
+  const promosRefreshing = useAppStore((s) => s.promosRefreshing);
   const ratings = useAppStore((s) => s.ratings);
   const initRatings = useAppStore((s) => s.initRatings);
   const loading = useAppStore((s) => s.loading);
   const usuario = useAppStore((s) => s.usuario);
 
   useEffect(() => {
-    loadPromos();
-  }, [loadPromos]);
+    if (!promosLoadedAt && promos.length === 0) {
+      loadPromos({ force: true });
+    }
+  }, [loadPromos, promos.length, promosLoadedAt]);
 
   useEffect(() => {
     if (promos.length > 0) initRatings(promos);
@@ -83,7 +89,15 @@ export default function ClienteInicio() {
     };
   }, [mode, onCancel, setHeaderOptions]);
 
-  if (loading) {
+  useEffect(() => {
+    startPromosAutoRefresh();
+    setPromosVisible(mode === "default");
+    return () => {
+      setPromosVisible(false);
+    };
+  }, [mode, setPromosVisible, startPromosAutoRefresh]);
+
+  if (loading && promos.length === 0) {
     return (
       <LoaderOverlay>
         <ClienteInicioSkeleton />
@@ -161,7 +175,13 @@ export default function ClienteInicio() {
           <InicioEmptyState variant="promos" />
         ) : (
           <>
-            <InicioPromosPreview />
+            <div
+              className={`transition-opacity duration-300 ${
+                promosRefreshing ? "opacity-80" : "opacity-100"
+              }`}
+            >
+              <InicioPromosPreview />
+            </div>
             {/*
             <InicioPromos sections={sections} ratings={ratings} />
             */}
