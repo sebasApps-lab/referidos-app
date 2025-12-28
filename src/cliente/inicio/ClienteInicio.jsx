@@ -50,7 +50,7 @@ export default function ClienteInicio() {
   const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
-  const searchDocked = useSearchDock();
+  const { docked: searchDocked, heroVisible } = useSearchDock();
   const { setHeaderOptions } = useClienteHeader();
 
   const usePromosPreview = true;
@@ -71,6 +71,7 @@ export default function ClienteInicio() {
 
   const mode = isSearching ? "search" : "default";
   const showSearchDock = searchDocked || mode === "search";
+  const hideHeroSearch = showSearchDock && !heroVisible;
 
   useEffect(() => {
     setHeaderOptions({
@@ -148,7 +149,7 @@ export default function ClienteInicio() {
           searchValue={query}
           onSearchChange={setQuery}
           onSearchFocus={onFocus}
-          hideSearch={showSearchDock}
+          hideSearch={hideHeroSearch}
         />
         <div className="mt-4">
           {filtersOpen && (

@@ -91,10 +91,10 @@ export default function InicioHero({
           </div>
 
           <div
-            className="mt-5"
+            className="mt-5 hero-search-reveal"
             data-hero-searchbar
             aria-hidden={hideSearch}
-            style={{ visibility: hideSearch ? "hidden" : "visible" }}
+            data-state={hideSearch ? "hidden" : "visible"}
           >
             <SearchBar
               value={searchValue}
