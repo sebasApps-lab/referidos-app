@@ -173,9 +173,13 @@ export default function EscanerView() {
   return (
     <div className="flex flex-col flex-1 w-full px-4 pb-12 pt-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-base font-semibold text-[#2F1A55]">
-          {isNegocio ? "Escaner de canje" : "Escanea tu QR"}
-        </h1>
+        {isNegocio ? (
+          <h1 className="text-base font-semibold text-[#2F1A55]">
+            Escaner de canje
+          </h1>
+        ) : (
+          <div />
+        )}
         {processing && (
           <span className="text-xs text-slate-400">Procesando...</span>
         )}
