@@ -13,6 +13,7 @@ export default function EscanerFallback({
   const centerTimersRef = useRef([]);
   const restoreTimerRef = useRef(null);
   const rowFocusedRef = useRef(false);
+  const scrollBehaviorRef = useRef("");
   const prevViewportRef = useRef(0);
   const [viewportH, setViewportH] = useState(0);
 
@@ -129,6 +130,11 @@ export default function EscanerFallback({
 
   const restoreScroll = useCallback(() => {
     if (!scrollStateRef.current.active) return;
+    const body = document.body;
+    if (scrollBehaviorRef.current) {
+      body.style.scrollBehavior = scrollBehaviorRef.current;
+      scrollBehaviorRef.current = "";
+    }
     const container = document.getElementById("cliente-main-scroll");
     const top = scrollStateRef.current.top;
     if (container) {
@@ -143,30 +149,13 @@ export default function EscanerFallback({
   }, []);
 
   const handleInputFocus = useCallback(() => {
-    const firstEmpty = getFirstEmptyIndex();
-    const targetIndex = firstEmpty === -1 ? slots.length - 1 : firstEmpty;
-    if (inputRefs.current[targetIndex] !== document.activeElement) {
-      focusInput(targetIndex);
-      return;
-    }
     const isCoarse =
       typeof window !== "undefined" &&
       window.matchMedia?.("(pointer: coarse)")?.matches;
-    if (!isCoarse || rowFocusedRef.current) return;
+
+    if (!isCoarse) return;
     rowFocusedRef.current = true;
-    const container = document.getElementById("cliente-main-scroll");
-    if (!scrollStateRef.current.active) {
-      scrollStateRef.current = {
-        active: true,
-        top: container ? container.scrollTop : window.scrollY,
-      };
-    }
-    centerTimersRef.current.forEach((timer) => clearTimeout(timer));
-    centerTimersRef.current = [
-      setTimeout(() => centerRowInView("smooth"), 120),
-      setTimeout(() => centerRowInView("smooth"), 360),
-    ];
-  }, [centerRowInView, getFirstEmptyIndex, slots.length]);
+  }, []);
 
   const handleInputBlur = useCallback(() => {
     if (restoreTimerRef.current) {
@@ -186,7 +175,11 @@ export default function EscanerFallback({
     if (!rowFocusedRef.current || !prev) return;
     if (viewportH > prev + 40) {
       restoreScroll();
+      return;
     }
+    requestAnimationFrame(() => {
+      centerRowInView("auto");
+    });
   }, [viewportH, restoreScroll]);
 
   return (
@@ -210,6 +203,13 @@ export default function EscanerFallback({
             value={char}
             onChange={(e) => updateSlot(index, e.target.value)}
             onKeyDown={handleKeyDown}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              const firstEmpty = getFirstEmptyIndex();
+              const targetIndex =
+                firstEmpty === -1 ? slots.length - 1 : firstEmpty;
+              inputRefs.current[targetIndex]?.focus();
+            }}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             ref={(el) => {
@@ -228,6 +228,13 @@ export default function EscanerFallback({
               value={char}
               onChange={(e) => updateSlot(index, e.target.value)}
               onKeyDown={handleKeyDown}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                const firstEmpty = getFirstEmptyIndex();
+                const targetIndex =
+                  firstEmpty === -1 ? slots.length - 1 : firstEmpty;
+                inputRefs.current[targetIndex]?.focus();
+              }}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               ref={(el) => {
