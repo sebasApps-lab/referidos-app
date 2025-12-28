@@ -10,39 +10,32 @@ export default function EscanerFallback({
   const inputRefs = useRef([]);
   const rowRef = useRef(null);
   const scrollStateRef = useRef({ active: false, top: 0 });
-  const centerTimerRef = useRef(null);
+  const centerTimersRef = useRef([]);
+  const restoreTimerRef = useRef(null);
+  const rowFocusedRef = useRef(false);
+  const prevViewportRef = useRef(0);
   const [viewportH, setViewportH] = useState(0);
-  const [baseH, setBaseH] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const update = () => {
       const vh = window.visualViewport?.height ?? window.innerHeight;
-      setBaseH((prev) => (prev || window.innerHeight));
       setViewportH(vh);
     };
     update();
     window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
     window.addEventListener("resize", update);
+    window.addEventListener("focusin", update);
+    window.addEventListener("focusout", update);
     return () => {
       window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+      window.removeEventListener("focusin", update);
+      window.removeEventListener("focusout", update);
     };
   }, []);
-
-  const keyboardOpen = baseH && viewportH ? viewportH < baseH * 0.92 : false;
-
-  const scheduleCenter = useCallback(
-    (behavior = "smooth") => {
-      if (centerTimerRef.current) {
-        clearTimeout(centerTimerRef.current);
-      }
-      centerTimerRef.current = setTimeout(() => {
-        centerRowInView(behavior);
-      }, 140);
-    },
-    [centerRowInView]
-  );
 
   const centerRowInView = useCallback(
     (behavior = "smooth") => {
@@ -138,30 +131,61 @@ export default function EscanerFallback({
     }
   };
 
-  useEffect(() => {
-    if (!keyboardOpen) {
-      if (scrollStateRef.current.active) {
-        const container = document.getElementById("cliente-main-scroll");
-        const top = scrollStateRef.current.top;
-        if (container) {
-          container.scrollTo({ top, behavior: "smooth" });
-        } else {
-          window.scrollTo({ top, behavior: "smooth" });
-        }
-        scrollStateRef.current.active = false;
-      }
-      if (centerTimerRef.current) {
-        clearTimeout(centerTimerRef.current);
-      }
-      return;
-    }
+  const restoreScroll = useCallback(() => {
+    if (!scrollStateRef.current.active) return;
     const container = document.getElementById("cliente-main-scroll");
-    scrollStateRef.current = {
-      active: true,
-      top: container ? container.scrollTop : window.scrollY,
-    };
-    scheduleCenter("smooth");
-  }, [keyboardOpen, scheduleCenter, viewportH]);
+    const top = scrollStateRef.current.top;
+    if (container) {
+      container.scrollTo({ top, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+    scrollStateRef.current.active = false;
+    rowFocusedRef.current = false;
+    centerTimersRef.current.forEach((timer) => clearTimeout(timer));
+    centerTimersRef.current = [];
+  }, []);
+
+  const handleInputFocus = useCallback(() => {
+    const isCoarse =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(pointer: coarse)")?.matches;
+    if (!isCoarse || rowFocusedRef.current) return;
+    rowFocusedRef.current = true;
+    const container = document.getElementById("cliente-main-scroll");
+    if (!scrollStateRef.current.active) {
+      scrollStateRef.current = {
+        active: true,
+        top: container ? container.scrollTop : window.scrollY,
+      };
+    }
+    centerTimersRef.current.forEach((timer) => clearTimeout(timer));
+    centerTimersRef.current = [
+      setTimeout(() => centerRowInView("smooth"), 120),
+      setTimeout(() => centerRowInView("smooth"), 360),
+    ];
+  }, [centerRowInView]);
+
+  const handleInputBlur = useCallback(() => {
+    if (restoreTimerRef.current) {
+      clearTimeout(restoreTimerRef.current);
+    }
+    restoreTimerRef.current = setTimeout(() => {
+      const active = document.activeElement;
+      if (rowRef.current?.contains(active)) return;
+      restoreScroll();
+    }, 140);
+  }, [restoreScroll]);
+
+  useEffect(() => {
+    if (!viewportH) return;
+    const prev = prevViewportRef.current;
+    prevViewportRef.current = viewportH;
+    if (!rowFocusedRef.current || !prev) return;
+    if (viewportH > prev + 40) {
+      restoreScroll();
+    }
+  }, [viewportH, restoreScroll]);
 
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-sm gap-4 self-center">
@@ -184,6 +208,8 @@ export default function EscanerFallback({
             value={char}
             onChange={(e) => updateSlot(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
             ref={(el) => {
               inputRefs.current[index] = el;
             }}
@@ -200,6 +226,8 @@ export default function EscanerFallback({
               value={char}
               onChange={(e) => updateSlot(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               ref={(el) => {
                 inputRefs.current[index] = el;
               }}
