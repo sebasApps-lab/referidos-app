@@ -15,7 +15,7 @@ const Tabs = ({ active, onChange }) => {
   ];
 
   return (
-    <div className="flex flex-wrap justify-center gap-2 rounded-2xl border border-[#E9E2F7] bg-white p-2 shadow-sm">
+    <div className="flex flex-wrap justify-center gap-2">
       {tabs.map((t) => {
         const isActive = active === t.key;
         return (

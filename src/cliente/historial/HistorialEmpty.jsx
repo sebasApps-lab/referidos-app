@@ -30,16 +30,18 @@ export default function HistorialEmpty({ variant }) {
     );
 
   return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-6 text-center shadow-sm">
+    <div className="text-center py-4">
       <div className="mx-auto h-16 w-16 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
         {icon}
       </div>
       <p className="mt-3 text-sm font-semibold text-[#2F1A55]">
         {EMPTY_COPY[variant] || EMPTY_COPY.activos}
       </p>
-      <p className="mt-1 text-xs text-slate-500">
-        Tus codigos apareceran aqui apenas se generen.
-      </p>
+      {(variant === "activos" || !variant) && (
+        <p className="mt-1 text-sm text-slate-500">
+          Tus codigos apareceran aqui apenas se generen.
+        </p>
+      )}
     </div>
   );
 }
