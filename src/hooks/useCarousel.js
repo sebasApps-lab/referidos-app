@@ -16,38 +16,49 @@ export function useCarousel(
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
   const readyRef = useRef(false);
-  const segmentRef = useRef(0);
+  const copyWidthRef = useRef(0);
   const jumpingRef = useRef(false);
   const snappingRef = useRef(false);
   const snapTimerRef = useRef(null);
+  const reanchorTimerRef = useRef(null);
+  const skipSnapUntilRef = useRef(0);
   const loopEnabled = loop && itemsCount > 1;
-
-  const getSegment = useCallback((el) => {
-    const segment = el.scrollWidth / 3;
-    return Number.isFinite(segment) ? segment : 0;
-  }, []);
-
-  const getPeek = useCallback(
-    (el) => {
-      if (typeof loopPeek === "number" && loopPeek > 0) return loopPeek;
-      return Math.min(56, Math.round(el.clientWidth * 0.12));
-    },
-    [loopPeek]
-  );
 
   const getItems = useCallback(
     (el) => Array.from(el.querySelectorAll(itemSelector)),
     [itemSelector]
   );
 
+  const getCopyWidth = useCallback((items) => {
+    if (!items.length) return 0;
+    const firstDup0 = items.find(
+      (item) =>
+        item.dataset.carouselDup === "0" &&
+        item.dataset.carouselIndex === "0"
+    );
+    const firstDup1 = items.find(
+      (item) =>
+        item.dataset.carouselDup === "1" &&
+        item.dataset.carouselIndex === "0"
+    );
+    if (firstDup0 && firstDup1) {
+      const width = firstDup1.offsetLeft - firstDup0.offsetLeft;
+      if (width > 0) return width;
+    }
+    return 0;
+  }, []);
+
   const jumpTo = useCallback((el, nextLeft) => {
     if (!el || jumpingRef.current) return;
     jumpingRef.current = true;
     const prevBehavior = el.style.scrollBehavior;
+    const prevSnapType = el.style.scrollSnapType;
     el.style.scrollBehavior = "auto";
+    el.style.scrollSnapType = "none";
     el.scrollLeft = nextLeft;
     requestAnimationFrame(() => {
       el.style.scrollBehavior = prevBehavior || "";
+      el.style.scrollSnapType = prevSnapType || "";
       jumpingRef.current = false;
     });
   }, []);
@@ -58,11 +69,18 @@ export function useCarousel(
   }, []);
 
   const getClosestItem = useCallback(
-    (el, items = getItems(el)) => {
+    (el, items = getItems(el), preferDup = null) => {
       if (!items.length) return null;
+      let candidates = items;
+      if (preferDup !== null) {
+        const filtered = items.filter(
+          (item) => item.dataset.carouselDup === preferDup
+        );
+        if (filtered.length) candidates = filtered;
+      }
       const center = el.scrollLeft + el.clientWidth / 2;
-      let closest = { item: items[0], index: 0, distance: Infinity };
-      items.forEach((item, index) => {
+      let closest = { item: candidates[0], index: 0, distance: Infinity };
+      candidates.forEach((item, index) => {
         const itemCenter = item.offsetLeft + item.offsetWidth / 2;
         const distance = Math.abs(itemCenter - center);
         if (distance < closest.distance) {
@@ -112,46 +130,61 @@ export function useCarousel(
   const update = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-
-    if (loopEnabled) {
-      if (!readyRef.current) return;
-      if (jumpingRef.current) return;
-      const segment = segmentRef.current || getSegment(el);
-      if (segment) {
-        segmentRef.current = segment;
-        const peek = getPeek(el);
-        const boundary = Math.max(4, Math.min(24, Math.floor(peek * 0.5) || 12));
-        if (el.scrollLeft <= boundary) {
-          jumpTo(el, el.scrollLeft + segment);
-        } else if (el.scrollLeft >= segment * 2 + boundary) {
-          jumpTo(el, el.scrollLeft - segment);
-        }
-      }
-
-      const canScroll = el.scrollWidth - el.clientWidth > 2;
-      setCanLeft(canScroll);
-      setCanRight(canScroll);
-    }
-
     const items = getItems(el);
+
     if (!items.length) {
       setCanLeft(false);
       setCanRight(false);
       return;
     }
 
-    const closest = getClosestItem(el, items);
-    if (!closest) {
+    const closestAny = getClosestItem(el, items, null);
+    if (!closestAny) {
       setCanLeft(false);
       setCanRight(false);
       return;
     }
 
-    if (!loopEnabled) {
-      setCanLeft(closest.index > 0);
-      setCanRight(closest.index < items.length - 1);
+    if (loopEnabled) {
+      const canScroll = el.scrollWidth - el.clientWidth > 2;
+      setCanLeft(canScroll);
+      setCanRight(canScroll);
+      return;
     }
-  }, [getClosestItem, getItems, getPeek, getSegment, loopEnabled, ref]);
+
+    setCanLeft(closestAny.index > 0);
+    setCanRight(closestAny.index < items.length - 1);
+  }, [getClosestItem, getItems, loopEnabled, ref]);
+
+  const reanchorIfNeeded = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!readyRef.current || jumpingRef.current) return;
+    const items = getItems(el);
+    if (!items.length) return;
+    const copyWidth = copyWidthRef.current || getCopyWidth(items);
+    if (!copyWidth) return;
+    copyWidthRef.current = copyWidth;
+    const epsilon = 1;
+    const min = copyWidth - epsilon;
+    const max = copyWidth * 2 + epsilon;
+    if (el.scrollLeft >= min && el.scrollLeft <= max) return;
+    const normalized =
+      ((el.scrollLeft % copyWidth) + copyWidth) % copyWidth;
+    const target = clampScrollLeft(el, normalized + copyWidth);
+    if (Math.abs(target - el.scrollLeft) <= epsilon) return;
+    if (snapTimerRef.current) {
+      clearTimeout(snapTimerRef.current);
+    }
+    skipSnapUntilRef.current = performance.now() + 140;
+    jumpTo(el, target);
+  }, [
+    clampScrollLeft,
+    getCopyWidth,
+    getItems,
+    jumpTo,
+    ref,
+  ]);
 
   const scroll = (dir) => {
     const el = ref.current;
@@ -159,12 +192,24 @@ export function useCarousel(
 
     const items = getItems(el);
     if (!items.length) return;
-    const closest = getClosestItem(el, items);
+    const closest = getClosestItem(
+      el,
+      items,
+      loopEnabled ? "1" : null
+    );
     if (!closest) return;
     const delta = dir === "right" ? 1 : -1;
     let nextIndex = closest.index + delta;
     if (!loopEnabled) {
       if (nextIndex < 0 || nextIndex >= items.length) return;
+    }
+    if (loopEnabled) {
+      const dupItems = items.filter(
+        (item) => item.dataset.carouselDup === "1"
+      );
+      nextIndex = Math.max(0, Math.min(nextIndex, dupItems.length - 1));
+      centerItem(el, dupItems[nextIndex], "smooth");
+      return;
     }
     nextIndex = Math.max(0, Math.min(nextIndex, items.length - 1));
     centerItem(el, items[nextIndex], "smooth");
@@ -187,10 +232,11 @@ export function useCarousel(
     const id = requestAnimationFrame(() => {
       const el = ref.current;
       if (!el) return;
+      const items = getItems(el);
       if (loopEnabled) {
-        const segment = getSegment(el);
-        if (segment) {
-          segmentRef.current = segment;
+        const copyWidth = getCopyWidth(items);
+        if (copyWidth) {
+          copyWidthRef.current = copyWidth;
         }
       }
       centerInitialItem("auto");
@@ -198,7 +244,7 @@ export function useCarousel(
       update();
     });
     return () => cancelAnimationFrame(id);
-  }, [centerInitialItem, getSegment, itemsCount, loopEnabled, update]);
+  }, [centerInitialItem, getCopyWidth, getItems, itemsCount, loopEnabled, update]);
 
   useEffect(() => {
     const el = ref.current;
@@ -208,9 +254,14 @@ export function useCarousel(
       if (!snap || snappingRef.current) return;
       if (loopEnabled && !readyRef.current) return;
       if (jumpingRef.current) return;
+      if (performance.now() < skipSnapUntilRef.current) return;
       const items = getItems(el);
       if (!items.length) return;
-      const closest = getClosestItem(el, items);
+      const closest = getClosestItem(
+        el,
+        items,
+        loopEnabled ? "1" : null
+      );
       if (!closest) return;
       snappingRef.current = true;
       centerItem(el, closest.item, "smooth");
@@ -222,6 +273,7 @@ export function useCarousel(
     const scheduleSnap = () => {
       if (!snap) return;
       if (loopEnabled && !readyRef.current) return;
+      if (performance.now() < skipSnapUntilRef.current) return;
       if (snapTimerRef.current) {
         clearTimeout(snapTimerRef.current);
       }
@@ -229,11 +281,22 @@ export function useCarousel(
     };
 
     const handleScroll = () => {
-      update();
+      if (loopEnabled) {
+        update();
+        if (reanchorTimerRef.current) {
+          clearTimeout(reanchorTimerRef.current);
+        }
+        reanchorTimerRef.current = setTimeout(() => {
+          reanchorIfNeeded();
+        }, 120);
+        return;
+      }
       scheduleSnap();
     };
 
-    update();
+    if (loopEnabled) {
+      update();
+    }
     if (loopEnabled && !readyRef.current) {
       return undefined;
     }
@@ -255,6 +318,9 @@ export function useCarousel(
       if (snapTimerRef.current) {
         clearTimeout(snapTimerRef.current);
       }
+      if (reanchorTimerRef.current) {
+        clearTimeout(reanchorTimerRef.current);
+      }
     };
   }, [
     centerItem,
@@ -262,6 +328,7 @@ export function useCarousel(
     getItems,
     loopEnabled,
     onInteract,
+    reanchorIfNeeded,
     ref,
     snap,
     snapDelay,

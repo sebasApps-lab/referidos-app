@@ -24,7 +24,9 @@ export default function ClienteHeader({
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationVisible, setLocationVisible] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [queueVisible, setQueueVisible] = useState(false);
   const { mode, onSearchBack } = useClienteHeader();
   const scrollDistanceRef = useRef(0);
   const lastScrollTopRef = useRef(0);
@@ -48,6 +50,20 @@ export default function ClienteHeader({
     const id = setTimeout(() => setLocationVisible(false), 240);
     return () => clearTimeout(id);
   }, [locationOpen, locationVisible]);
+
+  useEffect(() => {
+    if (notificationsOpen) return;
+    if (!notificationsVisible) return;
+    const id = setTimeout(() => setNotificationsVisible(false), 240);
+    return () => clearTimeout(id);
+  }, [notificationsOpen, notificationsVisible]);
+
+  useEffect(() => {
+    if (queueOpen) return;
+    if (!queueVisible) return;
+    const id = setTimeout(() => setQueueVisible(false), 240);
+    return () => clearTimeout(id);
+  }, [queueOpen, queueVisible]);
 
   useEffect(() => {
     if (!locationOpen && !notificationsOpen && !queueOpen) return undefined;
@@ -77,7 +93,9 @@ export default function ClienteHeader({
     setLocationOpen(false);
     setLocationVisible(false);
     setNotificationsOpen(false);
+    setNotificationsVisible(false);
     setQueueOpen(false);
+    setQueueVisible(false);
   }, [mode]);
 
   const headerClass = isElevated
@@ -124,39 +142,53 @@ export default function ClienteHeader({
               onToggleNotifications={() => {
                 setLocationOpen(false);
                 setQueueOpen(false);
-                setNotificationsOpen((prev) => !prev);
+                if (!notificationsOpen) {
+                  setNotificationsVisible(true);
+                  setNotificationsOpen(true);
+                } else {
+                  setNotificationsOpen(false);
+                }
                 if (typeof onOpenNotifications === "function") {
                   onOpenNotifications();
                 }
               }}
               notificationsOpen={notificationsOpen}
               notificationsPanel={
-                <HeaderPanelContainer
-                  open={notificationsOpen}
-                  wrapperClassName="header-panel-anchor"
-                  panelClassName="hero-search-dock"
-                  panelProps={{ "aria-hidden": !notificationsOpen }}
-                >
-                  <NotificationsPanel
-                    notifications={usuario?.notificaciones || []}
-                  />
-                </HeaderPanelContainer>
+                notificationsVisible ? (
+                  <HeaderPanelContainer
+                    open={notificationsOpen}
+                    wrapperClassName="header-panel-anchor"
+                    panelClassName="hero-search-dock"
+                    panelProps={{ "aria-hidden": !notificationsOpen }}
+                  >
+                    <NotificationsPanel
+                      notifications={usuario?.notificaciones || []}
+                    />
+                  </HeaderPanelContainer>
+                ) : null
               }
               onToggleQueue={() => {
                 setLocationOpen(false);
                 setNotificationsOpen(false);
-                setQueueOpen((prev) => !prev);
+                if (!queueOpen) {
+                  setQueueVisible(true);
+                  setQueueOpen(true);
+                } else {
+                  setQueueOpen(false);
+                }
               }}
               queueOpen={queueOpen}
               queuePanel={
-                <HeaderPanelContainer
-                  open={queueOpen}
-                  wrapperClassName="header-panel-anchor"
-                  panelClassName="hero-search-dock"
-                  panelProps={{ "aria-hidden": !queueOpen }}
-                >
-                  <QueuePanel />
-                </HeaderPanelContainer>
+                queueVisible ? (
+                  <HeaderPanelContainer
+                    open={queueOpen}
+                    wrapperClassName="header-panel-anchor"
+                    panelClassName="hero-search-dock"
+                    panelProps={{ "aria-hidden": !queueOpen }}
+                  >
+                    <QueuePanel />
+                  </HeaderPanelContainer>
+                ) : null
               }
               notiCount={notiCount}
             />
