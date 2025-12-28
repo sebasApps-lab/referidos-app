@@ -229,7 +229,9 @@ export default function EscanerView() {
   const showPermisos =
     scannerPermissionPrompted && (!canScan || camGranted !== true);
   const showManual = manualFallbackVisible;
-  const manualDisabled = processing || !manualValue.trim();
+  const manualReady =
+    manualValue.replace(/[^0-9a-zA-Z]/g, "").length === 6;
+  const manualDisabled = processing || !manualReady;
 
   useEffect(() => {
     if (!showPermisos) {
