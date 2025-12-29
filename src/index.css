@@ -334,7 +334,7 @@ html {
 }
 
 .historial-hero.hero-bleed {
-  border-radius: 0 0 1rem 1rem;
+  border-radius: 0 0 1.3rem 1.3rem;
 }
 
 .hero-bleed::before {

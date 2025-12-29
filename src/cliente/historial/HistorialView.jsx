@@ -15,23 +15,23 @@ const Tabs = ({ active, onChange }) => {
   ];
 
   return (
-    <div className="flex flex-wrap items-center justify-center">
+    <div className="flex items-center justify-center">
       {tabs.map((t, index) => {
         const isActive = active === t.key;
         return (
           <React.Fragment key={t.key}>
             <button
               onClick={() => onChange(t.key)}
-              className={`relative px-2 pt-2 -mb-3 text-[13px] font-semibold tracking-[0.22em] transition ${
+              className={`relative px-3 py-1.5 text-[13px] font-bold tracking-[0.22em] transition ${
                 isActive
-                  ? "text-white"
-                  : "text-white/60 hover:text-white/80"
+                  ? "text-[#5E30A5]"
+                  : "text-[#94A3B8] hover:text-[#7A8AA3]"
               }`}
             >
               {t.label}
             </button>
             {index < tabs.length - 1 && (
-              <span className="mx-2 h-3 w-px translate-y-2.5 bg-gradient-to-b from-white/0 via-white/40 to-white/0" />
+              <span className="mx-1 h-6 w-px translate-y-0.5 bg-gradient-to-b from-transparent via-[#5E30A5]/30 to-transparent" />
             )}
           </React.Fragment>
         );
@@ -110,14 +110,16 @@ export default function HistorialView() {
   return (
     <div className="pb-10">
       <section className="hero-bleed historial-hero text-white">
-        <div className="relative z-10 max-w-3xl mx-auto px-4 pt-1 pb-5">
+        <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
             <p className="max-w-[325px] mx-auto text-center text-[18px] font-light leading-snug text-white">
               Consulta tus codigos activos, canjeados
               <span className="block">o expirados.</span>
             </p>
           </div>
-          <div className="mt-2 flex justify-center">
+        </div>
+        <div className="relative z-10 mt-3">
+          <div className="w-full rounded-full border border-white/60 bg-white px-2 py-0.5">
             <Tabs active={historyTab} onChange={setHistoryTab} />
           </div>
         </div>
