@@ -217,8 +217,8 @@ export default function HistorialItemActivo({ item, now }) {
   const qrProgress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const isClickable = timeLeftMs > 0;
   const shadowGradient = isLocalNameWrapped
-    ? "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 66%, rgba(0,0,0,0) 80%)"
-    : "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 32%, rgba(0,0,0,0) 62%)";
+    ? "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 58%, rgba(0,0,0,0) 80%)"
+    : "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 28%, rgba(0,0,0,0) 62%)";
 
   useEffect(() => {
     const el = localNameRef.current;
