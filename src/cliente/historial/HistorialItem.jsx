@@ -253,7 +253,7 @@ export default function HistorialItem({ item, variant, now }) {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0) 70%)",
+                "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 22%, rgba(0,0,0,0) 55%)",
             }}
           />
           <span className="absolute left-1.5 top-1 text-[9px] font-bold tracking-[0.2px] text-[#FFC21C] leading-none">
