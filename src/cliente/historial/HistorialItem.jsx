@@ -75,7 +75,7 @@ const QrBadge = ({ progress }) => {
   const maskOpening = `conic-gradient(#000 ${openingDeg}deg, transparent ${openingDeg}deg 360deg)`;
 
   return (
-    <div className="relative h-14 w-14 rounded-2xl bg-white/90 ring-1 ring-black/5 shadow-sm flex items-center justify-center overflow-hidden">
+    <div className="relative h-14 w-14 rounded-xl bg-white/80 flex items-center justify-center overflow-hidden">
       <QrGlyph className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)] text-slate-300" />
       <div
         className="absolute -inset-1 rounded-2xl"
@@ -95,6 +95,22 @@ const QrBadge = ({ progress }) => {
           background: "#8A8F98",
           opacity: 0.10,
           filter: "blur(10px)",
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-xl"
+        style={{
+          WebkitMaskImage: mask,
+          maskImage: mask,
+          border: "1px solid #22C55E",
+        }}
+      />
+      <div
+        className="absolute inset-0 rounded-xl"
+        style={{
+          WebkitMaskImage: maskOpening,
+          maskImage: maskOpening,
+          border: "1px solid #E6E9EF",
         }}
       />
       <div
