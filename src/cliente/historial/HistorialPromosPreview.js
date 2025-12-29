@@ -25,7 +25,7 @@ const shuffleWithSeed = (list, seed) => {
   return items;
 };
 
-const buildItem = (promo, index, variant, now) => {
+const buildItem = (promo, index, variant, now, timeRng) => {
   const status =
     variant === "canjeados"
       ? "canjeado"
@@ -33,21 +33,26 @@ const buildItem = (promo, index, variant, now) => {
       ? "expirado"
       : "valido";
 
+  const activeOffset = Math.floor(timeRng() * (4 * MINUTE_MS));
+  const activeStartedAt = now - activeOffset;
   const expiresAt =
     variant === "expirados"
       ? new Date(now - 5 * MINUTE_MS).toISOString()
-      : new Date(now + 5 * MINUTE_MS).toISOString();
+      : new Date(activeStartedAt + 5 * MINUTE_MS).toISOString();
 
   const redeemedAt =
     variant === "canjeados"
-      ? new Date(now - 5 * MINUTE_MS).toISOString()
+      ? new Date(now - (2 + Math.floor(timeRng() * 3)) * MINUTE_MS).toISOString()
       : null;
 
   return {
     id: `${variant}-${promo.id}`,
     code: `mock-${variant}-${index + 1}`,
     status,
-    createdAt: new Date(now - 5 * MINUTE_MS).toISOString(),
+    createdAt:
+      variant === "activos"
+        ? new Date(activeStartedAt).toISOString()
+        : new Date(now - 5 * MINUTE_MS).toISOString(),
     expiresAt,
     redeemedAt,
     promoId: promo.id,
@@ -63,11 +68,19 @@ const buildItem = (promo, index, variant, now) => {
   };
 };
 
-export const buildHistorialPreview = (seedBase = Date.now()) => {
+export const buildHistorialPreview = ({
+  seed = Date.now(),
+  baseTime = Date.now(),
+} = {}) => {
+  const seedBase = seed;
   const buildList = (variant) => {
     const seed = seedBase + seedFromString(variant);
     const shuffled = shuffleWithSeed(MOCK_PROMOS, seed);
-    return shuffled.map((promo, index) => buildItem(promo, index, variant, seedBase));
+    const timeSeed = seedBase + seedFromString(`${variant}-time`);
+    const timeRng = createSeededRng(timeSeed);
+    return shuffled.map((promo, index) =>
+      buildItem(promo, index, variant, baseTime, timeRng)
+    );
   };
 
   return {

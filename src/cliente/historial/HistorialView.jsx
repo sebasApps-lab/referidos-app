@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 import { getQrHistory } from "../../services/qrService";
@@ -48,8 +48,12 @@ export default function HistorialView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const previewSeedRef = useRef(Date.now());
   const [previewByTab, setPreviewByTab] = useState(() =>
-    buildHistorialPreview()
+    buildHistorialPreview({
+      seed: previewSeedRef.current,
+      baseTime: Date.now(),
+    })
   );
   const useHistorialPreview = true;
 
@@ -60,7 +64,12 @@ export default function HistorialView() {
 
   useEffect(() => {
     if (!useHistorialPreview) return;
-    setPreviewByTab(buildHistorialPreview());
+    setPreviewByTab(
+      buildHistorialPreview({
+        seed: previewSeedRef.current,
+        baseTime: Date.now(),
+      })
+    );
   }, [useHistorialPreview, usuario?.id]);
 
   useEffect(() => {
@@ -105,6 +114,31 @@ export default function HistorialView() {
     return base;
   }, [historial]);
 
+  const previewGrouped = useMemo(() => {
+    const base = {
+      activos: [],
+      canjeados: [...previewByTab.canjeados],
+      expirados: [...previewByTab.expirados],
+    };
+
+    previewByTab.activos.forEach((item) => {
+      const exp = item.expiresAt ? new Date(item.expiresAt).getTime() : now;
+      const timeLeftMs = exp - now;
+      if (timeLeftMs <= 0) {
+        base.expirados.push({
+          ...item,
+          status: "expirado",
+          estado: "expirado",
+          timeLeftMs: 0,
+        });
+      } else {
+        base.activos.push({ ...item, timeLeftMs });
+      }
+    });
+
+    return base;
+  }, [previewByTab, now]);
+
   if (!usuario) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
@@ -122,7 +156,7 @@ export default function HistorialView() {
   }
 
   const currentList = useHistorialPreview
-    ? previewByTab[historyTab]
+    ? previewGrouped[historyTab]
     : grouped[historyTab] || [];
 
   return (

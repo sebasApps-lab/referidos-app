@@ -79,6 +79,7 @@ const QrBadge = ({ progress }) => {
       : clamped > 0.15
       ? { base: "#F59E0B", glow: "#FFD166", hole: "#FFF4D6" }
       : { base: "#EF4444", glow: "#FF8A8A", hole: "#FFE3E3" };
+  const lineOpacity = clamped <= 0 ? 0 : 0.8;
 
   return (
     <div className="relative h-14 w-14 rounded-xl bg-white/80 flex items-center justify-center overflow-hidden">
@@ -133,7 +134,8 @@ const QrBadge = ({ progress }) => {
           className="absolute left-1/2 top-1/2 h-[140%] w-px"
           style={{
             background: tone.base,
-            opacity: 0.8,
+            opacity: lineOpacity,
+            transition: "opacity 220ms ease",
             transform: "translate(-50%, -100%) rotate(0deg)",
             transformOrigin: "bottom center",
           }}
@@ -142,7 +144,8 @@ const QrBadge = ({ progress }) => {
           className="absolute left-1/2 top-1/2 h-[140%] w-px"
           style={{
             background: tone.base,
-            opacity: 0.8,
+            opacity: lineOpacity,
+            transition: "opacity 220ms ease",
             transform: `translate(-50%, -100%) rotate(${openingDeg}deg)`,
             transformOrigin: "bottom center",
           }}
@@ -226,11 +229,14 @@ export default function HistorialItem({ item, variant, now }) {
     variant === "activos"
       ? Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS))
       : 0;
+  const isClickable = variant === "activos" && timeLeftMs > 0;
 
   return (
     <article
-      className="relative overflow-hidden bg-white cursor-pointer"
-      onClick={goDetalle}
+      className={`relative overflow-hidden bg-white ${
+        isClickable ? "cursor-pointer" : "cursor-default"
+      }`}
+      onClick={isClickable ? goDetalle : undefined}
     >
       {variant === "activos" && <PacmanTimer timeLeftMs={timeLeftMs} />}
       {variant === "canjeados" && <StatusBadge variant="canjeados" />}
@@ -263,9 +269,11 @@ export default function HistorialItem({ item, variant, now }) {
             </span>
           </div>
         </div>
-        <div className="flex-shrink-0">
-          <QrBadge progress={qrProgress} />
-        </div>
+        {variant === "activos" && timeLeftMs > 0 && (
+          <div className="flex-shrink-0">
+            <QrBadge progress={qrProgress} />
+          </div>
+        )}
       </div>
     </article>
   );

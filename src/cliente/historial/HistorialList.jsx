@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import HistorialItem from "./HistorialItem";
 
 export default function HistorialList({ items, variant, now }) {
@@ -14,14 +14,24 @@ export default function HistorialList({ items, variant, now }) {
       {items.length > 0 && (
         <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
       )}
-      {items.map((item, index) => (
-        <div key={item.id} className="w-full">
-          {index > 0 && (
+      <AnimatePresence initial={false}>
+        {items.map((item, index) => (
+          <motion.div
+            key={item.id}
+            layout
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+            className="w-full"
+          >
+            {index > 0 && (
               <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
-          )}
-          <HistorialItem item={item} variant={variant} now={now} />
-        </div>
-      ))}
+            )}
+            <HistorialItem item={item} variant={variant} now={now} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
       {items.length > 0 && (
         <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
       )}
