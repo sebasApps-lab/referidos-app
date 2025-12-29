@@ -75,7 +75,7 @@ const QrGlyph = ({ className, style, holeFill = "white" }) => (
   </svg>
 );
 
-const QrBadge = ({ progress }) => {
+const QrBadge = ({ progress, className }) => {
   const clamped = Math.max(0, Math.min(1, progress));
   const openingDeg = (1 - clamped) * 360;
   const mask = `conic-gradient(transparent ${openingDeg}deg, #000 ${openingDeg}deg 360deg)`;
@@ -89,7 +89,9 @@ const QrBadge = ({ progress }) => {
   const lineOpacity = clamped <= 0 ? 0 : 0.8;
 
   return (
-    <div className="relative h-14 w-14 rounded-xl bg-white/80 flex items-center justify-center overflow-hidden">
+    <div
+      className={`relative ${className || "h-14 w-14"} rounded-xl bg-white/80 flex items-center justify-center overflow-hidden`}
+    >
       <QrGlyph className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)] text-slate-300" />
       <div
         className="absolute -inset-1 rounded-2xl"
@@ -248,50 +250,56 @@ export default function HistorialItemActivo({ item, now }) {
     >
       <PacmanTimer timeLeftMs={timeLeftMs} />
 
-      <div className="flex gap-4 p-4 items-center">
-        <div
-          className="relative h-[180px] w-[180px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
-          style={{
-            backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
-          }}
-        >
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex gap-4 items-stretch">
           <div
-            className="absolute inset-0"
+            className="relative h-[180px] w-[180px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
             style={{
-              background: shadowGradient,
-              filter: "blur(6px)",
-              transform: "scaleY(1.08)",
+              backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
             }}
-          />
-          <span
-            ref={localNameRef}
-            className="absolute left-3 top-2 max-w-[calc(100%-32px)] text-[20px] font-bold tracking-[0.2px] text-[#D4A21C] leading-tight"
           >
-            {safePromo.nombreLocal}
-          </span>
-        </div>
-        <div className="flex flex-col gap-2 flex-[0.84] min-w-0">
-          <div>
-            <h3 className="text-[20px] font-semibold text-[#2F1A55] line-clamp-1">
+            <div
+              className="absolute inset-0"
+              style={{
+                background: shadowGradient,
+                filter: "blur(6px)",
+                transform: "scaleY(1.08)",
+              }}
+            />
+            <span
+              ref={localNameRef}
+              className="absolute left-3 top-2 max-w-[calc(100%-32px)] text-[20px] font-bold tracking-[0.2px] text-[#D4A21C] leading-tight"
+            >
+              {safePromo.nombreLocal}
+            </span>
+          </div>
+          <div className="flex flex-col flex-1 min-w-0 h-full">
+            <h3 className="text-[20px] font-semibold text-[#2F1A55] leading-snug line-clamp-2 min-h-[2.4em]">
               {safePromo.titulo}
             </h3>
-            <p className="text-[16px] text-slate-500 line-clamp-1">
-              {safePromo.descripcion}
-            </p>
+            <div className="mt-3 flex-1 flex items-center justify-center">
+              <div className="h-[120px] w-[120px] flex items-center justify-center">
+                {timeLeftMs > 0 && (
+                  <QrBadge progress={qrProgress} className="h-full w-full" />
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-3 text-[10px] text-slate-500">
+        </div>
+        <div className="flex flex-col gap-2">
+          <p className="text-[16px] text-slate-500 line-clamp-2">
+            {safePromo.descripcion}
+          </p>
+          <div className="flex flex-wrap gap-3 text-[12px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
-              <MapPin size={12} />
+              <MapPin size={13} />
               {safePromo.ubicacion}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Calendar size={12} />
+              <Calendar size={13} />
               {formatDateIsoToDdMmYyyy(promo.fin)}
             </span>
           </div>
-        </div>
-        <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
-          {timeLeftMs > 0 && <QrBadge progress={qrProgress} />}
         </div>
       </div>
     </article>
