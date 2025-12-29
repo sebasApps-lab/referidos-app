@@ -255,35 +255,34 @@ export default function HistorialItemActivo({ item, now }) {
 
 
       <div className="flex flex-col gap-3 px-4 py-4">
-        <div className="flex gap-4 items-center">
+        <div
+          className="relative w-full aspect-[2/1] rounded-t-xl bg-[#F8F5FF] bg-cover bg-center ring-1 ring-white/80 overflow-hidden"
+          style={{
+            backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
+          }}
+        >
           <div
-            className="relative h-[180px] w-[180px] rounded-tl-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
+            className="absolute inset-0"
             style={{
-              backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
+              background: shadowGradient,
+              filter: "blur(6px)",
+              transform: "scaleY(1.08)",
             }}
+          />
+          <span
+            ref={localNameRef}
+            className="absolute left-3 top-2 max-w-[calc(100%-32px)] text-[20px] font-bold tracking-[0.2px] text-[#D4A21C] leading-tight"
           >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: shadowGradient,
-                filter: "blur(6px)",
-                transform: "scaleY(1.08)",
-              }}
-            />
-            <span
-              ref={localNameRef}
-              className="absolute left-3 top-2 max-w-[calc(100%-32px)] text-[20px] font-bold tracking-[0.2px] text-[#D4A21C] leading-tight"
-            >
-              {safePromo.nombreLocal}
-            </span>
-          </div>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="h-[120px] w-[120px] flex items-center justify-center">
-              {timeLeftMs > 0 && (
+            {safePromo.nombreLocal}
+          </span>
+          {timeLeftMs > 0 && (
+            <>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 h-[120px] w-[120px] rounded-xl bg-white/90" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 h-[120px] w-[120px] flex items-center justify-center">
                 <QrBadge progress={qrProgress} className="h-full w-full" />
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <h3 className="text-[20px] font-semibold text-[#2F1A55] leading-snug line-clamp-2">
@@ -293,7 +292,7 @@ export default function HistorialItemActivo({ item, now }) {
             {fullDescripcion}
           </p>
           <div className="flex flex-col gap-2 text-[18px] text-slate-500">
-            <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
+            <span className="inline-flex items-center gap-1">
               <MapPin size={18} />
               {safePromo.sector}
               {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
