@@ -199,9 +199,9 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
             className="absolute inset-y-0 left-[35%] w-[65%]"
             style={{
               WebkitMaskImage:
-                "linear-gradient(270deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0) 95%)",
+                "linear-gradient(270deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 78%, rgba(0,0,0,0.7) 84%, rgba(0,0,0,0.1) 92%, rgba(0,0,0,0) 100%)",
               maskImage:
-                "linear-gradient(270deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0) 95%)",
+                "linear-gradient(270deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 78%, rgba(0,0,0,0.7) 84%, rgba(0,0,0,0.1) 92%, rgba(0,0,0,0) 100%)",
               WebkitMaskSize: "100% 100%",
               maskSize: "100% 100%",
               WebkitMaskRepeat: "no-repeat",
