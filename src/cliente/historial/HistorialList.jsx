@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import HistorialItem from "./HistorialItem";
 
-export default function HistorialList({ items, variant }) {
+export default function HistorialList({ items, variant, now }) {
   return (
     <motion.div
       layout
@@ -19,7 +19,7 @@ export default function HistorialList({ items, variant }) {
           {index > 0 && (
               <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
           )}
-          <HistorialItem item={item} variant={variant} />
+          <HistorialItem item={item} variant={variant} now={now} />
         </div>
       ))}
       {items.length > 0 && (

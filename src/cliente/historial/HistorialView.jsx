@@ -6,7 +6,7 @@ import { handleError } from "../../utils/errorUtils";
 import { useClienteUI } from "../hooks/useClienteUI";
 import HistorialList from "./HistorialList";
 import HistorialEmpty from "./HistorialEmpty";
-import { HISTORIAL_PREVIEW_BY_TAB } from "./HistorialPromosPreview";
+import { buildHistorialPreview } from "./HistorialPromosPreview";
 
 const Tabs = ({ active, onChange }) => {
   const tabs = [
@@ -47,7 +47,21 @@ export default function HistorialView() {
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  const [previewByTab, setPreviewByTab] = useState(() =>
+    buildHistorialPreview()
+  );
   const useHistorialPreview = true;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!useHistorialPreview) return;
+    setPreviewByTab(buildHistorialPreview());
+  }, [useHistorialPreview, usuario?.id]);
 
   useEffect(() => {
     if (useHistorialPreview || !usuario?.id) return;
@@ -108,7 +122,7 @@ export default function HistorialView() {
   }
 
   const currentList = useHistorialPreview
-    ? HISTORIAL_PREVIEW_BY_TAB[historyTab]
+    ? previewByTab[historyTab]
     : grouped[historyTab] || [];
 
   return (
@@ -150,7 +164,7 @@ export default function HistorialView() {
         )}
 
         {!loading && !error && currentList.length > 0 && (
-          <HistorialList items={currentList} variant={historyTab} />
+          <HistorialList items={currentList} variant={historyTab} now={now} />
         )}
         </div>
       </div>
