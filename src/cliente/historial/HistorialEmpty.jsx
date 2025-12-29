@@ -30,7 +30,7 @@ export default function HistorialEmpty({ variant }) {
     );
 
   return (
-    <div className="text-center py-4">
+    <div className="text-center py-9">
       <div className="mx-auto h-16 w-16 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
         {icon}
       </div>

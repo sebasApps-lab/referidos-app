@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, MapPinned } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 
@@ -197,6 +197,11 @@ export default function HistorialItemActivo({ item, now }) {
   const navigate = useNavigate();
   const promo = item?.promo || {};
   const localNameRef = useRef(null);
+  const titleWrapperRef = useRef(null);
+  const titleMeasureRef = useRef(null);
+  const [isTitleMarquee, setIsTitleMarquee] = useState(false);
+  const [titleDistance, setTitleDistance] = useState(0);
+  const [titleDuration, setTitleDuration] = useState("8s");
   const [isLocalNameWrapped, setIsLocalNameWrapped] = useState(false);
   const safePromo = {
     ...promo,
@@ -217,6 +222,14 @@ export default function HistorialItemActivo({ item, now }) {
     : item?.timeLeftMs ?? 0;
   const qrProgress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const isClickable = timeLeftMs > 0;
+  const statusTone =
+    qrProgress > 0.4
+      ? "#22C55E"
+      : qrProgress > 0.15
+      ? "#F59E0B"
+      : "#EF4444";
+  const minutesLeft = Math.max(1, Math.ceil(timeLeftMs / 60000));
+  const tagText = qrProgress > 0.15 ? `${minutesLeft} minutos` : "Expirará pronto.";
   const fullDescripcion = [safePromo.descripcion, safePromo.descripcionExtra]
     .filter(Boolean)
     .join(" ");
@@ -244,6 +257,32 @@ export default function HistorialItemActivo({ item, now }) {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [safePromo.nombreLocal]);
+
+  useEffect(() => {
+    const wrapper = titleWrapperRef.current;
+    const measure = titleMeasureRef.current;
+    if (!wrapper || !measure) return undefined;
+
+    const update = () => {
+      const availableWidth = wrapper.clientWidth;
+      const textWidth = measure.scrollWidth;
+      const overflow = textWidth > availableWidth + 1;
+      setIsTitleMarquee(overflow);
+      if (!overflow) {
+        setTitleDistance(0);
+        setTitleDuration("0s");
+        return;
+      }
+      const distance = Math.max(0, textWidth - availableWidth);
+      const duration = Math.min(12, Math.max(6, distance / 24));
+      setTitleDistance(distance);
+      setTitleDuration(`${duration}s`);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [safePromo.titulo]);
 
   return (
     <article
@@ -285,13 +324,69 @@ export default function HistorialItemActivo({ item, now }) {
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <h3 className="text-[20px] font-semibold text-[#2F1A55] leading-snug line-clamp-2">
-            {safePromo.titulo}
-          </h3>
-          <p className="text-[17px] text-slate-500 line-clamp-3">
+          <div className="flex items-center gap-2 pr-3">
+            <div
+              ref={titleWrapperRef}
+              className="relative flex-1 min-w-0 overflow-hidden"
+            >
+              <span
+                className={`block text-[20px] font-semibold text-[#5E30A5] leading-snug truncate ${
+                  isTitleMarquee ? "opacity-0" : "opacity-100"
+                }`}
+              >
+                {safePromo.titulo}
+              </span>
+              <span
+                ref={titleMeasureRef}
+                className="absolute invisible whitespace-nowrap text-[20px] font-semibold leading-snug"
+              >
+                {safePromo.titulo}
+              </span>
+              {isTitleMarquee && (
+                <span className="pointer-events-none absolute inset-0">
+                  <span
+                    className="historial-title-track historial-title-track--animate text-[20px] font-semibold text-[#5E30A5] leading-snug"
+                    style={{
+                      "--historial-title-distance": `${titleDistance}px`,
+                      "--historial-title-duration": titleDuration,
+                    }}
+                  >
+                    {safePromo.titulo}
+                  </span>
+                </span>
+              )}
+            </div>
+            <div
+              className="shrink-0 inline-flex rounded-md px-2 py-1 text-[12px] font-semibold"
+              style={{
+                color: statusTone,
+                background:
+                  statusTone === "#22C55E"
+                    ? "rgba(34,197,94,0.24)"
+                    : statusTone === "#F59E0B"
+                    ? "rgba(245,158,11,0.24)"
+                    : "rgba(239,68,68,0.24)",
+                border:
+                  statusTone === "#22C55E"
+                    ? "1px solid rgba(34,197,94,0.4)"
+                    : statusTone === "#F59E0B"
+                    ? "1px solid rgba(245,158,11,0.4)"
+                    : "1px solid rgba(239,68,68,0.4)",
+                boxShadow:
+                  statusTone === "#22C55E"
+                    ? "0 0 12px rgba(34,197,94,0.3)"
+                    : statusTone === "#F59E0B"
+                    ? "0 0 12px rgba(245,158,11,0.3)"
+                    : "0 0 12px rgba(239,68,68,0.3)",
+              }}
+            >
+              {tagText}
+            </div>
+          </div>
+          <p className="text-[17px] text-slate-500 line-clamp-3 pr-3">
             {fullDescripcion}
           </p>
-          <div className="flex flex-col gap-2 text-[18px] text-slate-500">
+          <div className="mt-2 flex flex-col gap-2 text-[16px] text-slate-400 pr-3">
             <span className="inline-flex items-center gap-1">
               <MapPin size={18} />
               {safePromo.sector}

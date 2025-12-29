@@ -347,6 +347,39 @@ html {
   background: #5E30A5;
 }
 
+.historial-title-track {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.historial-title-track--animate {
+  animation: historial-title-marquee var(--historial-title-duration, 8s) linear
+    infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes historial-title-marquee {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  60% {
+    transform: translateX(calc(-1 * var(--historial-title-distance, 0px)));
+    opacity: 1;
+  }
+  70% {
+    opacity: 0;
+  }
+  71% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 .ribbon-glass {
   position: absolute;
   left: -7px;
