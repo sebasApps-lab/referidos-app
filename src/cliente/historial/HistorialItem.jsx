@@ -52,7 +52,7 @@ const QrGlyph = ({ className, style }) => (
     focusable="false"
     shapeRendering="crispEdges"
   >
-    <rect width="25" height="25" fill="white" />
+    <rect width="25" height="25" fill="transparent" />
     <rect x="0" y="0" width="7" height="7" fill="currentColor" />
     <rect x="1" y="1" width="5" height="5" fill="white" />
     <rect x="2" y="2" width="3" height="3" fill="currentColor" />
@@ -72,10 +72,31 @@ const QrBadge = ({ progress }) => {
   const clamped = Math.max(0, Math.min(1, progress));
   const openingDeg = (1 - clamped) * 360;
   const mask = `conic-gradient(transparent ${openingDeg}deg, #000 ${openingDeg}deg 360deg)`;
+  const maskOpening = `conic-gradient(#000 ${openingDeg}deg, transparent ${openingDeg}deg 360deg)`;
 
   return (
-    <div className="relative h-14 w-14 rounded-2xl bg-white/90 ring-1 ring-black/5 shadow-sm flex items-center justify-center">
+    <div className="relative h-14 w-14 rounded-2xl bg-white/90 ring-1 ring-black/5 shadow-sm flex items-center justify-center overflow-hidden">
       <QrGlyph className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)] text-slate-300" />
+      <div
+        className="absolute -inset-1 rounded-2xl"
+        style={{
+          WebkitMaskImage: mask,
+          maskImage: mask,
+          background: "#8fd300",
+          opacity: 0.12,
+          filter: "blur(10px)",
+        }}
+      />
+      <div
+        className="absolute -inset-1 rounded-2xl"
+        style={{
+          WebkitMaskImage: maskOpening,
+          maskImage: maskOpening,
+          background: "#8A8F98",
+          opacity: 0.04,
+          filter: "blur(10px)",
+        }}
+      />
       <div
         className="absolute inset-2"
         style={{
@@ -85,16 +106,16 @@ const QrBadge = ({ progress }) => {
       >
         <QrGlyph className="h-full w-full text-[#22C55E]" />
       </div>
-      <div className="pointer-events-none absolute inset-2">
+      <div className="pointer-events-none absolute inset-2 overflow-visible">
         <div
-          className="absolute left-1/2 top-1/2 h-[48%] w-[2px] bg-[#22C55E]/80"
+          className="absolute left-1/2 top-1/2 h-[140%] w-px bg-[#22C55E]/80"
           style={{
             transform: "translate(-50%, -100%) rotate(0deg)",
             transformOrigin: "bottom center",
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[48%] w-[2px] bg-[#22C55E]/80"
+          className="absolute left-1/2 top-1/2 h-[140%] w-px bg-[#22C55E]/80"
           style={{
             transform: `translate(-50%, -100%) rotate(${openingDeg}deg)`,
             transformOrigin: "bottom center",
@@ -119,7 +140,7 @@ const PacmanTimer = ({ timeLeftMs }) => {
     <div
       className="absolute top-5 left-5 w-6 h-6 rounded-full"
       style={{
-        background: `conic-gradient(from 90deg, transparent ${mouthDeg}deg, ${color} ${mouthDeg}deg 360deg)`,
+        background: `conic-gradient(transparent ${mouthDeg}deg, ${color} ${mouthDeg}deg 360deg)`,
         border: `2px solid ${color}`,
         opacity: 0.92,
         boxShadow: `0 4px 10px ${color}33`,
