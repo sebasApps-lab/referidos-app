@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
@@ -209,6 +209,8 @@ const StatusBadge = ({ variant }) => {
 export default function HistorialItem({ item, variant, now }) {
   const navigate = useNavigate();
   const promo = item?.promo || {};
+  const localNameRef = useRef(null);
+  const [isLocalNameWrapped, setIsLocalNameWrapped] = useState(false);
   const safePromo = {
     ...promo,
     titulo: sanitizeText(promo.titulo),
@@ -230,6 +232,30 @@ export default function HistorialItem({ item, variant, now }) {
       ? Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS))
       : 0;
   const isClickable = variant === "activos" && timeLeftMs > 0;
+  const shadowGradient = isLocalNameWrapped
+    ? "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 52%, rgba(0,0,0,0) 70%)"
+    : "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 18%, rgba(0,0,0,0) 55%)";
+
+  useEffect(() => {
+    const el = localNameRef.current;
+    if (!el || typeof window === "undefined") return undefined;
+
+    const measure = () => {
+      const styles = window.getComputedStyle(el);
+      const fontSize = parseFloat(styles.fontSize || "0");
+      const lineHeightRaw = styles.lineHeight;
+      const lineHeight =
+        lineHeightRaw && lineHeightRaw !== "normal"
+          ? parseFloat(lineHeightRaw)
+          : fontSize * 1.2;
+      const lines = lineHeight ? Math.round(el.offsetHeight / lineHeight) : 1;
+      setIsLocalNameWrapped(lines > 1);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [safePromo.nombreLocal]);
 
   return (
     <article
@@ -252,13 +278,15 @@ export default function HistorialItem({ item, variant, now }) {
           <div
             className="absolute inset-0"
             style={{
-              background:
-                "linear-gradient(180deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.16) 18%, rgba(0,0,0,0) 55%)",
+              background: shadowGradient,
               filter: "blur(6px)",
               transform: "scaleY(1.08)",
             }}
           />
-          <span className="absolute left-1.5 top-1 text-[9px] font-bold tracking-[0.2px] text-[#FFC21C] leading-none">
+          <span
+            ref={localNameRef}
+            className="absolute left-1.5 top-1 max-w-[calc(100%-8px)] text-[10px] font-bold tracking-[0.2px] text-[#FFD873] leading-tight"
+          >
             {safePromo.nombreLocal}
           </span>
         </div>
