@@ -59,7 +59,11 @@ const buildItem = (promo, index, variant, now, timeRng) => {
     promo: {
       id: promo.id,
       titulo: promo.titulo,
-      descripcion: promo.descripcion,
+      descripcion:
+        variant === "activos" && promo.descripcionExtra
+          ? `${promo.descripcion} ${promo.descripcionExtra}`
+          : promo.descripcion,
+      descripcionExtra: promo.descripcionExtra,
       imagen: promo.imagen,
       nombreLocal: promo.nombreLocal,
       sector: promo.ubicacion,

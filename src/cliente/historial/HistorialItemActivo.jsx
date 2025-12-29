@@ -248,9 +248,9 @@ export default function HistorialItemActivo({ item, now }) {
       }`}
       onClick={isClickable ? goDetalle : undefined}
     >
-      <PacmanTimer timeLeftMs={timeLeftMs} />
 
-      <div className="flex flex-col gap-3 p-4">
+
+      <div className="flex flex-col gap-3 px-4 py-9">
         <div className="flex gap-4 items-stretch">
           <div
             className="relative h-[180px] w-[180px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
@@ -287,16 +287,15 @@ export default function HistorialItemActivo({ item, now }) {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-[16px] text-slate-500 line-clamp-2">
+          <p className="text-[17px] text-slate-500 line-clamp-2">
             {safePromo.descripcion}
           </p>
-          <div className="flex flex-wrap gap-3 text-[12px] text-slate-500">
+          <div className="flex flex-wrap gap-3 text-[18px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
-              <MapPin size={13} />
+              <MapPin size={18} />
               {safePromo.ubicacion}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Calendar size={13} />
               {formatDateIsoToDdMmYyyy(promo.fin)}
             </span>
           </div>
