@@ -123,19 +123,20 @@ export default function HistorialView() {
           </div>
         </div>
         <div className="relative z-10 mt-3">
-          <div className="w-full rounded-full border border-white/60 bg-white px-2 py-0.5">
+          <div className="w-full rounded-full border border-white/60 bg-[#FAF8FF] px-2 py-0.5">
             <Tabs active={historyTab} onChange={setHistoryTab} />
           </div>
         </div>
       </section>
 
       <div
-        className="flex-1 overflow-y-auto bg-white"
+        className="relative flex-1 overflow-y-auto bg-white -mt-4"
         style={{
           marginBottom: "calc(-80px - env(safe-area-inset-bottom))",
           paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
         }}
       >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-white" />
         <div className="w-full px-0 pt-0 pb-0 space-y-0">
         {!useHistorialPreview && loading && (
           <p className="text-sm text-slate-500">Cargando historial...</p>
