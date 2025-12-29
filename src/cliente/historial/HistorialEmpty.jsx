@@ -34,7 +34,7 @@ export default function HistorialEmpty({ variant }) {
       <div className="mx-auto h-16 w-16 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
         {icon}
       </div>
-      <p className="mt-3 text-sm font-semibold text-[#2F1A55]">
+      <p className="mt-3 text-[17px] font-semibold text-[#2F1A55]">
         {EMPTY_COPY[variant] || EMPTY_COPY.activos}
       </p>
       {(variant === "activos" || !variant) && (
