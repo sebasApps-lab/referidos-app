@@ -155,6 +155,15 @@ const QrBadge = ({ progress }) => {
   );
 };
 
+const getPreviewPoints = (id) => {
+  if (!id) return 10;
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) % 100000;
+  }
+  return 10 + (hash % 16);
+};
+
 const PacmanTimer = ({ timeLeftMs }) => {
   const progress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const mouthDeg = 50 * (1 - progress) + 10;
@@ -186,18 +195,29 @@ const PacmanTimer = ({ timeLeftMs }) => {
 
 const StatusBadge = ({ variant }) => {
   const styles = {
-    canjeados: { bg: "#1DA1F2", text: "canjeado" },
-    expirados: { bg: "#EF4444", text: "expirado" },
+    canjeados: { base: "#1DA1F2", text: "canjeado" },
+    expirados: { base: "#EF4444", text: "expirado" },
   }[variant];
 
   if (!styles) return null;
 
   return (
     <div
-      className="px-2 py-1 text-[10px] font-semibold rounded-md text-white uppercase tracking-[0.12em]"
+      className="px-2 py-1 text-[10px] font-semibold rounded-md uppercase tracking-[0.12em]"
       style={{
-        background: styles.bg,
-        border: `1px solid ${styles.bg}`,
+        color: styles.base,
+        background:
+          variant === "canjeados"
+            ? "rgba(29,161,242,0.28)"
+            : "rgba(239,68,68,0.28)",
+        border:
+          variant === "canjeados"
+            ? "1px solid rgba(29,161,242,0.42)"
+            : "1px solid rgba(239,68,68,0.42)",
+        boxShadow:
+          variant === "canjeados"
+            ? "0 0 12px rgba(29,161,242,0.34)"
+            : "0 0 12px rgba(239,68,68,0.34)",
       }}
     >
       {styles.text}
@@ -231,6 +251,11 @@ export default function HistorialItem({ item, variant, now }) {
       ? Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS))
       : 0;
   const isClickable = variant === "activos" && timeLeftMs > 0;
+  const statusTone = variant === "canjeados" ? "#1DA1F2" : "#EF4444";
+  const pointsText =
+    variant === "canjeados"
+      ? `+${getPreviewPoints(item?.id)} puntos`
+      : "sin puntos";
   const shadowGradient = isLocalNameWrapped
     ? "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 52%, rgba(0,0,0,0) 70%)"
     : "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 18%, rgba(0,0,0,0) 55%)";
@@ -287,7 +312,7 @@ export default function HistorialItem({ item, variant, now }) {
             {safePromo.nombreLocal}
           </span>
         </div>
-        <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-col gap-2 flex-[0.84] min-w-0">
           <div>
             <h3 className="text-[13px] font-semibold text-[#2F1A55] line-clamp-1">
               {safePromo.titulo}
@@ -311,7 +336,17 @@ export default function HistorialItem({ item, variant, now }) {
           {variant === "activos" && timeLeftMs > 0 && (
             <QrBadge progress={qrProgress} />
           )}
-          {variant !== "activos" && <StatusBadge variant={variant} />}
+          {variant !== "activos" && (
+            <div className="flex flex-col items-center gap-1">
+              <StatusBadge variant={variant} />
+              <span
+                className="text-[11px] font-semibold tracking-[0.02em]"
+                style={{ color: statusTone }}
+              >
+                {pointsText}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </article>
