@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin } from "lucide-react";
+import { MapPin, MapPinned } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
 import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 
@@ -202,6 +202,7 @@ export default function HistorialItemActivo({ item, now }) {
     ...promo,
     titulo: sanitizeText(promo.titulo),
     descripcion: sanitizeText(promo.descripcion),
+    descripcionExtra: sanitizeText(promo.descripcionExtra),
     sector: sanitizeText(promo.sector),
     ubicacion: sanitizeText(promo.ubicacion || promo.sector),
     nombreLocal: sanitizeText(promo.nombreLocal),
@@ -216,6 +217,9 @@ export default function HistorialItemActivo({ item, now }) {
     : item?.timeLeftMs ?? 0;
   const qrProgress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const isClickable = timeLeftMs > 0;
+  const fullDescripcion = [safePromo.descripcion, safePromo.descripcionExtra]
+    .filter(Boolean)
+    .join(" ");
   const shadowGradient = isLocalNameWrapped
     ? "linear-gradient(174deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.20) 58%, rgba(0,0,0,0) 80%)"
     : "linear-gradient(174deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.20) 28%, rgba(0,0,0,0) 62%)";
@@ -251,7 +255,7 @@ export default function HistorialItemActivo({ item, now }) {
 
 
       <div className="flex flex-col gap-3 px-4 py-4">
-        <div className="flex gap-4 items-stretch">
+        <div className="flex gap-4 items-center">
           <div
             className="relative h-[180px] w-[180px] rounded-tl-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
             style={{
@@ -273,30 +277,26 @@ export default function HistorialItemActivo({ item, now }) {
               {safePromo.nombreLocal}
             </span>
           </div>
-          <div className="flex flex-col flex-1 min-w-0 h-full">
-            <h3 className="text-[20px] font-semibold text-[#2F1A55] leading-snug line-clamp-2 min-h-[2.4em]">
-              {safePromo.titulo}
-            </h3>
-            <div className="mt-3 flex-1 flex items-center justify-center">
-              <div className="h-[120px] w-[120px] flex items-center justify-center">
-                {timeLeftMs > 0 && (
-                  <QrBadge progress={qrProgress} className="h-full w-full" />
-                )}
-              </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="h-[120px] w-[120px] flex items-center justify-center">
+              {timeLeftMs > 0 && (
+                <QrBadge progress={qrProgress} className="h-full w-full" />
+              )}
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-[17px] text-slate-500 line-clamp-2">
-            {safePromo.descripcion}
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[20px] font-semibold text-[#2F1A55] leading-snug line-clamp-2">
+            {safePromo.titulo}
+          </h3>
+          <p className="text-[17px] text-slate-500 line-clamp-3">
+            {fullDescripcion}
           </p>
-          <div className="flex flex-wrap gap-3 text-[18px] text-slate-500">
+          <div className="flex flex-col gap-2 text-[18px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={18} />
-              {safePromo.ubicacion}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              {formatDateIsoToDdMmYyyy(promo.fin)}
+              {safePromo.sector}
+              {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
             </span>
           </div>
         </div>

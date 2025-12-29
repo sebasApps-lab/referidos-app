@@ -66,7 +66,8 @@ const buildItem = (promo, index, variant, now, timeRng) => {
       descripcionExtra: promo.descripcionExtra,
       imagen: promo.imagen,
       nombreLocal: promo.nombreLocal,
-      sector: promo.ubicacion,
+      sector: promo.sector || promo.ubicacion,
+      ubicacion: promo.ubicacion,
     },
     timeLeftMs: new Date(expiresAt).getTime() - now,
   };
