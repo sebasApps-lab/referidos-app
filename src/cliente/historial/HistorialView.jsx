@@ -130,7 +130,7 @@ export default function HistorialView() {
       </section>
 
       <div
-        className="flex-1 overflow-y-auto"
+        className="flex-1 overflow-y-auto bg-white"
         style={{
           marginBottom: "calc(-80px - env(safe-area-inset-bottom))",
           paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
