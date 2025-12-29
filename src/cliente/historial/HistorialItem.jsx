@@ -89,21 +89,21 @@ export default function HistorialItem({ item, variant }) {
 
       <div className="flex gap-4 p-4">
         <div
-          className="h-24 w-24 rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80"
+          className="h-[60px] w-[60px] rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
         />
         <div className="flex flex-col gap-2 flex-1">
           <div>
-            <h3 className="text-[15px] font-semibold text-[#2F1A55] line-clamp-2">
+            <h3 className="text-[13px] font-semibold text-[#2F1A55] line-clamp-1">
               {safePromo.titulo}
             </h3>
-            <p className="text-[13px] text-slate-500 line-clamp-2">
+            <p className="text-[11px] text-slate-500 line-clamp-1">
               {safePromo.descripcion}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+          <div className="flex flex-wrap gap-3 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={12} />
               {safePromo.nombreLocal}
