@@ -73,6 +73,12 @@ const QrBadge = ({ progress }) => {
   const openingDeg = (1 - clamped) * 360;
   const mask = `conic-gradient(transparent ${openingDeg}deg, #000 ${openingDeg}deg 360deg)`;
   const maskOpening = `conic-gradient(#000 ${openingDeg}deg, transparent ${openingDeg}deg 360deg)`;
+  const tone =
+    clamped > 0.4
+      ? { base: "#22C55E", glow: "#8fd300", hole: "#f3fae4" }
+      : clamped > 0.15
+      ? { base: "#F59E0B", glow: "#FFD166", hole: "#FFF4D6" }
+      : { base: "#EF4444", glow: "#FF8A8A", hole: "#FFE3E3" };
 
   return (
     <div className="relative h-14 w-14 rounded-xl bg-white/80 flex items-center justify-center overflow-hidden">
@@ -82,7 +88,7 @@ const QrBadge = ({ progress }) => {
         style={{
           WebkitMaskImage: mask,
           maskImage: mask,
-          background: "#8fd300",
+          background: tone.glow,
           opacity: 0.12,
           filter: "blur(10px)",
         }}
@@ -102,7 +108,7 @@ const QrBadge = ({ progress }) => {
         style={{
           WebkitMaskImage: mask,
           maskImage: mask,
-          border: "1px solid #22C55E",
+          border: `1px solid ${tone.base}`,
         }}
       />
       <div
@@ -120,19 +126,23 @@ const QrBadge = ({ progress }) => {
           maskImage: mask,
         }}
       >
-        <QrGlyph className="h-full w-full text-[#22C55E]" holeFill="#f3fae4" />
+        <QrGlyph className="h-full w-full" style={{ color: tone.base }} holeFill={tone.hole} />
       </div>
       <div className="pointer-events-none absolute inset-2 overflow-visible">
         <div
-          className="absolute left-1/2 top-1/2 h-[140%] w-px bg-[#22C55E]/80"
+          className="absolute left-1/2 top-1/2 h-[140%] w-px"
           style={{
+            background: tone.base,
+            opacity: 0.8,
             transform: "translate(-50%, -100%) rotate(0deg)",
             transformOrigin: "bottom center",
           }}
         />
         <div
-          className="absolute left-1/2 top-1/2 h-[140%] w-px bg-[#22C55E]/80"
+          className="absolute left-1/2 top-1/2 h-[140%] w-px"
           style={{
+            background: tone.base,
+            opacity: 0.8,
             transform: `translate(-50%, -100%) rotate(${openingDeg}deg)`,
             transformOrigin: "bottom center",
           }}
@@ -146,11 +156,7 @@ const PacmanTimer = ({ timeLeftMs }) => {
   const progress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const mouthDeg = 50 * (1 - progress) + 10;
   const color =
-    timeLeftMs > 20 * 60 * 1000
-      ? "#10B981"
-      : timeLeftMs > 10 * 60 * 1000
-      ? "#F59E0B"
-      : "#EF4444";
+    progress > 0.4 ? "#10B981" : progress > 0.15 ? "#F59E0B" : "#EF4444";
 
   return (
     <div
