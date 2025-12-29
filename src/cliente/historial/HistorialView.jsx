@@ -136,8 +136,8 @@ export default function HistorialView() {
           paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-white" />
-        <div className="w-full px-0 pt-0 pb-0 space-y-0">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-white" />
+        <div className="w-full px-0 pt-4 pb-0 space-y-0">
         {!useHistorialPreview && loading && (
           <p className="text-sm text-slate-500">Cargando historial...</p>
         )}
