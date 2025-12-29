@@ -6,6 +6,7 @@ import { handleError } from "../../utils/errorUtils";
 import { useClienteUI } from "../hooks/useClienteUI";
 import HistorialList from "./HistorialList";
 import HistorialEmpty from "./HistorialEmpty";
+import { HISTORIAL_PREVIEW_BY_TAB } from "./HistorialPromosPreview";
 
 const Tabs = ({ active, onChange }) => {
   const tabs = [
@@ -46,9 +47,10 @@ export default function HistorialView() {
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const useHistorialPreview = true;
 
   useEffect(() => {
-    if (!usuario?.id) return;
+    if (useHistorialPreview || !usuario?.id) return;
     const fetchData = async () => {
       setLoading(true);
       setError("");
@@ -77,7 +79,7 @@ export default function HistorialView() {
       }
     };
     fetchData();
-  }, [usuario?.id]);
+  }, [usuario?.id, useHistorialPreview]);
 
   const grouped = useMemo(() => {
     const base = { activos: [], canjeados: [], expirados: [] };
@@ -105,7 +107,9 @@ export default function HistorialView() {
     );
   }
 
-  const currentList = grouped[historyTab] || [];
+  const currentList = useHistorialPreview
+    ? HISTORIAL_PREVIEW_BY_TAB[historyTab]
+    : grouped[historyTab] || [];
 
   return (
     <div className="pb-10">
@@ -126,10 +130,10 @@ export default function HistorialView() {
       </section>
 
       <div className="w-full max-w-3xl mx-auto px-4 pt-12 space-y-4">
-        {loading && (
+        {!useHistorialPreview && loading && (
           <p className="text-sm text-slate-500">Cargando historial...</p>
         )}
-        {error && !loading && (
+        {!useHistorialPreview && error && !loading && (
           <p className="text-sm text-red-500">{error}</p>
         )}
 

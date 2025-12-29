@@ -4,7 +4,7 @@ import PromoCardCercanas from "../../components/cards/PromoCardCercanas";
 import PromoCardHot from "../../components/cards/PromoCardHot";
 import PromoCardNuevas from "../../components/cards/PromoCardNuevas";
 
-const MOCK_PROMOS = [
+export const MOCK_PROMOS = [
   {
     id: "mock-1",
     titulo: "2x1 en pizzas artesanales",
