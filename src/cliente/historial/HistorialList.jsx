@@ -1,6 +1,7 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import HistorialItem from "./HistorialItem";
+import HistorialItemActivo from "./HistorialItemActivo";
 
 export default function HistorialList({ items, variant, now }) {
   return (
@@ -28,7 +29,11 @@ export default function HistorialList({ items, variant, now }) {
             {index > 0 && (
               <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
             )}
-            <HistorialItem item={item} variant={variant} now={now} />
+            {variant === "activos" ? (
+              <HistorialItemActivo item={item} now={now} />
+            ) : (
+              <HistorialItem item={item} variant={variant} now={now} />
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
