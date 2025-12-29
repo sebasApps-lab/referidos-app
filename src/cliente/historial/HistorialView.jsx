@@ -123,7 +123,7 @@ export default function HistorialView() {
           </div>
         </div>
         <div className="relative z-10 mt-3">
-          <div className="w-full rounded-full border border-white/60 bg-[#FAF8FF] px-2 py-0.5">
+          <div className="w-full rounded-full border border-white/60 bg-[#FAF8FF] px-2 py-0.5 shadow-[0_10px_18px_rgba(47,26,85,0.12)]">
             <Tabs active={historyTab} onChange={setHistoryTab} />
           </div>
         </div>
