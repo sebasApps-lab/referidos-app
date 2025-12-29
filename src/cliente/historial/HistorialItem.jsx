@@ -69,6 +69,7 @@ export default function HistorialItem({ item, variant }) {
     titulo: sanitizeText(promo.titulo),
     descripcion: sanitizeText(promo.descripcion),
     sector: sanitizeText(promo.sector),
+    ubicacion: sanitizeText(promo.ubicacion || promo.sector),
     nombreLocal: sanitizeText(promo.nombreLocal),
   };
 
@@ -106,7 +107,7 @@ export default function HistorialItem({ item, variant }) {
           <div className="flex flex-wrap gap-3 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={12} />
-              {safePromo.nombreLocal}
+              {safePromo.ubicacion}
             </span>
             <span className="inline-flex items-center gap-1">
               <Calendar size={12} />
