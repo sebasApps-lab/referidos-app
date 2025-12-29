@@ -43,7 +43,7 @@ const createQrModules = (seed = 9321) => {
 
 const QR_MODULES = createQrModules();
 
-const QrGlyph = ({ className, style }) => (
+const QrGlyph = ({ className, style, holeFill = "white" }) => (
   <svg
     viewBox="0 0 25 25"
     className={className}
@@ -54,13 +54,13 @@ const QrGlyph = ({ className, style }) => (
   >
     <rect width="25" height="25" fill="transparent" />
     <rect x="0" y="0" width="7" height="7" fill="currentColor" />
-    <rect x="1" y="1" width="5" height="5" fill="white" />
+    <rect x="1" y="1" width="5" height="5" fill={holeFill} />
     <rect x="2" y="2" width="3" height="3" fill="currentColor" />
     <rect x="18" y="0" width="7" height="7" fill="currentColor" />
-    <rect x="19" y="1" width="5" height="5" fill="white" />
+    <rect x="19" y="1" width="5" height="5" fill={holeFill} />
     <rect x="20" y="2" width="3" height="3" fill="currentColor" />
     <rect x="0" y="18" width="7" height="7" fill="currentColor" />
-    <rect x="1" y="19" width="5" height="5" fill="white" />
+    <rect x="1" y="19" width="5" height="5" fill={holeFill} />
     <rect x="2" y="20" width="3" height="3" fill="currentColor" />
     {QR_MODULES.map(([x, y]) => (
       <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />
@@ -93,7 +93,7 @@ const QrBadge = ({ progress }) => {
           WebkitMaskImage: maskOpening,
           maskImage: maskOpening,
           background: "#8A8F98",
-          opacity: 0.04,
+          opacity: 0.10,
           filter: "blur(10px)",
         }}
       />
@@ -104,7 +104,7 @@ const QrBadge = ({ progress }) => {
           maskImage: mask,
         }}
       >
-        <QrGlyph className="h-full w-full text-[#22C55E]" />
+        <QrGlyph className="h-full w-full text-[#22C55E]" holeFill="#f3fae4" />
       </div>
       <div className="pointer-events-none absolute inset-2 overflow-visible">
         <div
