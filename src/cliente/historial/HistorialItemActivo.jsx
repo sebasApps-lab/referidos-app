@@ -324,7 +324,7 @@ export default function HistorialItemActivo({ item, now }) {
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 pr-3">
+          <div className="flex items-center gap-2 pr-3 pl-2">
             <div
               ref={titleWrapperRef}
               className="relative flex-1 min-w-0 overflow-hidden"
@@ -356,8 +356,18 @@ export default function HistorialItemActivo({ item, now }) {
                 </span>
               )}
             </div>
-            <div
-              className="shrink-0 inline-flex rounded-md px-2 py-1 text-[12px] font-semibold"
+          </div>
+          <p className="text-[17px] text-slate-500 line-clamp-3 pr-3 pl-2">
+            {fullDescripcion}
+          </p>
+          <div className="mt-2 flex items-center gap-2 text-[16px] text-slate-400 pr-3 pl-2">
+            <span className="inline-flex items-center gap-1 min-w-0 flex-1">
+              <MapPin size={18} />
+              {safePromo.sector}
+              {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
+            </span>
+            <span
+              className="shrink-0 inline-flex rounded-md px-2 py-1 text-[12px] font-semibold ml-auto"
               style={{
                 color: statusTone,
                 background:
@@ -381,16 +391,6 @@ export default function HistorialItemActivo({ item, now }) {
               }}
             >
               {tagText}
-            </div>
-          </div>
-          <p className="text-[17px] text-slate-500 line-clamp-3 pr-3">
-            {fullDescripcion}
-          </p>
-          <div className="mt-2 flex flex-col gap-2 text-[16px] text-slate-400 pr-3">
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={18} />
-              {safePromo.sector}
-              {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
             </span>
           </div>
         </div>
