@@ -112,7 +112,7 @@ export default function HistorialView() {
     : grouped[historyTab] || [];
 
   return (
-    <div className="pb-10">
+    <div className="flex h-full flex-col">
       <section className="hero-bleed historial-hero text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
@@ -129,7 +129,8 @@ export default function HistorialView() {
         </div>
       </section>
 
-      <div className="w-full max-w-3xl mx-auto px-4 pt-12 space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="w-full max-w-3xl mx-auto px-4 pt-10 space-y-4">
         {!useHistorialPreview && loading && (
           <p className="text-sm text-slate-500">Cargando historial...</p>
         )}
@@ -144,6 +145,7 @@ export default function HistorialView() {
         {!loading && !error && currentList.length > 0 && (
           <HistorialList items={currentList} variant={historyTab} />
         )}
+        </div>
       </div>
     </div>
   );

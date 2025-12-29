@@ -78,7 +78,7 @@ export default function HistorialItem({ item, variant }) {
 
   return (
     <article
-      className="relative overflow-hidden rounded-2xl border border-[#EEE8FA] bg-white/95 shadow-[0_6px_16px_rgba(47,26,85,0.06)] cursor-pointer"
+      className="relative overflow-hidden rounded-2xl border border-[#EEE8FA] bg-white/95 shadow-[0_6px_16px_rgba(47,26,85,0.06)] cursor-pointer my-0"
       onClick={goDetalle}
     >
       {variant === "activos" && (
