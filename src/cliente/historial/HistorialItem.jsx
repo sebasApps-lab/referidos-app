@@ -244,11 +244,22 @@ export default function HistorialItem({ item, variant, now }) {
 
       <div className="flex gap-4 p-4 items-center">
         <div
-          className="h-[60px] w-[60px] rounded-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80"
+          className="relative h-[60px] w-[60px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
-        />
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 35%, rgba(0,0,0,0) 70%)",
+            }}
+          />
+          <span className="absolute left-1.5 top-1 text-[9px] font-bold tracking-[0.2px] text-[#FFC21C] leading-none">
+            {safePromo.nombreLocal}
+          </span>
+        </div>
         <div className="flex flex-col gap-2 flex-1 min-w-0">
           <div>
             <h3 className="text-[13px] font-semibold text-[#2F1A55] line-clamp-1">

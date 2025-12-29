@@ -347,6 +347,74 @@ html {
   background: #5E30A5;
 }
 
+.ribbon-glass {
+  position: absolute;
+  left: -7px;
+  right: auto;
+  top: -4px;
+  padding: 8px 12px;
+  color: #FFC21C;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: transparent;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 12px);
+}
+
+.ribbon-glass::before,
+.ribbon-glass::after {
+  content: "";
+  position: absolute;
+  inset: -40px;
+  pointer-events: none;
+}
+
+.ribbon-glass::before {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 194, 28, 0.12) 0px,
+      rgba(255, 194, 28, 0.06) 40px,
+      rgba(0, 0, 0, 0.00) 90px
+    );
+  filter: blur(16px);
+  opacity: 0.9;
+  transform: translateX(-10%);
+}
+
+.ribbon-glass::after {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.06) 0px,
+      rgba(255, 255, 255, 0.00) 18px,
+      rgba(255, 194, 28, 0.05) 36px
+    );
+  filter: blur(22px);
+  opacity: 0.55;
+}
+
+.ribbon-glass {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+}
+
 .hot-local-marquee {
   position: relative;
   max-width: 170px;
