@@ -197,11 +197,11 @@ export default function HistorialItemActivo({ item, now }) {
   const navigate = useNavigate();
   const promo = item?.promo || {};
   const localNameRef = useRef(null);
-  const titleWrapperRef = useRef(null);
-  const titleMeasureRef = useRef(null);
-  const [isTitleMarquee, setIsTitleMarquee] = useState(false);
-  const [titleDistance, setTitleDistance] = useState(0);
-  const [titleDuration, setTitleDuration] = useState("8s");
+  const addressWrapperRef = useRef(null);
+  const addressMeasureRef = useRef(null);
+  const [isAddressMarquee, setIsAddressMarquee] = useState(false);
+  const [addressDistance, setAddressDistance] = useState(0);
+  const [addressDuration, setAddressDuration] = useState("8s");
   const [isLocalNameWrapped, setIsLocalNameWrapped] = useState(false);
   const safePromo = {
     ...promo,
@@ -259,30 +259,30 @@ export default function HistorialItemActivo({ item, now }) {
   }, [safePromo.nombreLocal]);
 
   useEffect(() => {
-    const wrapper = titleWrapperRef.current;
-    const measure = titleMeasureRef.current;
+    const wrapper = addressWrapperRef.current;
+    const measure = addressMeasureRef.current;
     if (!wrapper || !measure) return undefined;
 
     const update = () => {
       const availableWidth = wrapper.clientWidth;
       const textWidth = measure.scrollWidth;
       const overflow = textWidth > availableWidth + 1;
-      setIsTitleMarquee(overflow);
+      setIsAddressMarquee(overflow);
       if (!overflow) {
-        setTitleDistance(0);
-        setTitleDuration("0s");
+        setAddressDistance(0);
+        setAddressDuration("0s");
         return;
       }
       const distance = Math.max(0, textWidth - availableWidth);
       const duration = Math.min(12, Math.max(6, distance / 24));
-      setTitleDistance(distance);
-      setTitleDuration(`${duration}s`);
+      setAddressDistance(distance);
+      setAddressDuration(`${duration}s`);
     };
 
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [safePromo.titulo]);
+  }, [safePromo.sector, safePromo.ubicacion]);
 
   return (
     <article
@@ -293,7 +293,7 @@ export default function HistorialItemActivo({ item, now }) {
     >
 
 
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex flex-col gap-3 px-6 pt-9 pb-6">
         <div
           className="relative w-full aspect-[2/1] rounded-t-xl bg-[#F8F5FF] bg-cover bg-center ring-1 ring-white/80 overflow-hidden"
           style={{
@@ -324,47 +324,53 @@ export default function HistorialItemActivo({ item, now }) {
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 pr-3 pl-2">
-            <div
-              ref={titleWrapperRef}
-              className="relative flex-1 min-w-0 overflow-hidden"
-            >
-              <span
-                className={`block text-[20px] font-semibold text-[#5E30A5] leading-snug truncate ${
-                  isTitleMarquee ? "opacity-0" : "opacity-100"
-                }`}
-              >
-                {safePromo.titulo}
-              </span>
-              <span
-                ref={titleMeasureRef}
-                className="absolute invisible whitespace-nowrap text-[20px] font-semibold leading-snug"
-              >
-                {safePromo.titulo}
-              </span>
-              {isTitleMarquee && (
-                <span className="pointer-events-none absolute inset-0">
-                  <span
-                    className="historial-title-track historial-title-track--animate text-[20px] font-semibold text-[#5E30A5] leading-snug"
-                    style={{
-                      "--historial-title-distance": `${titleDistance}px`,
-                      "--historial-title-duration": titleDuration,
-                    }}
-                  >
-                    {safePromo.titulo}
-                  </span>
+            <div className="flex items-center gap-2 pr-3 pl-2">
+              <div className="flex-1 min-w-0">
+                <span className="block text-[20px] font-semibold text-[#5E30A5] leading-snug truncate">
+                  {safePromo.titulo}
                 </span>
-              )}
+              </div>
             </div>
-          </div>
           <p className="text-[17px] text-slate-500 line-clamp-3 pr-3 pl-2">
             {fullDescripcion}
           </p>
           <div className="mt-2 flex items-center gap-2 text-[16px] text-slate-400 pr-3 pl-2">
             <span className="inline-flex items-center gap-1 min-w-0 flex-1">
               <MapPin size={18} />
-              {safePromo.sector}
-              {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
+              <span
+                ref={addressWrapperRef}
+                className="relative flex-1 min-w-0 overflow-hidden"
+              >
+                <span
+                  className={`block truncate ${
+                    isAddressMarquee ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  {safePromo.sector}
+                  {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
+                </span>
+                <span
+                  ref={addressMeasureRef}
+                  className="absolute invisible whitespace-nowrap"
+                >
+                  {safePromo.sector}
+                  {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
+                </span>
+                {isAddressMarquee && (
+                  <span className="pointer-events-none absolute inset-0">
+                    <span
+                      className="historial-title-track historial-title-track--animate"
+                      style={{
+                        "--historial-title-distance": `${addressDistance}px`,
+                        "--historial-title-duration": addressDuration,
+                      }}
+                    >
+                      {safePromo.sector}
+                      {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
+                    </span>
+                  </span>
+                )}
+              </span>
             </span>
             <span
               className="shrink-0 inline-flex rounded-md px-2 py-1 text-[12px] font-semibold ml-auto"
