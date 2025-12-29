@@ -194,11 +194,10 @@ const StatusBadge = ({ variant }) => {
 
   return (
     <div
-      className="absolute top-1 right-7 px-2 py-1 text-[10px] font-semibold rounded-md text-white"
+      className="px-2 py-1 text-[10px] font-semibold rounded-md text-white uppercase tracking-[0.12em]"
       style={{
         background: styles.bg,
-        border: `2px solid ${styles.bg}`,
-        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+        border: `1px solid ${styles.bg}`,
       }}
     >
       {styles.text}
@@ -265,8 +264,6 @@ export default function HistorialItem({ item, variant, now }) {
       onClick={isClickable ? goDetalle : undefined}
     >
       {variant === "activos" && <PacmanTimer timeLeftMs={timeLeftMs} />}
-      {variant === "canjeados" && <StatusBadge variant="canjeados" />}
-      {variant === "expirados" && <StatusBadge variant="expirados" />}
 
       <div className="flex gap-4 p-4 items-center">
         <div
@@ -310,11 +307,12 @@ export default function HistorialItem({ item, variant, now }) {
             </span>
           </div>
         </div>
-        {variant === "activos" && timeLeftMs > 0 && (
-          <div className="flex-shrink-0">
+        <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
+          {variant === "activos" && timeLeftMs > 0 && (
             <QrBadge progress={qrProgress} />
-          </div>
-        )}
+          )}
+          {variant !== "activos" && <StatusBadge variant={variant} />}
+        </div>
       </div>
     </article>
   );
