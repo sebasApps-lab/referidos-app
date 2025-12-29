@@ -215,8 +215,8 @@ export default function HistorialItemActivo({ item, now }) {
   const qrProgress = Math.max(0, Math.min(1, timeLeftMs / VALID_WINDOW_MS));
   const isClickable = timeLeftMs > 0;
   const shadowGradient = isLocalNameWrapped
-    ? "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 52%, rgba(0,0,0,0) 70%)"
-    : "linear-gradient(180deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.18) 18%, rgba(0,0,0,0) 55%)";
+    ? "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 66%, rgba(0,0,0,0) 80%)"
+    : "linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.24) 32%, rgba(0,0,0,0) 62%)";
 
   useEffect(() => {
     const el = localNameRef.current;
@@ -250,7 +250,7 @@ export default function HistorialItemActivo({ item, now }) {
 
       <div className="flex gap-4 p-4 items-center">
         <div
-          className="relative h-[60px] w-[60px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
+          className="relative h-[180px] w-[180px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
@@ -265,17 +265,17 @@ export default function HistorialItemActivo({ item, now }) {
           />
           <span
             ref={localNameRef}
-            className="absolute left-1.5 top-1 max-w-[calc(100%-8px)] text-[10px] font-bold tracking-[0.2px] text-[#FFD873] leading-tight"
+            className="absolute left-3 top-2 max-w-[calc(100%-32px)] text-[20px] font-bold tracking-[0.2px] text-[#D4A21C] leading-tight"
           >
             {safePromo.nombreLocal}
           </span>
         </div>
         <div className="flex flex-col gap-2 flex-[0.84] min-w-0">
           <div>
-            <h3 className="text-[13px] font-semibold text-[#2F1A55] line-clamp-1">
+            <h3 className="text-[20px] font-semibold text-[#2F1A55] line-clamp-1">
               {safePromo.titulo}
             </h3>
-            <p className="text-[11px] text-slate-500 line-clamp-1">
+            <p className="text-[16px] text-slate-500 line-clamp-1">
               {safePromo.descripcion}
             </p>
           </div>
