@@ -250,10 +250,10 @@ export default function HistorialItemActivo({ item, now }) {
     >
 
 
-      <div className="flex flex-col gap-3 px-4 py-9">
+      <div className="flex flex-col gap-3 px-4 py-4">
         <div className="flex gap-4 items-stretch">
           <div
-            className="relative h-[180px] w-[180px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
+            className="relative h-[180px] w-[180px] rounded-tl-xl bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
             style={{
               backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
             }}
