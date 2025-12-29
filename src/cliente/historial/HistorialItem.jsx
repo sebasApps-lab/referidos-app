@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
-import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 
 const VALID_WINDOW_MS = 5 * 60 * 1000;
 
@@ -292,7 +291,7 @@ export default function HistorialItem({ item, variant, now }) {
 
       <div className="flex gap-4 p-4 items-center">
         <div
-          className="relative h-[60px] w-[60px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
+          className="relative h-[68px] w-[68px] rounded-lg bg-[#F8F5FF] bg-cover bg-center flex-shrink-0 ring-1 ring-white/80 overflow-hidden"
           style={{
             backgroundImage: promo.imagen ? `url(${promo.imagen})` : undefined,
           }}
@@ -324,11 +323,8 @@ export default function HistorialItem({ item, variant, now }) {
           <div className="flex flex-wrap gap-3 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold">
               <MapPin size={12} />
-              {safePromo.ubicacion}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Calendar size={12} />
-              {formatDateIsoToDdMmYyyy(promo.fin)}
+              {safePromo.sector}
+              {safePromo.ubicacion ? `, ${safePromo.ubicacion}` : ""}
             </span>
           </div>
         </div>
