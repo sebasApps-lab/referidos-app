@@ -70,8 +70,8 @@ const QrGlyph = ({ className, style }) => (
 
 const QrBadge = ({ progress }) => {
   const clamped = Math.max(0, Math.min(1, progress));
-  const deg = clamped * 360;
-  const mask = `conic-gradient(#000 ${deg}deg, transparent ${deg}deg)`;
+  const openingDeg = (1 - clamped) * 360;
+  const mask = `conic-gradient(transparent ${openingDeg}deg, #000 ${openingDeg}deg 360deg)`;
 
   return (
     <div className="relative h-14 w-14 rounded-2xl bg-white/90 ring-1 ring-black/5 shadow-sm flex items-center justify-center">
@@ -84,6 +84,22 @@ const QrBadge = ({ progress }) => {
         }}
       >
         <QrGlyph className="h-full w-full text-[#22C55E]" />
+      </div>
+      <div className="pointer-events-none absolute inset-2">
+        <div
+          className="absolute left-1/2 top-1/2 h-[48%] w-[2px] bg-[#22C55E]/80"
+          style={{
+            transform: "translate(-50%, -100%) rotate(0deg)",
+            transformOrigin: "bottom center",
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 h-[48%] w-[2px] bg-[#22C55E]/80"
+          style={{
+            transform: `translate(-50%, -100%) rotate(${openingDeg}deg)`,
+            transformOrigin: "bottom center",
+          }}
+        />
       </div>
     </div>
   );
@@ -103,7 +119,7 @@ const PacmanTimer = ({ timeLeftMs }) => {
     <div
       className="absolute top-5 left-5 w-6 h-6 rounded-full"
       style={{
-        background: `conic-gradient(transparent ${mouthDeg}deg, ${color} ${mouthDeg}deg 360deg)`,
+        background: `conic-gradient(from 90deg, transparent ${mouthDeg}deg, ${color} ${mouthDeg}deg 360deg)`,
         border: `2px solid ${color}`,
         opacity: 0.92,
         boxShadow: `0 4px 10px ${color}33`,
