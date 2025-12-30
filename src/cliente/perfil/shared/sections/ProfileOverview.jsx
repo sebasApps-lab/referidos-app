@@ -37,10 +37,18 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
     }
   }, [usuario?.alias, isEditingAlias]);
 
+  const lettersCount =
+    (alias.match(/[A-Za-z\u00C1\u00C9\u00CD\u00D3\u00DA\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00D1\u00FC\u00DC]/g) || []).length;
+  const hasMinLetters = lettersCount >= 5;
+  const canSave = Boolean(alias.trim()) && hasMinLetters && !invalidChars;
+
   const handleSave = () => {
     if (!usuario) return;
     const nextAlias = alias.trim();
-    if (!nextAlias) return;
+    if (!nextAlias || !hasMinLetters || invalidChars) {
+      setStatus({ type: "error", text: "No se pudo actualizar el alias" });
+      return;
+    }
     setUser({ ...usuario, alias: nextAlias });
     setBaseAlias(nextAlias);
     setIsEditingAlias(false);
@@ -53,13 +61,21 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
     } else {
       setAlias("");
     }
+    setInvalidChars(false);
     setStatus(null);
+  };
+  const handleAliasChange = (value) => {
+    const containsInvalid = /[^A-Za-z0-9\u00C1\u00C9\u00CD\u00D3\u00DA\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00D1\u00FC\u00DC\s]/.test(value);
+    const sanitized = value.replace(/[^A-Za-z0-9\u00C1\u00C9\u00CD\u00D3\u00DA\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00D1\u00FC\u00DC\s]/g, "");
+    setInvalidChars(containsInvalid);
+    setAlias(sanitized);
+    if (status) setStatus(null);
   };
   useEffect(() => {
     if (!status) return;
     const timer = setTimeout(() => {
       setStatus(null);
-    }, 4000);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [status]);
 
@@ -136,35 +152,57 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
             <div className="mt-2">
               <input
                 value={alias}
-                onChange={(e) =>
-                  setAlias(
-                    e.target.value.replace(
-                      /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
-                      ""
-                    )
-                  )
-                }
+                onChange={(e) => handleAliasChange(e.target.value)}
                 placeholder="Tu alias"
                 className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
               />
-              {alias.trim() ? (
-                <div className="mt-3 flex items-center justify-between text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="text-[#2F1A55]"
+              <div className="mt-3 space-y-1 text-xs">
+                {status ? (
+                  <div
+                    className={`flex items-center gap-2 font-semibold ${
+                      status.type === "error"
+                        ? "text-red-500"
+                        : "text-emerald-600"
+                    }`}
                   >
-                    Cancelar
-                  </button>
+                    {status.type === "error" ? <X size={14} /> : <Check size={14} />}
+                    {status.text}
+                  </div>
+                ) : null}
+                {invalidChars ? (
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <X size={12} />
+                    No se permiten caracteres especiales
+                  </div>
+                ) : null}
+                <div
+                  className={`flex items-center gap-2 ${
+                    hasMinLetters ? "text-emerald-600" : "text-slate-400"
+                  }`}
+                >
+                  {hasMinLetters ? <Check size={12} /> : <X size={12} />}
+                  El alias debe contener al menos cuatro letras
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="text-[#2F1A55]"
+                >
+                  Cancelar
+                </button>
+                {alias.trim() ? (
                   <button
                     type="button"
                     onClick={handleSave}
-                    className="text-[#5E30A5]"
+                    disabled={!canSave}
+                    className={canSave ? "text-[#5E30A5]" : "text-slate-400"}
                   >
                     Guardar
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           ) : (
             <div className="mt-2 flex items-center justify-between">
@@ -185,19 +223,9 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
       </div>
 
       <div className="mt-5">
-        {status ? (
-          <span
-            className={`text-xs font-semibold ${
-              status.type === "error" ? "text-red-500" : "text-emerald-600"
-            }`}
-          >
-            {status.text}
-          </span>
-        ) : (
-          <span className="text-xs text-slate-500">
-            Haz que tu perfil se sienta tuyo, actualiza tu alias.
-          </span>
-        )}
+        <span className="text-xs text-slate-500">
+          Haz que tu perfil se sienta tuyo, actualiza tu alias.
+        </span>
       </div>
     </section>
   );
