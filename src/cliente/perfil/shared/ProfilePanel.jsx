@@ -24,7 +24,7 @@ export default function ProfilePanel({ activeTab, sections, usuario, setUser }) 
               </h2>
               <p className="text-xs text-slate-500">
                 Rol: {getRoleLabel(usuario)} - Miembro desde{" "}
-                {formatReadableDate(usuario?.created_at || usuario?.createdAt)}
+                {formatReadableDate(usuario?.fechacreacion)}
               </p>
             </div>
             <span

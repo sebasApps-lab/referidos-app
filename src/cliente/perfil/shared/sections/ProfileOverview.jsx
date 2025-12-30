@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Camera, Check, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, Check, MessageSquare, Pencil, ShieldCheck, X } from "lucide-react";
 import {
   formatReadableDate,
+  getDisplayEmail,
   getAvatarSrc,
   getRoleLabel,
+  getPlanFallback,
   getTierMeta,
 } from "../../../services/clienteUI";
 
@@ -15,12 +17,17 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
   const [status, setStatus] = useState(null);
   const [invalidChars, setInvalidChars] = useState(false);
   const fileRef = useRef(null);
+  const aliasInputRef = useRef(null);
+  const aliasRowRef = useRef(null);
+  const aliasFocusedRef = useRef(false);
+  const prevViewportRef = useRef(0);
+  const [viewportH, setViewportH] = useState(0);
   const tier = getTierMeta(usuario);
-  const createdAtRaw =
-    usuario?.created_at ||
-    usuario?.createdAt ||
-    usuario?.created_at?.toString?.() ||
-    usuario?.createdAt?.toString?.();
+  const plan = getPlanFallback(usuario?.role);
+  const tierPerks = plan?.perks || [];
+  const emailValue = getDisplayEmail(usuario);
+  const phoneValue = usuario?.telefono || usuario?.phone || "";
+  const createdAtRaw = usuario?.fechacreacion;
   const createdAtValue =
     typeof createdAtRaw === "string" && createdAtRaw.includes(" ") && !createdAtRaw.includes("T")
       ? createdAtRaw.replace(" ", "T")
@@ -36,6 +43,71 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
       if (!nextAlias) setIsEditingAlias(true);
     }
   }, [usuario?.alias, isEditingAlias]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const update = () => {
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      setViewportH(vh);
+    };
+    update();
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("focusin", update);
+    window.addEventListener("focusout", update);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("focusin", update);
+      window.removeEventListener("focusout", update);
+    };
+  }, []);
+
+  const centerAliasInView = useCallback(() => {
+    const row = aliasRowRef.current;
+    if (!row) return;
+    const container = document.getElementById("cliente-main-scroll");
+    const containerRect = container
+      ? container.getBoundingClientRect()
+      : { top: 0, height: window.innerHeight };
+    const rowRect = row.getBoundingClientRect();
+    const currentScroll = container ? container.scrollTop : window.scrollY;
+    const offsetTop = rowRect.top - containerRect.top;
+    const target =
+      currentScroll +
+      offsetTop -
+      (containerRect.height / 2 - rowRect.height / 2);
+
+    if (container) {
+      container.scrollTo({ top: target, behavior: "auto" });
+    } else {
+      window.scrollTo({ top: target, behavior: "auto" });
+    }
+  }, []);
+
+  const handleAliasFocus = useCallback(() => {
+    aliasFocusedRef.current = true;
+    requestAnimationFrame(() => {
+      centerAliasInView();
+    });
+  }, [centerAliasInView]);
+
+  const handleAliasBlur = useCallback(() => {
+    aliasFocusedRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (!viewportH) return;
+    const prev = prevViewportRef.current;
+    prevViewportRef.current = viewportH;
+    if (!aliasFocusedRef.current || !prev) return;
+    if (viewportH > prev + 40) return;
+    requestAnimationFrame(() => {
+      centerAliasInView();
+    });
+  }, [viewportH, centerAliasInView]);
 
   const lettersCount =
     (alias.match(/[A-Za-z\u00C1\u00C9\u00CD\u00D3\u00DA\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00D1\u00FC\u00DC]/g) || []).length;
@@ -123,52 +195,95 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-start gap-2">
-          <span
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold bg-[#F3EEFF] text-[#5E30A5] border border-[#E9E2F7]"
-          >
-            <Sparkles size={14} />
-            Tier {tier.label}
-          </span>
-          <span
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-              verification.accountVerified
-                ? "bg-emerald-50 text-emerald-600"
-                : "bg-amber-50 text-amber-600"
-            }`}
-          >
-            <ShieldCheck size={14} />
-            {verification.accountVerified ? "Verificado" : "Sin verificar"}
-          </span>
-        </div>
+        {verification.accountVerified ? (
+          <div className="flex flex-col items-start gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold bg-emerald-50 text-emerald-600">
+              <ShieldCheck size={14} />
+              Verificado
+            </span>
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-6 grid gap-4">
-        <div>
-          <label className="text-xs font-semibold text-[#2F1A55]">
+      <div className="mt-6 grid gap-5">
+        {!verification.accountVerified ? (
+          <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
+            <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
+              Estado de cuenta
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+                <ShieldCheck size={12} />
+                Sin verificar
+              </span>
+            </div>
+            <div className="mt-2 space-y-3 text-sm text-slate-600">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate">{emailValue}</span>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[#5E30A5]"
+                >
+                  Verificar
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                {phoneValue ? (
+                  <>
+                    <span className="truncate">{phoneValue}</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E30A5]"
+                    >
+                      <MessageSquare size={12} />
+                      Verificar con SMS
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E30A5]"
+                  >
+                    <MessageSquare size={12} />
+                    Verificar con SMS
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
+          <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
+            Tier
+            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold bg-[#F3EEFF] text-[#5E30A5] border border-[#E9E2F7]">
+              Tier {tier.label}
+            </span>
+          </div>
+          <ul className="mt-2 space-y-2 text-sm text-slate-600">
+            {tierPerks.map((perk, index) => (
+              <li key={`${perk}-${index}`} className="flex items-start gap-2">
+                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#5E30A5]" />
+                <span>{perk}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
+          <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
             Alias
-          </label>
+          </div>
           {isEditingAlias ? (
-            <div className="mt-2">
+            <div className="mt-2" ref={aliasRowRef}>
               <input
+                ref={aliasInputRef}
                 value={alias}
                 onChange={(e) => handleAliasChange(e.target.value)}
                 placeholder="Tu alias"
+                onFocus={handleAliasFocus}
+                onBlur={handleAliasBlur}
                 className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
               />
               <div className="mt-3 space-y-1 text-xs">
-                {status ? (
-                  <div
-                    className={`flex items-center gap-2 font-semibold ${
-                      status.type === "error"
-                        ? "text-red-500"
-                        : "text-emerald-600"
-                    }`}
-                  >
-                    {status.type === "error" ? <X size={14} /> : <Check size={14} />}
-                    {status.text}
-                  </div>
-                ) : null}
                 {invalidChars ? (
                   <div className="flex items-center gap-2 text-slate-400">
                     <X size={12} />
@@ -185,13 +300,26 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="text-[#2F1A55]"
-                >
-                  Cancelar
-                </button>
+                {baseAlias || alias.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!baseAlias) {
+                        setAlias("");
+                        setInvalidChars(false);
+                        setStatus(null);
+                        aliasInputRef.current?.blur();
+                        return;
+                      }
+                      handleCancel();
+                    }}
+                    className="text-[#2F1A55]"
+                  >
+                    Cancelar
+                  </button>
+                ) : (
+                  <span />
+                )}
                 {alias.trim() ? (
                   <button
                     type="button"
@@ -219,6 +347,16 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               </button>
             </div>
           )}
+          {status ? (
+            <div
+              className={`mt-3 flex items-center gap-2 text-xs font-semibold ${
+                status.type === "error" ? "text-red-500" : "text-emerald-600"
+              }`}
+            >
+              {status.type === "error" ? <X size={14} /> : <Check size={14} />}
+              {status.text}
+            </div>
+          ) : null}
         </div>
       </div>
 
