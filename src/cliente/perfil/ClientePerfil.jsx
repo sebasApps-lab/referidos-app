@@ -121,14 +121,27 @@ export default function ClientePerfil() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       <section className="hero-bleed historial-hero text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
-            <p className="max-w-[325px] mx-auto text-center text-[18px] font-light leading-snug text-white">
-              Gestiona tu informacion
-              <span className="block">personal y de seguridad.</span>
+            <p className="max-w-[340px] mx-auto text-center text-[18px] font-light leading-snug text-white">
+              Gestiona tu informacion personal y
+              <span className="block">de seguridad.</span>
             </p>
+          </div>
+        </div>
+        <div className="relative z-10 mt-3">
+          <div className="w-full rounded-full border border-white/60 bg-[#FAF8FF] px-2 py-0.5 shadow-sm">
+            <div className="flex items-center justify-center gap-7">
+              <button className="relative px-3 py-1.5 text-[13px] font-bold tracking-[0.22em] text-[#5E30A5] uppercase">
+                Basica
+              </button>
+              <span className="mx-1 h-6 w-px translate-y-0.5 bg-gradient-to-b from-transparent via-[#5E30A5]/30 to-transparent" />
+              <button className="relative px-3 py-1.5 text-[13px] font-bold tracking-[0.22em] text-[#94A3B8] uppercase">
+                Avanzada
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -145,7 +158,7 @@ export default function ClientePerfil() {
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 className="w-[90%] max-w-md"
               >
-                <div className="rounded-3xl bg-[#5E30A5] p-2 shadow-sm">
+                <div className="rounded-xl bg-[#5E30A5] shadow-sm">
                   <ProfileTabs
                     tabs={tabs}
                     active={profileTab}

@@ -160,7 +160,7 @@ export default function HistorialView() {
     : grouped[historyTab] || [];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       <section className="hero-bleed historial-hero text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
