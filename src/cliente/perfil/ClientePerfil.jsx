@@ -155,7 +155,7 @@ export default function ClientePerfil() {
       </section>
 
       <div className="relative flex-1 overflow-y-auto bg-[#7543bfff]">
-        <div className="w-full flex flex-col items-center gap-4 pt-4 pb-6">
+        <div className="w-full flex flex-col items-center gap-4 pt-2 pb-6">
           <AnimatePresence mode="wait">
             {profileView === "tabs" ? (
               <motion.div
@@ -164,9 +164,9 @@ export default function ClientePerfil() {
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -40, opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="w-[95%] max-w-md"
+                className="w-[98%] max-w-md"
               >
-                <div className="rounded-xl bg-[#7543bfff] shadow-sm">
+                <div className="bg-[#7543bfff]">
                   <ProfileTabs
                     groups={tabGroups}
                     active={tabsActiveKey}
