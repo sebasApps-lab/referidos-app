@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Bell,
   Crown,
   Fingerprint,
+  Globe,
   IdCard,
   Monitor,
   Palette,
@@ -32,62 +33,46 @@ export default function ClientePerfil() {
     defaultProfileTab: "overview",
   });
   const [profileView, setProfileView] = useState("tabs");
+  const [tabsActiveKey, setTabsActiveKey] = useState(null);
 
-  const tabs = useMemo(
+  const tabGroups = useMemo(
     () => [
       {
-        key: "overview",
-        label: "Perfil",
-        description: "Identidad y estado",
-        icon: UserCircle,
+        title: "Cuenta",
+        items: [
+          { key: "overview", label: "Perfil", icon: UserCircle },
+          { key: "personal", label: "Datos personales", icon: IdCard },
+        ],
       },
       {
-        key: "personal",
-        label: "Datos personales",
-        description: "Informacion basica",
-        icon: IdCard,
+        title: "Seguridad",
+        items: [
+          { key: "security", label: "Seguridad", icon: Shield },
+          { key: "twofa", label: "2FA", icon: Fingerprint },
+          { key: "sessions", label: "Sesiones", icon: Monitor },
+        ],
       },
       {
-        key: "security",
-        label: "Seguridad",
-        description: "Accesos y cuentas",
-        icon: Shield,
+        title: "Notificaciones",
+        items: [{ key: "notifications", label: "Preferencias", icon: Bell }],
       },
       {
-        key: "twofa",
-        label: "2FA",
-        description: "Autenticacion avanzada",
-        icon: Fingerprint,
+        title: "Plan/Tier",
+        items: [{ key: "plan", label: "Beneficios", icon: Crown }],
       },
       {
-        key: "sessions",
-        label: "Sesiones",
-        description: "Dispositivos activos",
-        icon: Monitor,
+        title: "Preferencias",
+        items: [
+          { key: "appearance", label: "Apariencia", icon: Palette },
+          { key: "language", label: "Idioma", icon: Globe },
+        ],
       },
       {
-        key: "notifications",
-        label: "Notificaciones",
-        description: "Preferencias",
-        icon: Bell,
-      },
-      {
-        key: "plan",
-        label: "Plan y tier",
-        description: "Beneficios actuales",
-        icon: Crown,
-      },
-      {
-        key: "preferences",
-        label: "Preferencias",
-        description: "Tema e idioma",
-        icon: Palette,
-      },
-      {
-        key: "danger",
-        label: "Cuenta",
-        description: "Acciones criticas",
-        icon: AlertTriangle,
+        title: "⚠️ Cuenta",
+        items: [
+          { key: "logout", label: "Cerrar sesion", icon: AlertTriangle },
+          { key: "delete", label: "Eliminar cuenta", icon: AlertTriangle },
+        ],
       },
     ],
     []
@@ -103,10 +88,20 @@ export default function ClientePerfil() {
       notifications: Notifications,
       plan: Plan,
       preferences: Preferences,
+      appearance: Preferences,
+      language: Preferences,
+      logout: DangerZone,
+      delete: DangerZone,
       danger: DangerZone,
     }),
     []
   );
+
+  useEffect(() => {
+    if (profileView !== "tabs") {
+      setTabsActiveKey(null);
+    }
+  }, [profileView]);
 
   const handleTabChange = useCallback(
     (nextTab) => {
@@ -116,8 +111,13 @@ export default function ClientePerfil() {
     [setProfileTab]
   );
 
+  const handleTabPress = useCallback((key) => {
+    setTabsActiveKey(key);
+  }, []);
+
   const handleBack = useCallback(() => {
     setProfileView("tabs");
+    setTabsActiveKey(null);
   }, []);
 
   return (
@@ -160,9 +160,10 @@ export default function ClientePerfil() {
               >
                 <div className="rounded-xl bg-[#5E30A5] shadow-sm">
                   <ProfileTabs
-                    tabs={tabs}
-                    active={profileTab}
+                    groups={tabGroups}
+                    active={tabsActiveKey}
                     onChange={handleTabChange}
+                    onPressStart={handleTabPress}
                   />
                 </div>
               </motion.div>
