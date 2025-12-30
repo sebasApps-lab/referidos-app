@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Camera, Pencil, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, Check, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
 import {
   formatReadableDate,
   getAvatarSrc,
@@ -12,7 +12,8 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
   const [alias, setAlias] = useState(initialAlias);
   const [baseAlias, setBaseAlias] = useState(initialAlias);
   const [isEditingAlias, setIsEditingAlias] = useState(!initialAlias);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(null);
+  const [invalidChars, setInvalidChars] = useState(false);
   const fileRef = useRef(null);
   const tier = getTierMeta(usuario);
   const createdAtRaw =
@@ -43,7 +44,7 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
     setUser({ ...usuario, alias: nextAlias });
     setBaseAlias(nextAlias);
     setIsEditingAlias(false);
-    setStatus("Alias actualizado");
+    setStatus({ type: "success", text: "Alias actualizado" });
   };
   const handleCancel = () => {
     if (baseAlias) {
@@ -52,8 +53,15 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
     } else {
       setAlias("");
     }
-    setStatus("");
+    setStatus(null);
   };
+  useEffect(() => {
+    if (!status) return;
+    const timer = setTimeout(() => {
+      setStatus(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   return (
     <section className="px-2">
@@ -78,7 +86,10 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               accept="image/*"
               className="hidden"
               onChange={() =>
-                setStatus("Imagen seleccionada (pendiente de guardado)")
+                setStatus({
+                  type: "success",
+                  text: "Imagen seleccionada (pendiente de guardado)",
+                })
               }
             />
           </div>
@@ -174,9 +185,19 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
       </div>
 
       <div className="mt-5">
-        <span className="text-xs text-slate-500">
-          {status || "Haz que tu perfil se sienta tuyo, actualiza tu alias."}
-        </span>
+        {status ? (
+          <span
+            className={`text-xs font-semibold ${
+              status.type === "error" ? "text-red-500" : "text-emerald-600"
+            }`}
+          >
+            {status.text}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-500">
+            Haz que tu perfil se sienta tuyo, actualiza tu alias.
+          </span>
+        )}
       </div>
     </section>
   );
