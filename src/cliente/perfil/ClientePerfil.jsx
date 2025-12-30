@@ -10,6 +10,7 @@ import {
   IdCard,
   KeyRound,
   Link2,
+  LogOut,
   Monitor,
   Palette,
   Shield,
@@ -32,6 +33,7 @@ import Preferences from "./shared/sections/Preferences";
 export default function ClientePerfil() {
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
+  const logout = useAppStore((s) => s.logout);
   const { profileTab, setProfileTab } = useClienteUI({
     defaultProfileTab: "overview",
   });
@@ -73,6 +75,9 @@ export default function ClientePerfil() {
           { key: "language", label: "Idioma", icon: Globe },
         ],
       },
+      {
+        items: [{ key: "signout", label: "Cerrar sesion", icon: LogOut, tone: "danger" }],
+      },
     ],
     []
   );
@@ -103,6 +108,17 @@ export default function ClientePerfil() {
 
   const handleTabChange = useCallback(
     (nextTab) => {
+      if (nextTab === "signout") {
+        if (tabTransitionRef.current) {
+          clearTimeout(tabTransitionRef.current);
+        }
+        setTabsActiveKey("signout");
+        tabTransitionRef.current = setTimeout(() => {
+          setTabsActiveKey(null);
+          logout();
+        }, 140);
+        return;
+      }
       if (tabTransitionRef.current) {
         clearTimeout(tabTransitionRef.current);
       }

@@ -7,16 +7,28 @@ export default function ProfileTabs({
 }) {
   return (
     <div className="flex flex-col gap-4 px-2 pb-2 pt-2">
-      {groups.map((group) => (
-        <div key={group.title} className="flex flex-col gap-2">
-          <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E30A5]/60">
-            {group.title}
-          </p>
-          <div className="flex flex-col gap-0 rounded-2xl overflow-hidden bg-white border border-[#5E30A5]/20 divide-y divide-[#5E30A5]/12">
-            {group.items.map((tab, index) => {
+      {groups.map((group, groupIndex) => {
+        const isStandalone = group.items?.length === 1 && !group.title;
+        return (
+          <div key={group.title || `group-${groupIndex}`} className="flex flex-col gap-2">
+            {!isStandalone && (
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E30A5]/60">
+                {group.title}
+              </p>
+            )}
+            <div
+              className={`flex flex-col gap-0 rounded-2xl overflow-hidden bg-white border divide-y ${
+                isStandalone
+                  ? "border-red-200 divide-red-200/60"
+                  : "border-[#5E30A5]/20 divide-[#5E30A5]/12"
+              }`}
+            >
+              {group.items.map((tab, index) => {
               const isActive = active === tab.key;
               const Icon = tab.icon;
               const isDisabled = tab.disabled;
+              const isDanger = tab.tone === "danger";
+              const activeLine = isDanger ? "#FCA5A5" : "#D9CBFF";
               return (
                 <button
                   key={tab.key}
@@ -26,22 +38,36 @@ export default function ProfileTabs({
                   disabled={isDisabled}
                   className={`relative w-full text-left transition ${
                     isActive
-                      ? "bg-[#F8F5FF] text-[#3B1A66]"
+                      ? isDanger
+                        ? "bg-[#FFF1F2] text-[#B91C1C]"
+                        : "bg-[#F8F5FF] text-[#3B1A66]"
+                      : isDanger
+                      ? "bg-transparent text-red-500 hover:text-red-600"
                       : "bg-transparent text-[#5E30A5]/70 hover:text-[#5E30A5]"
                   } ${isDisabled ? "opacity-50 cursor-default" : ""}`}
                 >
                   {isActive && (
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[#D9CBFF]" />
+                    <span
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+                      style={{ backgroundColor: activeLine }}
+                    />
                   )}
                   {isActive && index > 0 && (
-                    <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[#D9CBFF]" />
+                    <span
+                      className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                      style={{ backgroundColor: activeLine }}
+                    />
                   )}
                   <div className="px-0 flex items-center gap-0">
                     {Icon && (
                       <span
                         className={`h-14 w-14 flex items-center justify-center ${
                           isActive
-                            ? "bg-[#F8F5FF] text-[#5E30A5] ring-1 ring-[#D9CBFF]/60"
+                            ? isDanger
+                              ? "bg-[#FFE4E6] text-[#B91C1C]"
+                              : "bg-[#F8F5FF] text-[#5E30A5] ring-1 ring-[#D9CBFF]/60"
+                            : isDanger
+                            ? "bg-red-50 text-red-500"
                             : "bg-[#F6F1FF] text-[#5E30A5]"
                         }`}
                       >
@@ -57,7 +83,8 @@ export default function ProfileTabs({
             })}
           </div>
         </div>
-      ))}
+      );
+      })}
     </div>
   );
 }

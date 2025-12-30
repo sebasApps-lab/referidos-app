@@ -139,7 +139,7 @@ function ClienteLayoutInner({ children }) {
           }`}
           style={{
             paddingTop: headerHeight,
-            paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(55px + env(safe-area-inset-bottom))",
             minHeight: 0,
             overflowY: "auto",
           }}

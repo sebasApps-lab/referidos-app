@@ -177,13 +177,7 @@ export default function HistorialView() {
         </div>
       </section>
 
-      <div
-        className="relative flex-1 overflow-y-auto bg-white -mt-4"
-        style={{
-          marginBottom: "calc(-80px - env(safe-area-inset-bottom))",
-          paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
-        }}
-      >
+      <div className="relative flex-1 overflow-y-auto bg-white -mt-4">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-white" />
         <div className="w-full px-0 pt-4 pb-0 space-y-0">
         {!useHistorialPreview && loading && (

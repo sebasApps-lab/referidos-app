@@ -288,12 +288,7 @@ export default function EscanerView() {
         )}
 
         {showPermissionIntro && (
-          <div
-            className="relative flex flex-1 -mx-4 -mt-4 items-center justify-center overflow-hidden"
-            style={{
-              marginBottom: "calc(-80px - env(safe-area-inset-bottom))",
-            }}
-          >
+          <div className="relative flex flex-1 -mx-4 -mt-4 items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-[#F7F2FF] via-white to-white" />
             <div className="absolute -top-20 -right-10 h-52 w-52 rounded-full bg-[#E9DFFF] opacity-70 blur-3xl" />
             <div className="absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#EFE7FF] opacity-80 blur-3xl" />
