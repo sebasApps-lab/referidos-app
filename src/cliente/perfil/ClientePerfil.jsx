@@ -129,7 +129,7 @@ export default function ClientePerfil() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col bg-[#7543bfff]">
+    <div className="flex h-full flex-col bg-white">
       <section className="hero-bleed historial-hero text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
@@ -154,7 +154,7 @@ export default function ClientePerfil() {
         </div>
       </section>
 
-      <div className="relative flex-1 overflow-y-auto bg-[#7543bfff]">
+      <div className="relative flex-1 overflow-y-auto bg-white">
         <div className="w-full flex flex-col items-center gap-4 pt-2 pb-6">
           <AnimatePresence mode="wait">
             {profileView === "tabs" ? (
@@ -166,7 +166,7 @@ export default function ClientePerfil() {
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 className="w-[98%] max-w-md"
               >
-                <div className="bg-[#7543bfff]">
+                <div className="bg-white">
                   <ProfileTabs
                     groups={tabGroups}
                     active={tabsActiveKey}
