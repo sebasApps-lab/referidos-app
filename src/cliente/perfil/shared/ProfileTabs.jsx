@@ -24,25 +24,30 @@ export default function ProfileTabs({
                     if (!isDisabled) onChange(tab.key);
                   }}
                   disabled={isDisabled}
-                  className={`w-full text-left transition ${
+                  className={`relative w-full text-left transition ${
                     isActive
-                      ? "bg-[#F3EEFF] text-[#5E30A5] shadow-sm ring-1 ring-[#5E30A5]/30"
+                      ? "bg-[#F8F5FF] text-[#3B1A66]"
                       : "bg-transparent text-[#5E30A5]/70 hover:text-[#5E30A5]"
                   } ${isDisabled ? "opacity-50 cursor-default" : ""}`}
                 >
-                  <div className="px-0 flex items-center gap-4">
+                  {isActive && (
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[#D9CBFF]" />
+                  )}
+                  <div className="px-0 flex items-center gap-0">
                     {Icon && (
                       <span
                         className={`h-14 w-14 flex items-center justify-center ${
                           isActive
-                            ? "bg-[#EDE3FF] text-[#5E30A5]"
+                            ? "bg-[#F8F5FF] text-[#5E30A5] ring-1 ring-[#D9CBFF]/60"
                             : "bg-[#F6F1FF] text-[#5E30A5]"
                         }`}
                       >
                         <Icon size={18} />
                       </span>
                     )}
-                    <p className="text-sm font-semibold">{tab.label}</p>
+                    <p className="text-sm font-semibold px-4 py-3">
+                      {tab.label}
+                    </p>
                   </div>
                 </button>
               );
