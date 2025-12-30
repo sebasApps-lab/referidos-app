@@ -134,12 +134,16 @@ function ClienteLayoutInner({ children }) {
         <main
           ref={mainRef}
           id="cliente-main-scroll"
-          className={`hide-scrollbar flex-1 transition-all duration-300 ${
+          className={`hide-scrollbar transition-all duration-300 ${
             menuOpen ? "blur-sm" : ""
           }`}
           style={{
+            position: "fixed",
+            top: "var(--cliente-viewport-offset, 0px)",
+            left: 0,
+            right: 0,
+            bottom: "50px",
             paddingTop: headerHeight,
-            paddingBottom: "calc(55px + env(safe-area-inset-bottom))",
             minHeight: 0,
             overflowY: "auto",
           }}

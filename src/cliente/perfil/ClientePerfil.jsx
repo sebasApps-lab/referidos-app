@@ -20,6 +20,7 @@ import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../hooks/useClienteUI";
 import ProfileTabs from "./shared/ProfileTabs";
 import ProfilePanel from "./shared/ProfilePanel";
+import SearchBar from "../../components/search/SearchBar";
 import ProfileOverview from "./shared/sections/ProfileOverview";
 import PersonalData from "./shared/sections/PersonalData";
 import Security from "./shared/sections/Security";
@@ -40,6 +41,7 @@ export default function ClientePerfil() {
   const [profileView, setProfileView] = useState("tabs");
   const [tabsActiveKey, setTabsActiveKey] = useState(null);
   const tabTransitionRef = useRef(null);
+  const [searchValue, setSearchValue] = useState("");
 
   const tabGroups = useMemo(
     () => [
@@ -146,7 +148,7 @@ export default function ClientePerfil() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <section className="hero-bleed historial-hero text-white">
+      <section className="hero-bleed text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
             <p className="max-w-[340px] mx-auto text-center text-[18px] font-light leading-snug text-white">
@@ -155,18 +157,8 @@ export default function ClientePerfil() {
             </p>
           </div>
         </div>
-        <div className="relative z-10 mt-3">
-          <div className="w-full rounded-full border border-white/60 bg-[#FAF8FF] px-2 py-0.5 shadow-sm">
-            <div className="flex items-center justify-center gap-7">
-              <button className="relative px-3 py-1.5 text-[13px] font-bold tracking-[0.22em] text-[#5E30A5] uppercase">
-                Basica
-              </button>
-              <span className="mx-1 h-6 w-px translate-y-0.5 bg-gradient-to-b from-transparent via-[#5E30A5]/30 to-transparent" />
-              <button className="relative px-3 py-1.5 text-[13px] font-bold tracking-[0.22em] text-[#94A3B8] uppercase">
-                Avanzada
-              </button>
-            </div>
-          </div>
+        <div className="relative z-10 mt-4 px-4 pb-2">
+          <SearchBar value={searchValue} onChange={setSearchValue} />
         </div>
       </section>
 
