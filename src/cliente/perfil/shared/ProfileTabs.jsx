@@ -4,7 +4,6 @@ export default function ProfileTabs({
   groups = [],
   active,
   onChange,
-  onPressStart,
 }) {
   return (
     <div className="flex flex-col gap-4 px-2 pb-2 pt-1">
@@ -20,7 +19,6 @@ export default function ProfileTabs({
               return (
                 <button
                   key={tab.key}
-                  onPointerDown={() => onPressStart?.(tab.key)}
                   onClick={() => onChange(tab.key)}
                   className={`w-full text-left rounded-2xl border transition ${
                     isActive

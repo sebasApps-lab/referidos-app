@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -34,6 +34,7 @@ export default function ClientePerfil() {
   });
   const [profileView, setProfileView] = useState("tabs");
   const [tabsActiveKey, setTabsActiveKey] = useState(null);
+  const tabTransitionRef = useRef(null);
 
   const tabGroups = useMemo(
     () => [
@@ -105,19 +106,29 @@ export default function ClientePerfil() {
 
   const handleTabChange = useCallback(
     (nextTab) => {
+      if (tabTransitionRef.current) {
+        clearTimeout(tabTransitionRef.current);
+      }
+      setTabsActiveKey(nextTab);
       setProfileTab(nextTab);
-      setProfileView("panel");
+      tabTransitionRef.current = setTimeout(() => {
+        setProfileView("panel");
+      }, 140);
     },
     [setProfileTab]
   );
 
-  const handleTabPress = useCallback((key) => {
-    setTabsActiveKey(key);
-  }, []);
-
   const handleBack = useCallback(() => {
     setProfileView("tabs");
     setTabsActiveKey(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tabTransitionRef.current) {
+        clearTimeout(tabTransitionRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -163,7 +174,6 @@ export default function ClientePerfil() {
                     groups={tabGroups}
                     active={tabsActiveKey}
                     onChange={handleTabChange}
-                    onPressStart={handleTabPress}
                   />
                 </div>
               </motion.div>
