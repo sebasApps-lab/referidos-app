@@ -2,7 +2,7 @@ import React from "react";
 
 export default function ProfileTabs({ tabs, active, onChange }) {
   return (
-    <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
+    <div className="flex flex-col gap-2">
       {tabs.map((tab) => {
         const isActive = active === tab.key;
         const Icon = tab.icon;
@@ -10,17 +10,19 @@ export default function ProfileTabs({ tabs, active, onChange }) {
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className={`min-w-[180px] md:min-w-0 text-left rounded-2xl border transition ${
+            className={`w-full text-left rounded-2xl border transition ${
               isActive
-                ? "border-[#5E30A5] bg-[#5E30A5] text-white shadow-sm"
-                : "border-[#E9E2F7] bg-white text-slate-500 hover:text-[#5E30A5]"
+                ? "border-white/20 bg-white/15 text-white shadow-sm"
+                : "border-white/10 bg-transparent text-white/70 hover:text-white"
             }`}
           >
             <div className="px-4 py-3 flex items-center gap-3">
               {Icon && (
                 <span
                   className={`h-9 w-9 rounded-xl flex items-center justify-center ${
-                    isActive ? "bg-white/20 text-white" : "bg-[#F3EEFF] text-[#5E30A5]"
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "bg-white/10 text-white"
                   }`}
                 >
                   <Icon size={18} />

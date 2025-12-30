@@ -40,6 +40,7 @@ export default defineConfig({
     // Allow ngrok (or similar) HTTPS tunnels to reach the dev server.
     allowedHosts: [
       'indissolubly-preluxurious-harmony.ngrok-free.dev',
+      'shiftiest-corinne-spookily.ngrok-free.dev',
     ],
   },
 });

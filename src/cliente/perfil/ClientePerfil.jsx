@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Bell,
@@ -30,6 +31,7 @@ export default function ClientePerfil() {
   const { profileTab, setProfileTab } = useClienteUI({
     defaultProfileTab: "overview",
   });
+  const [profileView, setProfileView] = useState("tabs");
 
   const tabs = useMemo(
     () => [
@@ -106,26 +108,76 @@ export default function ClientePerfil() {
     []
   );
 
-  return (
-    <div className="px-4 py-6">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
-        <div>
-          <h1 className="text-lg font-semibold text-[#2F1A55]">
-            Perfil de cliente
-          </h1>
-          <p className="text-xs text-slate-500">
-            Gestiona tu informacion personal y de seguridad.
-          </p>
-        </div>
+  const handleTabChange = useCallback(
+    (nextTab) => {
+      setProfileTab(nextTab);
+      setProfileView("panel");
+    },
+    [setProfileTab]
+  );
 
-        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-          <ProfileTabs tabs={tabs} active={profileTab} onChange={setProfileTab} />
-          <ProfilePanel
-            activeTab={profileTab}
-            sections={sections}
-            usuario={usuario}
-            setUser={setUser}
-          />
+  const handleBack = useCallback(() => {
+    setProfileView("tabs");
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col">
+      <section className="hero-bleed historial-hero text-white">
+        <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
+          <div className="text-center">
+            <p className="max-w-[325px] mx-auto text-center text-[18px] font-light leading-snug text-white">
+              Gestiona tu informacion
+              <span className="block">personal y de seguridad.</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="relative flex-1 overflow-y-auto bg-white">
+        <div className="w-full flex flex-col items-center gap-4 pt-4 pb-6">
+          <AnimatePresence mode="wait">
+            {profileView === "tabs" ? (
+              <motion.div
+                key="profile-tabs"
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -40, opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-[90%] max-w-md"
+              >
+                <div className="rounded-3xl bg-[#5E30A5] p-2 shadow-sm">
+                  <ProfileTabs
+                    tabs={tabs}
+                    active={profileTab}
+                    onChange={handleTabChange}
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="profile-panel"
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -40, opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="w-[90%] max-w-md"
+              >
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="mb-3 text-xs font-semibold text-[#5E30A5] tracking-[0.12em]"
+                >
+                  VOLVER
+                </button>
+                <ProfilePanel
+                  activeTab={profileTab}
+                  sections={sections}
+                  usuario={usuario}
+                  setUser={setUser}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
