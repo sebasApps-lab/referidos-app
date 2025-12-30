@@ -12,7 +12,7 @@ export default function ProfileTabs({
           <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E30A5]/60">
             {group.title}
           </p>
-          <div className="flex flex-col gap-0 border border-[#5E30A5]/20 rounded-2xl overflow-hidden bg-white">
+          <div className="flex flex-col gap-0 rounded-2xl overflow-hidden bg-white border border-[#5E30A5]/20 divide-y divide-[#5E30A5]/12">
             {group.items.map((tab) => {
               const isActive = active === tab.key;
               const Icon = tab.icon;
@@ -24,10 +24,10 @@ export default function ProfileTabs({
                     if (!isDisabled) onChange(tab.key);
                   }}
                   disabled={isDisabled}
-                  className={`w-full text-left border transition ${
+                  className={`w-full text-left transition ${
                     isActive
-                      ? "border-[#5E30A5]/30 bg-[#F3EEFF] text-[#5E30A5] shadow-sm"
-                      : "border-[#5E30A5]/12 bg-transparent text-[#5E30A5]/70 hover:text-[#5E30A5]"
+                      ? "bg-[#F3EEFF] text-[#5E30A5] shadow-sm ring-1 ring-[#5E30A5]/30"
+                      : "bg-transparent text-[#5E30A5]/70 hover:text-[#5E30A5]"
                   } ${isDisabled ? "opacity-50 cursor-default" : ""}`}
                 >
                   <div className="px-0 flex items-center gap-4">
