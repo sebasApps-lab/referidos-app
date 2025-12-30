@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { Camera, ShieldCheck, Sparkles } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Camera, Pencil, ShieldCheck, Sparkles } from "lucide-react";
 import {
   formatReadableDate,
   getAvatarSrc,
@@ -8,22 +8,55 @@ import {
 } from "../../../services/clienteUI";
 
 export default function ProfileOverview({ usuario, setUser, verification }) {
-  const [alias, setAlias] = useState(
-    usuario?.alias || usuario?.username || ""
-  );
+  const initialAlias = usuario?.alias || "";
+  const [alias, setAlias] = useState(initialAlias);
+  const [baseAlias, setBaseAlias] = useState(initialAlias);
+  const [isEditingAlias, setIsEditingAlias] = useState(!initialAlias);
   const [status, setStatus] = useState("");
   const fileRef = useRef(null);
   const tier = getTierMeta(usuario);
+  const createdAtRaw =
+    usuario?.created_at ||
+    usuario?.createdAt ||
+    usuario?.created_at?.toString?.() ||
+    usuario?.createdAt?.toString?.();
+  const createdAtValue =
+    typeof createdAtRaw === "string" && createdAtRaw.includes(" ") && !createdAtRaw.includes("T")
+      ? createdAtRaw.replace(" ", "T")
+      : createdAtRaw;
+  const createdAtLabel = formatReadableDate(createdAtValue);
+  const showRole = usuario?.role && usuario.role !== "cliente";
+
+  useEffect(() => {
+    const nextAlias = usuario?.alias || "";
+    setBaseAlias(nextAlias);
+    if (!isEditingAlias) {
+      setAlias(nextAlias);
+      if (!nextAlias) setIsEditingAlias(true);
+    }
+  }, [usuario?.alias, isEditingAlias]);
 
   const handleSave = () => {
     if (!usuario) return;
-    setUser({ ...usuario, alias });
-    setStatus("Cambios guardados");
-    alert("Datos guardados");
+    const nextAlias = alias.trim();
+    if (!nextAlias) return;
+    setUser({ ...usuario, alias: nextAlias });
+    setBaseAlias(nextAlias);
+    setIsEditingAlias(false);
+    setStatus("Alias actualizado");
+  };
+  const handleCancel = () => {
+    if (baseAlias) {
+      setAlias(baseAlias);
+      setIsEditingAlias(false);
+    } else {
+      setAlias("");
+    }
+    setStatus("");
   };
 
   return (
-    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm">
+    <section className="px-2">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -57,8 +90,8 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               {usuario?.nombre || "Usuario"}
             </h3>
             <p className="text-xs text-slate-500">
-              {getRoleLabel(usuario)} - Miembro desde{" "}
-              {formatReadableDate(usuario?.created_at || usuario?.createdAt)}
+              {showRole ? `${getRoleLabel(usuario)} - ` : ""}Miembro desde{" "}
+              {createdAtLabel}
             </p>
           </div>
         </div>
@@ -83,38 +116,66 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid gap-4">
         <div>
           <label className="text-xs font-semibold text-[#2F1A55]">
-            Alias o username
+            Alias
           </label>
-          <input
-            value={alias}
-            onChange={(e) => setAlias(e.target.value)}
-            placeholder="Tu alias visible"
-            className="mt-2 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-[#2F1A55]">
-            Estado de cuenta
-          </label>
-          <div className="mt-2 rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-sm text-slate-500">
-            {verification.accountVerified ? "Cuenta verificada" : "Sin verificar"}
-          </div>
+          {isEditingAlias ? (
+            <div className="mt-2">
+              <input
+                value={alias}
+                onChange={(e) =>
+                  setAlias(
+                    e.target.value.replace(
+                      /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g,
+                      ""
+                    )
+                  )
+                }
+                placeholder="Tu alias"
+                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+              />
+              {alias.trim() ? (
+                <div className="mt-3 flex items-center justify-between text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="text-[#2F1A55]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="text-[#5E30A5]"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#2F1A55]">
+                {baseAlias}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingAlias(true)}
+                className="text-[#5E30A5]"
+                aria-label="Editar alias"
+              >
+                <Pencil size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
-        >
-          Guardar cambios
-        </button>
+      <div className="mt-5">
         <span className="text-xs text-slate-500">
-          {status || "Actualiza alias o avatar cuando lo necesites."}
+          {status || "Haz que tu perfil se sienta tuyo, actualiza tu alias."}
         </span>
       </div>
     </section>
