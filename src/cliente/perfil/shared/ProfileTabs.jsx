@@ -13,7 +13,7 @@ export default function ProfileTabs({
             {group.title}
           </p>
           <div className="flex flex-col gap-0 rounded-2xl overflow-hidden bg-white border border-[#5E30A5]/20 divide-y divide-[#5E30A5]/12">
-            {group.items.map((tab) => {
+            {group.items.map((tab, index) => {
               const isActive = active === tab.key;
               const Icon = tab.icon;
               const isDisabled = tab.disabled;
@@ -32,6 +32,9 @@ export default function ProfileTabs({
                 >
                   {isActive && (
                     <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[#D9CBFF]" />
+                  )}
+                  {isActive && index > 0 && (
+                    <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[#D9CBFF]" />
                   )}
                   <div className="px-0 flex items-center gap-0">
                     {Icon && (
