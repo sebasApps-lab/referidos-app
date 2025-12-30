@@ -3,10 +3,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Bell,
+  CreditCard,
   Crown,
   Fingerprint,
   Globe,
   IdCard,
+  KeyRound,
+  Link2,
   Monitor,
   Palette,
   Shield,
@@ -43,36 +46,31 @@ export default function ClientePerfil() {
         items: [
           { key: "overview", label: "Perfil", icon: UserCircle },
           { key: "personal", label: "Datos personales", icon: IdCard },
+          { key: "manage", label: "Gestionar cuenta", icon: AlertTriangle },
         ],
       },
       {
         title: "Seguridad",
         items: [
-          { key: "security", label: "Seguridad", icon: Shield },
+          { key: "security-access", label: "Acceso", icon: KeyRound },
+          { key: "security-links", label: "Cuentas vinculadas", icon: Link2 },
           { key: "twofa", label: "2FA", icon: Fingerprint },
           { key: "sessions", label: "Sesiones", icon: Monitor },
         ],
       },
       {
-        title: "Notificaciones",
-        items: [{ key: "notifications", label: "Preferencias", icon: Bell }],
-      },
-      {
         title: "Plan/Tier",
-        items: [{ key: "plan", label: "Beneficios", icon: Crown }],
+        items: [
+          { key: "plan", label: "Beneficios", icon: Crown },
+          { key: "payments", label: "Pagos", icon: CreditCard, disabled: true },
+        ],
       },
       {
         title: "Preferencias",
         items: [
+          { key: "notifications", label: "Notificaciones", icon: Bell },
           { key: "appearance", label: "Apariencia", icon: Palette },
           { key: "language", label: "Idioma", icon: Globe },
-        ],
-      },
-      {
-        title: "⚠️ Cuenta",
-        items: [
-          { key: "logout", label: "Cerrar sesion", icon: AlertTriangle },
-          { key: "delete", label: "Eliminar cuenta", icon: AlertTriangle },
         ],
       },
     ],
@@ -83,7 +81,8 @@ export default function ClientePerfil() {
     () => ({
       overview: ProfileOverview,
       personal: PersonalData,
-      security: Security,
+      "security-access": Security,
+      "security-links": Security,
       twofa: TwoFA,
       sessions: Sessions,
       notifications: Notifications,
@@ -91,9 +90,7 @@ export default function ClientePerfil() {
       preferences: Preferences,
       appearance: Preferences,
       language: Preferences,
-      logout: DangerZone,
-      delete: DangerZone,
-      danger: DangerZone,
+      manage: DangerZone,
     }),
     []
   );
@@ -132,7 +129,7 @@ export default function ClientePerfil() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-[#7543bfff]">
       <section className="hero-bleed historial-hero text-white">
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
           <div className="text-center">
@@ -157,7 +154,7 @@ export default function ClientePerfil() {
         </div>
       </section>
 
-      <div className="relative flex-1 overflow-y-auto bg-white">
+      <div className="relative flex-1 overflow-y-auto bg-[#7543bfff]">
         <div className="w-full flex flex-col items-center gap-4 pt-4 pb-6">
           <AnimatePresence mode="wait">
             {profileView === "tabs" ? (
@@ -167,9 +164,9 @@ export default function ClientePerfil() {
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -40, opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="w-[90%] max-w-md"
+                className="w-[95%] max-w-md"
               >
-                <div className="rounded-xl bg-[#5E30A5] shadow-sm">
+                <div className="rounded-xl bg-[#7543bfff] shadow-sm">
                   <ProfileTabs
                     groups={tabGroups}
                     active={tabsActiveKey}

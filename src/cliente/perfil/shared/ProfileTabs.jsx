@@ -16,15 +16,19 @@ export default function ProfileTabs({
             {group.items.map((tab) => {
               const isActive = active === tab.key;
               const Icon = tab.icon;
+              const isDisabled = tab.disabled;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => onChange(tab.key)}
+                  onClick={() => {
+                    if (!isDisabled) onChange(tab.key);
+                  }}
+                  disabled={isDisabled}
                   className={`w-full text-left rounded-2xl border transition ${
                     isActive
                       ? "border-white/20 bg-white/15 text-white shadow-sm"
                       : "border-white/10 bg-transparent text-white/70 hover:text-white"
-                  }`}
+                  } ${isDisabled ? "opacity-50 cursor-default" : ""}`}
                 >
                   <div className="px-4 py-3 flex items-center gap-3">
                     {Icon && (
