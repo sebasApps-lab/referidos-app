@@ -20,6 +20,7 @@ export default function PersonalData({ usuario, setUser, verification }) {
     names: false,
     contact: false,
   });
+  const [expandedEmail, setExpandedEmail] = useState(false);
 
   useEffect(() => {
     setForm(initial);
@@ -30,6 +31,12 @@ export default function PersonalData({ usuario, setUser, verification }) {
     initial.email,
     initial.telefono,
   ]);
+
+  useEffect(() => {
+    if (editing.contact) {
+      setExpandedEmail(false);
+    }
+  }, [editing.contact]);
 
   const emailChanged = form.email !== initial.email;
   const phoneChanged = form.telefono !== initial.telefono;
@@ -286,20 +293,36 @@ export default function PersonalData({ usuario, setUser, verification }) {
             </div>
           ) : (
             <div className="mt-6 space-y-5 text-sm text-slate-600">
-              <div className="flex items-center gap-2 flex-nowrap min-w-0">
+              <button
+                type="button"
+                onClick={() => setExpandedEmail((prev) => !prev)}
+                className="flex w-full items-center gap-2 flex-nowrap min-w-0 text-left"
+              >
                 <Mail size={16} className="text-slate-400 shrink-0" />
-                <span className="truncate">{form.email || "Sin correo"}</span>
+                <span className={expandedEmail ? "break-all" : "truncate"}>
+                  {form.email || "Sin correo"}
+                </span>
                 {!verification.emailVerified ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600 shrink-0">
+                  <span
+                    className={`inline-flex items-center rounded-full bg-red-50 text-[11px] font-semibold text-red-600 shrink-0 transition-all duration-200 ease-out ${
+                      expandedEmail ? "px-1.5 py-0.5" : "gap-1 px-2 py-0.5"
+                    }`}
+                  >
                     <X size={12} />
-                    Sin verificar
+                    <span
+                      className={`overflow-hidden transition-all duration-200 ease-out ${
+                        expandedEmail ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+                      }`}
+                    >
+                      Sin verificar
+                    </span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600 shrink-0">
                     <Check size={12} />
                   </span>
                 )}
-              </div>
+              </button>
               {form.telefono?.trim() ? (
                 <div className="flex items-center gap-2">
                   <Phone size={16} className="text-slate-400" />
