@@ -1,40 +1,45 @@
 import React, { useState } from "react";
-import { Fingerprint, KeyRound, Lock } from "lucide-react";
+import { Asterisk, Fingerprint, KeyRound, Lock } from "lucide-react";
 
-export default function Security() {
+export default function Access() {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-[#2F1A55]">Seguridad</h3>
-        <p className="text-xs text-slate-500">
+    <section className="relative rounded-[30px] border border-[#E9E2F7] px-6 pb-6 pt-6 space-y-6">
+      <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+        <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+          Metodos de acceso
+        </span>
+      </div>
+      <div className="mt-1">
+        <p className="text-xs text-slate-500 text-center">
           Gestiona metodos de acceso y cuentas vinculadas.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 space-y-3">
-        <p className="text-xs font-semibold text-[#2F1A55]">Contrasena</p>
-        <input
-          type="password"
-          placeholder="Contrasena actual"
-          className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
-        />
-        <input
-          type="password"
-          placeholder="Nueva contrasena"
-          className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
-        />
-        <button
-          type="button"
-          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
-        >
-          Cambiar contrasena
-        </button>
-      </div>
-
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 -ml-1.5">
+            <span className="flex items-center text-[#5E30A5]">
+              <Asterisk size={12} />
+              <span className="-ml-1">
+                <Asterisk size={12} />
+              </span>
+              <span className="-ml-1">
+                <Asterisk size={12} />
+              </span>
+            </span>
+            <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
+              Contrasena
+            </span>
+          </div>
+          <button
+            type="button"
+            className="h-8 w-8 rounded-full border bg-slate-200 border-slate-300"
+            aria-label="Cambiar contrasena"
+          />
+        </div>
         <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Fingerprint size={18} className="text-[#5E30A5]" />
