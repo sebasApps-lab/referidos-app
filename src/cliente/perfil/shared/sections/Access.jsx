@@ -1,10 +1,37 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Asterisk, Check, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus } from "lucide-react";
+import { useModal } from "../../../../modals/useModal";
+import { supabase } from "../../../../lib/supabaseClient";
 
-export default function Access() {
+export default function Access({ usuario }) {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
-  const hasPassword = true;
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [authProvider, setAuthProvider] = useState(null);
+  const { openModal } = useModal();
+  const provider = (authProvider || usuario?.provider || "").toLowerCase();
+  const hasPassword = provider === "email" || provider === "password";
+
+  useEffect(() => {
+    let active = true;
+    const loadProvider = async () => {
+      const { data } = await supabase.auth.getSession();
+      const nextProvider = data?.session?.user?.app_metadata?.provider ?? null;
+      if (active) {
+        setAuthProvider(nextProvider);
+      }
+    };
+    loadProvider();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hasPassword && showPasswordForm) {
+      setShowPasswordForm(false);
+    }
+  }, [hasPassword, showPasswordForm]);
 
   return (
     <section className="relative rounded-[30px] border border-[#E9E2F7] px-6 pb-6 pt-6 space-y-6">
@@ -20,52 +47,77 @@ export default function Access() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 -ml-0.5">
-            <span className="flex items-center text-[#5E30A5]">
-              <Asterisk size={10} />
-              <span className="-ml-1">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 -ml-0.5">
+              <span className="flex items-center text-[#5E30A5]">
                 <Asterisk size={10} />
+                <span className="-ml-1">
+                  <Asterisk size={10} />
+                </span>
+                <span className="-ml-1">
+                  <Asterisk size={10} />
+                </span>
               </span>
-              <span className="-ml-1">
-                <Asterisk size={10} />
+              <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
+                Contrasena
               </span>
-            </span>
-            <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
-              Contrasena
-            </span>
+              {hasPassword ? (
+                <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
+                  <Check size={12} />
+                </span>
+              ) : null}
+            </div>
             {hasPassword ? (
-              <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
-                <Check size={12} />
-              </span>
-            ) : null}
-          </div>
-          {hasPassword ? (
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
+                  aria-label="Quitar contrasena"
+                >
+                  <Minus size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
+                  aria-label="Editar contrasena"
+                  onClick={() => setShowPasswordForm(true)}
+                >
+                  <Pencil size={14} />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
-                aria-label="Quitar contrasena"
+                onClick={() => setShowPasswordForm(true)}
+                className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
+                aria-label="Agregar contrasena"
               >
-                <Minus size={14} />
+                <Plus size={14} />
               </button>
+            )}
+          </div>
+          {showPasswordForm ? (
+            <div className="mt-3 space-y-3">
+              <input
+                type="password"
+                placeholder="Contrasena actual"
+                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
+              />
+              <input
+                type="password"
+                placeholder="Nueva contrasena"
+                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
+              />
               <button
                 type="button"
-                className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
-                aria-label="Editar contrasena"
+                onClick={() => setShowPasswordForm(false)}
+                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
               >
-                <Pencil size={14} />
+                Cambiar contrasena
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
-              aria-label="Agregar contrasena"
-            >
-              <Plus size={14} />
-            </button>
-          )}
+          ) : null}
         </div>
         <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -100,7 +152,14 @@ export default function Access() {
           ) : (
             <button
               type="button"
-              onClick={() => setFingerprintEnabled(true)}
+              onClick={() => {
+                openModal("FingerprintPrompt", {
+                  onConfirm: () => setFingerprintEnabled(true),
+                  userId: usuario?.id_auth ?? usuario?.id ?? null,
+                  email: usuario?.email ?? null,
+                  displayName: usuario?.nombre ?? usuario?.alias ?? "Usuario",
+                });
+              }}
               className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
               aria-label="Agregar huella"
             >
