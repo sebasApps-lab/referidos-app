@@ -117,7 +117,7 @@ export default function PersonalData({ usuario, setUser, verification }) {
         </span>
       </div>
       <div className="mt-1">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 text-center">
           Manten tu informacion actualizada.
         </p>
       </div>
