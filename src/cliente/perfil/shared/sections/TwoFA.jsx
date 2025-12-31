@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 
 const Toggle = ({ active, onChange }) => (
   <button
@@ -18,24 +18,17 @@ export default function TwoFA() {
   const [totp, setTotp] = useState(false);
   const [sms, setSms] = useState(false);
   const [backup, setBackup] = useState(true);
-  const [status, setStatus] = useState("");
-
-  const handleSave = () => {
-    if (!verified) {
-      setStatus("Verifica antes de guardar cambios.");
-      return;
-    }
-    setStatus("Cambios guardados");
-    alert("Datos guardados");
-  };
+  const [dismissedInfo, setDismissedInfo] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-[#2F1A55]">
+    <section className="relative rounded-[30px] border border-[#E9E2F7] bg-white px-6 pb-6 pt-6 space-y-6">
+      <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+        <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
           Autenticacion en dos pasos
-        </h3>
-        <p className="text-xs text-slate-500">
+        </span>
+      </div>
+      <div className="mt-1">
+        <p className="text-xs text-slate-500 text-center">
           Refuerza tu seguridad con factores adicionales.
         </p>
       </div>
@@ -67,38 +60,20 @@ export default function TwoFA() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setVerified(true)}
-          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
-        >
-          Verificar para cambios
-        </button>
-        <span className="text-xs text-slate-500">
-          {verified ? "Verificacion lista." : "Requerido para activar o desactivar."}
-        </span>
-      </div>
-
-      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
-        <ShieldCheck size={16} className="text-[#5E30A5]" />
-        Mantener 2FA activo reduce riesgos de acceso no autorizado.
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          className={`rounded-xl px-4 py-2 text-xs font-semibold shadow-sm ${
-            verified
-              ? "bg-[#5E30A5] text-white hover:bg-[#4B2488]"
-              : "bg-[#E9E2F7] text-slate-400 cursor-not-allowed"
-          }`}
-        >
-          Guardar cambios
-        </button>
-        <span className="text-xs text-slate-500">{status}</span>
-      </div>
+      {!dismissedInfo ? (
+        <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
+          <ShieldCheck size={16} className="text-[#5E30A5]" />
+          Mantener 2FA activo reduce riesgos de acceso no autorizado.
+          <button
+            type="button"
+            onClick={() => setDismissedInfo(true)}
+            className="ml-auto text-slate-400 hover:text-slate-500"
+            aria-label="Cerrar aviso"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

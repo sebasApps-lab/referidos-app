@@ -1,18 +1,42 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { KeyRound, Minus, Plus, X } from "lucide-react";
 
 const PROVIDERS = [
-  "Google",
-  "Facebook",
-  "Apple",
-  "Instagram",
-  "Discord",
+  { key: "Google", badge: "G", bg: "#4285F4", color: "#FFFFFF" },
+  { key: "Facebook", badge: "f", bg: "#1877F2", color: "#FFFFFF" },
+  { key: "Apple", badge: "A", bg: "#111111", color: "#FFFFFF" },
+  {
+    key: "Instagram",
+    badge: "IG",
+    bg: "linear-gradient(135deg, #F58529 0%, #DD2A7B 50%, #515BD4 100%)",
+    color: "#FFFFFF",
+  },
+  { key: "Discord", badge: "D", bg: "#5865F2", color: "#FFFFFF" },
 ];
 
-export default function LinkedAccounts() {
+export default function LinkedAccounts({ usuario }) {
   const [linked, setLinked] = useState({});
   const [verified, setVerified] = useState(false);
   const [dismissedInfo, setDismissedInfo] = useState(false);
+
+  useEffect(() => {
+    const provider = (usuario?.provider || "").toLowerCase();
+    if (!provider) return;
+    const mapped =
+      provider === "google"
+        ? "Google"
+        : provider === "facebook"
+          ? "Facebook"
+          : provider === "apple"
+            ? "Apple"
+            : provider === "instagram"
+              ? "Instagram"
+              : provider === "discord"
+                ? "Discord"
+                : null;
+    if (!mapped) return;
+    setLinked((prev) => ({ ...prev, [mapped]: true }));
+  }, [usuario?.provider]);
 
   const toggleProvider = (provider) => {
     setLinked((prev) => ({ ...prev, [provider]: !prev[provider] }));
@@ -36,16 +60,24 @@ export default function LinkedAccounts() {
       </div>
       <div className="grid gap-2">
         {PROVIDERS.map((provider) => {
-          const isLinked = linked[provider];
+          const isLinked = linked[provider.key];
           return (
             <div
-              key={provider}
+              key={provider.key}
               className="flex items-center justify-between rounded-xl border border-[#E9E2F7] bg-white px-3 py-2"
             >
-              <span className="text-xs text-slate-500">{provider}</span>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold uppercase"
+                  style={{ background: provider.bg, color: provider.color }}
+                >
+                  {provider.badge}
+                </span>
+                <span className="text-xs text-slate-500">{provider.key}</span>
+              </div>
               <button
                 type="button"
-                onClick={() => verified && toggleProvider(provider)}
+                onClick={() => verified && toggleProvider(provider.key)}
                 className={`h-8 w-8 rounded-full flex items-center justify-center border ${
                   isLinked ? "border-red-300 text-red-500" : "border-emerald-300 text-emerald-500"
                 }`}
