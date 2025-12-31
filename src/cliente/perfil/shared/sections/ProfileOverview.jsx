@@ -213,41 +213,24 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                 Estado de cuenta
               </span>
               <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-600">
-                <ShieldCheck size={12} />
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#F4B740] text-[12px] font-black text-white leading-none">
+                  —
+                </span>
                 Sin verificar
               </span>
             </div>
-            <div className="mt-3 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between gap-3">
-                <span className="truncate">{emailValue}</span>
+            <div className="mt-3 space-y-5 text-sm text-slate-600 pb-1">
+              <p className="text-xs text-slate-500 pl-2">
+                Verifica tu cuenta para acceder a mejores beneficios.
+              </p>
+              <div className="flex items-center justify-center gap-3 mr-1">
                 <button
                   type="button"
-                  className="text-xs font-semibold text-[#5E30A5]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-sm font-semibold text-white shadow active:scale-[0.98]"
                 >
-                  Verificar
+                  <ShieldCheck size={20} />
+                  Verificar cuenta
                 </button>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                {phoneValue ? (
-                  <>
-                    <span className="truncate">{phoneValue}</span>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
-                    >
-                      <MessageSquare size={14} />
-                      Verificar con SMS
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
-                  >
-                    <MessageSquare size={14} />
-                    Verificar con SMS
-                  </button>
-                )}
               </div>
             </div>
           </div>
