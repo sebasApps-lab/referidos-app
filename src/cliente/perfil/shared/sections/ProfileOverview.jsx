@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Check, MessageSquare, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Camera, Check, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
 import {
   formatReadableDate,
-  getDisplayEmail,
   getAvatarSrc,
   getRoleLabel,
   getPlanFallback,
@@ -25,8 +24,6 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
   const tier = getTierMeta(usuario);
   const plan = getPlanFallback(usuario?.role);
   const tierPerks = plan?.perks || [];
-  const emailValue = getDisplayEmail(usuario);
-  const phoneValue = usuario?.telefono || usuario?.phone || "";
   const createdAtRaw = usuario?.fechacreacion;
   const createdAtValue =
     typeof createdAtRaw === "string" && createdAtRaw.includes(" ") && !createdAtRaw.includes("T")
@@ -152,6 +149,32 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
 
   return (
     <section className="px-2">
+      {!verification.accountVerified ? (
+          <div className="relative rounded-[28px]  px-4 pb-4 pt-5 mb-8">
+            <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+              <span className="bg-white px-2 text-base font-semibold text-[#2F1A55]">
+                Cuenta sin verificar
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-600">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#F4B740] text-[12px] font-black text-white leading-none">
+                  -
+                </span>
+                Sin verificar
+              </span>
+            </div>
+            <div className="mt-1 space-y-3 text-sm text-slate-600">
+              <div className="flex items-center justify-center gap-3 mr-1">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-1.5 text-xs font-semibold text-white shadow active:scale-[0.98]"
+                >
+                  <ShieldCheck size={17} />
+                  Verificar cuenta
+                </button>
+              </div>
+          </div>
+        </div>
+      ) : null}
       <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-3">
         <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
           <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
@@ -206,36 +229,6 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
       </div>
 
       <div className="mt-6 grid gap-5">
-        {!verification.accountVerified ? (
-          <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
-            <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
-              <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-                Estado de cuenta
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-600">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#F4B740] text-[12px] font-black text-white leading-none">
-                  —
-                </span>
-                Sin verificar
-              </span>
-            </div>
-            <div className="mt-3 space-y-5 text-sm text-slate-600 pb-1">
-              <p className="text-xs text-slate-500 text-center">
-                Verifica tu cuenta para acceder a mejores beneficios.
-              </p>
-              <div className="flex items-center justify-center gap-3 mr-1">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
-                >
-                  <ShieldCheck size={17} />
-                  Verificar cuenta
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
           <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
             <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
@@ -262,13 +255,13 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               Nombre en pantalla
             </span>
           </div>
-          {isEditingAlias ? (
+          {!baseAlias ? (
+            <div className="mt-1 text-xs text-slate-500 text-center">
+              Haz que tu perfil se sienta tuyo, actualiza tu alias.
+            </div>
+          ) : isEditingAlias ? (
             <div className="mt-1 text-xs text-slate-500 text-center">
               Esto es lo que los demas veran.
-            </div>
-          ) : !baseAlias ? (
-            <div className="mt-1 text-xs text-slate-500 text-center">
-              Haz que tu perfil se sienta tuyo, elige tu alias.
             </div>
           ) : null}
           {isEditingAlias ? (

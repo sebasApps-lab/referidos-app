@@ -28,7 +28,7 @@ import TwoFA from "./shared/sections/TwoFA";
 import Sessions from "./shared/sections/Sessions";
 import Notifications from "./shared/sections/Notifications";
 import Plan from "./shared/sections/Plan";
-import DangerZone from "./shared/sections/DangerZone";
+import ManageAccount from "./shared/sections/ManageAccount";
 import Preferences from "./shared/sections/Preferences";
 
 export default function ClientePerfil() {
@@ -97,7 +97,7 @@ export default function ClientePerfil() {
       preferences: Preferences,
       appearance: Preferences,
       language: Preferences,
-      manage: DangerZone,
+      manage: ManageAccount,
     }),
     []
   );

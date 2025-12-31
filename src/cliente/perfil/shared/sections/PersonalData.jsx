@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, Mail, Pencil, Phone, User, X } from "lucide-react";
+import { Check, Mail, Pencil, Phone, User } from "lucide-react";
 
 export default function PersonalData({ usuario, setUser, verification }) {
   const initial = useMemo(() => {

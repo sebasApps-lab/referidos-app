@@ -58,7 +58,7 @@ export default function DangerZone({ usuario, setUser }) {
   };
 
   return (
-    <section className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm space-y-5">
+    <section className="space-y-5">
       <div className="flex items-center gap-2 text-red-600">
         <AlertTriangle size={18} />
         <h3 className="text-sm font-semibold">Zona peligrosa</h3>
