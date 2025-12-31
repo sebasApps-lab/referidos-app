@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Check, MessageSquare, Pencil, ShieldCheck, X } from "lucide-react";
+import { Camera, Check, MessageSquare, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
 import {
   formatReadableDate,
   getDisplayEmail,
@@ -153,69 +153,72 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
 
   return (
     <section className="px-2">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <img
-              src={getAvatarSrc(usuario)}
-              alt="avatar"
-              className="h-20 w-20 rounded-2xl border border-[#E9E2F7] bg-white object-cover"
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-2 -right-2 h-9 w-9 rounded-xl bg-[#5E30A5] text-white flex items-center justify-center shadow-sm transition hover:bg-[#4B2488]"
-            >
-              <Camera size={16} />
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={() =>
-                setStatus({
-                  type: "success",
-                  text: "Imagen seleccionada (pendiente de guardado)",
-                })
-              }
-            />
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-              Identidad
-            </p>
-            <h3 className="text-base font-semibold text-[#2F1A55]">
-              {usuario?.nombre || "Usuario"}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {showRole ? `${getRoleLabel(usuario)} - ` : ""}Miembro desde{" "}
-              {createdAtLabel}
-            </p>
-          </div>
-        </div>
-
-        {verification.accountVerified ? (
-          <div className="flex flex-col items-start gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold bg-emerald-50 text-emerald-600">
+      <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-3">
+        <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+          <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+            Identidad
+          </span>
+          {verification.accountVerified ? (
+            <span className="ml-auto inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
               <ShieldCheck size={14} />
               Verificado
             </span>
+          ) : null}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <img
+                src={getAvatarSrc(usuario)}
+                alt="avatar"
+                className="h-20 w-20 rounded-2xl border border-[#E9E2F7] bg-white object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="absolute -bottom-2 -right-2 h-9 w-9 rounded-xl bg-[#5E30A5] text-white flex items-center justify-center shadow-sm transition hover:bg-[#4B2488]"
+              >
+                <Camera size={16} />
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={() =>
+                  setStatus({
+                    type: "success",
+                    text: "Imagen seleccionada (pendiente de guardado)",
+                  })
+                }
+              />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-[#2F1A55]">
+                {usuario?.nombre || "Usuario"}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {showRole ? `${getRoleLabel(usuario)} - ` : ""}Miembro desde{" "}
+                {createdAtLabel}
+              </p>
+            </div>
           </div>
-        ) : null}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-5">
         {!verification.accountVerified ? (
           <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
-            <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
-              Estado de cuenta
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+            <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+              <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+                Estado de cuenta
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-600">
                 <ShieldCheck size={12} />
                 Sin verificar
               </span>
             </div>
-            <div className="mt-2 space-y-3 text-sm text-slate-600">
+            <div className="mt-3 space-y-3 text-sm text-slate-600">
               <div className="flex items-center justify-between gap-3">
                 <span className="truncate">{emailValue}</span>
                 <button
@@ -231,18 +234,18 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                     <span className="truncate">{phoneValue}</span>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E30A5]"
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
                     >
-                      <MessageSquare size={12} />
+                      <MessageSquare size={14} />
                       Verificar con SMS
                     </button>
                   </>
                 ) : (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E30A5]"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
                   >
-                    <MessageSquare size={12} />
+                    <MessageSquare size={14} />
                     Verificar con SMS
                   </button>
                 )}
@@ -252,10 +255,13 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         ) : null}
 
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
-          <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
-            Tier
-            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold bg-[#F3EEFF] text-[#5E30A5] border border-[#E9E2F7]">
-              Tier {tier.label}
+          <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+            <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+              Tier
+            </span>
+            <span className="ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold bg-[#F3EEFF] text-[#5E30A5] border border-[#E9E2F7]">
+              <Sparkles size={12} />
+              {tier.label}              
             </span>
           </div>
           <ul className="mt-2 space-y-2 text-sm text-slate-600">
@@ -269,8 +275,10 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         </div>
 
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
-          <div className="absolute -top-3 left-4 inline-flex items-center gap-2 bg-white px-2 text-xs font-semibold text-[#2F1A55]">
-            Alias
+          <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
+            <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+              Alias
+            </span>
           </div>
           {isEditingAlias ? (
             <div className="mt-2" ref={aliasRowRef}>

@@ -47,9 +47,13 @@ export default function PersonalData({ usuario, setUser, verification }) {
   };
 
   return (
-    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold text-[#2F1A55]">Datos personales</h3>
+    <section className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5 space-y-5">
+      <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+        <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+          Datos personales
+        </span>
+      </div>
+      <div className="mt-2">
         <p className="text-xs text-slate-500">
           Manten tu informacion actualizada.
         </p>
