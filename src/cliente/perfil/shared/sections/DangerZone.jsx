@@ -58,13 +58,16 @@ export default function DangerZone({ usuario, setUser }) {
   };
 
   return (
-    <section className="space-y-5">
-      <div className="flex items-center gap-2 text-red-600">
-        <AlertTriangle size={18} />
-        <h3 className="text-sm font-semibold">Zona peligrosa</h3>
+    <section className="relative rounded-[28px] border border-red-200 bg-red-50 px-4 pb-5 pt-5">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-[12px] uppercase tracking-[0.2em] text-red-600">
+          <AlertTriangle size={16} />
+          Zona peligrosa
+        </span>
       </div>
 
-      <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
+      <div className="mt-4 space-y-4">
+        <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-black/70">Cerrar sesion</p>
           <p className="text-[11px] text-black/50">
@@ -79,9 +82,9 @@ export default function DangerZone({ usuario, setUser }) {
           <LogOut size={14} />
           Salir
         </button>
-      </div>
+        </div>
 
-      <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
+        <div className="rounded-2xl border border-red-200 bg-white p-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-black/70">Desactivar cuenta</p>
           <p className="text-[11px] text-black/50">
@@ -95,9 +98,9 @@ export default function DangerZone({ usuario, setUser }) {
           <Power size={14} />
           Desactivar
         </button>
-      </div>
+        </div>
 
-      <div className="rounded-2xl border border-red-300 bg-white p-4 flex flex-col gap-3">
+        <div className="rounded-2xl border border-red-300 bg-white p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-black/70">Eliminar cuenta</p>
@@ -124,6 +127,7 @@ export default function DangerZone({ usuario, setUser }) {
         >
           Volver al inicio
         </button>
+        </div>
       </div>
     </section>
   );

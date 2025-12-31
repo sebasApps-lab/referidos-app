@@ -23,7 +23,8 @@ import ProfilePanel from "./shared/ProfilePanel";
 import SearchBar from "../../components/search/SearchBar";
 import ProfileOverview from "./shared/sections/ProfileOverview";
 import PersonalData from "./shared/sections/PersonalData";
-import Security from "./shared/sections/Security";
+import Access from "./shared/sections/Access";
+import LinkedAccounts from "./shared/sections/LinkedAccounts";
 import TwoFA from "./shared/sections/TwoFA";
 import Sessions from "./shared/sections/Sessions";
 import Notifications from "./shared/sections/Notifications";
@@ -88,8 +89,8 @@ export default function ClientePerfil() {
     () => ({
       overview: ProfileOverview,
       personal: PersonalData,
-      "security-access": Security,
-      "security-links": Security,
+      "security-access": Access,
+      "security-links": LinkedAccounts,
       twofa: TwoFA,
       sessions: Sessions,
       notifications: Notifications,
