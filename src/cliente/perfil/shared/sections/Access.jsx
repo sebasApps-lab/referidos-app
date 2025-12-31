@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Asterisk, Check, Eye, EyeOff, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, X } from "lucide-react";
+import { Asterisk, Check, Eye, EyeOff, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, TriangleAlert, X } from "lucide-react";
 import { useModal } from "../../../../modals/useModal";
 import { supabase } from "../../../../lib/supabaseClient";
 
@@ -22,6 +22,8 @@ export default function Access({ usuario }) {
   const [pinReveal, setPinReveal] = useState([false, false, false, false]);
   const [focusedField, setFocusedField] = useState(null);
   const [authProvider, setAuthProvider] = useState(null);
+  const [passwordEnabled, setPasswordEnabled] = useState(null);
+  const [removalBlocked, setRemovalBlocked] = useState(false);
   const passwordFormRef = useRef(null);
   const currentPasswordRef = useRef(null);
   const passwordInputRef = useRef(null);
@@ -31,6 +33,10 @@ export default function Access({ usuario }) {
   const { openModal } = useModal();
   const provider = (authProvider || usuario?.provider || "").toLowerCase();
   const hasPassword = provider === "email" || provider === "password";
+  const passwordActive = passwordEnabled ?? hasPassword;
+  const methodsCount =
+    (passwordActive ? 1 : 0) + (fingerprintEnabled ? 1 : 0) + (pinEnabled ? 1 : 0);
+  const showMethodsWarning = methodsCount === 0 || removalBlocked;
 
   useEffect(() => {
     let active = true;
@@ -48,10 +54,26 @@ export default function Access({ usuario }) {
   }, []);
 
   useEffect(() => {
-    if (hasPassword && showPasswordForm) {
+    if (passwordEnabled === null) {
+      setPasswordEnabled(hasPassword);
+      return;
+    }
+    if (!hasPassword && passwordEnabled) {
+      setPasswordEnabled(false);
+    }
+  }, [hasPassword, passwordEnabled]);
+
+  useEffect(() => {
+    if (passwordActive && showPasswordForm && passwordMode === "add") {
       setShowPasswordForm(false);
     }
-  }, [hasPassword, showPasswordForm]);
+  }, [passwordActive, showPasswordForm, passwordMode]);
+
+  useEffect(() => {
+    if (methodsCount > 1 && removalBlocked) {
+      setRemovalBlocked(false);
+    }
+  }, [methodsCount, removalBlocked]);
 
   const handlePasswordFocus = useCallback((field) => {
     setFocusedField(field);
@@ -108,6 +130,7 @@ export default function Access({ usuario }) {
     setPasswordAttempted(true);
     if (!canSavePassword) return;
     if (passwordMode === "change" && !currentPassword.trim()) return;
+    setPasswordEnabled(true);
     setShowPasswordForm(false);
     setPasswordMode("add");
     setPasswordAttempted(false);
@@ -240,6 +263,30 @@ export default function Access({ usuario }) {
     resetPinForm();
   };
 
+  const handleRemovePassword = () => {
+    if (methodsCount <= 1) {
+      setRemovalBlocked(true);
+      return;
+    }
+    setPasswordEnabled(false);
+  };
+
+  const handleRemoveFingerprint = () => {
+    if (methodsCount <= 1) {
+      setRemovalBlocked(true);
+      return;
+    }
+    setFingerprintEnabled(false);
+  };
+
+  const handleRemovePin = () => {
+    if (methodsCount <= 1) {
+      setRemovalBlocked(true);
+      return;
+    }
+    setPinEnabled(false);
+  };
+
   useEffect(() => {
     return () => {
       pinRevealTimersRef.current.forEach((timer) => {
@@ -260,6 +307,12 @@ export default function Access({ usuario }) {
           Gestiona metodos de acceso y cuentas vinculadas.
         </p>
       </div>
+      {showMethodsWarning ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-xs text-red-500">
+          <TriangleAlert size={16} className="text-red-500" />
+          Es necesario al menos un metodo de verificacion.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
@@ -281,7 +334,7 @@ export default function Access({ usuario }) {
                     : "Anadir una contrasena"
                   : "Contrasena"}
               </span>
-              {hasPassword ? (
+              {passwordActive ? (
                 <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
                   <Check size={12} />
                 </span>
@@ -296,10 +349,11 @@ export default function Access({ usuario }) {
               >
                 <X size={14} />
               </button>
-            ) : hasPassword ? (
+            ) : passwordActive ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={handleRemovePassword}
                   className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
                   aria-label="Quitar contrasena"
                 >
@@ -328,7 +382,7 @@ export default function Access({ usuario }) {
           {showPasswordForm ? (
             <div className="mt-6 space-y-7" ref={passwordFormRef}>
               {passwordMode === "change" ? (
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                     <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
                       Contrasena anterior
@@ -496,7 +550,7 @@ export default function Access({ usuario }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setFingerprintEnabled(false)}
+                onClick={handleRemoveFingerprint}
                 className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
                 aria-label="Quitar huella"
               >
@@ -539,7 +593,7 @@ export default function Access({ usuario }) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setPinEnabled(false)}
+                  onClick={handleRemovePin}
                   className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
                   aria-label="Quitar PIN"
                 >
