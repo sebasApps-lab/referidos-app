@@ -133,20 +133,77 @@ export default function Plan({ usuario }) {
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-[#2F1A55]">Explorar Tiers</p>
-              <p className="text-[11px] text-slate-500">
-                Descubre los beneficios de cada nivel.
-              </p>
+          <div
+            className="rounded-2xl border border-[#E9E2F7] p-4"
+            style={{
+              background: "linear-gradient(135deg, #FFFFFF 0%, #F6F1FF 100%)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="h-10 w-10 rounded-xl bg-[#F3EEFF] text-[#5E30A5] flex items-center justify-center">
+                  <Sparkles size={16} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[#2F1A55]">Explorar Tiers</p>
+                  <p className="text-[11px] text-slate-500">
+                    Descubre los beneficios de cada nivel.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="h-9 w-9 rounded-full bg-[#5E30A5] text-white flex items-center justify-center"
+                aria-label="Explorar tiers"
+              >
+                <ArrowRight size={16} />
+              </button>
             </div>
-            <button
-              type="button"
-              className="h-9 w-9 rounded-xl border border-[#E9E2F7] text-[#5E30A5] flex items-center justify-center"
-              aria-label="Explorar tiers"
-            >
-              <ArrowRight size={16} />
-            </button>
+          </div>
+          <div className="relative rounded-2xl border border-[#E9E2F7] bg-white p-4">
+            <span className="absolute left-4 top-0 h-[2px] w-16 rounded-b-full bg-[#5E30A5]" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-[11px] font-semibold text-[#5E30A5]">
+                  <Crown size={12} />
+                  Explorar Tiers
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Niveles y recompensas disponibles.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="h-9 w-9 rounded-xl border border-[#E9E2F7] text-[#5E30A5] flex items-center justify-center"
+                aria-label="Explorar tiers"
+              >
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="relative rounded-2xl border border-[#E9E2F7] bg-white p-4">
+            <div
+              className="pointer-events-none absolute inset-0 rounded-2xl"
+              style={{
+                background:
+                  "radial-gradient(circle at 80% 0%, rgba(94,48,165,0.12), transparent 55%)",
+              }}
+            />
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#2F1A55]">Explorar Tiers</p>
+                <p className="text-[11px] text-slate-500">
+                  Conoce los requisitos de cada liga.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="h-10 w-10 rounded-full border border-[#E9E2F7] text-[#2F1A55] flex items-center justify-center shadow-[0_6px_16px_rgba(94,48,165,0.18)]"
+                aria-label="Explorar tiers"
+              >
+                <ArrowRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       )}
