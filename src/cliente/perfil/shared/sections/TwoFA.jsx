@@ -41,12 +41,17 @@ export default function TwoFA() {
         <Toggle active={totp} onChange={() => verified && setTotp((prev) => !prev)} />
       </div>
 
-      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between opacity-60">
         <div>
-          <p className="text-xs font-semibold text-[#2F1A55]">SMS</p>
+          <p className="text-xs font-semibold text-[#2F1A55] flex items-center gap-2">
+            SMS
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              No disponible aun
+            </span>
+          </p>
           <p className="text-[11px] text-slate-400">Codigo enviado al telefono.</p>
         </div>
-        <Toggle active={sms} onChange={() => verified && setSms((prev) => !prev)} />
+        <Toggle active={sms} onChange={() => {}} />
       </div>
 
       <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">

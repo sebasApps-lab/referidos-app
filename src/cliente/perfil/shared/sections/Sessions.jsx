@@ -20,12 +20,14 @@ export default function Sessions() {
   };
 
   return (
-    <section className="rounded-2xl border border-[#E9E2F7] bg-white p-6 shadow-sm space-y-5">
-      <div>
-        <h3 className="text-sm font-semibold text-[#2F1A55]">
+    <section className="relative rounded-[30px] border border-[#E9E2F7] bg-white px-6 pb-6 pt-6 space-y-5">
+      <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
+        <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
           Sesiones y dispositivos
-        </h3>
-        <p className="text-xs text-slate-500">
+        </span>
+      </div>
+      <div className="mt-1">
+        <p className="text-xs text-slate-500 text-center">
           Controla los accesos activos en tu cuenta.
         </p>
       </div>
@@ -51,14 +53,7 @@ export default function Sessions() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleClose(session.id)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-[11px] font-semibold text-slate-500 hover:text-[#5E30A5]"
-              >
-                <LogOut size={14} />
-                Cerrar sesion
-              </button>
+              <div className="h-9 w-9" aria-hidden="true" />
             </div>
           );
         })}
@@ -67,9 +62,19 @@ export default function Sessions() {
       <button
         type="button"
         onClick={handleCloseAll}
-        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
+        className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs font-semibold text-red-600 transition hover:bg-red-100"
       >
-        Cerrar todas
+        <div className="flex items-center gap-2">
+          <span className="h-8 w-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+            <LogOut size={16} />
+          </span>
+          <div>
+            <div>Cerrar todas</div>
+            <div className="mt-1 text-[11px] font-normal text-red-500">
+              Esto cerra sesion en el resto de dispositivos, menos en el actual.
+            </div>
+          </div>
+        </div>
       </button>
     </section>
   );
