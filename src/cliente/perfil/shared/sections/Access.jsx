@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Asterisk, Check, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, X } from "lucide-react";
+import { Asterisk, Check, Eye, EyeOff, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, X } from "lucide-react";
 import { useModal } from "../../../../modals/useModal";
 import { supabase } from "../../../../lib/supabaseClient";
 
@@ -9,6 +9,8 @@ export default function Access({ usuario }) {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordValue, setPasswordValue] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
   const [authProvider, setAuthProvider] = useState(null);
   const passwordFormRef = useRef(null);
@@ -160,15 +162,25 @@ export default function Access({ usuario }) {
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
                   Contrasena
                 </span>
-                <input
-                  ref={passwordInputRef}
-                  type="password"
-                  value={passwordValue}
-                  onChange={(event) => setPasswordValue(event.target.value)}
-                  onFocus={() => handlePasswordFocus("password")}
-                  onBlur={handlePasswordBlur}
-                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={passwordInputRef}
+                    type={showPassword ? "text" : "password"}
+                    value={passwordValue}
+                    onChange={(event) => setPasswordValue(event.target.value)}
+                    onFocus={() => handlePasswordFocus("password")}
+                    onBlur={handlePasswordBlur}
+                    className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-slate-400 hover:text-slate-600"
+                    aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               {showPasswordRules ? (
                 <div className="space-y-2 text-xs pl-1 -mt-4">
@@ -204,15 +216,25 @@ export default function Access({ usuario }) {
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
                   Verificar contrasena
                 </span>
-                <input
-                  ref={confirmInputRef}
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(event) => setPasswordConfirm(event.target.value)}
-                  onFocus={() => handlePasswordFocus("confirm")}
-                  onBlur={handlePasswordBlur}
-                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={confirmInputRef}
+                    type={showPasswordConfirm ? "text" : "password"}
+                    value={passwordConfirm}
+                    onChange={(event) => setPasswordConfirm(event.target.value)}
+                    onFocus={() => handlePasswordFocus("confirm")}
+                    onBlur={handlePasswordBlur}
+                    className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordConfirm((prev) => !prev)}
+                    className="text-slate-400 hover:text-slate-600"
+                    aria-label={showPasswordConfirm ? "Ocultar contrasena" : "Mostrar contrasena"}
+                  >
+                    {showPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               {showConfirmRule ? (
                 <div className="space-y-2 text-xs pl-1 -mt-4">
