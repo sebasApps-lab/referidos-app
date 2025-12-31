@@ -296,16 +296,16 @@ export default function PersonalData({ usuario, setUser, verification }) {
               <button
                 type="button"
                 onClick={() => setExpandedEmail((prev) => !prev)}
-                className="flex w-full items-center gap-2 flex-nowrap min-w-0 text-left"
+                className="flex w-full items-center gap-2 flex-nowrap min-w-0 overflow-hidden text-left"
               >
                 <Mail size={16} className="text-slate-400 shrink-0" />
-                <span className={expandedEmail ? "break-all" : "truncate"}>
+                <span className="truncate whitespace-nowrap">
                   {form.email || "Sin correo"}
                 </span>
                 {!verification.emailVerified ? (
                   <span
                     className={`inline-flex items-center rounded-full bg-red-50 text-[11px] font-semibold text-red-600 shrink-0 transition-all duration-200 ease-out ${
-                      expandedEmail ? "px-1.5 py-0.5" : "gap-1 px-2 py-0.5"
+                      expandedEmail ? "px-1.5 py-0.5 h-5" : "gap-1 px-2 py-0.5 h-5"
                     }`}
                   >
                     <X size={12} />
