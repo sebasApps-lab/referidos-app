@@ -13,7 +13,7 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
   const initialAlias = usuario?.alias || "";
   const [alias, setAlias] = useState(initialAlias);
   const [baseAlias, setBaseAlias] = useState(initialAlias);
-  const [isEditingAlias, setIsEditingAlias] = useState(!initialAlias);
+  const [isEditingAlias, setIsEditingAlias] = useState(false);
   const [status, setStatus] = useState(null);
   const [invalidChars, setInvalidChars] = useState(false);
   const fileRef = useRef(null);
@@ -40,7 +40,6 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
     setBaseAlias(nextAlias);
     if (!isEditingAlias) {
       setAlias(nextAlias);
-      if (!nextAlias) setIsEditingAlias(true);
     }
   }, [usuario?.alias, isEditingAlias]);
 
@@ -129,10 +128,10 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
   const handleCancel = () => {
     if (baseAlias) {
       setAlias(baseAlias);
-      setIsEditingAlias(false);
     } else {
       setAlias("");
     }
+    setIsEditingAlias(false);
     setInvalidChars(false);
     setStatus(null);
   };
@@ -277,20 +276,41 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
           <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
             <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-              Alias
+              Nombre en pantalla
             </span>
+            {!isEditingAlias ? (
+              <button
+                type="button"
+                onClick={() => setIsEditingAlias(true)}
+                className="text-[#5E30A5]"
+                aria-label="Editar nombre en pantalla"
+              >
+                <Pencil size={16} />
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-2 text-[13px] text-slate-500">
+            Esto es lo que los demás verán.
           </div>
           {isEditingAlias ? (
-            <div className="mt-2" ref={aliasRowRef}>
-              <input
-                ref={aliasInputRef}
-                value={alias}
-                onChange={(e) => handleAliasChange(e.target.value)}
-                placeholder="Tu alias"
-                onFocus={handleAliasFocus}
-                onBlur={handleAliasBlur}
-                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
-              />
+            <div className="mt-3" ref={aliasRowRef}>
+              <div className="text-xs font-semibold text-[#2F1A55]">
+                Elige tu alias
+              </div>
+              <div className="relative mt-3 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+                <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
+                  Alias
+                </span>
+                <input
+                  ref={aliasInputRef}
+                  value={alias}
+                  onChange={(e) => handleAliasChange(e.target.value)}
+                  placeholder="Alias"
+                  onFocus={handleAliasFocus}
+                  onBlur={handleAliasBlur}
+                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                />
+              </div>
               <div className="mt-3 space-y-1 text-xs">
                 {invalidChars ? (
                   <div className="flex items-center gap-2 text-slate-400">
@@ -308,51 +328,42 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between text-xs font-semibold">
-                {baseAlias || alias.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!baseAlias) {
-                        setAlias("");
-                        setInvalidChars(false);
-                        setStatus(null);
-                        aliasInputRef.current?.blur();
-                        return;
-                      }
-                      handleCancel();
-                    }}
-                    className="text-[#2F1A55]"
-                  >
-                    Cancelar
-                  </button>
-                ) : (
-                  <span />
-                )}
-                {alias.trim() ? (
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={!canSave}
-                    className={canSave ? "text-[#5E30A5]" : "text-slate-400"}
-                  >
-                    Guardar
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="text-[#2F1A55]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  className={canSave ? "text-[#5E30A5]" : "text-slate-400"}
+                >
+                  Guardar
+                </button>
               </div>
             </div>
           ) : (
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#2F1A55]">
-                {baseAlias}
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsEditingAlias(true)}
-                className="text-[#5E30A5]"
-                aria-label="Editar alias"
-              >
-                <Pencil size={16} />
-              </button>
+            <div className="mt-2">
+              {baseAlias ? (
+                <>
+                  <div className="text-xs font-semibold text-[#2F1A55]">
+                    Alias
+                  </div>
+                  <span className="text-sm font-semibold text-[#2F1A55]">
+                    {baseAlias}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs font-semibold text-[#2F1A55]">
+                    Alias
+                  </div>
+                  <span className="text-[13px] text-slate-500">Sin alias</span>
+                </>
+              )}
             </div>
           )}
           {status ? (
@@ -366,12 +377,6 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
             </div>
           ) : null}
         </div>
-      </div>
-
-      <div className="mt-5">
-        <span className="text-xs text-slate-500">
-          Haz que tu perfil se sienta tuyo, actualiza tu alias.
-        </span>
       </div>
     </section>
   );
