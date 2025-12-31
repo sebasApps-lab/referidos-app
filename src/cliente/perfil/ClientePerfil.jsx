@@ -148,49 +148,51 @@ export default function ClientePerfil() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <section className="hero-bleed text-white">
-        <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
-          <div className="text-center">
-            <p className="max-w-[340px] mx-auto text-center text-[18px] font-light leading-snug text-white">
-              Gestiona tu informacion personal y
-              <span className="block">de seguridad.</span>
-            </p>
-          </div>
-        </div>
-        <div className="relative z-10 mt-4 px-4 pb-2">
-          <SearchBar value={searchValue} onChange={setSearchValue} />
-        </div>
-      </section>
-
       <div className="relative flex-1 overflow-y-auto bg-white">
-        <div className="w-full flex flex-col items-center gap-4 pt-2 pb-6">
-          <AnimatePresence mode="wait">
-            {profileView === "tabs" ? (
-              <motion.div
-                key="profile-tabs"
-                initial={{ x: 40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -40, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="w-[98%] max-w-md"
-              >
-                <div className="bg-white">
+        <AnimatePresence mode="wait">
+          {profileView === "tabs" ? (
+            <motion.div
+              key="profile-tabs-screen"
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -40, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="w-full"
+            >
+              <section className="hero-bleed text-white">
+                <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
+                  <div className="text-center">
+                    <p className="max-w-[340px] mx-auto text-center text-[18px] font-light leading-snug text-white">
+                      Gestiona tu informacion personal y
+                      <span className="block">de seguridad.</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="relative z-10 mt-4 px-4 pb-2">
+                  <SearchBar value={searchValue} onChange={setSearchValue} />
+                </div>
+              </section>
+
+              <div className="w-full flex flex-col items-center gap-4 pt-2 pb-6">
+                <div className="w-[98%] max-w-md bg-white">
                   <ProfileTabs
                     groups={tabGroups}
                     active={tabsActiveKey}
                     onChange={handleTabChange}
                   />
                 </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="profile-panel"
-                initial={{ x: 40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -40, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="w-[90%] max-w-md"
-              >
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="profile-panel"
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -40, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="w-full flex flex-col items-center gap-4 pt-2 pb-6"
+            >
+              <div className="w-[90%] max-w-md">
                 <button
                   type="button"
                   onClick={handleBack}
@@ -204,10 +206,10 @@ export default function ClientePerfil() {
                   usuario={usuario}
                   setUser={setUser}
                 />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

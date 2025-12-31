@@ -220,15 +220,15 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               </span>
             </div>
             <div className="mt-3 space-y-5 text-sm text-slate-600 pb-1">
-              <p className="text-xs text-slate-500 pl-2">
+              <p className="text-xs text-slate-500 text-center">
                 Verifica tu cuenta para acceder a mejores beneficios.
               </p>
               <div className="flex items-center justify-center gap-3 mr-1">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-sm font-semibold text-white shadow active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FFC21C] px-3 py-2 text-xs font-semibold text-white shadow active:scale-[0.98]"
                 >
-                  <ShieldCheck size={20} />
+                  <ShieldCheck size={17} />
                   Verificar cuenta
                 </button>
               </div>
@@ -262,9 +262,9 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               Nombre en pantalla
             </span>
           </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Esto es lo que los demás verán.
-          </div>
+            <div className="mt-1 text-xs text-slate-500 text-center">
+              Esto es lo que los demas veran.
+            </div>
           {isEditingAlias ? (
             <div className="mt-5" ref={aliasRowRef}>
               <div className="text-xs font-semibold text-[#2F1A55]">
