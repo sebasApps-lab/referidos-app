@@ -142,16 +142,20 @@ export default function Access({ usuario }) {
             ) : (
               <button
                 type="button"
-                onClick={() => setShowPasswordForm(true)}
-                className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
-                aria-label="Agregar contrasena"
+                onClick={showPasswordForm ? handlePasswordCancel : () => setShowPasswordForm(true)}
+                className={`h-8 w-8 rounded-full border flex items-center justify-center ${
+                  showPasswordForm
+                    ? "border-slate-900 bg-white text-slate-900"
+                    : "border-emerald-300 text-emerald-500"
+                }`}
+                aria-label={showPasswordForm ? "Cerrar contrasena" : "Agregar contrasena"}
               >
-                <Plus size={14} />
+                {showPasswordForm ? <X size={14} /> : <Plus size={14} />}
               </button>
             )}
           </div>
           {showPasswordForm ? (
-            <div className="mt-3 space-y-3" ref={passwordFormRef}>
+            <div className="mt-6 space-y-7" ref={passwordFormRef}>
               <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
                   Contrasena
@@ -167,7 +171,7 @@ export default function Access({ usuario }) {
                 />
               </div>
               {showPasswordRules ? (
-                <div className="space-y-1 text-xs pl-1">
+                <div className="space-y-2 text-xs pl-1 -mt-4">
                   {[
                     {
                       key: "length",
@@ -211,7 +215,7 @@ export default function Access({ usuario }) {
                 />
               </div>
               {showConfirmRule ? (
-                <div className="space-y-1 text-xs pl-1">
+                <div className="space-y-2 text-xs pl-1 -mt-4">
                   {(() => {
                     if (showConfirmErrors && passwordsMatch) return null;
                     const color = passwordsMatch
@@ -229,7 +233,7 @@ export default function Access({ usuario }) {
                   })()}
                 </div>
               ) : null}
-              <div className="mt-4 flex items-center justify-between text-sm font-semibold px-4">
+              <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
                 <button
                   type="button"
                   onClick={handlePasswordCancel}
