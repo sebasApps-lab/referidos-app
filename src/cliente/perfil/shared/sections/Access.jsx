@@ -7,15 +7,27 @@ export default function Access({ usuario }) {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordMode, setPasswordMode] = useState("add");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [passwordAttempted, setPasswordAttempted] = useState(false);
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [pinValue, setPinValue] = useState("");
+  const [pinStep, setPinStep] = useState("create");
+  const [pinFirst, setPinFirst] = useState("");
+  const [pinReveal, setPinReveal] = useState([false, false, false, false]);
   const [focusedField, setFocusedField] = useState(null);
   const [authProvider, setAuthProvider] = useState(null);
   const passwordFormRef = useRef(null);
+  const currentPasswordRef = useRef(null);
   const passwordInputRef = useRef(null);
   const confirmInputRef = useRef(null);
+  const pinInputRefs = useRef([]);
+  const pinRevealTimersRef = useRef([]);
   const { openModal } = useModal();
   const provider = (authProvider || usuario?.provider || "").toLowerCase();
   const hasPassword = provider === "email" || provider === "password";
@@ -48,8 +60,12 @@ export default function Access({ usuario }) {
   const handlePasswordBlur = useCallback(() => {
     requestAnimationFrame(() => {
       const active = document.activeElement;
+      if (active === currentPasswordRef.current) {
+        setFocusedField("current");
+        return;
+      }
       if (active === passwordInputRef.current) {
-        setFocusedField("password");
+        setFocusedField("new");
         return;
       }
       if (active === confirmInputRef.current) {
@@ -68,25 +84,169 @@ export default function Access({ usuario }) {
     passwordValue.length > 0 &&
     passwordConfirm.length > 0 &&
     passwordValue === passwordConfirm;
-  const showPasswordRules = focusedField === "password" || passwordValue.length > 0;
-  const showPasswordErrors = focusedField !== "password" && passwordValue.length > 0;
+  const showPasswordRules = focusedField === "new" || passwordValue.length > 0;
+  const showPasswordErrors = focusedField !== "new" && passwordValue.length > 0;
   const showConfirmErrors = focusedField !== "confirm" && passwordConfirm.length > 0;
   const showConfirmRule =
     hasMinLength && hasNumberAndSymbol && passwordConfirm.length > 0;
   const canSavePassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
+  const showCurrentPasswordError =
+    passwordMode === "change" && passwordAttempted && !currentPassword.trim();
 
   const handlePasswordCancel = () => {
     setPasswordValue("");
     setPasswordConfirm("");
+    setCurrentPassword("");
     setFocusedField(null);
+    setPasswordMode("add");
+    setPasswordAttempted(false);
     setShowPasswordForm(false);
     document.activeElement?.blur();
   };
 
   const handlePasswordSave = () => {
+    setPasswordAttempted(true);
     if (!canSavePassword) return;
+    if (passwordMode === "change" && !currentPassword.trim()) return;
     setShowPasswordForm(false);
+    setPasswordMode("add");
+    setPasswordAttempted(false);
   };
+
+  const openAddPassword = () => {
+    setPasswordMode("add");
+    setCurrentPassword("");
+    setPasswordValue("");
+    setPasswordConfirm("");
+    setPasswordAttempted(false);
+    setShowPasswordForm(true);
+  };
+
+  const openChangePassword = () => {
+    setPasswordMode("change");
+    setCurrentPassword("");
+    setPasswordValue("");
+    setPasswordConfirm("");
+    setPasswordAttempted(false);
+    setShowPasswordForm(true);
+  };
+
+  const sanitizedPin = pinValue.replace(/[^0-9]/g, "").slice(0, 4);
+  const pinSlots = Array(4)
+    .fill("")
+    .map((_, index) => sanitizedPin[index] || "");
+  const pinComplete = pinSlots.every(Boolean);
+  const pinMatches = pinValue === pinFirst;
+
+  const getFirstEmptyPinIndex = () => pinSlots.findIndex((char) => !char);
+  const getLastFilledPinIndex = () => {
+    for (let i = pinSlots.length - 1; i >= 0; i -= 1) {
+      if (pinSlots[i]) return i;
+    }
+    return -1;
+  };
+
+  const focusPinInput = (index) => {
+    window.requestAnimationFrame(() => {
+      pinInputRefs.current[index]?.focus();
+    });
+  };
+
+  const setPinRevealIndex = useCallback((index) => {
+    setPinReveal((prev) => {
+      const next = [...prev];
+      next[index] = true;
+      return next;
+    });
+    if (pinRevealTimersRef.current[index]) {
+      clearTimeout(pinRevealTimersRef.current[index]);
+    }
+    pinRevealTimersRef.current[index] = setTimeout(() => {
+      setPinReveal((prev) => {
+        const next = [...prev];
+        next[index] = false;
+        return next;
+      });
+    }, 400);
+  }, []);
+
+  const updatePinSlot = (nextValue) => {
+    const cleaned = (nextValue || "").replace(/[^0-9]/g, "");
+    if (!cleaned) return;
+    const chars = cleaned.split("");
+    const nextSlots = [...pinSlots];
+    const firstEmpty = getFirstEmptyPinIndex();
+    let cursor = firstEmpty === -1 ? nextSlots.length - 1 : firstEmpty;
+    chars.forEach((char) => {
+      if (cursor < nextSlots.length) {
+        nextSlots[cursor] = char;
+        setPinRevealIndex(cursor);
+        cursor += 1;
+      }
+    });
+    setPinValue(nextSlots.join(""));
+    if (cursor < nextSlots.length) {
+      focusPinInput(cursor);
+    } else {
+      pinInputRefs.current[nextSlots.length - 1]?.blur();
+    }
+  };
+
+  const handlePinKeyDown = (event) => {
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      const lastFilled = getLastFilledPinIndex();
+      if (lastFilled === -1) return;
+      const nextSlots = [...pinSlots];
+      nextSlots[lastFilled] = "";
+      setPinValue(nextSlots.join(""));
+      focusPinInput(lastFilled);
+    }
+  };
+
+  const resetPinForm = useCallback(() => {
+    setPinValue("");
+    setPinFirst("");
+    setPinStep("create");
+    setShowPinForm(false);
+    setPinReveal([false, false, false, false]);
+    pinRevealTimersRef.current.forEach((timer) => {
+      if (timer) clearTimeout(timer);
+    });
+    pinRevealTimersRef.current = [];
+    document.activeElement?.blur();
+  }, []);
+
+  const openPinForm = () => {
+    setPinValue("");
+    setPinFirst("");
+    setPinStep("create");
+    setPinReveal([false, false, false, false]);
+    setShowPinForm(true);
+  };
+
+  const handlePinNext = () => {
+    if (!pinComplete) return;
+    setPinFirst(pinValue);
+    setPinValue("");
+    setPinStep("confirm");
+    setPinReveal([false, false, false, false]);
+    focusPinInput(0);
+  };
+
+  const handlePinConfirm = () => {
+    if (!pinComplete || !pinMatches) return;
+    setPinEnabled(true);
+    resetPinForm();
+  };
+
+  useEffect(() => {
+    return () => {
+      pinRevealTimersRef.current.forEach((timer) => {
+        if (timer) clearTimeout(timer);
+      });
+    };
+  }, []);
 
   return (
     <section className="relative rounded-[30px] border border-[#E9E2F7] px-6 pb-6 pt-6 space-y-6">
@@ -115,7 +275,11 @@ export default function Access({ usuario }) {
                 </span>
               </span>
               <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
-                {showPasswordForm ? "Anadir una contrasena" : "Contrasena"}
+                {showPasswordForm
+                  ? passwordMode === "change"
+                    ? "Cambiar contrasena"
+                    : "Anadir una contrasena"
+                  : "Contrasena"}
               </span>
               {hasPassword ? (
                 <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
@@ -123,7 +287,16 @@ export default function Access({ usuario }) {
                 </span>
               ) : null}
             </div>
-            {hasPassword ? (
+            {showPasswordForm ? (
+              <button
+                type="button"
+                onClick={handlePasswordCancel}
+                className="h-8 w-8 rounded-full border border-slate-900 bg-white text-slate-900 flex items-center justify-center"
+                aria-label="Cerrar contrasena"
+              >
+                <X size={14} />
+              </button>
+            ) : hasPassword ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -136,7 +309,7 @@ export default function Access({ usuario }) {
                   type="button"
                   className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
                   aria-label="Editar contrasena"
-                  onClick={() => setShowPasswordForm(true)}
+                  onClick={openChangePassword}
                 >
                   <Pencil size={14} />
                 </button>
@@ -144,23 +317,55 @@ export default function Access({ usuario }) {
             ) : (
               <button
                 type="button"
-                onClick={showPasswordForm ? handlePasswordCancel : () => setShowPasswordForm(true)}
-                className={`h-8 w-8 rounded-full border flex items-center justify-center ${
-                  showPasswordForm
-                    ? "border-slate-900 bg-white text-slate-900"
-                    : "border-emerald-300 text-emerald-500"
-                }`}
-                aria-label={showPasswordForm ? "Cerrar contrasena" : "Agregar contrasena"}
+                onClick={openAddPassword}
+                className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
+                aria-label="Agregar contrasena"
               >
-                {showPasswordForm ? <X size={14} /> : <Plus size={14} />}
+                <Plus size={14} />
               </button>
             )}
           </div>
           {showPasswordForm ? (
             <div className="mt-6 space-y-7" ref={passwordFormRef}>
+              {passwordMode === "change" ? (
+                <div className="space-y-2">
+                  <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+                    <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
+                      Contrasena anterior
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={currentPasswordRef}
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(event) => setCurrentPassword(event.target.value)}
+                        onFocus={() => handlePasswordFocus("current")}
+                        onBlur={handlePasswordBlur}
+                        className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        className="text-slate-400 hover:text-slate-600"
+                        aria-label={
+                          showCurrentPassword ? "Ocultar contrasena" : "Mostrar contrasena"
+                        }
+                      >
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  {showCurrentPasswordError ? (
+                    <div className="flex items-center gap-2 text-xs text-red-500 pl-1">
+                      <X size={12} />
+                      La contrasena no coincide con la anterior
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-                  Contrasena
+                  {passwordMode === "change" ? "Nueva contrasena" : "Contrasena"}
                 </span>
                 <div className="flex items-center gap-2">
                   <input
@@ -168,7 +373,7 @@ export default function Access({ usuario }) {
                     type={showPassword ? "text" : "password"}
                     value={passwordValue}
                     onChange={(event) => setPasswordValue(event.target.value)}
-                    onFocus={() => handlePasswordFocus("password")}
+                    onFocus={() => handlePasswordFocus("new")}
                     onBlur={handlePasswordBlur}
                     className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
                   />
@@ -214,7 +419,7 @@ export default function Access({ usuario }) {
               ) : null}
               <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-                  Verificar contrasena
+                  {passwordMode === "change" ? "Confirmar contrasena" : "Verificar contrasena"}
                 </span>
                 <div className="flex items-center gap-2">
                   <input
@@ -297,13 +502,6 @@ export default function Access({ usuario }) {
               >
                 <Minus size={14} />
               </button>
-              <button
-                type="button"
-                className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
-                aria-label="Editar huella"
-              >
-                <Pencil size={14} />
-              </button>
             </div>
           ) : (
             <button
@@ -324,46 +522,132 @@ export default function Access({ usuario }) {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lock size={18} className="text-[#5E30A5]" />
-            <span className="text-xs font-semibold text-[#2F1A55]">
-              PIN
-            </span>
-            {pinEnabled ? (
-              <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
-                <Check size={12} />
-              </span>
-            ) : null}
-          </div>
-          {pinEnabled ? (
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPinEnabled(false)}
-                className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
-                aria-label="Quitar PIN"
-              >
-                <Minus size={14} />
-              </button>
-              <button
-                type="button"
-                className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
-                aria-label="Editar PIN"
-              >
-                <Pencil size={14} />
-              </button>
+              <Lock size={18} className="text-[#5E30A5]" />
+              <span className="text-xs font-semibold text-[#2F1A55]">
+                {showPinForm ? (pinStep === "confirm" ? "Confirmar PIN" : "Anadir PIN") : "PIN"}
+              </span>
+              {pinEnabled ? (
+                <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
+                  <Check size={12} />
+                </span>
+              ) : null}
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPinEnabled(true)}
-              className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
-              aria-label="Agregar PIN"
-            >
-              <Plus size={14} />
-            </button>
-          )}
+            {pinEnabled ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPinEnabled(false)}
+                  className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
+                  aria-label="Quitar PIN"
+                >
+                  <Minus size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (showPinForm) {
+                    resetPinForm();
+                  } else {
+                    openPinForm();
+                    focusPinInput(0);
+                  }
+                }}
+                className={`h-8 w-8 rounded-full border flex items-center justify-center ${
+                  showPinForm
+                    ? "border-slate-900 bg-white text-slate-900"
+                    : "border-emerald-300 text-emerald-500"
+                }`}
+                aria-label={showPinForm ? "Cerrar PIN" : "Agregar PIN"}
+              >
+                {showPinForm ? <X size={14} /> : <Plus size={14} />}
+              </button>
+            )}
+          </div>
+          {showPinForm ? (
+            <div className="mt-4 space-y-5">
+              <p className="text-xs text-slate-500 text-center">
+                {pinStep === "confirm" ? "Ingresar el PIN de nuevo." : "Ingresa un PIN."}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                {pinSlots.map((char, index) => (
+                  <input
+                    key={`pin-${index}`}
+                    value={char}
+                    onChange={(event) => updatePinSlot(event.target.value)}
+                    onKeyDown={handlePinKeyDown}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      const firstEmpty = getFirstEmptyPinIndex();
+                      const targetIndex =
+                        firstEmpty === -1 ? pinSlots.length - 1 : firstEmpty;
+                      pinInputRefs.current[targetIndex]?.focus();
+                    }}
+                    ref={(el) => {
+                      pinInputRefs.current[index] = el;
+                    }}
+                    maxLength={1}
+                    type={pinReveal[index] ? "text" : "password"}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
+                  />
+                ))}
+              </div>
+              {pinStep === "confirm" ? (
+                <div className="text-xs pl-1 text-center">
+                  {(() => {
+                    const color = pinComplete
+                      ? pinMatches
+                        ? "text-emerald-600"
+                        : "text-red-500"
+                      : "text-slate-400";
+                    const Icon = pinComplete ? (pinMatches ? Check : X) : X;
+                    return (
+                      <span className={`inline-flex items-center gap-2 ${color}`}>
+                        <Icon size={12} />
+                        El PIN debe coincidir
+                      </span>
+                    );
+                  })()}
+                </div>
+              ) : null}
+              <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
+                <button
+                  type="button"
+                  onClick={resetPinForm}
+                  className="text-[#2F1A55]"
+                >
+                  Cancelar
+                </button>
+                {pinStep === "confirm" ? (
+                  <button
+                    type="button"
+                    onClick={handlePinConfirm}
+                    disabled={!pinComplete || !pinMatches}
+                    className={
+                      pinComplete && pinMatches ? "text-[#5E30A5]" : "text-slate-400"
+                    }
+                  >
+                    Confirmar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handlePinNext}
+                    disabled={!pinComplete}
+                    className={pinComplete ? "text-[#5E30A5]" : "text-slate-400"}
+                  >
+                    Siguiente
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
