@@ -34,7 +34,7 @@ export const useAppStore = create(
         if (typeof document === "undefined") return;
         if (document.visibilityState === "hidden") return;
         const { promosVisible } = get();
-        const intervalMs = promosVisible ? 60000 : 300000;
+        const intervalMs = 12 * 60 * 60 * 1000;
         promosRefreshTimer = setTimeout(async () => {
           if (!promosAutoRefreshActive) return;
           await get().loadPromos({ silent: true, force: true });
