@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Asterisk, Check, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Asterisk, Check, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, X } from "lucide-react";
 import { useModal } from "../../../../modals/useModal";
 import { supabase } from "../../../../lib/supabaseClient";
 
@@ -7,7 +7,13 @@ export default function Access({ usuario }) {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [focusedField, setFocusedField] = useState(null);
   const [authProvider, setAuthProvider] = useState(null);
+  const passwordFormRef = useRef(null);
+  const passwordInputRef = useRef(null);
+  const confirmInputRef = useRef(null);
   const { openModal } = useModal();
   const provider = (authProvider || usuario?.provider || "").toLowerCase();
   const hasPassword = provider === "email" || provider === "password";
@@ -32,6 +38,53 @@ export default function Access({ usuario }) {
       setShowPasswordForm(false);
     }
   }, [hasPassword, showPasswordForm]);
+
+  const handlePasswordFocus = useCallback((field) => {
+    setFocusedField(field);
+  }, []);
+
+  const handlePasswordBlur = useCallback(() => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active === passwordInputRef.current) {
+        setFocusedField("password");
+        return;
+      }
+      if (active === confirmInputRef.current) {
+        setFocusedField("confirm");
+        return;
+      }
+      setFocusedField(null);
+    });
+  }, []);
+
+  const hasMinLength = passwordValue.length >= 8;
+  const hasNumber = /\d/.test(passwordValue);
+  const hasSymbol = /[^A-Za-z0-9]/.test(passwordValue);
+  const hasNumberAndSymbol = hasNumber && hasSymbol;
+  const passwordsMatch =
+    passwordValue.length > 0 &&
+    passwordConfirm.length > 0 &&
+    passwordValue === passwordConfirm;
+  const showPasswordRules = focusedField === "password" || passwordValue.length > 0;
+  const showPasswordErrors = focusedField !== "password" && passwordValue.length > 0;
+  const showConfirmErrors = focusedField !== "confirm" && passwordConfirm.length > 0;
+  const showConfirmRule =
+    hasMinLength && hasNumberAndSymbol && passwordConfirm.length > 0;
+  const canSavePassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
+
+  const handlePasswordCancel = () => {
+    setPasswordValue("");
+    setPasswordConfirm("");
+    setFocusedField(null);
+    setShowPasswordForm(false);
+    document.activeElement?.blur();
+  };
+
+  const handlePasswordSave = () => {
+    if (!canSavePassword) return;
+    setShowPasswordForm(false);
+  };
 
   return (
     <section className="relative rounded-[30px] border border-[#E9E2F7] px-6 pb-6 pt-6 space-y-6">
@@ -60,7 +113,7 @@ export default function Access({ usuario }) {
                 </span>
               </span>
               <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
-                Contrasena
+                {showPasswordForm ? "Anadir una contrasena" : "Contrasena"}
               </span>
               {hasPassword ? (
                 <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
@@ -98,24 +151,101 @@ export default function Access({ usuario }) {
             )}
           </div>
           {showPasswordForm ? (
-            <div className="mt-3 space-y-3">
-              <input
-                type="password"
-                placeholder="Contrasena actual"
-                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
-              />
-              <input
-                type="password"
-                placeholder="Nueva contrasena"
-                className="w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPasswordForm(false)}
-                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4B2488]"
-              >
-                Cambiar contrasena
-              </button>
+            <div className="mt-3 space-y-3" ref={passwordFormRef}>
+              <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+                <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
+                  Contrasena
+                </span>
+                <input
+                  ref={passwordInputRef}
+                  type="password"
+                  value={passwordValue}
+                  onChange={(event) => setPasswordValue(event.target.value)}
+                  onFocus={() => handlePasswordFocus("password")}
+                  onBlur={handlePasswordBlur}
+                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                />
+              </div>
+              {showPasswordRules ? (
+                <div className="space-y-1 text-xs pl-1">
+                  {[
+                    {
+                      key: "length",
+                      ok: hasMinLength,
+                      label: "Al menos 8 caracteres",
+                    },
+                    {
+                      key: "symbols",
+                      ok: hasNumberAndSymbol,
+                      label: "Incluye un simbolo y un numero",
+                    },
+                  ].map((item) => {
+                    if (showPasswordErrors && item.ok) return null;
+                    const color = item.ok
+                      ? "text-emerald-600"
+                      : showPasswordErrors
+                        ? "text-red-500"
+                        : "text-slate-400";
+                    const Icon = item.ok ? Check : X;
+                    return (
+                      <div key={item.key} className={`flex items-center gap-2 ${color}`}>
+                        <Icon size={12} />
+                        {item.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+                <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
+                  Verificar contrasena
+                </span>
+                <input
+                  ref={confirmInputRef}
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(event) => setPasswordConfirm(event.target.value)}
+                  onFocus={() => handlePasswordFocus("confirm")}
+                  onBlur={handlePasswordBlur}
+                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                />
+              </div>
+              {showConfirmRule ? (
+                <div className="space-y-1 text-xs pl-1">
+                  {(() => {
+                    if (showConfirmErrors && passwordsMatch) return null;
+                    const color = passwordsMatch
+                      ? "text-emerald-600"
+                      : showConfirmErrors
+                        ? "text-red-500"
+                        : "text-slate-400";
+                    const Icon = passwordsMatch ? Check : X;
+                    return (
+                      <div className={`flex items-center gap-2 ${color}`}>
+                        <Icon size={12} />
+                        Las contrasenas deben coincidir
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : null}
+              <div className="mt-4 flex items-center justify-between text-sm font-semibold px-4">
+                <button
+                  type="button"
+                  onClick={handlePasswordCancel}
+                  className="text-[#2F1A55]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePasswordSave}
+                  disabled={!canSavePassword}
+                  className={canSavePassword ? "text-[#5E30A5]" : "text-slate-400"}
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
           ) : null}
         </div>

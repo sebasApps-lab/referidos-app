@@ -150,28 +150,33 @@ export default function ModalFingerprintPrompt({ onConfirm, userId, email, displ
         {message}
       </p>
 
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          disabled={status === "reading"}
-          onClick={closeModal}
-          className={`text-sm font-semibold ${status === "reading" ? "text-slate-300" : "text-slate-600"}`}
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={status === "reading"}
-          className={`rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${
-            status === "reading"
-              ? "bg-[#5E30A5]/60"
-              : "bg-[#5E30A5] hover:bg-[#4B2488]"
-          }`}
-        >
-          {status === "reading" ? "Leyendo..." : "Continuar"}
-        </button>
-      </div>
+      {status !== "success" ? (
+        <div className="flex items-center justify-between">
+          {status !== "reading" ? (
+            <button
+              type="button"
+              onClick={closeModal}
+              className="text-sm font-semibold text-slate-600"
+            >
+              Cancelar
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={status === "reading"}
+            className={`rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${
+              status === "reading"
+                ? "bg-[#5E30A5]/60"
+                : "bg-[#5E30A5] hover:bg-[#4B2488]"
+            }`}
+          >
+            {status === "reading" ? "Leyendo..." : "Continuar"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
