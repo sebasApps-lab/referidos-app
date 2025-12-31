@@ -7,7 +7,7 @@ import {
   getTierProgress,
 } from "../../../services/clienteUI";
 
-export default function Plan({ usuario }) {
+export default function Tier({ usuario }) {
   const isNegocio = usuario?.role === "negocio";
   const tier = getTierMeta(usuario);
   const progress = getTierProgress(usuario);

@@ -9,6 +9,7 @@ import ModalEliminarCuenta from "../components/modals/ModalEliminarCuenta";
 import ModalSplashChoiceOverlay from "../components/modals/ModalSplashChoiceOverlay";
 import ModalSplashEmailConfirmation from "../components/modals/ModalSplashEmailConfirmation";
 import ModalFingerprintPrompt from "../components/modals/ModalFingerprintPrompt";
+import ModalNotifications from "../components/modals/ModalNotifications";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -20,4 +21,5 @@ export const modalRegistry = {
   SplashChoiceOverlay: ModalSplashChoiceOverlay,
   SplashEmailConfirmation: ModalSplashEmailConfirmation,
   FingerprintPrompt: ModalFingerprintPrompt,
+  Notifications: ModalNotifications,
 };
