@@ -299,12 +299,12 @@ export default function PersonalData({ usuario, setUser, verification }) {
                 className="flex w-full items-center gap-2 flex-nowrap min-w-0 overflow-hidden text-left"
               >
                 <Mail size={16} className="text-slate-400 shrink-0" />
-                <span className="truncate whitespace-nowrap">
+                <span className="truncate whitespace-nowrap flex-1 min-w-0">
                   {form.email || "Sin correo"}
                 </span>
                 {!verification.emailVerified ? (
                   <span
-                    className={`inline-flex items-center rounded-full bg-red-50 text-[11px] font-semibold text-red-600 shrink-0 transition-all duration-200 ease-out ${
+                    className={`ml-auto inline-flex items-center rounded-full bg-red-50 text-[11px] font-semibold text-red-600 shrink-0 transition-all duration-200 ease-out ${
                       expandedEmail ? "px-1.5 py-0.5 h-5" : "gap-1 px-2 py-0.5 h-5"
                     }`}
                   >
