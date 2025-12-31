@@ -30,7 +30,6 @@ import Sessions from "./shared/sections/Sessions";
 import Notifications from "./shared/sections/Notifications";
 import Tier from "./shared/sections/Tier";
 import ManageAccount from "./shared/sections/ManageAccount";
-import Preferences from "./shared/sections/Preferences";
 import AppAppearance from "./shared/sections/AppAppearance";
 import Language from "./shared/sections/Language";
 
@@ -97,7 +96,6 @@ export default function ClientePerfil() {
       sessions: Sessions,
       notifications: Notifications,
       plan: Tier,
-      preferences: Preferences,
       appearance: AppAppearance,
       language: Language,
       manage: ManageAccount,

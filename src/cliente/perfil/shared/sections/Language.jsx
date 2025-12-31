@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Languages, Moon, Sun, Type } from "lucide-react";
 
-export default function Preferences() {
+export default function Language() {
   const [theme, setTheme] = useState("claro");
   const [font, setFont] = useState("actual");
   const [language, setLanguage] = useState("es");
