@@ -304,11 +304,13 @@ export default function PersonalData({ usuario, setUser, verification }) {
                 </span>
                 {!verification.emailVerified ? (
                   <span
-                    className={`ml-auto inline-flex items-center rounded-full bg-red-50 text-[11px] font-semibold text-red-600 shrink-0 transition-all duration-200 ease-out ${
+                    className={`ml-auto inline-flex items-center rounded-full bg-amber-50 text-[11px] font-semibold text-amber-600 shrink-0 transition-all duration-200 ease-out ${
                       expandedEmail ? "px-1.5 py-0.5 h-5" : "gap-1 px-2 py-0.5 h-5"
                     }`}
                   >
-                    <X size={12} />
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#F4B740] text-[12px] font-black text-white leading-none">
+                      —
+                    </span>
                     <span
                       className={`overflow-hidden transition-all duration-200 ease-out ${
                         expandedEmail ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
