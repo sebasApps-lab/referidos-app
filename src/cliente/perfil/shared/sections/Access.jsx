@@ -3,6 +3,8 @@ import { Asterisk, Check, Eye, EyeOff, Fingerprint, KeyRound, Lock, Minus, Penci
 import { useModal } from "../../../../modals/useModal";
 import { supabase } from "../../../../lib/supabaseClient";
 
+let accessInfoDismissed = false;
+
 export default function Access({ usuario }) {
   const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
@@ -24,19 +26,23 @@ export default function Access({ usuario }) {
   const [authProvider, setAuthProvider] = useState(null);
   const [passwordEnabled, setPasswordEnabled] = useState(null);
   const [removalBlocked, setRemovalBlocked] = useState(false);
+  const [dismissedMethodsWarning, setDismissedMethodsWarning] = useState(false);
+  const [dismissedInfo, setDismissedInfo] = useState(accessInfoDismissed);
   const passwordFormRef = useRef(null);
   const currentPasswordRef = useRef(null);
   const passwordInputRef = useRef(null);
   const confirmInputRef = useRef(null);
   const pinInputRefs = useRef([]);
   const pinRevealTimersRef = useRef([]);
+  const prevUserIdRef = useRef(null);
   const { openModal } = useModal();
   const provider = (authProvider || usuario?.provider || "").toLowerCase();
   const hasPassword = provider === "email" || provider === "password";
   const passwordActive = passwordEnabled ?? hasPassword;
   const methodsCount =
     (passwordActive ? 1 : 0) + (fingerprintEnabled ? 1 : 0) + (pinEnabled ? 1 : 0);
-  const showMethodsWarning = methodsCount === 0 || removalBlocked;
+  const showMethodsWarning =
+    (methodsCount === 0 || removalBlocked) && !dismissedMethodsWarning;
 
   useEffect(() => {
     let active = true;
@@ -68,6 +74,21 @@ export default function Access({ usuario }) {
       setShowPasswordForm(false);
     }
   }, [passwordActive, showPasswordForm, passwordMode]);
+
+  useEffect(() => {
+    if (methodsCount === 0) {
+      setDismissedMethodsWarning(false);
+    }
+  }, [methodsCount]);
+
+  useEffect(() => {
+    const currentId = usuario?.id_auth ?? null;
+    if (prevUserIdRef.current !== currentId) {
+      prevUserIdRef.current = currentId;
+      accessInfoDismissed = false;
+      setDismissedInfo(false);
+    }
+  }, [usuario?.id_auth]);
 
   useEffect(() => {
     if (methodsCount > 1 && removalBlocked) {
@@ -266,6 +287,7 @@ export default function Access({ usuario }) {
   const handleRemovePassword = () => {
     if (methodsCount <= 1) {
       setRemovalBlocked(true);
+      setDismissedMethodsWarning(false);
       return;
     }
     setPasswordEnabled(false);
@@ -274,6 +296,7 @@ export default function Access({ usuario }) {
   const handleRemoveFingerprint = () => {
     if (methodsCount <= 1) {
       setRemovalBlocked(true);
+      setDismissedMethodsWarning(false);
       return;
     }
     setFingerprintEnabled(false);
@@ -282,6 +305,7 @@ export default function Access({ usuario }) {
   const handleRemovePin = () => {
     if (methodsCount <= 1) {
       setRemovalBlocked(true);
+      setDismissedMethodsWarning(false);
       return;
     }
     setPinEnabled(false);
@@ -311,6 +335,14 @@ export default function Access({ usuario }) {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-xs text-red-500">
           <TriangleAlert size={16} className="text-red-500" />
           Es necesario al menos un metodo de verificacion.
+          <button
+            type="button"
+            onClick={() => setDismissedMethodsWarning(true)}
+            className="ml-auto text-red-400 hover:text-red-500"
+            aria-label="Cerrar aviso"
+          >
+            <X size={14} />
+          </button>
         </div>
       ) : null}
 
@@ -705,10 +737,23 @@ export default function Access({ usuario }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
-        <KeyRound size={16} className="text-[#5E30A5]" />
-        Cambios sensibles requieren verificacion antes de guardarse.
-      </div>
+      {!dismissedInfo ? (
+        <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
+          <KeyRound size={16} className="text-[#5E30A5]" />
+          Cambios sensibles requieren verificacion antes de guardarse.
+          <button
+            type="button"
+            onClick={() => {
+              accessInfoDismissed = true;
+              setDismissedInfo(true);
+            }}
+            className="ml-auto text-slate-400 hover:text-slate-500"
+            aria-label="Cerrar aviso"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : null}
 
     </section>
   );
