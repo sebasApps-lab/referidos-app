@@ -57,7 +57,7 @@ export default function ClienteInicio() {
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
   const { docked: searchDocked, heroVisible } = useSearchDock();
-  const { setHeaderOptions } = useClienteHeader();
+  const { setHeaderOptions, headerEntering } = useClienteHeader();
 
   const usePromosPreview = true;
 
@@ -161,13 +161,15 @@ export default function ClienteInicio() {
           )
         }
       >
-        <InicioHero
-          usuario={usuario}
-          searchValue={query}
-          onSearchChange={setQuery}
-          onSearchFocus={onFocus}
-          hideSearch={hideHeroSearch}
-        />
+        <div className={headerEntering ? "cliente-merge-enter" : ""}>
+          <InicioHero
+            usuario={usuario}
+            searchValue={query}
+            onSearchChange={setQuery}
+            onSearchFocus={onFocus}
+            hideSearch={hideHeroSearch}
+          />
+        </div>
         <div className="mt-4">
           {filtersOpen && (
             <MenuFilters onClose={() => setFiltersOpen(false)} />

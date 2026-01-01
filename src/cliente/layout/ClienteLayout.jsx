@@ -22,7 +22,7 @@ function ClienteLayoutInner({ children }) {
   });
   const headerRef = useRef(null);
   const mainRef = useRef(null);
-  const { mode, headerVisible } = useClienteHeader();
+  const { mode, headerVisible, headerEntering } = useClienteHeader();
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerVisible) {
@@ -132,7 +132,9 @@ function ClienteLayoutInner({ children }) {
         {headerVisible ? (
           <div
             ref={headerRef}
-            className="fixed left-0 right-0 z-40"
+            className={`fixed left-0 right-0 z-40 ${
+              headerEntering ? "cliente-merge-enter" : ""
+            }`}
             style={{ top: "var(--cliente-viewport-offset, 0px)" }}
           >
             <ClienteHeader
