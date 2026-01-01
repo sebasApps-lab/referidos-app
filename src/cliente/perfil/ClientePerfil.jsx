@@ -32,6 +32,8 @@ import Tier from "./shared/sections/Tier";
 import ManageAccount from "./shared/sections/ManageAccount";
 import AppAppearance from "./shared/sections/AppAppearance";
 import Language from "./shared/sections/Language";
+import SupportHelp from "./shared/sections/SupportHelp";
+import SupportFeedback from "./shared/sections/SupportFeedback";
 
 export default function ClientePerfil() {
   const usuario = useAppStore((s) => s.usuario);
@@ -80,6 +82,13 @@ export default function ClientePerfil() {
         ],
       },
       {
+        title: "Soporte",
+        items: [
+          { key: "help", label: "Ayuda", icon: Shield },
+          { key: "feedback", label: "Dejar un comentario", icon: Shield },
+        ],
+      },
+      {
         items: [{ key: "signout", label: "Cerrar sesion", icon: LogOut, tone: "danger" }],
       },
     ],
@@ -98,6 +107,8 @@ export default function ClientePerfil() {
       plan: Tier,
       appearance: AppAppearance,
       language: Language,
+      help: SupportHelp,
+      feedback: SupportFeedback,
       manage: ManageAccount,
     }),
     []
