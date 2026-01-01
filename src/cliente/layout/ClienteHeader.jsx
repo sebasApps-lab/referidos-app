@@ -33,7 +33,7 @@ export default function ClienteHeader({
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
-  const { mode, onSearchBack } = useClienteHeader();
+  const { mode, onSearchBack, profileDockOpen } = useClienteHeader();
   const scrollDistanceRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   const tier = getTierMeta(usuario);
@@ -104,9 +104,10 @@ export default function ClienteHeader({
     setQueueVisible(false);
   }, [mode]);
 
-  const headerClass = isElevated
-    ? "relative bg-[#5E30A5] text-white shadow-md"
-    : "relative bg-[#5E30A5] text-white shadow-none";
+  const profileRounded = mode === "profile" && !profileDockOpen;
+  const headerClass = `${isElevated ? "shadow-md" : "shadow-none"} relative bg-[#5E30A5] text-white transition-[border-radius] duration-250${
+    profileRounded ? " rounded-b-lg" : ""
+  }`;
 
   return (
     <div id="cliente-header" className={headerClass}>

@@ -306,6 +306,27 @@ html {
   will-change: transform, opacity;
 }
 
+.profile-search-dock {
+  overflow: hidden;
+  transform: none;
+  opacity: 1;
+}
+
+.profile-search-dock .hero-search-surface > div {
+  padding-top: 12px;
+}
+
+.profile-search-dock[data-state="closed"],
+.profile-search-dock[data-state="open"] {
+  transform: none;
+  opacity: 1;
+}
+
+.profile-search-panel {
+  transform-origin: top center;
+  will-change: transform, opacity;
+}
+
 .hero-search-dock[data-state="closed"] {
   opacity: 0;
   transform: translate3d(0, -12px, 0) scaleY(0.96);

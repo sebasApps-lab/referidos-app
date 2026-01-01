@@ -55,6 +55,7 @@ export default function ClientePerfil() {
   const tabTransitionRef = useRef(null);
   const [searchValue, setSearchValue] = useState("");
   const [dockTarget, setDockTarget] = useState(null);
+  const showSearchDock = profileView === "tabs";
 
   const tabGroups = useMemo(
     () => [
@@ -158,15 +159,17 @@ export default function ClientePerfil() {
       mode: "profile",
       onSearchBack: profileView === "panel" ? handleBack : null,
       headerVisible: true,
+      profileDockOpen: showSearchDock,
     });
     return () => {
       setHeaderOptions({
         mode: "default",
         onSearchBack: null,
         headerVisible: true,
+        profileDockOpen: true,
       });
     };
-  }, [handleBack, profileView, setHeaderOptions]);
+  }, [handleBack, profileView, setHeaderOptions, showSearchDock]);
 
   useEffect(() => {
     setDockTarget(document.getElementById("cliente-header-search-dock"));
@@ -192,10 +195,25 @@ export default function ClientePerfil() {
         ? createPortal(
             <HeaderPanelContainer
               open
-              panelClassName="hero-search-dock"
-              panelProps={{ "aria-hidden": false }}
+              panelClassName="hero-search-dock profile-search-dock"
+              panelProps={{
+                "aria-hidden": !showSearchDock,
+                style: { pointerEvents: showSearchDock ? "auto" : "none" },
+              }}
             >
-              <SearchbarPanel value={searchValue} onChange={setSearchValue} />
+              <motion.div
+                className="profile-search-panel"
+                initial={false}
+                animate={{
+                  y: showSearchDock ? 0 : "-100%",
+                }}
+                transition={{ duration: 5, ease: "easeOut" }}
+              >
+                <SearchbarPanel
+                  value={searchValue}
+                  onChange={setSearchValue}
+                />
+              </motion.div>
             </HeaderPanelContainer>,
             dockTarget
           )
