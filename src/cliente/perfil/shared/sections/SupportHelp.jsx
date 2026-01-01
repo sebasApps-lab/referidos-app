@@ -13,8 +13,20 @@ export default function SupportHelp() {
           Encuentra respuestas rapidas y soporte de la app.
         </p>
       </div>
-      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 text-sm text-slate-500">
-        Proximamente.
+      <div className="space-y-3">
+        {[
+          "Preguntas frecuentes",
+          "Recibir soporte por correo",
+          "Chatear con un asesor",
+        ].map((item) => (
+          <button
+            key={item}
+            type="button"
+            className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3 text-left text-sm font-semibold text-[#2F1A55]"
+          >
+            {item}
+          </button>
+        ))}
       </div>
     </section>
   );

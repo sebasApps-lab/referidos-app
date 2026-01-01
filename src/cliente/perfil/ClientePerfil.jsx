@@ -7,10 +7,12 @@ import {
   Crown,
   Fingerprint,
   Globe,
+  HelpCircle,
   IdCard,
   KeyRound,
   Link2,
   LogOut,
+  MessageSquare,
   Monitor,
   Palette,
   Shield,
@@ -84,8 +86,8 @@ export default function ClientePerfil() {
       {
         title: "Soporte",
         items: [
-          { key: "help", label: "Ayuda", icon: Shield },
-          { key: "feedback", label: "Dejar un comentario", icon: Shield },
+          { key: "help", label: "Ayuda", icon: HelpCircle },
+          { key: "feedback", label: "Dejar un comentario", icon: MessageSquare },
         ],
       },
       {
