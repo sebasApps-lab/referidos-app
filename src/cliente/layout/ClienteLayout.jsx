@@ -22,30 +22,41 @@ function ClienteLayoutInner({ children }) {
   });
   const headerRef = useRef(null);
   const mainRef = useRef(null);
-  const { mode } = useClienteHeader();
+  const { mode, headerVisible } = useClienteHeader();
 
   const updateHeaderHeight = useCallback(() => {
-    if (!headerRef.current) return;
+    if (!headerVisible) {
+      setHeaderHeight(0);
+      return;
+    }
+    if (!headerRef.current) {
+      setHeaderHeight(FALLBACK_HEADER_HEIGHT);
+      return;
+    }
     setHeaderHeight(headerRef.current.offsetHeight || FALLBACK_HEADER_HEIGHT);
-  }, []);
+  }, [headerVisible]);
 
   useLayoutEffect(() => {
     updateHeaderHeight();
     let observer;
-    if (typeof ResizeObserver !== "undefined" && headerRef.current) {
+    if (
+      headerVisible &&
+      typeof ResizeObserver !== "undefined" &&
+      headerRef.current
+    ) {
       observer = new ResizeObserver(() => updateHeaderHeight());
       observer.observe(headerRef.current);
-    } else {
+    } else if (headerVisible) {
       window.addEventListener("resize", updateHeaderHeight);
     }
     return () => {
       if (observer) {
         observer.disconnect();
-      } else {
+      } else if (headerVisible) {
         window.removeEventListener("resize", updateHeaderHeight);
       }
     };
-  }, [updateHeaderHeight]);
+  }, [headerVisible, updateHeaderHeight]);
 
   useEffect(() => {
     const updateViewport = () => {
@@ -118,18 +129,20 @@ function ClienteLayoutInner({ children }) {
       }}
     >
       <div className="relative z-10 flex h-full min-h-0 flex-col">
-        <div
-          ref={headerRef}
-          className="fixed left-0 right-0 z-40"
-          style={{ top: "var(--cliente-viewport-offset, 0px)" }}
-        >
-          <ClienteHeader
-            usuario={usuario}
-            avatarSrc={getAvatarSrc(usuario)}
-            onOpenMenu={() => setMenuOpen(true)}
-            isElevated={headerElevated}
-          />
-        </div>
+        {headerVisible ? (
+          <div
+            ref={headerRef}
+            className="fixed left-0 right-0 z-40"
+            style={{ top: "var(--cliente-viewport-offset, 0px)" }}
+          >
+            <ClienteHeader
+              usuario={usuario}
+              avatarSrc={getAvatarSrc(usuario)}
+              onOpenMenu={() => setMenuOpen(true)}
+              isElevated={headerElevated}
+            />
+          </div>
+        ) : null}
 
         <main
           ref={mainRef}

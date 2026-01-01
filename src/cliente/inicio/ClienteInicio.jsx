@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "../../store/appStore";
 import MenuFilters from "../../components/menus/MenuFilters";
@@ -79,15 +79,18 @@ export default function ClienteInicio() {
   const showSearchDock = searchDocked || mode === "search";
   const hideHeroSearch = showSearchDock && !heroVisible;
 
-  useEffect(() => {
+  const headerVisible = !(loading && promos.length === 0);
+
+  useLayoutEffect(() => {
     setHeaderOptions({
       mode,
       onSearchBack: onCancel,
+      headerVisible,
     });
     return () => {
-      setHeaderOptions({ mode: "default", onSearchBack: null });
+      setHeaderOptions({ mode: "default", onSearchBack: null, headerVisible: true });
     };
-  }, [mode, onCancel, setHeaderOptions]);
+  }, [headerVisible, mode, onCancel, setHeaderOptions]);
 
   useEffect(() => {
     startPromosAutoRefresh();
