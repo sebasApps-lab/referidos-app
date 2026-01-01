@@ -246,10 +246,11 @@ export default function EscanerView() {
 
   return (
     <div
-      className="flex flex-col flex-1 w-full px-4 pb-12 pt-4"
+      className={`flex min-h-full flex-col flex-1 w-full ${showPermissionIntro ? "" : "px-4 pt-4"}`}
       style={{
-        minHeight:
-          "calc(100dvh - var(--cliente-header-height, 0px) - 80px - env(safe-area-inset-bottom))",
+        paddingBottom: showPermissionIntro
+          ? 0
+          : "calc(10px + env(safe-area-inset-bottom))",
       }}
     >
       {!showPermissionIntro && (
@@ -288,11 +289,11 @@ export default function EscanerView() {
         )}
 
         {showPermissionIntro && (
-          <div className="relative flex flex-1 -mx-4 -mt-4 items-center justify-center overflow-hidden">
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-[#F7F2FF] via-white to-white" />
             <div className="absolute -top-20 -right-10 h-52 w-52 rounded-full bg-[#E9DFFF] opacity-70 blur-3xl" />
             <div className="absolute -bottom-24 -left-10 h-56 w-56 rounded-full bg-[#EFE7FF] opacity-80 blur-3xl" />
-            <div className="relative z-10 w-full max-w-md px-6 py-12 text-center">
+            <div className="relative z-10 w-full h-full max-w-md px-6 text-center">
               <div className="relative mx-auto h-36 w-36">
                 <div className="absolute inset-0 rounded-[36px] bg-[#F3EEFF] shadow-[0_20px_50px_rgba(94,48,165,0.18)]" />
                 <div className="absolute inset-0 flex items-center justify-center text-[#5E30A5]">
