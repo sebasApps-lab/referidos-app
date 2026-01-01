@@ -137,12 +137,13 @@ function ClienteLayoutInner({ children }) {
             }`}
             style={{ top: "var(--cliente-viewport-offset, 0px)" }}
           >
-            <ClienteHeader
-              usuario={usuario}
-              avatarSrc={getAvatarSrc(usuario)}
-              onOpenMenu={() => setMenuOpen(true)}
-              isElevated={headerElevated}
-            />
+          <ClienteHeader
+            usuario={usuario}
+            avatarSrc={getAvatarSrc(usuario)}
+            onOpenMenu={() => setMenuOpen(true)}
+            isElevated={headerElevated}
+            onLogout={logout}
+          />
           </div>
         ) : null}
 

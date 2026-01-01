@@ -5,7 +5,12 @@ import {
   NotificationsPanel,
   QueuePanel,
 } from "../../components/header-panels";
-import { HeaderActions, UserIdentity } from "../../components/header-elements";
+import { ChevronLeft, LogOut } from "lucide-react";
+import {
+  HeaderActions,
+  TabTitle,
+  UserIdentity,
+} from "../../components/header-elements";
 import SearchHeader from "../../components/search/SearchHeader";
 import { useClienteHeader } from "./ClienteHeaderContext";
 import {
@@ -19,6 +24,7 @@ export default function ClienteHeader({
   avatarSrc,
   onOpenMenu,
   onOpenNotifications,
+  onLogout,
   isElevated = false,
 }) {
   const [locationOpen, setLocationOpen] = useState(false);
@@ -106,6 +112,32 @@ export default function ClienteHeader({
     <div id="cliente-header" className={headerClass}>
       {mode === "search" ? (
         <SearchHeader title="Qrew" onBack={onSearchBack} />
+      ) : mode === "profile" ? (
+        <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+          <TabTitle
+            title="Configuracion"
+            action={
+              <button
+                type="button"
+                aria-label="Cerrar sesion"
+                onClick={onLogout}
+                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+              >
+                <LogOut size={18} />
+              </button>
+            }
+          />
+          {onSearchBack ? (
+            <button
+              type="button"
+              onClick={onSearchBack}
+              aria-label="Volver"
+              className="absolute left-4 top-3 h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          ) : null}
+        </div>
       ) : (
         <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
           <div className="flex items-center justify-between gap-4">

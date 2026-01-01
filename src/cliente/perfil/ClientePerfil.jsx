@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -22,7 +23,11 @@ import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../hooks/useClienteUI";
 import ProfileTabs from "./shared/ProfileTabs";
 import ProfilePanel from "./shared/ProfilePanel";
-import SearchBar from "../../components/search/SearchBar";
+import {
+  HeaderPanelContainer,
+  SearchbarPanel,
+} from "../../components/header-panels";
+import { useClienteHeader } from "../layout/ClienteHeaderContext";
 import ProfileOverview from "./shared/sections/ProfileOverview";
 import PersonalData from "./shared/sections/PersonalData";
 import Access from "./shared/sections/Access";
@@ -41,6 +46,7 @@ export default function ClientePerfil() {
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
   const logout = useAppStore((s) => s.logout);
+  const { setHeaderOptions } = useClienteHeader();
   const { profileTab, setProfileTab } = useClienteUI({
     defaultProfileTab: "overview",
   });
@@ -48,6 +54,7 @@ export default function ClientePerfil() {
   const [tabsActiveKey, setTabsActiveKey] = useState(null);
   const tabTransitionRef = useRef(null);
   const [searchValue, setSearchValue] = useState("");
+  const [dockTarget, setDockTarget] = useState(null);
 
   const tabGroups = useMemo(
     () => [
@@ -116,12 +123,6 @@ export default function ClientePerfil() {
     []
   );
 
-  useEffect(() => {
-    if (profileView !== "tabs") {
-      setTabsActiveKey(null);
-    }
-  }, [profileView]);
-
   const handleTabChange = useCallback(
     (nextTab) => {
       if (nextTab === "signout") {
@@ -153,6 +154,31 @@ export default function ClientePerfil() {
   }, []);
 
   useEffect(() => {
+    setHeaderOptions({
+      mode: "profile",
+      onSearchBack: profileView === "panel" ? handleBack : null,
+      headerVisible: true,
+    });
+    return () => {
+      setHeaderOptions({
+        mode: "default",
+        onSearchBack: null,
+        headerVisible: true,
+      });
+    };
+  }, [handleBack, profileView, setHeaderOptions]);
+
+  useEffect(() => {
+    setDockTarget(document.getElementById("cliente-header-search-dock"));
+  }, []);
+
+  useEffect(() => {
+    if (profileView !== "tabs") {
+      setTabsActiveKey(null);
+    }
+  }, [profileView]);
+
+  useEffect(() => {
     return () => {
       if (tabTransitionRef.current) {
         clearTimeout(tabTransitionRef.current);
@@ -162,6 +188,18 @@ export default function ClientePerfil() {
 
   return (
     <div className="flex h-full flex-col bg-white">
+      {dockTarget
+        ? createPortal(
+            <HeaderPanelContainer
+              open
+              panelClassName="hero-search-dock"
+              panelProps={{ "aria-hidden": false }}
+            >
+              <SearchbarPanel value={searchValue} onChange={setSearchValue} />
+            </HeaderPanelContainer>,
+            dockTarget
+          )
+        : null}
       <div className="relative flex-1 overflow-y-auto bg-white">
         <AnimatePresence mode="wait">
           {profileView === "tabs" ? (
@@ -173,21 +211,7 @@ export default function ClientePerfil() {
               transition={{ duration: 0.25, ease: "easeOut" }}
               className="w-full"
             >
-              <section className="hero-bleed text-white">
-                <div className="relative z-10 max-w-3xl mx-auto px-4 pt-2 pb-1">
-                  <div className="text-center">
-                    <p className="max-w-[340px] mx-auto text-center text-[18px] font-light leading-snug text-white">
-                      Gestiona tu informacion personal y
-                      <span className="block">de seguridad.</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="relative z-10 mt-4 px-4 pb-2">
-                  <SearchBar value={searchValue} onChange={setSearchValue} />
-                </div>
-              </section>
-
-              <div className="w-full flex flex-col items-center gap-4 pt-2 pb-6">
+              <div className="w-full flex flex-col items-center gap-4 pt-16 pb-6">
                 <div className="w-[98%] max-w-md bg-white">
                   <ProfileTabs
                     groups={tabGroups}
@@ -204,16 +228,9 @@ export default function ClientePerfil() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -40, opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full flex flex-col items-center gap-4 pt-2 pb-6"
+              className="w-full flex flex-col items-center gap-4 pt-16 pb-6"
             >
               <div className="w-[90%] max-w-md">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="mb-3 text-xs font-semibold text-[#5E30A5] tracking-[0.12em]"
-                >
-                  VOLVER
-                </button>
                 <ProfilePanel
                   activeTab={profileTab}
                   sections={sections}
