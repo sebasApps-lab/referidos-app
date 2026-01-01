@@ -171,6 +171,7 @@ export default function ClientePerfil() {
     };
   }, [handleBack, profileView, setHeaderOptions, showSearchDock]);
 
+
   useEffect(() => {
     setDockTarget(document.getElementById("cliente-header-search-dock"));
   }, []);
@@ -201,19 +202,21 @@ export default function ClientePerfil() {
                 style: { pointerEvents: showSearchDock ? "auto" : "none" },
               }}
             >
-              <motion.div
-                className="profile-search-panel"
-                initial={false}
-                animate={{
-                  y: showSearchDock ? 0 : "-100%",
-                }}
-                transition={{ duration: 5, ease: "easeOut" }}
-              >
-                <SearchbarPanel
-                  value={searchValue}
-                  onChange={setSearchValue}
-                />
-              </motion.div>
+              <div className="profile-search-clip">
+                <motion.div
+                  className="profile-search-panel"
+                  initial={false}
+                  animate={{
+                    y: showSearchDock ? 0 : "-100%",
+                  }}
+                  transition={{ duration: 5, ease: "easeOut" }}
+                >
+                  <SearchbarPanel
+                    value={searchValue}
+                    onChange={setSearchValue}
+                  />
+                </motion.div>
+              </div>
             </HeaderPanelContainer>,
             dockTarget
           )

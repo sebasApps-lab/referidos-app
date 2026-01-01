@@ -105,132 +105,139 @@ export default function ClienteHeader({
   }, [mode]);
 
   const profileRounded = mode === "profile" && !profileDockOpen;
-  const headerClass = `${isElevated ? "shadow-md" : "shadow-none"} relative bg-[#5E30A5] text-white transition-[border-radius] duration-250${
+  const headerClass = `${isElevated ? "shadow-md" : "shadow-none"} relative text-white${
+    profileRounded ? " profile-header-rounded" : ""
+  }`;
+  const headerSurfaceClass = `relative z-10 bg-[#5E30A5] transition-[border-radius] duration-250${
     profileRounded ? " rounded-b-lg" : ""
   }`;
 
   return (
     <div id="cliente-header" className={headerClass}>
-      {mode === "search" ? (
-        <SearchHeader title="Qrew" onBack={onSearchBack} />
-      ) : mode === "profile" ? (
-        <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
-          <TabTitle
-            title="Configuracion"
-            action={
+      <div className={headerSurfaceClass}>
+        {mode === "search" ? (
+          <SearchHeader title="Qrew" onBack={onSearchBack} />
+        ) : mode === "profile" ? (
+          <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+            <TabTitle
+              title="Configuracion"
+              action={
+                <button
+                  type="button"
+                  aria-label="Cerrar sesion"
+                  onClick={onLogout}
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+                >
+                  <LogOut size={18} />
+                </button>
+              }
+            />
+            {onSearchBack ? (
               <button
                 type="button"
-                aria-label="Cerrar sesion"
-                onClick={onLogout}
-                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+                onClick={onSearchBack}
+                aria-label="Volver"
+                className="absolute left-4 top-3 h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
               >
-                <LogOut size={18} />
+                <ChevronLeft size={20} />
               </button>
-            }
-          />
-          {onSearchBack ? (
-            <button
-              type="button"
-              onClick={onSearchBack}
-              aria-label="Volver"
-              className="absolute left-4 top-3 h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          ) : null}
-        </div>
-      ) : (
-        <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
-          <div className="flex items-center justify-between gap-4">
-            <UserIdentity
-              avatarSrc={safeAvatar}
-              tier={tier}
-              displayName={displayName}
-            />
-
-            <HeaderActions
-              onToggleLocation={() => {
-                setNotificationsOpen(false);
-                setQueueOpen(false);
-                if (!locationOpen) {
-                  setLocationVisible(true);
-                  setLocationOpen(true);
-                } else {
-                  setLocationOpen(false);
-                }
-              }}
-              locationOpen={locationOpen}
-              locationPanel={
-                locationVisible ? (
-                  <HeaderPanelContainer
-                    open={locationOpen}
-                    wrapperClassName="header-panel-anchor"
-                    panelClassName="hero-search-dock"
-                    panelProps={{ "aria-hidden": !locationOpen }}
-                  >
-                    <LocationPanel open={locationOpen} />
-                  </HeaderPanelContainer>
-                ) : null
-              }
-              onToggleNotifications={() => {
-                setLocationOpen(false);
-                setQueueOpen(false);
-                if (!notificationsOpen) {
-                  setNotificationsVisible(true);
-                  setNotificationsOpen(true);
-                } else {
-                  setNotificationsOpen(false);
-                }
-                if (typeof onOpenNotifications === "function") {
-                  onOpenNotifications();
-                }
-              }}
-              notificationsOpen={notificationsOpen}
-              notificationsPanel={
-                notificationsVisible ? (
-                  <HeaderPanelContainer
-                    open={notificationsOpen}
-                    wrapperClassName="header-panel-anchor"
-                    panelClassName="hero-search-dock"
-                    panelProps={{ "aria-hidden": !notificationsOpen }}
-                  >
-                    <NotificationsPanel
-                      notifications={usuario?.notificaciones || []}
-                    />
-                  </HeaderPanelContainer>
-                ) : null
-              }
-              onToggleQueue={() => {
-                setLocationOpen(false);
-                setNotificationsOpen(false);
-                if (!queueOpen) {
-                  setQueueVisible(true);
-                  setQueueOpen(true);
-                } else {
-                  setQueueOpen(false);
-                }
-              }}
-              queueOpen={queueOpen}
-              queuePanel={
-                queueVisible ? (
-                  <HeaderPanelContainer
-                    open={queueOpen}
-                    wrapperClassName="header-panel-anchor"
-                    panelClassName="hero-search-dock"
-                    panelProps={{ "aria-hidden": !queueOpen }}
-                  >
-                    <QueuePanel />
-                  </HeaderPanelContainer>
-                ) : null
-              }
-              notiCount={notiCount}
-            />
+            ) : null}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+            <div className="flex items-center justify-between gap-4">
+              <UserIdentity
+                avatarSrc={safeAvatar}
+                tier={tier}
+                displayName={displayName}
+              />
+
+              <HeaderActions
+                onToggleLocation={() => {
+                  setNotificationsOpen(false);
+                  setQueueOpen(false);
+                  if (!locationOpen) {
+                    setLocationVisible(true);
+                    setLocationOpen(true);
+                  } else {
+                    setLocationOpen(false);
+                  }
+                }}
+                locationOpen={locationOpen}
+                locationPanel={
+                  locationVisible ? (
+                    <HeaderPanelContainer
+                      open={locationOpen}
+                      wrapperClassName="header-panel-anchor"
+                      panelClassName="hero-search-dock"
+                      panelProps={{ "aria-hidden": !locationOpen }}
+                    >
+                      <LocationPanel open={locationOpen} />
+                    </HeaderPanelContainer>
+                  ) : null
+                }
+                onToggleNotifications={() => {
+                  setLocationOpen(false);
+                  setQueueOpen(false);
+                  if (!notificationsOpen) {
+                    setNotificationsVisible(true);
+                    setNotificationsOpen(true);
+                  } else {
+                    setNotificationsOpen(false);
+                  }
+                  if (typeof onOpenNotifications === "function") {
+                    onOpenNotifications();
+                  }
+                }}
+                notificationsOpen={notificationsOpen}
+                notificationsPanel={
+                  notificationsVisible ? (
+                    <HeaderPanelContainer
+                      open={notificationsOpen}
+                      wrapperClassName="header-panel-anchor"
+                      panelClassName="hero-search-dock"
+                      panelProps={{ "aria-hidden": !notificationsOpen }}
+                    >
+                      <NotificationsPanel
+                        notifications={usuario?.notificaciones || []}
+                      />
+                    </HeaderPanelContainer>
+                  ) : null
+                }
+                onToggleQueue={() => {
+                  setLocationOpen(false);
+                  setNotificationsOpen(false);
+                  if (!queueOpen) {
+                    setQueueVisible(true);
+                    setQueueOpen(true);
+                  } else {
+                    setQueueOpen(false);
+                  }
+                }}
+                queueOpen={queueOpen}
+                queuePanel={
+                  queueVisible ? (
+                    <HeaderPanelContainer
+                      open={queueOpen}
+                      wrapperClassName="header-panel-anchor"
+                      panelClassName="hero-search-dock"
+                      panelProps={{ "aria-hidden": !queueOpen }}
+                    >
+                      <QueuePanel />
+                    </HeaderPanelContainer>
+                  ) : null
+                }
+                notiCount={notiCount}
+              />
+            </div>
+          </div>
+        )}
+      </div>
       <div
         id="cliente-header-search-dock"
-        className="absolute left-0 right-0 top-full z-40"
+        className={`absolute left-0 right-0 top-full z-40 ${
+          mode === "profile" ? "profile-header-dock" : ""
+        }`}
       />
     </div>
   );

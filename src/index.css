@@ -307,15 +307,35 @@ html {
 }
 
 .profile-search-dock {
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   transform: none;
   opacity: 1;
+  border-radius: 0;
+  transition: border-radius 250ms ease;
 }
 
 .profile-search-dock .hero-search-surface > div {
   padding-top: 12px;
 }
 
+.profile-search-clip {
+  overflow: hidden;
+}
+
+.profile-search-clip,
+.profile-search-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.profile-search-dock .hero-search-surface {
+  transition: border-radius 250ms ease;
+}
+
+.profile-search-dock .hero-search-surface {
+  transition: border-radius 250ms ease;
+}
 .profile-search-dock[data-state="closed"],
 .profile-search-dock[data-state="open"] {
   transform: none;
@@ -325,6 +345,20 @@ html {
 .profile-search-panel {
   transform-origin: top center;
   will-change: transform, opacity;
+}
+
+.profile-header-dock {
+  z-index: 0;
+  top: calc(100% - 12px);
+}
+
+.profile-header-rounded::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #5E30A5;
+  border-radius: 0 0 1.25rem 1.25rem;
+  z-index: 0;
 }
 
 .hero-search-dock[data-state="closed"] {
