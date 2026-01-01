@@ -56,6 +56,8 @@ export default function ClientePerfil() {
   const [searchValue, setSearchValue] = useState("");
   const [dockTarget, setDockTarget] = useState(null);
   const showSearchDock = profileView === "tabs";
+  const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
+  const prevShowSearchDockRef = useRef(showSearchDock);
 
   const tabGroups = useMemo(
     () => [
@@ -159,7 +161,7 @@ export default function ClientePerfil() {
       mode: "profile",
       onSearchBack: profileView === "panel" ? handleBack : null,
       headerVisible: true,
-      profileDockOpen: showSearchDock,
+      profileDockOpen: dockOpenForHeader,
     });
     return () => {
       setHeaderOptions({
@@ -169,7 +171,27 @@ export default function ClientePerfil() {
         profileDockOpen: true,
       });
     };
-  }, [handleBack, profileView, setHeaderOptions, showSearchDock]);
+  }, [dockOpenForHeader, handleBack, profileView, setHeaderOptions]);
+
+  useEffect(() => {
+    const prev = prevShowSearchDockRef.current;
+    prevShowSearchDockRef.current = showSearchDock;
+
+    if (!showSearchDock) {
+      setDockOpenForHeader(false);
+      return undefined;
+    }
+
+    if (!prev && showSearchDock) {
+      const timer = setTimeout(() => {
+        setDockOpenForHeader(true);
+      }, 125);
+      return () => clearTimeout(timer);
+    }
+
+    setDockOpenForHeader(true);
+    return undefined;
+  }, [showSearchDock]);
 
 
   useEffect(() => {
@@ -209,8 +231,8 @@ export default function ClientePerfil() {
                   animate={{
                     y: showSearchDock ? 0 : "-100%",
                   }}
-                  transition={{ duration: 5, ease: "easeOut" }}
-                >
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
                   <SearchbarPanel
                     value={searchValue}
                     onChange={setSearchValue}
