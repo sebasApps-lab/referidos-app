@@ -14,6 +14,7 @@ const ClienteHeaderContext = createContext({
   headerVisible: true,
   headerEntering: false,
   profileDockOpen: true,
+  profileTitle: "Configuracion",
   setHeaderOptions: () => {},
 });
 
@@ -23,6 +24,7 @@ export function ClienteHeaderProvider({ children }) {
   const [headerVisible, setHeaderVisible] = useState(true);
   const [headerEntering, setHeaderEntering] = useState(false);
   const [profileDockOpen, setProfileDockOpen] = useState(true);
+  const [profileTitle, setProfileTitle] = useState("Configuracion");
   const prevHeaderVisible = useRef(headerVisible);
 
   const setHeaderOptions = useCallback((options = {}) => {
@@ -34,6 +36,9 @@ export function ClienteHeaderProvider({ children }) {
     setHeaderVisible(nextHeaderVisible);
     if (typeof options.profileDockOpen === "boolean") {
       setProfileDockOpen(options.profileDockOpen);
+    }
+    if (typeof options.profileTitle === "string") {
+      setProfileTitle(options.profileTitle);
     }
   }, []);
 
@@ -61,6 +66,7 @@ export function ClienteHeaderProvider({ children }) {
       headerVisible,
       headerEntering,
       profileDockOpen,
+      profileTitle,
       setHeaderOptions,
     }),
     [
@@ -69,6 +75,7 @@ export function ClienteHeaderProvider({ children }) {
       headerVisible,
       headerEntering,
       profileDockOpen,
+      profileTitle,
       setHeaderOptions,
     ]
   );

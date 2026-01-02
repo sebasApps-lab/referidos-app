@@ -101,11 +101,23 @@ export default function ClientePerfil() {
         ],
       },
       {
-        items: [{ key: "signout", label: "Cerrar sesion", icon: LogOut, tone: "danger" }],
+        items: [
+          { key: "signout", label: "Cerrar sesion", icon: LogOut, tone: "danger" },
+        ],
       },
     ],
     []
   );
+
+  const tabLabelMap = useMemo(() => {
+    const map = {};
+    tabGroups.forEach((group) => {
+      group.items?.forEach((item) => {
+        map[item.key] = item.label;
+      });
+    });
+    return map;
+  }, [tabGroups]);
 
   const sections = useMemo(
     () => ({
@@ -157,11 +169,16 @@ export default function ClientePerfil() {
   }, []);
 
   useEffect(() => {
+    const headerTitle =
+      profileView === "panel"
+        ? tabLabelMap[profileTab] || "Configuracion"
+        : "Configuracion";
     setHeaderOptions({
       mode: "profile",
       onSearchBack: profileView === "panel" ? handleBack : null,
       headerVisible: true,
       profileDockOpen: dockOpenForHeader,
+      profileTitle: headerTitle,
     });
     return () => {
       setHeaderOptions({
@@ -171,7 +188,14 @@ export default function ClientePerfil() {
         profileDockOpen: true,
       });
     };
-  }, [dockOpenForHeader, handleBack, profileView, setHeaderOptions]);
+  }, [
+    dockOpenForHeader,
+    handleBack,
+    profileTab,
+    profileView,
+    setHeaderOptions,
+    tabLabelMap,
+  ]);
 
   useEffect(() => {
     const prev = prevShowSearchDockRef.current;

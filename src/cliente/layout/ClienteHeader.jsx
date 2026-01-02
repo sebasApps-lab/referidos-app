@@ -33,7 +33,8 @@ export default function ClienteHeader({
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [queueVisible, setQueueVisible] = useState(false);
-  const { mode, onSearchBack, profileDockOpen } = useClienteHeader();
+  const { mode, onSearchBack, profileDockOpen, profileTitle } =
+    useClienteHeader();
   const scrollDistanceRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   const tier = getTierMeta(usuario);
@@ -120,7 +121,7 @@ export default function ClienteHeader({
         ) : mode === "profile" ? (
           <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
             <TabTitle
-              title="Configuracion"
+              title={profileTitle || "Configuracion"}
               action={
                 <button
                   type="button"

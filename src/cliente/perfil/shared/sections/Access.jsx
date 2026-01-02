@@ -429,16 +429,24 @@ export default function Access({ usuario }) {
                         onBlur={handlePasswordBlur}
                         className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword((prev) => !prev)}
-                        className="text-slate-400 hover:text-slate-600"
-                        aria-label={
-                          showCurrentPassword ? "Ocultar contrasena" : "Mostrar contrasena"
-                        }
-                      >
-                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                      {currentPassword.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword((prev) => !prev)}
+                          className="text-slate-400 hover:text-slate-600"
+                          aria-label={
+                            showCurrentPassword
+                              ? "Ocultar contrasena"
+                              : "Mostrar contrasena"
+                          }
+                        >
+                          {showCurrentPassword ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   {showCurrentPasswordError ? (
@@ -463,14 +471,18 @@ export default function Access({ usuario }) {
                     onBlur={handlePasswordBlur}
                     className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  {passwordValue.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600"
+                      aria-label={
+                        showPassword ? "Ocultar contrasena" : "Mostrar contrasena"
+                      }
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  ) : null}
                 </div>
               </div>
               {showPasswordRules ? (
@@ -517,14 +529,20 @@ export default function Access({ usuario }) {
                     onBlur={handlePasswordBlur}
                     className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswordConfirm((prev) => !prev)}
-                    className="text-slate-400 hover:text-slate-600"
-                    aria-label={showPasswordConfirm ? "Ocultar contrasena" : "Mostrar contrasena"}
-                  >
-                    {showPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  {passwordConfirm.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordConfirm((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600"
+                      aria-label={
+                        showPasswordConfirm
+                          ? "Ocultar contrasena"
+                          : "Mostrar contrasena"
+                      }
+                    >
+                      {showPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  ) : null}
                 </div>
               </div>
               {showConfirmRule ? (

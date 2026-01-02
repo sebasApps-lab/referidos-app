@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useModal } from "../../../../modals/useModal";
 
 const Toggle = ({ active, onChange }) => (
