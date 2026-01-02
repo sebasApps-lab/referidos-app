@@ -128,7 +128,7 @@ function ClienteLayoutInner({ children }) {
         overflow: "hidden",
       }}
     >
-      <div className="relative z-10 flex h-full min-h-0 flex-col">
+      <div className="relative flex h-full min-h-0 flex-col">
         {headerVisible ? (
           <div
             ref={headerRef}
@@ -150,7 +150,7 @@ function ClienteLayoutInner({ children }) {
         <main
           ref={mainRef}
           id="cliente-main-scroll"
-          className={`hide-scrollbar transition-all duration-300 ${
+          className={`hide-scrollbar transition-all duration-300 z-0 ${
             menuOpen ? "blur-sm" : ""
           }`}
           style={{

@@ -48,10 +48,6 @@ export default function ClienteInicio() {
     if (promos.length > 0) initRatings(promos);
   }, [promos, initRatings]);
 
-  useEffect(() => {
-    setDockTarget(document.getElementById("cliente-header-search-dock"));
-  }, []);
-
   const { query, setQuery, isSearching, onFocus, onCancel } = useSearchMode();
   const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
@@ -80,6 +76,30 @@ export default function ClienteInicio() {
   const hideHeroSearch = showSearchDock && !heroVisible;
 
   const headerVisible = !(loading && promos.length === 0);
+
+  useEffect(() => {
+    if (!headerVisible) {
+      setDockTarget(null);
+      return undefined;
+    }
+    let frameId;
+    let tries = 0;
+    const resolveTarget = () => {
+      const target = document.getElementById("cliente-header-search-dock");
+      if (target) {
+        setDockTarget(target);
+        return;
+      }
+      tries += 1;
+      if (tries < 20) {
+        frameId = requestAnimationFrame(resolveTarget);
+      }
+    };
+    resolveTarget();
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [headerVisible]);
 
   useLayoutEffect(() => {
     setHeaderOptions({

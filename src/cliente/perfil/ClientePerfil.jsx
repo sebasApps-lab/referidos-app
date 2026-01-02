@@ -229,10 +229,10 @@ export default function ClientePerfil() {
                   className="profile-search-panel"
                   initial={false}
                   animate={{
-                    y: showSearchDock ? 0 : "-100%",
+                    y: showSearchDock ? "0%" : "-100%",
                   }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-              >
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
                   <SearchbarPanel
                     value={searchValue}
                     onChange={setSearchValue}
