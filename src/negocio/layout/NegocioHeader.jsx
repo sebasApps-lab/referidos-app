@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Bell,
-  ChevronLeft,
-  HelpCircle,
-  LogOut,
-  Menu,
-} from "lucide-react";
+import { Bell, ChevronLeft, HelpCircle, LogOut } from "lucide-react";
 import {
   HeaderPanelContainer,
   NotificationsPanel,
@@ -51,7 +45,6 @@ function QrewLogo({ title = "Qrew" }) {
 export default function NegocioHeader({
   usuario,
   avatarSrc,
-  onOpenMenu,
   onOpenNotifications,
   onLogout,
   isElevated = false,
@@ -164,14 +157,29 @@ export default function NegocioHeader({
         ) : (
           <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
             <div className="flex items-center justify-between gap-4">
-              <button
-                type="button"
-                onClick={onOpenMenu}
-                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition"
-                aria-label="Abrir menu"
+              <Link
+                to="/negocio/perfil"
+                className="relative h-10 w-10 rounded-full border border-white/20 bg-white/10 flex items-center justify-center overflow-hidden"
+                aria-label={`Perfil de ${displayName}`}
               >
-                <Menu size={20} />
-              </button>
+                {safeAvatar ? (
+                  <img
+                    src={safeAvatar}
+                    alt={`Avatar de ${displayName}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-semibold text-white">
+                    {displayName?.[0]?.toUpperCase() || "N"}
+                  </span>
+                )}
+                <span
+                  className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-semibold"
+                  style={{ background: planMeta.accent, color: "white" }}
+                >
+                  {planMeta.badge}
+                </span>
+              </Link>
 
               <div className="flex-1 flex justify-center">
                 <QrewLogo />
@@ -258,29 +266,14 @@ export default function NegocioHeader({
                     </HeaderPanelContainer>
                   ) : null}
                 </div>
-                <Link
-                  to="/negocio/perfil"
-                  className="relative h-10 w-10 rounded-full border border-white/20 bg-white/10 flex items-center justify-center overflow-hidden"
-                  aria-label={`Perfil de ${displayName}`}
+                <button
+                  type="button"
+                  aria-label="Cerrar sesion"
+                  onClick={onLogout}
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
                 >
-                  {safeAvatar ? (
-                    <img
-                      src={safeAvatar}
-                      alt={`Avatar de ${displayName}`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs font-semibold text-white">
-                      {displayName?.[0]?.toUpperCase() || "N"}
-                    </span>
-                  )}
-                  <span
-                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-semibold"
-                    style={{ background: planMeta.accent, color: "white" }}
-                  >
-                    {planMeta.badge}
-                  </span>
-                </Link>
+                  <LogOut size={18} />
+                </button>
               </div>
             </div>
           </div>

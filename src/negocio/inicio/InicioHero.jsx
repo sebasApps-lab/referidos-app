@@ -11,12 +11,11 @@ import {
 import { Link } from "react-router-dom";
 import negocioFallback from "../../assets/bg-home.png";
 import {
-  formatCompactNumber,
   getNegocioDireccion,
   getNegocioImagen,
   getNegocioNombre,
   getNegocioPlanMeta,
-  getNegocioReferidos,
+  getNegocioRoleLabel,
   getNegocioSector,
 } from "../services/negocioUI";
 
@@ -26,7 +25,7 @@ export default function InicioHero({ usuario, negocio, stats }) {
   const sector = getNegocioSector({ negocio, usuario });
   const direccion = getNegocioDireccion({ negocio, usuario });
   const imagen = getNegocioImagen({ negocio, usuario }) || negocioFallback;
-  const referidos = getNegocioReferidos({ negocio, usuario });
+  const roleLabel = getNegocioRoleLabel(usuario);
   const hasImage = Boolean(imagen);
   const safeStats = stats || { activas: 0, pendientes: 0, inactivas: 0 };
 
@@ -68,10 +67,7 @@ export default function InicioHero({ usuario, negocio, stats }) {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/65">
-                    Negocio
-                  </span>
-                  <h1 className="mt-1 text-xl font-semibold leading-tight text-white">
+                  <h1 className="text-xl font-semibold leading-tight text-white">
                     {nombre}
                   </h1>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/75">
@@ -84,6 +80,11 @@ export default function InicioHero({ usuario, negocio, stats }) {
                       {direccion}
                     </span>
                   </div>
+                </div>
+                <div className="flex items-center">
+                  <span className="inline-flex items-center rounded-xl border border-white/15 bg-[#3B1A66] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white">
+                    {roleLabel}
+                  </span>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-2 text-right">
                   <div className="flex items-center gap-2">

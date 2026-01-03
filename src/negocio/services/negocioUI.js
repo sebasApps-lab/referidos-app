@@ -27,6 +27,13 @@ export function getUserShortName(usuario) {
   return base.split(" ")[0];
 }
 
+export function getNegocioRoleLabel(usuario) {
+  const role = usuario?.role?.toString().toLowerCase();
+  if (role === "empleado") return "Empleado";
+  if (role === "negocio") return "Dueno";
+  return "Dueno";
+}
+
 export function getAvatarSrc(usuario, explicit) {
   if (explicit) return explicit;
   if (usuario?.avatarUrl || usuario?.avatar) return usuario.avatarUrl || usuario.avatar;
