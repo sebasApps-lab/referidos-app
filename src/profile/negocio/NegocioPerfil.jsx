@@ -20,6 +20,7 @@ import {
   UserCircle,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useLocation } from "react-router-dom";
 import { useNegocioUI } from "../../negocio/hooks/useNegocioUI";
 import ProfileTabs from "../shared/ProfileTabs";
 import ProfilePanel from "../shared/ProfilePanel";
@@ -50,6 +51,7 @@ export default function NegocioPerfil() {
   const { profileTab, setProfileTab } = useNegocioUI({
     defaultProfileTab: "overview",
   });
+  const location = useLocation();
   const [profileView, setProfileView] = useState("tabs");
   const [tabsActiveKey, setTabsActiveKey] = useState(null);
   const tabTransitionRef = useRef(null);
@@ -58,6 +60,7 @@ export default function NegocioPerfil() {
   const showSearchDock = profileView === "tabs";
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
+  const deepLinkAppliedRef = useRef(false);
 
   const tabGroups = useMemo(
     () => [
@@ -137,6 +140,16 @@ export default function NegocioPerfil() {
     }),
     []
   );
+
+  useEffect(() => {
+    if (deepLinkAppliedRef.current) return;
+    const params = new URLSearchParams(location.search);
+    const targetTab = params.get("tab");
+    if (!targetTab || !sections[targetTab]) return;
+    deepLinkAppliedRef.current = true;
+    setProfileTab(targetTab);
+    setProfileView("panel");
+  }, [location.search, sections, setProfileTab]);
 
   const handleTabChange = useCallback(
     (nextTab) => {

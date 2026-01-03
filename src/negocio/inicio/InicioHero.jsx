@@ -1,6 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { BarChart3, LayoutGrid, MapPin, PlusCircle, Store } from "lucide-react";
+import {
+  BarChart3,
+  Crown,
+  LayoutGrid,
+  MapPin,
+  PlusCircle,
+  Store,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import negocioFallback from "../../assets/bg-home.png";
 import {
@@ -79,21 +86,45 @@ export default function InicioHero({ usuario, negocio, stats }) {
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-2 text-right">
-                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90">
-                    Plan {planMeta.label}
-                  </span>
-                  <span className="text-xs text-white/70">
-                    {formatCompactNumber(referidos)} referidos
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90">
+                      Plan {planMeta.label}
+                    </span>
+                    <Link
+                      to="/negocio/perfil?tab=plan"
+                      className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75 hover:text-white"
+                    >
+                      Ver beneficios
+                    </Link>
+                  </div>
+                  <Link
+                    to="/negocio/perfil?tab=plan"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[10px] font-semibold text-white/90 transition hover:bg-white/20"
+                  >
+                    <Crown size={12} className="text-[#FFC21C]" />
+                    Mejorar
+                  </Link>
                 </div>
               </div>
               <div className="flex items-center justify-between gap-2 text-[11px] text-white/75 sm:hidden">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90">
-                  Plan {planMeta.label}
-                </span>
-                <span className="text-xs text-white/70">
-                  {formatCompactNumber(referidos)} referidos
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90">
+                    Plan {planMeta.label}
+                  </span>
+                  <Link
+                    to="/negocio/perfil?tab=plan"
+                    className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75 hover:text-white"
+                  >
+                    Ver beneficios
+                  </Link>
+                </div>
+                <Link
+                  to="/negocio/perfil?tab=plan"
+                  className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[10px] font-semibold text-white/90 transition hover:bg-white/20"
+                >
+                  <Crown size={12} className="text-[#FFC21C]" />
+                  Mejorar
+                </Link>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center">
