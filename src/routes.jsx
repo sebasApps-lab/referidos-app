@@ -16,7 +16,10 @@ const ClienteInicio = lazy(() => import("./pages/cliente/ClienteInicio"));
 const ClienteEscaner = lazy(() => import("./pages/cliente/ClienteEscaner"));
 const ClienteHistorial = lazy(() => import("./pages/cliente/ClienteHistorial"));
 const ClientePerfil = lazy(() => import("./pages/cliente/ClientePerfil"));
-const NegocioHome = lazy(() => import("./pages/NegocioHome"));
+const NegocioInicio = lazy(() => import("./pages/negocio/NegocioInicio"));
+const NegocioEscaner = lazy(() => import("./pages/negocio/NegocioEscaner"));
+const NegocioGestionar = lazy(() => import("./pages/negocio/NegocioGestionar"));
+const NegocioPerfil = lazy(() => import("./pages/negocio/NegocioPerfil"));
 const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
 const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
 const AdminNegocios = lazy(() => import("./pages/admin/AdminNegocios"));
@@ -28,9 +31,6 @@ const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
-const Perfil = lazy(() => import("./pages/Perfil"));
-const Escanear = lazy(() => import("./pages/Escanear"));
-const Gestionar = lazy(() => import("./pages/Gestionar"));
 
 export default function AppRoutes() {
   return (
@@ -96,9 +96,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="negocio">
-              <MainLayout>
-                <NegocioHome />
-              </MainLayout>
+              <NegocioInicio />
             </RequireRole>
           </RequireAuth>
         }
@@ -110,9 +108,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="negocio">
-              <MainLayout>
-                <Escanear />
-              </MainLayout>
+              <NegocioEscaner />
             </RequireRole>
           </RequireAuth>
         }
@@ -124,9 +120,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="negocio">
-              <MainLayout>
-                <Perfil />
-              </MainLayout>
+              <NegocioPerfil />
             </RequireRole>
           </RequireAuth>
         }
@@ -138,9 +132,7 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="negocio">
-              <MainLayout>
-                <Gestionar />
-              </MainLayout>
+              <NegocioGestionar />
             </RequireRole>
           </RequireAuth>
         }

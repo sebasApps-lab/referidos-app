@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Camera, QrCode } from "lucide-react";
-import { useAppStore } from "../../store/appStore";
-import { redeemValidQr } from "../../services/qrService";
-import { handleError } from "../../utils/errorUtils";
-import { sanitizeText } from "../../utils/sanitize";
+import { useAppStore } from "../store/appStore";
+import { redeemValidQr } from "../services/qrService";
+import { handleError } from "../utils/errorUtils";
+import { sanitizeText } from "../utils/sanitize";
 import EscanerCamera from "./EscanerCamera";
 import EscanerPermisos from "./EscanerPermisos";
 import EscanerFallback from "./EscanerFallback";
