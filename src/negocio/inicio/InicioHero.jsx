@@ -38,15 +38,9 @@ export default function InicioHero({ usuario, negocio, stats }) {
       data-hero-container
     >
       <div className="hero-bleed text-white shadow-sm">
+        <div className="negocio-hero-glow" aria-hidden="true" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-2">
           <div className="relative">
-            <div
-              className="absolute inset-0 pointer-events-none rounded-2xl"
-              style={{
-                background:
-                  "radial-gradient(circle at 10% -20%, rgba(255,255,255,0.35), transparent 58%)",
-              }}
-            />
             <div className="relative flex flex-col gap-4">
               <div className="flex items-start gap-4">
                 <div className="relative h-16 w-16 rounded-2xl border border-white/20 bg-white/10 overflow-hidden flex items-center justify-center">

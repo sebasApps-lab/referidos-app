@@ -117,159 +117,161 @@ export default function NegocioHeader({
   const headerClass = `${isElevated ? "shadow-md" : "shadow-none"} relative text-white${
     profileRounded ? " profile-header-rounded" : ""
   }`;
-  const headerSurfaceClass = `relative z-10 bg-[#5E30A5] transition-[border-radius] duration-250${
+  const headerSurfaceClass = `relative z-10 bg-[var(--negocio-header-bg,#5E30A5)] transition-[border-radius] duration-250${
     profileRounded ? " rounded-b-lg" : ""
   }`;
 
   return (
     <div id="negocio-header" className={headerClass}>
       <div className={headerSurfaceClass}>
-        {mode === "search" ? (
-          <SearchHeader title="Qrew" onBack={onSearchBack} />
-        ) : mode === "profile" ? (
-          <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
-            <TabTitle
-              title={profileTitle || "Configuracion"}
-              action={
+        <div className="relative z-10">
+          {mode === "search" ? (
+            <SearchHeader title="Qrew" onBack={onSearchBack} />
+          ) : mode === "profile" ? (
+            <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+              <TabTitle
+                title={profileTitle || "Configuracion"}
+                action={
+                  <button
+                    type="button"
+                    aria-label="Cerrar sesion"
+                    onClick={onLogout}
+                    className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+                  >
+                    <LogOut size={18} />
+                  </button>
+                }
+              />
+              {onSearchBack ? (
                 <button
                   type="button"
-                  aria-label="Cerrar sesion"
-                  onClick={onLogout}
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+                  onClick={onSearchBack}
+                  aria-label="Volver"
+                  className="absolute left-4 top-3 h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
                 >
-                  <LogOut size={18} />
+                  <ChevronLeft size={20} />
                 </button>
-              }
-            />
-            {onSearchBack ? (
-              <button
-                type="button"
-                onClick={onSearchBack}
-                aria-label="Volver"
-                className="absolute left-4 top-3 h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
-            <div className="flex items-center justify-between gap-4">
-              <Link
-                to="/negocio/perfil"
-                className="relative h-10 w-10 rounded-full border border-white/20 bg-white/10 flex items-center justify-center overflow-hidden"
-                aria-label={`Perfil de ${displayName}`}
-              >
-                {safeAvatar ? (
-                  <img
-                    src={safeAvatar}
-                    alt={`Avatar de ${displayName}`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-xs font-semibold text-white">
-                    {displayName?.[0]?.toUpperCase() || "N"}
-                  </span>
-                )}
-              </Link>
+              ) : null}
+            </div>
+          ) : (
+            <div className="max-w-6xl mx-auto px-4 pt-3 pb-2">
+              <div className="flex items-center justify-between gap-4">
+                <Link
+                  to="/negocio/perfil"
+                  className="relative h-10 w-10 rounded-full border border-white/20 bg-white/10 flex items-center justify-center overflow-hidden"
+                  aria-label={`Perfil de ${displayName}`}
+                >
+                  {safeAvatar ? (
+                    <img
+                      src={safeAvatar}
+                      alt={`Avatar de ${displayName}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-semibold text-white">
+                      {displayName?.[0]?.toUpperCase() || "N"}
+                    </span>
+                  )}
+                </Link>
 
-              <div className="flex-1 flex justify-center">
-                <QrewLogo />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotificationsOpen(false);
-                      if (!supportOpen) {
-                        setSupportVisible(true);
-                        setSupportOpen(true);
-                      } else {
-                        setSupportOpen(false);
-                      }
-                    }}
-                    className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-                    aria-label="Soporte"
-                    aria-expanded={supportOpen}
-                  >
-                    <HelpCircle size={18} />
-                  </button>
-                  {supportVisible ? (
-                    <HeaderPanelContainer
-                      open={supportOpen}
-                      wrapperClassName="header-panel-anchor"
-                      panelClassName="hero-search-dock"
-                      panelProps={{ "aria-hidden": !supportOpen }}
-                    >
-                      <div className="header-panel-surface">
-                        <div className="header-panel-body text-white">
-                          <p className="text-sm text-white/85">
-                            Necesitas ayuda?
-                          </p>
-                          <Link
-                            to="/negocio/perfil"
-                            className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80"
-                          >
-                            Ir a soporte
-                          </Link>
-                        </div>
-                      </div>
-                    </HeaderPanelContainer>
-                  ) : null}
+                <div className="flex-1 flex justify-center">
+                  <QrewLogo />
                 </div>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSupportOpen(false);
-                      if (!notificationsOpen) {
-                        setNotificationsVisible(true);
-                        setNotificationsOpen(true);
-                      } else {
+
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
                         setNotificationsOpen(false);
-                      }
-                      if (typeof onOpenNotifications === "function") {
-                        onOpenNotifications();
-                      }
-                    }}
-                    className="relative h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
-                    aria-label="Notificaciones"
-                    aria-expanded={notificationsOpen}
-                  >
-                    <Bell size={18} />
-                    {notiCount > 0 && (
-                      <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-white text-[#5E30A5] text-[10px] font-semibold flex items-center justify-center px-1">
-                        {notiCount > 99 ? "99+" : notiCount}
-                      </span>
-                    )}
-                  </button>
-                  {notificationsVisible ? (
-                    <HeaderPanelContainer
-                      open={notificationsOpen}
-                      wrapperClassName="header-panel-anchor"
-                      panelClassName="hero-search-dock"
-                      panelProps={{ "aria-hidden": !notificationsOpen }}
+                        if (!supportOpen) {
+                          setSupportVisible(true);
+                          setSupportOpen(true);
+                        } else {
+                          setSupportOpen(false);
+                        }
+                      }}
+                      className="h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
+                      aria-label="Soporte"
+                      aria-expanded={supportOpen}
                     >
-                      <NotificationsPanel
-                        notifications={usuario?.notificaciones || []}
-                      />
-                    </HeaderPanelContainer>
-                  ) : null}
+                      <HelpCircle size={18} />
+                    </button>
+                    {supportVisible ? (
+                      <HeaderPanelContainer
+                        open={supportOpen}
+                        wrapperClassName="header-panel-anchor"
+                        panelClassName="hero-search-dock"
+                        panelProps={{ "aria-hidden": !supportOpen }}
+                      >
+                        <div className="header-panel-surface">
+                          <div className="header-panel-body text-white">
+                            <p className="text-sm text-white/85">
+                              Necesitas ayuda?
+                            </p>
+                            <Link
+                              to="/negocio/perfil"
+                              className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80"
+                            >
+                              Ir a soporte
+                            </Link>
+                          </div>
+                        </div>
+                      </HeaderPanelContainer>
+                    ) : null}
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSupportOpen(false);
+                        if (!notificationsOpen) {
+                          setNotificationsVisible(true);
+                          setNotificationsOpen(true);
+                        } else {
+                          setNotificationsOpen(false);
+                        }
+                        if (typeof onOpenNotifications === "function") {
+                          onOpenNotifications();
+                        }
+                      }}
+                      className="relative h-10 w-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition"
+                      aria-label="Notificaciones"
+                      aria-expanded={notificationsOpen}
+                    >
+                      <Bell size={18} />
+                      {notiCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 min-w-[20px] rounded-full bg-white text-[#5E30A5] text-[10px] font-semibold flex items-center justify-center px-1">
+                          {notiCount > 99 ? "99+" : notiCount}
+                        </span>
+                      )}
+                    </button>
+                    {notificationsVisible ? (
+                      <HeaderPanelContainer
+                        open={notificationsOpen}
+                        wrapperClassName="header-panel-anchor"
+                        panelClassName="hero-search-dock"
+                        panelProps={{ "aria-hidden": !notificationsOpen }}
+                      >
+                        <NotificationsPanel
+                          notifications={usuario?.notificaciones || []}
+                        />
+                      </HeaderPanelContainer>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Cerrar sesion"
+                    onClick={onLogout}
+                    className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
+                  >
+                    <LogOut size={18} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Cerrar sesion"
-                  onClick={onLogout}
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
-                >
-                  <LogOut size={18} />
-                </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div
         id="negocio-header-search-dock"
