@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { BarChart3, LayoutGrid, MapPin, PlusCircle, Store } from "lucide-react";
 import { Link } from "react-router-dom";
+import negocioFallback from "../../assets/bg-home.png";
 import {
   formatCompactNumber,
   getNegocioDireccion,
@@ -17,7 +18,7 @@ export default function InicioHero({ usuario, negocio, stats }) {
   const nombre = getNegocioNombre({ negocio, usuario });
   const sector = getNegocioSector({ negocio, usuario });
   const direccion = getNegocioDireccion({ negocio, usuario });
-  const imagen = getNegocioImagen({ negocio, usuario });
+  const imagen = getNegocioImagen({ negocio, usuario }) || negocioFallback;
   const referidos = getNegocioReferidos({ negocio, usuario });
   const hasImage = Boolean(imagen);
   const safeStats = stats || { activas: 0, pendientes: 0, inactivas: 0 };

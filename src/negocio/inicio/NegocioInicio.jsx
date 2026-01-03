@@ -8,6 +8,7 @@ import InicioPromos from "./InicioPromos";
 import InicioBeneficios from "./InicioBeneficios";
 import InicioEmptyState from "./InicioEmptyState";
 import InicioSkeleton from "./InicioSkeleton";
+import { MOCK_PROMOS } from "./InicioPromosPreview";
 
 export default function NegocioInicio() {
   const usuario = useAppStore((s) => s.usuario);
@@ -100,15 +101,23 @@ export default function NegocioInicio() {
     };
   }, [onboarding, reloadKey, usuario]);
 
-  const stats = useMemo(() => {
+  const usePromosPreview = true;
+  const hasRealPromos = promos.length > 0;
+  const showPreview = usePromosPreview && !hasRealPromos;
+  const displayPromos = useMemo(() => {
+    if (showPreview) return MOCK_PROMOS;
+    return promos;
+  }, [promos, showPreview]);
+
+  const displayStats = useMemo(() => {
     const next = { activas: 0, pendientes: 0, inactivas: 0 };
-    promos.forEach((promo) => {
+    displayPromos.forEach((promo) => {
       if (promo.estado === "activo") next.activas += 1;
       else if (promo.estado === "pendiente") next.pendientes += 1;
       else next.inactivas += 1;
     });
     return next;
-  }, [promos]);
+  }, [displayPromos]);
 
   const showSkeleton = loading && promos.length === 0;
   const headerVisible = !showSkeleton;
@@ -132,7 +141,7 @@ export default function NegocioInicio() {
     );
   }
 
-  const hasPromos = promos.length > 0;
+  const showEmptyState = !hasRealPromos && !showPreview;
 
   return (
     <div className="pb-16">
@@ -140,7 +149,7 @@ export default function NegocioInicio() {
         <InicioHero
           usuario={usuario}
           negocio={onboarding?.negocio}
-          stats={stats}
+          stats={displayStats}
         />
       </div>
 
@@ -149,10 +158,10 @@ export default function NegocioInicio() {
           variant="error"
           onRetry={() => setReloadKey((prev) => prev + 1)}
         />
-      ) : !hasPromos ? (
+      ) : showEmptyState ? (
         <InicioEmptyState variant="promos" />
       ) : (
-        <InicioPromos promos={promos} stats={stats} />
+        <InicioPromos promos={displayPromos} stats={displayStats} />
       )}
 
       {!error && <InicioBeneficios negocio={onboarding?.negocio} usuario={usuario} />}
