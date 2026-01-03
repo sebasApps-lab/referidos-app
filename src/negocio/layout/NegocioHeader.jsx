@@ -10,7 +10,6 @@ import SearchHeader from "../../components/search/SearchHeader";
 import { useNegocioHeader } from "./NegocioHeaderContext";
 import {
   getAvatarSrc,
-  getNegocioPlanMeta,
   getUserShortName,
 } from "../services/negocioUI";
 
@@ -60,7 +59,6 @@ export default function NegocioHeader({
   const notiCount =
     usuario?.notificaciones?.length || usuario?.notificacionesCount || 0;
   const safeAvatar = getAvatarSrc(usuario, avatarSrc);
-  const planMeta = getNegocioPlanMeta({ usuario });
   const displayName = getUserShortName(usuario);
   const scrollCloseThreshold = 38;
 
@@ -173,12 +171,6 @@ export default function NegocioHeader({
                     {displayName?.[0]?.toUpperCase() || "N"}
                   </span>
                 )}
-                <span
-                  className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-semibold"
-                  style={{ background: planMeta.accent, color: "white" }}
-                >
-                  {planMeta.badge}
-                </span>
               </Link>
 
               <div className="flex-1 flex justify-center">

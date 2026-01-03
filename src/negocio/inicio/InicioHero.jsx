@@ -59,12 +59,6 @@ export default function InicioHero({ usuario, negocio, stats }) {
                   ) : (
                     <Store size={28} className="text-white/70" />
                   )}
-                  <span
-                    className="absolute -bottom-1 -right-1 h-6 min-w-[24px] rounded-full flex items-center justify-center text-[10px] font-semibold"
-                    style={{ background: planMeta.accent, color: "white" }}
-                  >
-                    {planMeta.badge}
-                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-semibold leading-tight text-white">
@@ -81,8 +75,11 @@ export default function InicioHero({ usuario, negocio, stats }) {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <span className="inline-flex items-center rounded-xl border border-white/15 bg-[#3B1A66] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white">
+                <div className="flex items-center pt-1">
+                  <span
+                    className="inline-flex items-center rounded-xl border border-white/15 bg-[#3B1A66] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white"
+                    style={{ mixBlendMode: "screen", opacity: 0.92 }}
+                  >
                     {roleLabel}
                   </span>
                 </div>
