@@ -35,7 +35,7 @@ export default function InicioHero({ usuario, negocio, stats }) {
         <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-2">
           <div className="relative">
             <div
-              className="absolute inset-0 pointer-events-none"
+              className="absolute inset-0 pointer-events-none rounded-2xl"
               style={{
                 background:
                   "radial-gradient(circle at 10% -20%, rgba(255,255,255,0.35), transparent 58%)",
@@ -123,28 +123,32 @@ export default function InicioHero({ usuario, negocio, stats }) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 pt-1">
-                <Link
-                  to="/negocio/gestionar"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-[#5E30A5] shadow-sm transition hover:bg-[#F3EEFF]"
-                >
-                  <PlusCircle size={14} />
-                  Crear promo
-                </Link>
-                <Link
-                  to="/negocio/gestionar"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  <LayoutGrid size={14} />
-                  Gestionar
-                </Link>
-                <Link
-                  to="/negocio/gestionar"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  <BarChart3 size={14} />
-                  Ver metricas
-                </Link>
+              <div className="flex flex-col items-center gap-3 pt-1">
+                <div className="flex justify-center">
+                  <Link
+                    to="/negocio/gestionar"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-[#5E30A5] shadow-sm transition hover:bg-[#F3EEFF]"
+                  >
+                    <PlusCircle size={14} />
+                    Crear promo
+                  </Link>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    to="/negocio/gestionar"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white"
+                  >
+                    <LayoutGrid size={14} />
+                    Gestionar
+                  </Link>
+                  <Link
+                    to="/negocio/gestionar"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white"
+                  >
+                    <BarChart3 size={14} />
+                    Ver metricas
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
