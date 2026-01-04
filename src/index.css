@@ -418,21 +418,6 @@ html {
   background: #5E30A5;
 }
 
-.negocio-hero-glow {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--cliente-header-height, 0px) * -1);
-  height: calc(100% + var(--cliente-header-height, 0px));
-  pointer-events: none;
-  border-radius: 0 0 2.5rem 2.5rem;
-  background-image: var(--negocio-hero-glow);
-  background-size: var(--negocio-hero-glow-size, 140% 200%);
-  background-position: center top;
-  opacity: 0.9;
-  mix-blend-mode: screen;
-}
-
 .historial-title-track {
   display: inline-block;
   white-space: nowrap;

@@ -38,7 +38,6 @@ export default function InicioHero({ usuario, negocio, stats }) {
       data-hero-container
     >
       <div className="hero-bleed text-white shadow-sm">
-        <div className="negocio-hero-glow" aria-hidden="true" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 pb-5 pt-2">
           <div className="relative">
             <div className="relative flex flex-col gap-4">

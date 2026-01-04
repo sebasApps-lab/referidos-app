@@ -23,7 +23,6 @@ function NegocioLayoutInner({ children }) {
   const rootRef = useRef(null);
   const headerRef = useRef(null);
   const mainRef = useRef(null);
-  const glowRafRef = useRef(null);
   const { mode, headerVisible, headerEntering } = useNegocioHeader();
 
   const updateHeaderHeight = useCallback(() => {
@@ -109,50 +108,6 @@ function NegocioLayoutInner({ children }) {
     };
   }, [updateHeaderElevation]);
 
-  const updateHeroGlow = useCallback(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const heroEl = document.querySelector("[data-hero-container]");
-    if (!heroEl) {
-      root.style.setProperty("--negocio-header-bg", "#5E30A5");
-      return;
-    }
-    const rect = heroEl.getBoundingClientRect();
-    const headerBg =
-      rect.bottom > headerHeight + viewportMetrics.offsetTop
-        ? "transparent"
-        : "#5E30A5";
-    root.style.setProperty("--negocio-header-bg", headerBg);
-  }, [headerHeight, viewportMetrics.offsetTop]);
-
-  const scheduleHeroGlow = useCallback(() => {
-    if (glowRafRef.current) return;
-    glowRafRef.current = requestAnimationFrame(() => {
-      glowRafRef.current = null;
-      updateHeroGlow();
-    });
-  }, [updateHeroGlow]);
-
-  useEffect(() => {
-    scheduleHeroGlow();
-    const current = mainRef.current;
-    if (current) {
-      current.addEventListener("scroll", scheduleHeroGlow, { passive: true });
-    }
-    window.addEventListener("scroll", scheduleHeroGlow, { passive: true });
-    window.addEventListener("resize", scheduleHeroGlow);
-    return () => {
-      if (glowRafRef.current) {
-        cancelAnimationFrame(glowRafRef.current);
-      }
-      if (current) {
-        current.removeEventListener("scroll", scheduleHeroGlow);
-      }
-      window.removeEventListener("scroll", scheduleHeroGlow);
-      window.removeEventListener("resize", scheduleHeroGlow);
-    };
-  }, [scheduleHeroGlow]);
-
   if (bootstrap || typeof usuario === "undefined") return null;
 
   const viewportHeight = viewportMetrics.height;
@@ -167,9 +122,6 @@ function NegocioLayoutInner({ children }) {
         "--negocio-ink": "#2F1A55",
         "--negocio-accent": "#5E30A5",
         "--negocio-accent-2": "#4B2488",
-        "--negocio-hero-glow":
-          "radial-gradient(circle at 12% -24%, rgba(255,255,255,0.42), rgba(94,48,165,0.22) 36%, rgba(47,26,85,0.0) 68%)",
-        "--negocio-hero-glow-size": "140% 200%",
         "--negocio-header-bg": "#5E30A5",
         "--cliente-header-height": `${headerHeight}px`,
         "--cliente-viewport-offset": `${viewportMetrics.offsetTop}px`,
