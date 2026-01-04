@@ -45,6 +45,7 @@ import SupportFeedback from "../shared/sections/SupportFeedback";
 
 export default function NegocioPerfil() {
   const usuario = useAppStore((s) => s.usuario);
+  const onboarding = useAppStore((s) => s.onboarding);
   const setUser = useAppStore((s) => s.setUser);
   const logout = useAppStore((s) => s.logout);
   const { setHeaderOptions } = useNegocioHeader();
@@ -61,27 +62,61 @@ export default function NegocioPerfil() {
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
   const deepLinkAppliedRef = useRef(false);
+  const openNegocioIdentity = useCallback(() => {
+    setProfileTab("manage");
+    setProfileView("panel");
+  }, [setProfileTab, setProfileView]);
+  const negocioItems = useMemo(() => {
+    const fromOnboarding = Array.isArray(onboarding?.negocios)
+      ? onboarding.negocios
+      : onboarding?.negocio
+      ? [onboarding.negocio]
+      : [];
+    const fromUser = Array.isArray(usuario?.negocios)
+      ? usuario.negocios
+      : usuario?.negocio
+      ? [usuario.negocio]
+      : [];
+    const base =
+      fromOnboarding.length > 0
+        ? fromOnboarding
+        : fromUser.length > 0
+        ? fromUser
+        : [
+            {
+              nombre: usuario?.negocioNombre || usuario?.negocio || "",
+              sector: usuario?.sector || "",
+              direccion: usuario?.direccion || usuario?.ubicacion || "",
+            },
+          ];
+    return base.map((item, index) => ({
+      id: item?.id || item?.negocioId || `negocio-${index}`,
+      nombre:
+        item?.nombre || item?.negocioNombre || item?.nombre_negocio || "",
+      sector: item?.sector || "",
+      direccion: item?.direccion || item?.ubicacion || "",
+    }));
+  }, [onboarding, usuario]);
   const overviewConfig = useMemo(
     () => ({
+      role: "negocio",
       mode: "plan",
       headerBadge: "Cuenta de Negocio",
-      alias: {
-        panelTitle: "Nombre del Negocio",
-        emptyMessage:
-          "Necesitas poner un nombre para que tus clientes te encuentren",
-        editMessage: "Actualiza el nombre de tu negocio.",
-        viewMessage: "Actualiza el nombre de tu negocio.",
-        editTitle: "Nombre del Negocio",
-        fieldLabel: "Nombre del Negocio",
-        placeholder: "Ingresa el nombre de tu negocio",
+      identityTitle: "Identidad del propietario",
+      negocios: negocioItems,
+      negocio: {
+        panelTitle: "Identidad del Negocio",
+        subtitle: "Define como te ven tus clientes y manten tu info actualizada",
+        warningText:
+          "Completa la informacion de tu negocio, para una mejor experiencia.",
         displayLabel: "Nombre del Negocio",
+        primaryLabel: "Principal",
+        branchLabel: "Sucursal",
         emptyValue: "No haz ingresado el nombre de tu negocio aun.",
-        emptyValueClass: "mt-4 mb-3 block text-[13px] text-red-500",
-        valueClass: "mt-1 block text-sm text-[#2F1A55]",
-        minLettersText: "El nombre debe contener al menos cuatro letras",
+        onEdit: openNegocioIdentity,
       },
     }),
-    []
+    [negocioItems, openNegocioIdentity]
   );
 
   const tabGroups = useMemo(
@@ -162,7 +197,7 @@ export default function NegocioPerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    []
+    [overviewConfig]
   );
 
   useEffect(() => {

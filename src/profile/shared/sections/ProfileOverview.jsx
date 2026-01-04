@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Check, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
+import {
+  Camera,
+  Check,
+  Pencil,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import {
   formatReadableDate,
   getAvatarSrc,
@@ -36,6 +44,8 @@ export default function ProfileOverview({
       : createdAtRaw;
   const createdAtLabel = formatReadableDate(createdAtValue);
   const showRole = usuario?.role && usuario.role !== "cliente";
+  const isNegocioView = overviewConfig.role === "negocio";
+  const identityTitle = overviewConfig.identityTitle || "Identidad";
   const overviewMode = overviewConfig.mode || "tier";
   const aliasConfig = useMemo(
     () => ({
@@ -48,13 +58,58 @@ export default function ProfileOverview({
       placeholder: "Ingresa un alias",
       displayLabel: "Alias",
       emptyValue: "Sin alias.",
-      emptyValueClass: "mt-4 mb-3 block text-[13px] text-slate-500",
+      emptyValueClass: "mt-1 block text-[13px] text-slate-500",
       valueClass: "mt-1 block text-sm font-semibold text-[#2F1A55]",
       minLettersText: "El alias debe contener al menos cuatro letras",
       ...overviewConfig.alias,
     }),
     [overviewConfig.alias]
   );
+  const negocioConfig = useMemo(
+    () => ({
+      panelTitle: "Identidad del Negocio",
+      subtitle:
+        "Define como te ven tus clientes y manten tu info actualizada",
+      warningText:
+        "Completa la informacion de tu negocio, para una mejor experiencia.",
+      displayLabel: "Nombre del Negocio",
+      primaryLabel: "Principal",
+      branchLabel: "Sucursal",
+      emptyValue: "No haz ingresado el nombre de tu negocio aun.",
+      valueClass: "text-[13px]",
+      onEdit: null,
+      ...overviewConfig.negocio,
+    }),
+    [overviewConfig.negocio]
+  );
+  const negocioItems = useMemo(() => {
+    const rawItems = Array.isArray(overviewConfig.negocios)
+      ? overviewConfig.negocios
+      : [];
+    if (!rawItems.length) return [];
+    return rawItems.map((item, index) => ({
+      id: item?.id || item?.negocioId || `negocio-${index}`,
+      nombre: item?.nombre || item?.negocioNombre || item?.nombre_negocio || "",
+      sector: item?.sector || "",
+      direccion: item?.direccion || item?.ubicacion || "",
+    }));
+  }, [overviewConfig.negocios]);
+  const negocioDisplayItems = negocioItems.length
+    ? negocioItems
+    : [
+        {
+          id: "negocio-principal",
+          nombre: "",
+          sector: "",
+          direccion: "",
+        },
+      ];
+  const isNegocioMissing = negocioDisplayItems.some((item) => {
+    const nombre = (item?.nombre || "").trim();
+    const sector = (item?.sector || "").trim();
+    const direccion = (item?.direccion || "").trim();
+    return !(nombre && sector && direccion);
+  });
   const badgeLabel =
     overviewConfig.tierBadgeLabel ||
     (overviewMode === "plan" ? plan?.plan || "FREE" : tier.label);
@@ -225,7 +280,7 @@ export default function ProfileOverview({
       <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-3">
         <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
           <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-            Identidad
+            {identityTitle}
           </span>
           {verification.accountVerified ? (
             <span className="ml-auto inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
@@ -296,107 +351,169 @@ export default function ProfileOverview({
           </ul>
         </div>
 
-        <div className="relative rounded-[28px] border border-[#E9E2F7] px-5 pb-5 pt-4">
-          <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
-            <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-              {aliasConfig.panelTitle}
-            </span>
-          </div>
-          {aliasMessage ? (
-            <div className="mt-1 text-xs text-slate-500 text-center">
-              {aliasMessage}
+        {isNegocioView ? (
+          <div className="relative rounded-[28px] border border-[#E9E2F7] px-5 pb-5 pt-4">
+            <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
+              <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+                {negocioConfig.panelTitle}
+              </span>
             </div>
-          ) : null}
-          {isEditingAlias ? (
-            <div className="mt-5" ref={aliasRowRef}>
-              <div className="text-xs font-semibold text-[#2F1A55]">
-                {aliasConfig.editTitle}
+            {isNegocioMissing ? (
+              <div className="mt-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-3 text-xs text-red-500">
+                <TriangleAlert size={16} className="text-red-500" />
+                {negocioConfig.warningText}
               </div>
-              <div className="relative mt-6 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
-                <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-                  {aliasConfig.fieldLabel}
-                </span>
-                <input
-                  ref={aliasInputRef}
-                  value={alias}
-                  onChange={(e) => handleAliasChange(e.target.value)}
-                  placeholder={aliasConfig.placeholder}
-                  onFocus={handleAliasFocus}
-                  onBlur={handleAliasBlur}
-                  className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
-                />
+            ) : (
+              <div className="mt-1 text-xs text-slate-500 text-center">
+                {negocioConfig.subtitle}
               </div>
-              <div className="mt-3 space-y-1 text-xs pl-3">
-                {invalidChars ? (
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <X size={12} />
-                    No se permiten caracteres especiales
-                  </div>
-                ) : null}
-                <div
-                  className={`flex items-center gap-2 ${
-                    hasMinLetters ? "text-emerald-600" : "text-slate-400"
-                  }`}
-                >
-                  {hasMinLetters ? <Check size={12} /> : <X size={12} />}
-                  {aliasConfig.minLettersText}
-                </div>
-              </div>
-              <div className="mt-5 flex items-center justify-between text-xs font-semibold px-2">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="text-[#2F1A55]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  className={canSave ? "text-[#5E30A5]" : "text-slate-400"}
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          ) : (
+            )}
             <div className="mt-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-semibold text-[#2F1A55]">
-                  {aliasConfig.displayLabel}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingAlias(true)}
-                  className="text-[#5E30A5]"
-                  aria-label="Editar alias"
-                >
-                  <Pencil size={16} />
-                </button>
+              <div className="mt-3 space-y-4">
+                {negocioDisplayItems.map((item, index) => {
+                  const nombre = (item?.nombre || "").trim();
+                  const sector = (item?.sector || "").trim();
+                  const direccion = (item?.direccion || "").trim();
+                  const missing = !(nombre && sector && direccion);
+                  const label =
+                    index === 0
+                      ? negocioConfig.primaryLabel
+                      : `${negocioConfig.branchLabel} ${index}`;
+                  return (
+                    <div key={item.id || `negocio-${index}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-4">
+                          <div className="text-xs font-semibold text-[#2F1A55]">
+                            {label}
+                          </div>
+                          <div
+                            className={`${negocioConfig.valueClass} ${
+                              missing ? "text-red-500" : "text-slate-600"
+                            }`}
+                          >
+                            {nombre || negocioConfig.emptyValue}
+                          </div>
+                        </div>
+                        {negocioConfig.onEdit ? (
+                          <button
+                            type="button"
+                            onClick={() => negocioConfig.onEdit(item, index)}
+                            className="text-[#5E30A5]"
+                            aria-label={`Editar ${label}`}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              {baseAlias ? (
-                <span className={aliasConfig.valueClass}>
-                  {baseAlias}
-                </span>
-              ) : (
-                <span className={aliasConfig.emptyValueClass}>
-                  {aliasConfig.emptyValue}
-                </span>
-              )}
             </div>
-          )}
-          {status ? (
-            <div
-              className={`mt-3 flex items-center gap-2 text-xs font-semibold ${
-                status.type === "error" ? "text-red-500" : "text-emerald-600"
-              }`}
-            >
-              {status.type === "error" ? <X size={14} /> : <Check size={14} />}
-              {status.text}
+          </div>
+        ) : (
+          <div className="relative rounded-[28px] border border-[#E9E2F7] px-5 pb-5 pt-4">
+            <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
+              <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+                {aliasConfig.panelTitle}
+              </span>
             </div>
-          ) : null}
-        </div>
+            {aliasMessage ? (
+              <div className="mt-1 text-xs text-slate-500 text-center">
+                {aliasMessage}
+              </div>
+            ) : null}
+            {isEditingAlias ? (
+              <div className="mt-5" ref={aliasRowRef}>
+                <div className="text-xs font-semibold text-[#2F1A55]">
+                  {aliasConfig.editTitle}
+                </div>
+                <div className="relative mt-6 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
+                  <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
+                    {aliasConfig.fieldLabel}
+                  </span>
+                  <input
+                    ref={aliasInputRef}
+                    value={alias}
+                    onChange={(e) => handleAliasChange(e.target.value)}
+                    placeholder={aliasConfig.placeholder}
+                    onFocus={handleAliasFocus}
+                    onBlur={handleAliasBlur}
+                    className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
+                  />
+                </div>
+                <div className="mt-3 space-y-1 text-xs pl-3">
+                  {invalidChars ? (
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <X size={12} />
+                      No se permiten caracteres especiales
+                    </div>
+                  ) : null}
+                  <div
+                    className={`flex items-center gap-2 ${
+                      hasMinLetters ? "text-emerald-600" : "text-slate-400"
+                    }`}
+                  >
+                    {hasMinLetters ? <Check size={12} /> : <X size={12} />}
+                    {aliasConfig.minLettersText}
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-between text-xs font-semibold px-2">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="text-[#2F1A55]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!canSave}
+                    className={canSave ? "text-[#5E30A5]" : "text-slate-400"}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-[#2F1A55]">
+                    {aliasConfig.displayLabel}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingAlias(true)}
+                    className="text-[#5E30A5]"
+                    aria-label="Editar alias"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                </div>
+                {baseAlias ? (
+                  <span className={aliasConfig.valueClass}>
+                    {baseAlias}
+                  </span>
+                ) : (
+                  <span className={aliasConfig.emptyValueClass}>
+                    {aliasConfig.emptyValue}
+                  </span>
+                )}
+              </div>
+            )}
+            {status ? (
+              <div
+                className={`mt-3 flex items-center gap-2 text-xs font-semibold ${
+                  status.type === "error" ? "text-red-500" : "text-emerald-600"
+                }`}
+              >
+                {status.type === "error" ? <X size={14} /> : <Check size={14} />}
+                {status.text}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </section>
   );
