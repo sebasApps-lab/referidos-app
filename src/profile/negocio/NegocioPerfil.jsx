@@ -11,17 +11,24 @@ import {
   HelpCircle,
   IdCard,
   KeyRound,
+  Laptop,
   Link2,
   LogOut,
   MessageSquare,
   Monitor,
   Palette,
+  Smartphone,
   Shield,
+  Tablet,
   UserCircle,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useLocation } from "react-router-dom";
 import { useNegocioUI } from "../../negocio/hooks/useNegocioUI";
+import {
+  getAvatarSrc,
+  getSessionListFallback,
+} from "../../cliente/services/clienteUI";
 import ProfileTabs from "../shared/ProfileTabs";
 import ProfilePanel from "../shared/ProfilePanel";
 import {
@@ -43,6 +50,31 @@ import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
 
+const DEVICE_ICON = {
+  Movil: Smartphone,
+  Laptop,
+  Tablet,
+};
+
+const EMPLOYEE_SESSIONS_FALLBACK = [
+  {
+    id: "employee-1",
+    name: "Valeria Cruz",
+    genero: "f",
+    location: "Quito, Ecuador",
+    lastActive: "Activa ahora",
+    current: true,
+  },
+  {
+    id: "employee-2",
+    name: "Mateo Reyes",
+    genero: "m",
+    location: "Guayaquil, Ecuador",
+    lastActive: "Hace 2 dias",
+    current: false,
+  },
+];
+
 export default function NegocioPerfil() {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
@@ -62,6 +94,104 @@ export default function NegocioPerfil() {
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
   const deepLinkAppliedRef = useRef(false);
+  const [ownerSessions, setOwnerSessions] = useState(getSessionListFallback());
+  const [employeeSessions, setEmployeeSessions] = useState(() =>
+    EMPLOYEE_SESSIONS_FALLBACK.map((employee) => ({
+      ...employee,
+      avatar: getAvatarSrc({ genero: employee.genero }),
+    }))
+  );
+
+  const handleCloseAllOwners = useCallback(() => {
+    setOwnerSessions((prev) => prev.filter((session) => session.current));
+  }, []);
+
+  const handleCloseAllEmployees = useCallback(() => {
+    setEmployeeSessions((prev) => prev.filter((session) => session.current));
+  }, []);
+
+  const SessionsPanel = useCallback(
+    () => (
+      <div className="flex flex-col gap-6">
+        <Sessions
+          title="Sesiones de cuenta propietario"
+          subtitle="Controla los accesos activos en tu cuenta."
+          items={ownerSessions}
+          renderLeading={(session) => {
+            const Icon = DEVICE_ICON[session.device] || Laptop;
+            return <Icon size={18} />;
+          }}
+          getPrimaryText={(session) => session.device}
+          getSecondaryText={(session) =>
+            `${session.location} - ${session.lastActive}`
+          }
+          footer={
+            <button
+              type="button"
+              onClick={handleCloseAllOwners}
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              <div className="flex items-center gap-2">
+                <span className="h-8 w-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <LogOut size={16} />
+                </span>
+                <div>
+                  <div>Cerrar todas</div>
+                  <div className="mt-1 text-[11px] font-normal text-red-500">
+                    Esto cerra sesion en el resto de dispositivos, menos en el
+                    actual.
+                  </div>
+                </div>
+              </div>
+            </button>
+          }
+        />
+        <Sessions
+          title="Sesiones de empleados"
+          subtitle="Controla las sesiones de las cuentas de tus empleados o ayudantes."
+          items={employeeSessions}
+          renderLeading={(session) => (
+            <img
+              src={session.avatar}
+              alt={session.name}
+              className="h-full w-full object-cover"
+            />
+          )}
+          leadingClassName="bg-[#F3EEFF] overflow-hidden"
+          getPrimaryText={(session) => session.name}
+          getSecondaryText={(session) =>
+            `${session.location} - ${session.lastActive}`
+          }
+          footer={
+            <button
+              type="button"
+              onClick={handleCloseAllEmployees}
+              className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              <div className="flex items-center gap-2">
+                <span className="h-8 w-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <LogOut size={16} />
+                </span>
+                <div>
+                  <div>Cerrar todas</div>
+                  <div className="mt-1 text-[11px] font-normal text-red-500">
+                    Esto cerra sesion en el resto de dispositivos, menos en el
+                    actual.
+                  </div>
+                </div>
+              </div>
+            </button>
+          }
+        />
+      </div>
+    ),
+    [
+      employeeSessions,
+      handleCloseAllEmployees,
+      handleCloseAllOwners,
+      ownerSessions,
+    ]
+  );
   const openNegocioIdentity = useCallback(() => {
     setProfileTab("manage");
     setProfileView("panel");
@@ -188,7 +318,7 @@ export default function NegocioPerfil() {
       "security-access": Access,
       "security-links": LinkedAccounts,
       twofa: TwoFA,
-      sessions: Sessions,
+      sessions: SessionsPanel,
       notifications: Notifications,
       plan: Tier,
       appearance: AppAppearance,
@@ -197,7 +327,7 @@ export default function NegocioPerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    [overviewConfig]
+    [overviewConfig, SessionsPanel]
   );
 
   useEffect(() => {

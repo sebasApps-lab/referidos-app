@@ -11,16 +11,20 @@ import {
   HelpCircle,
   IdCard,
   KeyRound,
+  Laptop,
   Link2,
   LogOut,
   MessageSquare,
   Monitor,
   Palette,
+  Smartphone,
+  Tablet,
   Shield,
   UserCircle,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../../cliente/hooks/useClienteUI";
+import { getSessionListFallback } from "../../cliente/services/clienteUI";
 import ProfileTabs from "../shared/ProfileTabs";
 import ProfilePanel from "../shared/ProfilePanel";
 import {
@@ -42,6 +46,12 @@ import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
 
+const DEVICE_ICON = {
+  Movil: Smartphone,
+  Laptop,
+  Tablet,
+};
+
 export default function ClientePerfil() {
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
@@ -58,6 +68,50 @@ export default function ClientePerfil() {
   const showSearchDock = profileView === "tabs";
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
+  const [sessions, setSessions] = useState(getSessionListFallback());
+
+  const handleCloseAllSessions = useCallback(() => {
+    setSessions((prev) => prev.filter((session) => session.current));
+  }, []);
+
+  const SessionsPanel = useCallback(
+    () => (
+      <Sessions
+        title="Sesiones y dispositivos"
+        subtitle="Controla los accesos activos en tu cuenta."
+        items={sessions}
+        renderLeading={(session) => {
+          const Icon = DEVICE_ICON[session.device] || Laptop;
+          return <Icon size={18} />;
+        }}
+        getPrimaryText={(session) => session.device}
+        getSecondaryText={(session) =>
+          `${session.location} - ${session.lastActive}`
+        }
+        footer={
+          <button
+            type="button"
+            onClick={handleCloseAllSessions}
+            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs font-semibold text-red-600 transition hover:bg-red-100"
+          >
+            <div className="flex items-center gap-2">
+              <span className="h-8 w-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                <LogOut size={16} />
+              </span>
+              <div>
+                <div>Cerrar todas</div>
+                <div className="mt-1 text-[11px] font-normal text-red-500">
+                  Esto cerra sesion en el resto de dispositivos, menos en el
+                  actual.
+                </div>
+              </div>
+            </div>
+          </button>
+        }
+      />
+    ),
+    [sessions, handleCloseAllSessions]
+  );
 
   const tabGroups = useMemo(
     () => [
@@ -126,7 +180,7 @@ export default function ClientePerfil() {
       "security-access": Access,
       "security-links": LinkedAccounts,
       twofa: TwoFA,
-      sessions: Sessions,
+      sessions: SessionsPanel,
       notifications: Notifications,
       plan: Tier,
       appearance: AppAppearance,
@@ -135,7 +189,7 @@ export default function ClientePerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    []
+    [SessionsPanel]
   );
 
   const handleTabChange = useCallback(
