@@ -241,7 +241,7 @@ export default function ProfileOverview({
   return (
     <section className="px-2">
       {overviewConfig.headerBadge ? (
-        <div className="mb-4 flex justify-center">
+        <div className="-mt-10 mb-10 flex justify-center">
           {typeof overviewConfig.headerBadge === "string" ? (
             <span className="inline-flex items-center rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
               {overviewConfig.headerBadge}
