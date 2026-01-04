@@ -255,15 +255,15 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
               Nombre en pantalla
             </span>
           </div>
-          {!baseAlias ? (
-            <div className="mt-1 text-xs text-slate-500 text-center">
-              Haz que tu perfil se sienta tuyo, añade un alias.
-            </div>
-          ) : (
+          {isEditingAlias ? (
             <div className="mt-1 text-xs text-slate-500 text-center">
               Esto es lo que los demas veran.
             </div>
-          )}
+          ) : !baseAlias ? (
+            <div className="mt-1 text-xs text-slate-500 text-center">
+              Haz que tu perfil se sienta tuyo, añade un alias.
+            </div>
+          ) : null}
           {isEditingAlias ? (
             <div className="mt-5" ref={aliasRowRef}>
               <div className="text-xs font-semibold text-[#2F1A55]">
