@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Calendar, CheckCircle2, Clock, PauseCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import SectionTitle from "../../components/sections/SectionTitle";
@@ -25,21 +25,35 @@ const STATUS_META = {
   },
 };
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, active, onClick }) {
   return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-3 text-center shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-2xl border px-3 py-3 text-center shadow-sm transition ${
+        active
+          ? "border-[#5E30A5] bg-[#F3EEFF]"
+          : "border-[#E9E2F7] bg-white hover:border-[#5E30A5]/40"
+      }`}
+    >
       <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
         {label}
       </div>
       <div className="mt-1 text-xl font-semibold text-[#2F1A55]">
         {value}
       </div>
-    </div>
+    </button>
   );
 }
 
 export default function InicioPromos({ promos = [], stats }) {
-  const latest = useMemo(() => promos.slice(0, 3), [promos]);
+  const [activeFilter, setActiveFilter] = useState(null);
+  const filteredPromos = useMemo(() => {
+    if (!activeFilter) return promos;
+    return promos.filter((promo) => promo.estado === activeFilter);
+  }, [activeFilter, promos]);
+  const latest = useMemo(() => filteredPromos.slice(0, 3), [filteredPromos]);
   const safeStats = stats || { activas: 0, pendientes: 0, inactivas: 0 };
 
   return (
@@ -60,9 +74,34 @@ export default function InicioPromos({ promos = [], stats }) {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <SummaryCard label="Activas" value={safeStats.activas} />
-        <SummaryCard label="Pendientes" value={safeStats.pendientes} />
-        <SummaryCard label="Inactivas" value={safeStats.inactivas} />
+        <SummaryCard
+          label="Activas"
+          value={safeStats.activas}
+          active={activeFilter === "activo"}
+          onClick={() =>
+            setActiveFilter((prev) => (prev === "activo" ? null : "activo"))
+          }
+        />
+        <SummaryCard
+          label="Pendientes"
+          value={safeStats.pendientes}
+          active={activeFilter === "pendiente"}
+          onClick={() =>
+            setActiveFilter((prev) =>
+              prev === "pendiente" ? null : "pendiente"
+            )
+          }
+        />
+        <SummaryCard
+          label="Inactivas"
+          value={safeStats.inactivas}
+          active={activeFilter === "inactivo"}
+          onClick={() =>
+            setActiveFilter((prev) =>
+              prev === "inactivo" ? null : "inactivo"
+            )
+          }
+        />
       </div>
 
       <div className="mt-5 space-y-3">
@@ -104,6 +143,11 @@ export default function InicioPromos({ promos = [], stats }) {
             </article>
           );
         })}
+        {latest.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-white px-4 py-6 text-center text-xs text-slate-500">
+            No hay promociones para este estado.
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
