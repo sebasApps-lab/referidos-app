@@ -185,9 +185,6 @@ export default function EscanerFallback({
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-sm gap-4 self-center">
       <div className="w-full text-center">
-        <p className="text-base font-semibold text-[#2F1A55]">
-          Ingresar codigo
-        </p>
         <p className="mt-1 text-sm text-slate-500">
           Escribe el codigo de 6 digitos para validar la promo.
         </p>

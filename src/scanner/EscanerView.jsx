@@ -255,7 +255,11 @@ export default function EscanerView() {
     >
       {!showPermissionIntro && (
         <div className="flex justify-between items-center mb-4">
-          {isNegocio ? (
+          {showPermisos ? (
+            <h1 className="text-base font-semibold text-[#2F1A55]">
+              Ingresa el codigo manualmente
+            </h1>
+          ) : isNegocio ? (
             <h1 className="text-base font-semibold text-[#2F1A55]">
               Escaner de canje
             </h1>
@@ -308,7 +312,7 @@ export default function EscanerView() {
                 Activa la camara para escanear codigos
               </h2>
               <p className="mt-3 text-[15px] text-slate-500">
-                Al permitir el acceso a la camara podras leer tus codigos en
+                Al permitir acceso a la camara podras leer los codigos en
                 segundos.
               </p>
 
