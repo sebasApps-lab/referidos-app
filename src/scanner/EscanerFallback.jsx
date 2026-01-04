@@ -185,7 +185,7 @@ export default function EscanerFallback({
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-sm gap-4 self-center">
       <div className="w-full text-center">
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-[13px] text-slate-500">
           Escribe el codigo de 6 digitos para validar la promo.
         </p>
       </div>
@@ -213,7 +213,7 @@ export default function EscanerFallback({
               inputRefs.current[index] = el;
             }}
             maxLength={1}
-            className="h-12 w-12 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
+            className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-base font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
           />
         ))}
         <span className="text-lg font-semibold text-[#5E30A5]">-</span>
@@ -238,7 +238,7 @@ export default function EscanerFallback({
                 inputRefs.current[index] = el;
               }}
               maxLength={1}
-              className="h-12 w-12 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
+              className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-base font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
             />
           );
         })}
@@ -246,7 +246,7 @@ export default function EscanerFallback({
       <button
         onClick={onSubmit}
         disabled={disabled}
-        className={`w-full px-4 py-3 rounded-2xl font-semibold shadow ${
+        className={`self-center px-6 py-3 rounded-2xl font-semibold shadow ${
           disabled
             ? "bg-[#E9E2F7] text-slate-400 cursor-not-allowed"
             : "bg-[#5E30A5] text-white hover:bg-[#4B2488]"

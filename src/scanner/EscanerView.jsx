@@ -347,7 +347,7 @@ export default function EscanerView() {
                 willChange: "top, transform",
               }}
             >
-              <div className="w-full max-w-lg transition-transform duration-500 ease-out">
+              <div className="w-full max-w-xl transition-transform duration-500 ease-out">
                 <EscanerPermisos
                   camSupported={canScan}
                   camGranted={camGranted}
@@ -355,28 +355,18 @@ export default function EscanerView() {
                   onRequestCamera={requestCameraPermission}
                   showButton={!showManual}
                   manualDisabled={manualRequested}
+                  manualOpen={showManual}
+                  manualContent={
+                    <div className="w-full">
+                      <EscanerFallback
+                        value={manualValue}
+                        onChange={setManualValue}
+                        onSubmit={() => handleCode(manualValue)}
+                        disabled={manualDisabled}
+                      />
+                    </div>
+                  }
                 />
-              </div>
-              <div
-                className={`absolute left-0 right-0 top-full mt-4 flex justify-center ${
-                  showManual ? "" : "pointer-events-none"
-                }`}
-                style={{
-                  opacity: showManual ? 1 : 0,
-                  transform: showManual ? "translateY(0)" : "translateY(-8px)",
-                  transition: `opacity 260ms ease ${
-                    showManual ? "160ms" : "0ms"
-                  }, transform 260ms ease ${showManual ? "160ms" : "0ms"}`,
-                }}
-              >
-                <div className="w-full max-w-lg">
-                  <EscanerFallback
-                    value={manualValue}
-                    onChange={setManualValue}
-                    onSubmit={() => handleCode(manualValue)}
-                    disabled={manualDisabled}
-                  />
-                </div>
               </div>
             </div>
           </div>

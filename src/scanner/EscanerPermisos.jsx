@@ -8,6 +8,8 @@ export default function EscanerPermisos({
   onRequestCamera,
   showButton = true,
   manualDisabled = false,
+  manualOpen = false,
+  manualContent = null,
 }) {
   if (camSupported && camGranted) return null;
 
@@ -69,6 +71,24 @@ export default function EscanerPermisos({
           </button>
         </div>
       </div>
+      {manualContent && (
+        <div
+          className={`mt-4 -mx-5 overflow-hidden ${
+            manualOpen ? "" : "pointer-events-none"
+          }`}
+          style={{
+            maxHeight: manualOpen ? 360 : 0,
+            opacity: manualOpen ? 1 : 0,
+            transform: manualOpen ? "translateY(0)" : "translateY(-6px)",
+            transition:
+              "max-height 320ms ease, opacity 220ms ease, transform 220ms ease",
+          }}
+        >
+          <div className="py-4">
+            {manualContent}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

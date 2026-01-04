@@ -255,11 +255,7 @@ export default function EscanerView() {
     >
       {!showPermissionIntro && (
         <div className="flex justify-between items-center mb-4">
-          {showPermisos ? (
-            <h1 className="text-base font-semibold text-[#2F1A55]">
-              Ingresa el codigo manualmente
-            </h1>
-          ) : isNegocio ? (
+          {isNegocio ? (
             <h1 className="text-base font-semibold text-[#2F1A55]">
               Escaner de canje
             </h1>
@@ -391,4 +387,3 @@ export default function EscanerView() {
     </div>
   );
 }
-
