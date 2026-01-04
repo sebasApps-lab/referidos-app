@@ -54,9 +54,17 @@ export default function InicioHero({ usuario, negocio, stats }) {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold leading-tight text-white">
-                    {nombre}
-                  </h1>
+                  <div className="flex items-center justify-between gap-2">
+                    <h1 className="text-xl font-semibold leading-tight text-white">
+                      {nombre}
+                    </h1>
+                    <span
+                      className="inline-flex items-center whitespace-nowrap rounded-xl border border-white/15 bg-[#3B1A66] px-[clamp(12px,4vw,20px)] py-[clamp(12px,3vw,14px)] text-[clamp(9px,2.4vw,12px)] font-semibold uppercase tracking-[0.18em] leading-none text-white min-w-0 shrink"
+                      style={{ mixBlendMode: "screen", opacity: 0.92 }}
+                    >
+                      {roleLabel}
+                    </span>
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/75">
                     <span className="inline-flex items-center gap-1">
                       <Store size={12} />
@@ -67,14 +75,6 @@ export default function InicioHero({ usuario, negocio, stats }) {
                       {direccion}
                     </span>
                   </div>
-                </div>
-                <div className="flex items-center pt-1">
-                  <span
-                    className="inline-flex items-center rounded-xl border border-white/15 bg-[#3B1A66] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-white"
-                    style={{ mixBlendMode: "screen", opacity: 0.92 }}
-                  >
-                    {roleLabel}
-                  </span>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-2 text-right">
                   <div className="flex items-center gap-2">
