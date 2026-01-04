@@ -61,6 +61,28 @@ export default function NegocioPerfil() {
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
   const deepLinkAppliedRef = useRef(false);
+  const overviewConfig = useMemo(
+    () => ({
+      mode: "plan",
+      headerBadge: "Cuenta de Negocio",
+      alias: {
+        panelTitle: "Nombre del Negocio",
+        emptyMessage:
+          "Necesitas poner un nombre para que tus clientes te encuentren",
+        editMessage: "Actualiza el nombre de tu negocio.",
+        viewMessage: "Actualiza el nombre de tu negocio.",
+        editTitle: "Nombre del Negocio",
+        fieldLabel: "Nombre del Negocio",
+        placeholder: "Ingresa el nombre de tu negocio",
+        displayLabel: "Nombre del Negocio",
+        emptyValue: "No haz ingresado el nombre de tu negocio aun.",
+        emptyValueClass: "mt-4 mb-3 block text-[13px] text-red-500",
+        valueClass: "mt-1 block text-sm text-[#2F1A55]",
+        minLettersText: "El nombre debe contener al menos cuatro letras",
+      },
+    }),
+    []
+  );
 
   const tabGroups = useMemo(
     () => [
@@ -124,7 +146,9 @@ export default function NegocioPerfil() {
 
   const sections = useMemo(
     () => ({
-      overview: ProfileOverview,
+      overview: (props) => (
+        <ProfileOverview {...props} overviewConfig={overviewConfig} />
+      ),
       personal: PersonalData,
       "security-access": Access,
       "security-links": LinkedAccounts,

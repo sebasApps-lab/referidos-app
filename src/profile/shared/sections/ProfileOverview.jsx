@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, Pencil, ShieldCheck, Sparkles, X } from "lucide-react";
 import {
   formatReadableDate,
@@ -8,7 +8,12 @@ import {
   getTierMeta,
 } from "../../../cliente/services/clienteUI";
 
-export default function ProfileOverview({ usuario, setUser, verification }) {
+export default function ProfileOverview({
+  usuario,
+  setUser,
+  verification,
+  overviewConfig = {},
+}) {
   const initialAlias = usuario?.alias || "";
   const [alias, setAlias] = useState(initialAlias);
   const [baseAlias, setBaseAlias] = useState(initialAlias);
@@ -31,6 +36,37 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
       : createdAtRaw;
   const createdAtLabel = formatReadableDate(createdAtValue);
   const showRole = usuario?.role && usuario.role !== "cliente";
+  const overviewMode = overviewConfig.mode || "tier";
+  const aliasConfig = useMemo(
+    () => ({
+      panelTitle: "Nombre en pantalla",
+      emptyMessage: "Haz que tu perfil se sienta tuyo, anade un alias.",
+      editMessage: "Esto es lo que los demas veran.",
+      viewMessage: null,
+      editTitle: "Elige tu alias",
+      fieldLabel: "Alias",
+      placeholder: "Ingresa un alias",
+      displayLabel: "Alias",
+      emptyValue: "Sin alias.",
+      emptyValueClass: "mt-4 mb-3 block text-[13px] text-slate-500",
+      valueClass: "mt-1 block text-sm font-semibold text-[#2F1A55]",
+      minLettersText: "El alias debe contener al menos cuatro letras",
+      ...overviewConfig.alias,
+    }),
+    [overviewConfig.alias]
+  );
+  const badgeLabel =
+    overviewConfig.tierBadgeLabel ||
+    (overviewMode === "plan" ? plan?.plan || "FREE" : tier.label);
+  const BadgeIcon = overviewConfig.tierBadgeIcon || Sparkles;
+  const tierTitle =
+    overviewConfig.tierTitle || (overviewMode === "plan" ? "Plan" : "Tier");
+  const perks = overviewConfig.tierPerks || tierPerks;
+  const aliasMessage = isEditingAlias
+    ? aliasConfig.editMessage
+    : baseAlias
+    ? aliasConfig.viewMessage
+    : aliasConfig.emptyMessage;
 
   useEffect(() => {
     const nextAlias = usuario?.alias || "";
@@ -149,6 +185,17 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
 
   return (
     <section className="px-2">
+      {overviewConfig.headerBadge ? (
+        <div className="mb-4 flex justify-center">
+          {typeof overviewConfig.headerBadge === "string" ? (
+            <span className="inline-flex items-center rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+              {overviewConfig.headerBadge}
+            </span>
+          ) : (
+            overviewConfig.headerBadge
+          )}
+        </div>
+      ) : null}
       {!verification.accountVerified ? (
           <div className="relative rounded-[28px]  px-4 pb-4 pt-5 mb-8">
             <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
@@ -232,15 +279,15 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-4 pb-4 pt-5">
           <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
             <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-              Tier
+              {tierTitle}
             </span>
             <span className="ml-auto inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold bg-[#F3EEFF] text-[#5E30A5] border border-[#E9E2F7]">
-              <Sparkles size={12} />
-              {tier.label}              
+              {BadgeIcon ? <BadgeIcon size={12} /> : null}
+              {badgeLabel}
             </span>
           </div>
           <ul className="mt-2 space-y-2 text-sm text-slate-600">
-            {tierPerks.map((perk, index) => (
+            {perks.map((perk, index) => (
               <li key={`${perk}-${index}`} className="flex items-start gap-2">
                 <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#5E30A5]" />
                 <span>{perk}</span>
@@ -252,32 +299,28 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
         <div className="relative rounded-[28px] border border-[#E9E2F7] px-5 pb-5 pt-4">
           <div className="absolute -top-2 left-4 right-4 flex items-center gap-3">
             <span className="bg-white px-2 text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
-              Nombre en pantalla
+              {aliasConfig.panelTitle}
             </span>
           </div>
-          {isEditingAlias ? (
+          {aliasMessage ? (
             <div className="mt-1 text-xs text-slate-500 text-center">
-              Esto es lo que los demas veran.
-            </div>
-          ) : !baseAlias ? (
-            <div className="mt-1 text-xs text-slate-500 text-center">
-              Haz que tu perfil se sienta tuyo, añade un alias.
+              {aliasMessage}
             </div>
           ) : null}
           {isEditingAlias ? (
             <div className="mt-5" ref={aliasRowRef}>
               <div className="text-xs font-semibold text-[#2F1A55]">
-                Elige tu alias
+                {aliasConfig.editTitle}
               </div>
               <div className="relative mt-6 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-                  Alias
+                  {aliasConfig.fieldLabel}
                 </span>
                 <input
                   ref={aliasInputRef}
                   value={alias}
                   onChange={(e) => handleAliasChange(e.target.value)}
-                  placeholder="Ingresa un alias"
+                  placeholder={aliasConfig.placeholder}
                   onFocus={handleAliasFocus}
                   onBlur={handleAliasBlur}
                   className="w-full bg-transparent text-sm text-slate-600 focus:outline-none"
@@ -296,7 +339,7 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                   }`}
                 >
                   {hasMinLetters ? <Check size={12} /> : <X size={12} />}
-                  El alias debe contener al menos cuatro letras
+                  {aliasConfig.minLettersText}
                 </div>
               </div>
               <div className="mt-5 flex items-center justify-between text-xs font-semibold px-2">
@@ -321,7 +364,7 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs font-semibold text-[#2F1A55]">
-                  Alias
+                  {aliasConfig.displayLabel}
                 </div>
                 <button
                   type="button"
@@ -333,12 +376,12 @@ export default function ProfileOverview({ usuario, setUser, verification }) {
                 </button>
               </div>
               {baseAlias ? (
-                <span className="mt-1 block text-sm font-semibold text-[#2F1A55]">
+                <span className={aliasConfig.valueClass}>
                   {baseAlias}
                 </span>
               ) : (
-                <span className="mt-4 mb-3 block text-[13px] text-slate-500">
-                  Sin alias.
+                <span className={aliasConfig.emptyValueClass}>
+                  {aliasConfig.emptyValue}
                 </span>
               )}
             </div>
