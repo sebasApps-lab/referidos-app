@@ -246,8 +246,10 @@ export default function EscanerView() {
 
   return (
     <div
-      className={`flex min-h-full flex-col flex-1 w-full ${showPermissionIntro ? "" : "px-4 pt-4"}`}
+      className={`w-full flex flex-col ${showPermissionIntro ? "" : "px-4 pt-4"}`}
       style={{
+        minHeight:
+          "calc(100dvh - var(--cliente-header-height, 0px) - 80px - env(safe-area-inset-bottom))",
         paddingBottom: showPermissionIntro
           ? 0
           : "calc(10px + env(safe-area-inset-bottom))",
