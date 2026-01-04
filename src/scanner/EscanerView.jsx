@@ -339,37 +339,33 @@ export default function EscanerView() {
         )}
 
         {showPermisos && (
-          <div className="relative flex-1">
+          <div
+            className={`flex flex-1 flex-col items-center ${
+              showManual ? "pt-6" : "justify-center"
+            }`}
+          >
             <div
-              className={`absolute left-0 right-0 flex flex-col items-center ${
-                showManual ? "top-6 translate-y-0" : "top-1/2 -translate-y-1/2"
-              }`}
-              style={{
-                transition: "top 520ms ease, transform 520ms ease",
-                willChange: "top, transform",
-              }}
+              className="w-full max-w-xl transition-transform duration-500 ease-out"
             >
-              <div className="w-full max-w-xl transition-transform duration-500 ease-out">
-                <EscanerPermisos
-                  camSupported={canScan}
-                  camGranted={camGranted}
-                  onManual={handleManualOpen}
-                  onRequestCamera={requestCameraPermission}
-                  showButton={!showManual}
-                  manualDisabled={manualRequested}
-                  manualOpen={showManual}
-                  manualContent={
-                    <div className="w-full">
-                      <EscanerFallback
-                        value={manualValue}
-                        onChange={setManualValue}
-                        onSubmit={() => handleCode(manualValue)}
-                        disabled={manualDisabled}
-                      />
-                    </div>
-                  }
-                />
-              </div>
+              <EscanerPermisos
+                camSupported={canScan}
+                camGranted={camGranted}
+                onManual={handleManualOpen}
+                onRequestCamera={requestCameraPermission}
+                showButton={!showManual}
+                manualDisabled={manualRequested}
+                manualOpen={showManual}
+                manualContent={
+                  <div className="w-full">
+                    <EscanerFallback
+                      value={manualValue}
+                      onChange={setManualValue}
+                      onSubmit={() => handleCode(manualValue)}
+                      disabled={manualDisabled}
+                    />
+                  </div>
+                }
+              />
             </div>
           </div>
         )}

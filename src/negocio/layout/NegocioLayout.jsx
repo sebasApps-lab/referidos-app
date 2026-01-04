@@ -152,7 +152,7 @@ function NegocioLayoutInner({ children }) {
 
         <main
           ref={mainRef}
-          id="negocio-main-scroll"
+          id="cliente-main-scroll"
           className={`hide-scrollbar transition-all duration-300 z-0 ${
             menuOpen ? "blur-sm" : ""
           }`}

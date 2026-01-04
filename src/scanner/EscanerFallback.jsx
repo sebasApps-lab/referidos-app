@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Check } from "lucide-react";
 
 export default function EscanerFallback({
@@ -9,59 +9,6 @@ export default function EscanerFallback({
 }) {
   const inputRefs = useRef([]);
   const rowRef = useRef(null);
-  const scrollStateRef = useRef({ active: false, top: 0 });
-  const centerTimersRef = useRef([]);
-  const restoreTimerRef = useRef(null);
-  const rowFocusedRef = useRef(false);
-  const scrollBehaviorRef = useRef("");
-  const prevViewportRef = useRef(0);
-  const [viewportH, setViewportH] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const update = () => {
-      const vh = window.visualViewport?.height ?? window.innerHeight;
-      setViewportH(vh);
-    };
-    update();
-    window.visualViewport?.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    window.addEventListener("focusin", update);
-    window.addEventListener("focusout", update);
-    return () => {
-      window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("focusin", update);
-      window.removeEventListener("focusout", update);
-    };
-  }, []);
-
-  const centerRowInView = useCallback(
-    (behavior = "smooth") => {
-      const row = rowRef.current;
-      if (!row) return;
-      const container = document.getElementById("cliente-main-scroll");
-      const containerRect = container
-        ? container.getBoundingClientRect()
-        : { top: 0, height: window.innerHeight };
-      const rowRect = row.getBoundingClientRect();
-      const currentScroll = container ? container.scrollTop : window.scrollY;
-      const offsetTop = rowRect.top - containerRect.top;
-      const target =
-        currentScroll +
-        offsetTop -
-        (containerRect.height / 2 - rowRect.height / 2);
-
-      if (container) {
-        container.scrollTo({ top: target, behavior });
-      } else {
-        window.scrollTo({ top: target, behavior });
-      }
-    },
-    []
-  );
 
   const sanitized = useMemo(
     () => (value || "").replace(/[^0-9a-zA-Z]/g, "").slice(0, 6),
@@ -128,59 +75,7 @@ export default function EscanerFallback({
     }
   };
 
-  const restoreScroll = useCallback(() => {
-    if (!scrollStateRef.current.active) return;
-    const body = document.body;
-    if (scrollBehaviorRef.current) {
-      body.style.scrollBehavior = scrollBehaviorRef.current;
-      scrollBehaviorRef.current = "";
-    }
-    const container = document.getElementById("cliente-main-scroll");
-    const top = scrollStateRef.current.top;
-    if (container) {
-      container.scrollTo({ top, behavior: "smooth" });
-    } else {
-      window.scrollTo({ top, behavior: "smooth" });
-    }
-    scrollStateRef.current.active = false;
-    rowFocusedRef.current = false;
-    centerTimersRef.current.forEach((timer) => clearTimeout(timer));
-    centerTimersRef.current = [];
-  }, []);
-
-  const handleInputFocus = useCallback(() => {
-    const isCoarse =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(pointer: coarse)")?.matches;
-
-    if (!isCoarse) return;
-    rowFocusedRef.current = true;
-  }, []);
-
-  const handleInputBlur = useCallback(() => {
-    if (restoreTimerRef.current) {
-      clearTimeout(restoreTimerRef.current);
-    }
-    restoreTimerRef.current = setTimeout(() => {
-      const active = document.activeElement;
-      if (rowRef.current?.contains(active)) return;
-      restoreScroll();
-    }, 140);
-  }, [restoreScroll]);
-
-  useEffect(() => {
-    if (!viewportH) return;
-    const prev = prevViewportRef.current;
-    prevViewportRef.current = viewportH;
-    if (!rowFocusedRef.current || !prev) return;
-    if (viewportH > prev + 40) {
-      restoreScroll();
-      return;
-    }
-    requestAnimationFrame(() => {
-      centerRowInView("auto");
-    });
-  }, [viewportH, restoreScroll]);
+  const handleInputFocus = useCallback(() => {}, []);
 
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-sm gap-4 self-center">
@@ -208,7 +103,6 @@ export default function EscanerFallback({
               inputRefs.current[targetIndex]?.focus();
             }}
             onFocus={handleInputFocus}
-            onBlur={handleInputBlur}
             ref={(el) => {
               inputRefs.current[index] = el;
             }}
@@ -233,7 +127,6 @@ export default function EscanerFallback({
                 inputRefs.current[targetIndex]?.focus();
               }}
               onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
               ref={(el) => {
                 inputRefs.current[index] = el;
               }}
