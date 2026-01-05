@@ -1,8 +1,8 @@
 import React from "react";
 
-export default function SupportHelp({
-  title = "Ayuda",
-  subtitle = "Encuentra respuestas rapidas y soporte de la app.",
+export default function Feedback({
+  title = "Dejar un comentario",
+  subtitle = "Comparte tus ideas para mejorar la experiencia.",
   blocks = [],
   footer,
 }) {
@@ -20,7 +20,6 @@ export default function SupportHelp({
           <p className="text-xs text-slate-500 text-center">{subtitle}</p>
         </div>
       ) : null}
-
       {contentBlocks}
       {footer}
     </section>

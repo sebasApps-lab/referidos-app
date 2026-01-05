@@ -56,8 +56,8 @@ import Beneficios from "../shared/sections/Beneficios";
 import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
-import SupportHelp from "../shared/sections/SupportHelp";
-import SupportFeedback from "../shared/sections/SupportFeedback";
+import Help from "../shared/sections/Help";
+import Feedback from "../shared/sections/Feedback";
 import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import AliasCard from "../shared/blocks/AliasCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
@@ -882,9 +882,9 @@ export default function ClientePerfil() {
     );
   }, []);
 
-  const SupportHelpPanel = useCallback(function SupportHelpPanel() {
+  const HelpPanel = useCallback(function HelpPanel() {
     return (
-      <SupportHelp
+      <Help
         blocks={[
           <SupportHelpOptions
             key="support-help"
@@ -899,12 +899,12 @@ export default function ClientePerfil() {
     );
   }, []);
 
-  const SupportFeedbackPanel = useCallback(function SupportFeedbackPanel() {
+  const FeedbackPanel = useCallback(function FeedbackPanel() {
     const [message, setMessage] = useState("");
     const [email, setEmail] = useState("");
 
     return (
-      <SupportFeedback
+      <Feedback
         blocks={[
           <SupportFeedbackForm
             key="support-feedback"
@@ -1277,8 +1277,8 @@ export default function ClientePerfil() {
       plan: BeneficiosPanel,
       appearance: AppAppearancePanel,
       language: LanguagePanel,
-      help: SupportHelpPanel,
-      feedback: SupportFeedbackPanel,
+      help: HelpPanel,
+      feedback: FeedbackPanel,
       manage: ManageAccountPanel,
     }),
     [
@@ -1288,8 +1288,8 @@ export default function ClientePerfil() {
       BeneficiosPanel,
       AppAppearancePanel,
       LanguagePanel,
-      SupportHelpPanel,
-      SupportFeedbackPanel,
+      HelpPanel,
+      FeedbackPanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,

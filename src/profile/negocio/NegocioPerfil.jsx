@@ -54,8 +54,8 @@ import Beneficios from "../shared/sections/Beneficios";
 import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
-import SupportHelp from "../shared/sections/SupportHelp";
-import SupportFeedback from "../shared/sections/SupportFeedback";
+import Help from "../shared/sections/Help";
+import Feedback from "../shared/sections/Feedback";
 import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
 import DangerZone from "../shared/blocks/DangerZone";
@@ -941,9 +941,9 @@ export default function NegocioPerfil() {
     );
   }, []);
 
-  const SupportHelpPanel = useCallback(function SupportHelpPanel() {
+  const HelpPanel = useCallback(function HelpPanel() {
     return (
-      <SupportHelp
+      <Help
         blocks={[
           <SupportHelpOptions
             key="support-help"
@@ -958,12 +958,12 @@ export default function NegocioPerfil() {
     );
   }, []);
 
-  const SupportFeedbackPanel = useCallback(function SupportFeedbackPanel() {
+  const FeedbackPanel = useCallback(function FeedbackPanel() {
     const [message, setMessage] = useState("");
     const [email, setEmail] = useState("");
 
     return (
-      <SupportFeedback
+      <Feedback
         blocks={[
           <SupportFeedbackForm
             key="support-feedback"
@@ -1409,8 +1409,8 @@ export default function NegocioPerfil() {
       plan: BeneficiosPanel,
       appearance: AppAppearancePanel,
       language: LanguagePanel,
-      help: SupportHelpPanel,
-      feedback: SupportFeedbackPanel,
+      help: HelpPanel,
+      feedback: FeedbackPanel,
       manage: ManageAccountPanel,
     }),
     [
@@ -1420,8 +1420,8 @@ export default function NegocioPerfil() {
       NotificationsPanel,
       AppAppearancePanel,
       LanguagePanel,
-      SupportHelpPanel,
-      SupportFeedbackPanel,
+      HelpPanel,
+      FeedbackPanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
