@@ -62,6 +62,7 @@ import DangerZone from "../shared/blocks/DangerZone";
 import FingerprintAccessCard from "../shared/blocks/FingerprintAccessCard";
 import FontSelector from "../shared/blocks/FontSelector";
 import IdentityCard from "../shared/blocks/IdentityCard";
+import LanguageSelector from "../shared/blocks/LanguageSelector";
 import NegocioIdentityCard from "../shared/blocks/NegocioIdentityCard";
 import LinkedAccountsCard from "../shared/blocks/LinkedAccountsCard";
 import PlanBenefitsCard from "../shared/blocks/PlanBenefitsCard";
@@ -922,6 +923,22 @@ export default function NegocioPerfil() {
     );
   }, []);
 
+  const LanguagePanel = useCallback(function LanguagePanel() {
+    const [language, setLanguage] = useState("es");
+
+    return (
+      <Language
+        blocks={[
+          <LanguageSelector
+            key="language-selector"
+            value={language}
+            onChange={setLanguage}
+          />,
+        ]}
+      />
+    );
+  }, []);
+
   const BeneficiosPanel = useCallback(
     ({ usuario: benefitsUser }) => {
       const plan = getPlanFallback(benefitsUser?.role);
@@ -1353,7 +1370,7 @@ export default function NegocioPerfil() {
       notifications: NotificationsPanel,
       plan: BeneficiosPanel,
       appearance: AppAppearancePanel,
-      language: Language,
+      language: LanguagePanel,
       help: SupportHelp,
       feedback: SupportFeedback,
       manage: ManageAccountPanel,
@@ -1364,6 +1381,7 @@ export default function NegocioPerfil() {
       LinkedAccountsPanel,
       NotificationsPanel,
       AppAppearancePanel,
+      LanguagePanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
