@@ -72,6 +72,8 @@ import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
 import SessionsList from "../shared/blocks/SessionsList";
 import ThemeSelector from "../shared/blocks/ThemeSelector";
 import TwoFACard from "../shared/blocks/TwoFACard";
+import SupportHelpOptions from "../shared/blocks/SupportHelpOptions";
+import SupportFeedbackForm from "../shared/blocks/SupportFeedbackForm";
 import NotificationsPreferencesCard, {
   DEFAULT_NOTIFICATION_PREFS,
   NOTIFICATION_CHANNELS,
@@ -939,6 +941,42 @@ export default function NegocioPerfil() {
     );
   }, []);
 
+  const SupportHelpPanel = useCallback(function SupportHelpPanel() {
+    return (
+      <SupportHelp
+        blocks={[
+          <SupportHelpOptions
+            key="support-help"
+            options={[
+              "Preguntas frecuentes",
+              "Recibir soporte por correo",
+              "Chatear con un asesor",
+            ]}
+          />,
+        ]}
+      />
+    );
+  }, []);
+
+  const SupportFeedbackPanel = useCallback(function SupportFeedbackPanel() {
+    const [message, setMessage] = useState("");
+    const [email, setEmail] = useState("");
+
+    return (
+      <SupportFeedback
+        blocks={[
+          <SupportFeedbackForm
+            key="support-feedback"
+            message={message}
+            email={email}
+            onChangeMessage={setMessage}
+            onChangeEmail={setEmail}
+          />,
+        ]}
+      />
+    );
+  }, []);
+
   const BeneficiosPanel = useCallback(
     ({ usuario: benefitsUser }) => {
       const plan = getPlanFallback(benefitsUser?.role);
@@ -1371,8 +1409,8 @@ export default function NegocioPerfil() {
       plan: BeneficiosPanel,
       appearance: AppAppearancePanel,
       language: LanguagePanel,
-      help: SupportHelp,
-      feedback: SupportFeedback,
+      help: SupportHelpPanel,
+      feedback: SupportFeedbackPanel,
       manage: ManageAccountPanel,
     }),
     [
@@ -1382,6 +1420,8 @@ export default function NegocioPerfil() {
       NotificationsPanel,
       AppAppearancePanel,
       LanguagePanel,
+      SupportHelpPanel,
+      SupportFeedbackPanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
