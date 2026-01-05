@@ -17,16 +17,22 @@ import {
   MessageSquare,
   Monitor,
   Palette,
+  Sparkles,
+  ShieldCheck,
   Smartphone,
   Shield,
   Tablet,
   UserCircle,
+  X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useLocation } from "react-router-dom";
 import { useNegocioUI } from "../../negocio/hooks/useNegocioUI";
 import {
+  formatReadableDate,
   getAvatarSrc,
+  getPlanFallback,
+  getRoleLabel,
   getSessionListFallback,
 } from "../../cliente/services/clienteUI";
 import ProfileTabs from "../shared/ProfileTabs";
@@ -49,6 +55,10 @@ import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
+import BenefitsCard from "../shared/blocks/BenefitsCard";
+import IdentityCard from "../shared/blocks/IdentityCard";
+import NegocioIdentityCard from "../shared/blocks/NegocioIdentityCard";
+import VerificationCard from "../shared/blocks/VerificationCard";
 
 const DEVICE_ICON = {
   Movil: Smartphone,
@@ -101,6 +111,11 @@ export default function NegocioPerfil() {
       avatar: getAvatarSrc({ genero: employee.genero }),
     }))
   );
+  const [twoFAVerified] = useState(false);
+  const [twoFATotp, setTwoFATotp] = useState(false);
+  const [twoFASms] = useState(false);
+  const [twoFABackup, setTwoFABackup] = useState(true);
+  const [twoFADismissed, setTwoFADismissed] = useState(false);
 
   const handleCloseAllOwners = useCallback(() => {
     setOwnerSessions((prev) => prev.filter((session) => session.current));
@@ -192,6 +207,74 @@ export default function NegocioPerfil() {
       ownerSessions,
     ]
   );
+
+  const TwoFAPanel = useCallback(
+    () => (
+      <TwoFA
+        title="Autenticacion en dos pasos"
+        subtitle="Refuerza tu seguridad con factores adicionales."
+        factors={[
+          {
+            id: "totp",
+            title: "App autenticadora",
+            description: "TOTP para accesos seguros.",
+            toggle: {
+              active: twoFATotp,
+              onChange: () =>
+                twoFAVerified && setTwoFATotp((prev) => !prev),
+              disabled: !twoFAVerified,
+            },
+          },
+          {
+            id: "sms",
+            title: "SMS",
+            badge: "No disponible aun",
+            description: "Codigo enviado al telefono.",
+            disabled: true,
+            toggle: {
+              active: twoFASms,
+              onChange: () => {},
+              disabled: true,
+            },
+          },
+          {
+            id: "backup",
+            title: "Codigos de respaldo",
+            description: "Imprime o guarda los codigos.",
+            toggle: {
+              active: twoFABackup,
+              onChange: () =>
+                twoFAVerified && setTwoFABackup((prev) => !prev),
+              disabled: !twoFAVerified,
+            },
+          },
+        ]}
+        notice={
+          !twoFADismissed ? (
+            <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
+              <ShieldCheck size={16} className="text-[#5E30A5]" />
+              Mantener 2FA activo reduce riesgos de acceso no autorizado.
+              <button
+                type="button"
+                onClick={() => setTwoFADismissed(true)}
+                className="ml-auto text-slate-400 hover:text-slate-500"
+                aria-label="Cerrar aviso"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : null
+        }
+      />
+    ),
+    [
+      twoFABackup,
+      twoFADismissed,
+      twoFASms,
+      twoFATotp,
+      twoFAVerified,
+    ]
+  );
   const openNegocioIdentity = useCallback(() => {
     setProfileTab("manage");
     setProfileView("panel");
@@ -227,26 +310,94 @@ export default function NegocioPerfil() {
       direccion: item?.direccion || item?.ubicacion || "",
     }));
   }, [onboarding, usuario]);
-  const overviewConfig = useMemo(
-    () => ({
-      role: "negocio",
-      mode: "plan",
-      headerBadge: "Cuenta de Negocio",
-      identityTitle: "Identidad del propietario",
-      negocios: negocioItems,
-      negocio: {
-        panelTitle: "Identidad del Negocio",
-        subtitle: "Define como te ven tus clientes y manten tu info actualizada",
-        warningText:
-          "Completa la informacion de tu negocio, para una mejor experiencia.",
-        displayLabel: "Nombre del Negocio",
-        primaryLabel: "Principal",
-        branchLabel: "Sucursal",
-        emptyValue: "No haz ingresado el nombre de tu negocio aun.",
-        onEdit: openNegocioIdentity,
-      },
-    }),
-    [negocioItems, openNegocioIdentity]
+
+  const negocioDisplayItems = useMemo(() => {
+    const items = negocioItems.length
+      ? negocioItems
+      : [
+          {
+            id: "negocio-principal",
+            nombre: "",
+            sector: "",
+            direccion: "",
+          },
+        ];
+    return items.map((item, index) => {
+      const nombre = (item?.nombre || "").trim();
+      const sector = (item?.sector || "").trim();
+      const direccion = (item?.direccion || "").trim();
+      const missing = !(nombre && sector && direccion);
+      return {
+        id: item?.id || `negocio-${index}`,
+        label: index === 0 ? "Principal" : `Sucursal ${index}`,
+        value: nombre || "No haz ingresado el nombre de tu negocio aun.",
+        missing,
+        raw: item,
+        index,
+      };
+    });
+  }, [negocioItems]);
+
+  const negocioMissing = useMemo(
+    () => negocioDisplayItems.some((item) => item.missing),
+    [negocioDisplayItems]
+  );
+
+  const OverviewPanel = useCallback(
+    ({ usuario: overviewUser, verification }) => {
+      const createdAtRaw = overviewUser?.fechacreacion;
+      const createdAtValue =
+        typeof createdAtRaw === "string" &&
+        createdAtRaw.includes(" ") &&
+        !createdAtRaw.includes("T")
+          ? createdAtRaw.replace(" ", "T")
+          : createdAtRaw;
+      const createdAtLabel = formatReadableDate(createdAtValue);
+      const showRole = overviewUser?.role && overviewUser.role !== "cliente";
+      const metaLine = `${
+        showRole ? `${getRoleLabel(overviewUser)} - ` : ""
+      }Miembro desde ${createdAtLabel}`;
+      const plan = getPlanFallback(overviewUser?.role);
+
+      return (
+        <ProfileOverview
+          headerBadge="Cuenta de Negocio"
+          verificationBlock={
+            !verification.accountVerified ? (
+              <VerificationCard />
+            ) : null
+          }
+          identityBlock={
+            <IdentityCard
+              title="Identidad del propietario"
+              name={overviewUser?.nombre || "Usuario"}
+              meta={metaLine}
+              avatarSrc={getAvatarSrc(overviewUser)}
+              showVerified={verification.accountVerified}
+            />
+          }
+          primaryBlock={
+            <BenefitsCard
+              title="Plan"
+              badgeLabel={plan?.plan || "FREE"}
+              BadgeIcon={Sparkles}
+              perks={plan?.perks || []}
+            />
+          }
+          secondaryBlock={
+            <NegocioIdentityCard
+              title="Identidad del Negocio"
+              subtitle="Define como te ven tus clientes y manten tu info actualizada"
+              warningText="Completa la informacion de tu negocio, para una mejor experiencia."
+              showWarning={negocioMissing}
+              items={negocioDisplayItems}
+              onEdit={openNegocioIdentity}
+            />
+          }
+        />
+      );
+    },
+    [negocioDisplayItems, negocioMissing, openNegocioIdentity]
   );
 
   const tabGroups = useMemo(
@@ -311,13 +462,11 @@ export default function NegocioPerfil() {
 
   const sections = useMemo(
     () => ({
-      overview: (props) => (
-        <ProfileOverview {...props} overviewConfig={overviewConfig} />
-      ),
+      overview: OverviewPanel,
       personal: PersonalData,
       "security-access": Access,
       "security-links": LinkedAccounts,
-      twofa: TwoFA,
+      twofa: TwoFAPanel,
       sessions: SessionsPanel,
       notifications: Notifications,
       plan: Tier,
@@ -327,7 +476,7 @@ export default function NegocioPerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    [overviewConfig, SessionsPanel]
+    [OverviewPanel, SessionsPanel, TwoFAPanel]
   );
 
   useEffect(() => {

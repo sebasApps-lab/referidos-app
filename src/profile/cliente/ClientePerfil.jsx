@@ -17,14 +17,24 @@ import {
   MessageSquare,
   Monitor,
   Palette,
+  Sparkles,
+  ShieldCheck,
   Smartphone,
   Tablet,
   Shield,
   UserCircle,
+  X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../../cliente/hooks/useClienteUI";
-import { getSessionListFallback } from "../../cliente/services/clienteUI";
+import {
+  formatReadableDate,
+  getAvatarSrc,
+  getPlanFallback,
+  getRoleLabel,
+  getSessionListFallback,
+  getTierMeta,
+} from "../../cliente/services/clienteUI";
 import ProfileTabs from "../shared/ProfileTabs";
 import ProfilePanel from "../shared/ProfilePanel";
 import {
@@ -45,6 +55,10 @@ import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
+import AliasCard from "../shared/blocks/AliasCard";
+import BenefitsCard from "../shared/blocks/BenefitsCard";
+import IdentityCard from "../shared/blocks/IdentityCard";
+import VerificationCard from "../shared/blocks/VerificationCard";
 
 const DEVICE_ICON = {
   Movil: Smartphone,
@@ -69,6 +83,12 @@ export default function ClientePerfil() {
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
   const [sessions, setSessions] = useState(getSessionListFallback());
+  const [twoFAVerified] = useState(false);
+  const [twoFATotp, setTwoFATotp] = useState(false);
+  const [twoFASms] = useState(false);
+  const [twoFABackup, setTwoFABackup] = useState(true);
+  const [twoFADismissed, setTwoFADismissed] = useState(false);
+  const [aliasStatus, setAliasStatus] = useState(null);
 
   const handleCloseAllSessions = useCallback(() => {
     setSessions((prev) => prev.filter((session) => session.current));
@@ -111,6 +131,153 @@ export default function ClientePerfil() {
       />
     ),
     [sessions, handleCloseAllSessions]
+  );
+
+  const aliasConfig = useMemo(
+    () => ({
+      panelTitle: "Nombre en pantalla",
+      emptyMessage: "Haz que tu perfil se sienta tuyo, anade un alias.",
+      editMessage: "Esto es lo que los demas veran.",
+      viewMessage: "Esto es lo que los demas veran.",
+      editTitle: "Elige tu alias",
+      fieldLabel: "Alias",
+      placeholder: "Ingresa un alias",
+      displayLabel: "Alias",
+      emptyValue: "Sin alias.",
+      valueClass: "mt-1 block text-[13px] text-slate-500",
+      minLettersText: "El alias debe contener al menos cuatro letras",
+    }),
+    []
+  );
+
+  const TwoFAPanel = useCallback(
+    () => (
+      <TwoFA
+        title="Autenticacion en dos pasos"
+        subtitle="Refuerza tu seguridad con factores adicionales."
+        factors={[
+          {
+            id: "totp",
+            title: "App autenticadora",
+            description: "TOTP para accesos seguros.",
+            toggle: {
+              active: twoFATotp,
+              onChange: () =>
+                twoFAVerified && setTwoFATotp((prev) => !prev),
+              disabled: !twoFAVerified,
+            },
+          },
+          {
+            id: "sms",
+            title: "SMS",
+            badge: "No disponible aun",
+            description: "Codigo enviado al telefono.",
+            disabled: true,
+            toggle: {
+              active: twoFASms,
+              onChange: () => {},
+              disabled: true,
+            },
+          },
+          {
+            id: "backup",
+            title: "Codigos de respaldo",
+            description: "Imprime o guarda los codigos.",
+            toggle: {
+              active: twoFABackup,
+              onChange: () =>
+                twoFAVerified && setTwoFABackup((prev) => !prev),
+              disabled: !twoFAVerified,
+            },
+          },
+        ]}
+        notice={
+          !twoFADismissed ? (
+            <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 flex items-center gap-3 text-xs text-slate-500">
+              <ShieldCheck size={16} className="text-[#5E30A5]" />
+              Mantener 2FA activo reduce riesgos de acceso no autorizado.
+              <button
+                type="button"
+                onClick={() => setTwoFADismissed(true)}
+                className="ml-auto text-slate-400 hover:text-slate-500"
+                aria-label="Cerrar aviso"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : null
+        }
+      />
+    ),
+    [
+      twoFABackup,
+      twoFADismissed,
+      twoFASms,
+      twoFATotp,
+      twoFAVerified,
+    ]
+  );
+
+  const OverviewPanel = useCallback(
+    ({ usuario: overviewUser, setUser: setOverviewUser, verification }) => {
+      const createdAtRaw = overviewUser?.fechacreacion;
+      const createdAtValue =
+        typeof createdAtRaw === "string" &&
+        createdAtRaw.includes(" ") &&
+        !createdAtRaw.includes("T")
+          ? createdAtRaw.replace(" ", "T")
+          : createdAtRaw;
+      const createdAtLabel = formatReadableDate(createdAtValue);
+      const showRole = overviewUser?.role && overviewUser.role !== "cliente";
+      const metaLine = `${
+        showRole ? `${getRoleLabel(overviewUser)} - ` : ""
+      }Miembro desde ${createdAtLabel}`;
+      const tier = getTierMeta(overviewUser);
+      const plan = getPlanFallback(overviewUser?.role);
+
+      return (
+        <ProfileOverview
+          verificationBlock={
+            !verification.accountVerified ? (
+              <VerificationCard />
+            ) : null
+          }
+          identityBlock={
+            <IdentityCard
+              title="Identidad"
+              name={overviewUser?.nombre || "Usuario"}
+              meta={metaLine}
+              avatarSrc={getAvatarSrc(overviewUser)}
+              showVerified={verification.accountVerified}
+              onAvatarSelect={() =>
+                setAliasStatus({
+                  type: "success",
+                  text: "Imagen seleccionada (pendiente de guardado)",
+                })
+              }
+            />
+          }
+          primaryBlock={
+            <BenefitsCard
+              title="Tier"
+              badgeLabel={tier.label}
+              BadgeIcon={Sparkles}
+              perks={plan?.perks || []}
+            />
+          }
+          secondaryBlock={
+            <AliasCard
+              usuario={overviewUser}
+              setUser={setOverviewUser}
+              config={aliasConfig}
+              status={aliasStatus}
+              onStatus={setAliasStatus}
+            />
+          }
+        />
+      );
+    },
+    [aliasConfig, aliasStatus]
   );
 
   const tabGroups = useMemo(
@@ -175,11 +342,11 @@ export default function ClientePerfil() {
 
   const sections = useMemo(
     () => ({
-      overview: ProfileOverview,
       personal: PersonalData,
       "security-access": Access,
       "security-links": LinkedAccounts,
-      twofa: TwoFA,
+      overview: OverviewPanel,
+      twofa: TwoFAPanel,
       sessions: SessionsPanel,
       notifications: Notifications,
       plan: Tier,
@@ -189,7 +356,7 @@ export default function ClientePerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    [SessionsPanel]
+    [OverviewPanel, SessionsPanel, TwoFAPanel]
   );
 
   const handleTabChange = useCallback(
