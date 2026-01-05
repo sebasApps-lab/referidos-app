@@ -66,6 +66,8 @@ import LinkedAccountsCard from "../shared/blocks/LinkedAccountsCard";
 import PasswordAccessCard from "../shared/blocks/PasswordAccessCard";
 import PinAccessCard from "../shared/blocks/PinAccessCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
+import SessionsList from "../shared/blocks/SessionsList";
+import TwoFACard from "../shared/blocks/TwoFACard";
 import VerificationCard from "../shared/blocks/VerificationCard";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
@@ -112,15 +114,20 @@ export default function ClientePerfil() {
       <Sessions
         title="Sesiones y dispositivos"
         subtitle="Controla los accesos activos en tu cuenta."
-        items={sessions}
-        renderLeading={(session) => {
-          const Icon = DEVICE_ICON[session.device] || Laptop;
-          return <Icon size={18} />;
-        }}
-        getPrimaryText={(session) => session.device}
-        getSecondaryText={(session) =>
-          `${session.location} - ${session.lastActive}`
-        }
+        blocks={[
+          <SessionsList
+            key="sessions-list"
+            items={sessions}
+            renderLeading={(session) => {
+              const Icon = DEVICE_ICON[session.device] || Laptop;
+              return <Icon size={18} />;
+            }}
+            getPrimaryText={(session) => session.device}
+            getSecondaryText={(session) =>
+              `${session.location} - ${session.lastActive}`
+            }
+          />,
+        ]}
         footer={
           <button
             type="button"
@@ -168,41 +175,46 @@ export default function ClientePerfil() {
       <TwoFA
         title="Autenticacion en dos pasos"
         subtitle="Refuerza tu seguridad con factores adicionales."
-        factors={[
-          {
-            id: "totp",
-            title: "App autenticadora",
-            description: "TOTP para accesos seguros.",
-            toggle: {
-              active: twoFATotp,
-              onChange: () =>
-                twoFAVerified && setTwoFATotp((prev) => !prev),
-              disabled: !twoFAVerified,
-            },
-          },
-          {
-            id: "sms",
-            title: "SMS",
-            badge: "No disponible aun",
-            description: "Codigo enviado al telefono.",
-            disabled: true,
-            toggle: {
-              active: twoFASms,
-              onChange: () => {},
-              disabled: true,
-            },
-          },
-          {
-            id: "backup",
-            title: "Codigos de respaldo",
-            description: "Imprime o guarda los codigos.",
-            toggle: {
-              active: twoFABackup,
-              onChange: () =>
-                twoFAVerified && setTwoFABackup((prev) => !prev),
-              disabled: !twoFAVerified,
-            },
-          },
+        blocks={[
+          <TwoFACard
+            key="twofa"
+            factors={[
+              {
+                id: "totp",
+                title: "App autenticadora",
+                description: "TOTP para accesos seguros.",
+                toggle: {
+                  active: twoFATotp,
+                  onChange: () =>
+                    twoFAVerified && setTwoFATotp((prev) => !prev),
+                  disabled: !twoFAVerified,
+                },
+              },
+              {
+                id: "sms",
+                title: "SMS",
+                badge: "No disponible aun",
+                description: "Codigo enviado al telefono.",
+                disabled: true,
+                toggle: {
+                  active: twoFASms,
+                  onChange: () => {},
+                  disabled: true,
+                },
+              },
+              {
+                id: "backup",
+                title: "Codigos de respaldo",
+                description: "Imprime o guarda los codigos.",
+                toggle: {
+                  active: twoFABackup,
+                  onChange: () =>
+                    twoFAVerified && setTwoFABackup((prev) => !prev),
+                  disabled: !twoFAVerified,
+                },
+              },
+            ]}
+          />,
         ]}
         notice={
           !twoFADismissed ? (

@@ -3,14 +3,11 @@ import React from "react";
 export default function Sessions({
   title,
   subtitle,
-  items = [],
-  renderLeading,
-  leadingClassName = "bg-[#F3EEFF] text-[#5E30A5]",
-  getPrimaryText,
-  getSecondaryText,
-  renderTrailing,
+  blocks = [],
   footer,
 }) {
+  const contentBlocks = React.Children.toArray(blocks);
+
   return (
     <section className="relative rounded-[30px] border border-[#E9E2F7] bg-white px-6 pb-6 pt-6 space-y-5">
       <div className="absolute -top-3 left-4 right-4 flex items-center gap-3">
@@ -24,36 +21,7 @@ export default function Sessions({
         </div>
       ) : null}
 
-      <div className="space-y-3">
-        {items.map((item, index) => (
-          <div
-            key={item?.id ?? index}
-            className="rounded-2xl border border-[#E9E2F7] bg-white p-4 flex items-center justify-between gap-3"
-          >
-            <div className="flex items-center gap-3">
-              <span
-                className={`h-10 w-10 rounded-xl flex items-center justify-center ${leadingClassName}`}
-              >
-                {renderLeading ? renderLeading(item, index) : null}
-              </span>
-              <div>
-                <p className="text-xs font-semibold text-[#2F1A55]">
-                  {getPrimaryText ? getPrimaryText(item, index) : null}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  {getSecondaryText ? getSecondaryText(item, index) : null}
-                </p>
-              </div>
-            </div>
-            {renderTrailing ? (
-              renderTrailing(item, index)
-            ) : (
-              <div className="h-9 w-9" aria-hidden="true" />
-            )}
-          </div>
-        ))}
-      </div>
-
+      {contentBlocks}
       {footer}
     </section>
   );
