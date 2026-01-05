@@ -55,7 +55,9 @@ import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
+import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
+import DangerZone from "../shared/blocks/DangerZone";
 import IdentityCard from "../shared/blocks/IdentityCard";
 import NegocioIdentityCard from "../shared/blocks/NegocioIdentityCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
@@ -278,6 +280,41 @@ export default function NegocioPerfil() {
       twoFATotp,
       twoFAVerified,
     ]
+  );
+
+  const ManageAccountPanel = useCallback(
+    ({ usuario: manageUser, setUser: setManageUser, verification }) => {
+      const plan = getPlanFallback(manageUser?.role);
+      return (
+        <ManageAccount
+          blocks={[
+            !verification.accountVerified ? (
+              <AccountStatusCard
+                key="account-status"
+                subtitle="Verifica la cuenta para que puedas empezar a publicar promociones."
+                benefitsTitle="Beneficios a los que puedes acceder:"
+                benefits={plan?.perks || []}
+                footer={
+                  <p className="text-[11px] text-slate-400 text-center">
+                    Estos beneficios aplican al plan GRATUITO. Para ver planes
+                    pagados y con mejores beneficios revisa los planes{" "}
+                    <button
+                      type="button"
+                      className="inline p-0 font-semibold text-[#5E30A5] hover:underline"
+                    >
+                      Ver Planes
+                    </button>
+                    .
+                  </p>
+                }
+              />
+            ) : null,
+            <DangerZone key="danger-zone" usuario={manageUser} setUser={setManageUser} />,
+          ]}
+        />
+      );
+    },
+    []
   );
 
   const openVerificationMethods = useCallback(() => {
@@ -658,9 +695,9 @@ export default function NegocioPerfil() {
       language: Language,
       help: SupportHelp,
       feedback: SupportFeedback,
-      manage: ManageAccount,
+      manage: ManageAccountPanel,
     }),
-    [OverviewPanel, PersonalDataPanel, SessionsPanel, TwoFAPanel]
+    [ManageAccountPanel, OverviewPanel, PersonalDataPanel, SessionsPanel, TwoFAPanel]
   );
 
   useEffect(() => {

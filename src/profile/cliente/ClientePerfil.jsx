@@ -55,8 +55,10 @@ import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import SupportHelp from "../shared/sections/SupportHelp";
 import SupportFeedback from "../shared/sections/SupportFeedback";
+import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import AliasCard from "../shared/blocks/AliasCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
+import DangerZone from "../shared/blocks/DangerZone";
 import IdentityCard from "../shared/blocks/IdentityCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
 import VerificationCard from "../shared/blocks/VerificationCard";
@@ -220,6 +222,23 @@ export default function ClientePerfil() {
       twoFATotp,
       twoFAVerified,
     ]
+  );
+
+  const ManageAccountPanel = useCallback(
+    ({ usuario: manageUser, setUser: setManageUser, verification }) => (
+      <ManageAccount
+        blocks={[
+          !verification.accountVerified ? (
+            <AccountStatusCard
+              key="account-status"
+              subtitle="Verifica tu cuenta para acceder a mejores beneficios."
+            />
+          ) : null,
+          <DangerZone key="danger-zone" usuario={manageUser} setUser={setManageUser} />,
+        ]}
+      />
+    ),
+    []
   );
 
   const openVerificationMethods = useCallback(() => {
@@ -538,9 +557,9 @@ export default function ClientePerfil() {
       language: Language,
       help: SupportHelp,
       feedback: SupportFeedback,
-      manage: ManageAccount,
+      manage: ManageAccountPanel,
     }),
-    [OverviewPanel, PersonalDataPanel, SessionsPanel, TwoFAPanel]
+    [ManageAccountPanel, OverviewPanel, PersonalDataPanel, SessionsPanel, TwoFAPanel]
   );
 
   const handleTabChange = useCallback(
