@@ -69,6 +69,10 @@ import PinAccessCard from "../shared/blocks/PinAccessCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
 import SessionsList from "../shared/blocks/SessionsList";
 import TwoFACard from "../shared/blocks/TwoFACard";
+import NotificationsPreferencesCard, {
+  DEFAULT_NOTIFICATION_PREFS,
+  NOTIFICATION_CHANNELS,
+} from "../shared/blocks/NotificationsPreferencesCard";
 import VerificationCard from "../shared/blocks/VerificationCard";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
@@ -838,6 +842,70 @@ export default function NegocioPerfil() {
     );
   }, []);
 
+  const NotificationsPanel = useCallback(function NotificationsPanel() {
+    const { openModal } = useModal();
+    const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFS);
+    const [permission, setPermission] = useState("default");
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [dismissedWarning, setDismissedWarning] = useState(false);
+
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+      const nextPermission =
+        typeof Notification !== "undefined" ? Notification.permission : "default";
+      setPermission(nextPermission);
+
+      if (!("serviceWorker" in navigator)) return;
+      navigator.serviceWorker.ready
+        .then((reg) => reg.pushManager?.getSubscription?.())
+        .then((sub) => {
+          setPushEnabled(Boolean(sub));
+        })
+        .catch(() => {
+          setPushEnabled(false);
+        });
+    }, []);
+
+    const toggle = useCallback(
+      (section) => {
+        setPrefs((prev) => ({
+          ...prev,
+          [section]: !prev[section],
+        }));
+        openModal("Notifications");
+      },
+      [openModal]
+    );
+
+    const statusLabel =
+      permission === "granted"
+        ? "Permitidas"
+        : permission === "denied"
+          ? "Bloqueadas"
+          : "No configuradas";
+
+    const showChannels = permission === "granted";
+    const showWarning = !showChannels && !dismissedWarning;
+
+    return (
+      <Notifications
+        blocks={[
+          <NotificationsPreferencesCard
+            key="notifications"
+            permission={permission}
+            statusLabel={statusLabel}
+            channels={NOTIFICATION_CHANNELS}
+            prefs={prefs}
+            onToggle={toggle}
+            showChannels={showChannels}
+            showWarning={showWarning}
+            onDismissWarning={() => setDismissedWarning(true)}
+          />,
+        ]}
+      />
+    );
+  }, []);
+
   const BeneficiosPanel = useCallback(
     ({ usuario: benefitsUser }) => {
       const plan = getPlanFallback(benefitsUser?.role);
@@ -1266,7 +1334,7 @@ export default function NegocioPerfil() {
       "security-links": LinkedAccountsPanel,
       twofa: TwoFAPanel,
       sessions: SessionsPanel,
-      notifications: Notifications,
+      notifications: NotificationsPanel,
       plan: BeneficiosPanel,
       appearance: AppAppearance,
       language: Language,
@@ -1278,6 +1346,7 @@ export default function NegocioPerfil() {
       AccessPanel,
       BeneficiosPanel,
       LinkedAccountsPanel,
+      NotificationsPanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
