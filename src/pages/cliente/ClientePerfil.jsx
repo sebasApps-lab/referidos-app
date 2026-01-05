@@ -1,6 +1,6 @@
 import React from "react";
 import ClienteLayout from "../../cliente/layout/ClienteLayout";
-import ClientePerfilView from "../../cliente/perfil/ClientePerfil";
+import ClientePerfilView from "../../profile/cliente/ClientePerfil";
 
 export default function ClientePerfil() {
   return (
