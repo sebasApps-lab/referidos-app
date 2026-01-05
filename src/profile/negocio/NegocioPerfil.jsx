@@ -50,7 +50,7 @@ import LinkedAccounts from "../shared/sections/LinkedAccounts";
 import TwoFA from "../shared/sections/TwoFA";
 import Sessions from "../shared/sections/Sessions";
 import Notifications from "../shared/sections/Notifications";
-import Tier from "../shared/sections/Tier";
+import Beneficios from "../shared/sections/Beneficios";
 import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
@@ -63,6 +63,7 @@ import FingerprintAccessCard from "../shared/blocks/FingerprintAccessCard";
 import IdentityCard from "../shared/blocks/IdentityCard";
 import NegocioIdentityCard from "../shared/blocks/NegocioIdentityCard";
 import LinkedAccountsCard from "../shared/blocks/LinkedAccountsCard";
+import PlanBenefitsCard from "../shared/blocks/PlanBenefitsCard";
 import PasswordAccessCard from "../shared/blocks/PasswordAccessCard";
 import PinAccessCard from "../shared/blocks/PinAccessCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
@@ -837,6 +838,27 @@ export default function NegocioPerfil() {
     );
   }, []);
 
+  const BeneficiosPanel = useCallback(
+    ({ usuario: benefitsUser }) => {
+      const plan = getPlanFallback(benefitsUser?.role);
+      return (
+        <Beneficios
+          title="Tier (Liga)"
+          subtitle="Revisa tu suscripcion actual."
+          blocks={[
+            <PlanBenefitsCard
+              key="plan-benefits"
+              planLabel={plan?.plan}
+              perks={plan?.perks || []}
+              history={plan?.upgrades || []}
+            />,
+          ]}
+        />
+      );
+    },
+    []
+  );
+
   const ManageAccountPanel = useCallback(
     ({ usuario: manageUser, setUser: setManageUser, verification }) => {
       const plan = getPlanFallback(manageUser?.role);
@@ -1245,7 +1267,7 @@ export default function NegocioPerfil() {
       twofa: TwoFAPanel,
       sessions: SessionsPanel,
       notifications: Notifications,
-      plan: Tier,
+      plan: BeneficiosPanel,
       appearance: AppAppearance,
       language: Language,
       help: SupportHelp,
@@ -1254,6 +1276,7 @@ export default function NegocioPerfil() {
     }),
     [
       AccessPanel,
+      BeneficiosPanel,
       LinkedAccountsPanel,
       ManageAccountPanel,
       OverviewPanel,

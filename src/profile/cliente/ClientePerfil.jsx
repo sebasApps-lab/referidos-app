@@ -30,11 +30,13 @@ import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../../cliente/hooks/useClienteUI";
 import {
   formatReadableDate,
+  formatCompactNumber,
   getAvatarSrc,
   getPlanFallback,
   getRoleLabel,
   getSessionListFallback,
   getTierMeta,
+  getTierProgress,
 } from "../../cliente/services/clienteUI";
 import ProfileTabs from "../shared/ProfileTabs";
 import ProfilePanel from "../shared/ProfilePanel";
@@ -50,7 +52,7 @@ import LinkedAccounts from "../shared/sections/LinkedAccounts";
 import TwoFA from "../shared/sections/TwoFA";
 import Sessions from "../shared/sections/Sessions";
 import Notifications from "../shared/sections/Notifications";
-import Tier from "../shared/sections/Tier";
+import Beneficios from "../shared/sections/Beneficios";
 import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
@@ -60,12 +62,15 @@ import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import AliasCard from "../shared/blocks/AliasCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
 import DangerZone from "../shared/blocks/DangerZone";
+import ExploreTiersCard from "../shared/blocks/ExploreTiersCard";
 import FingerprintAccessCard from "../shared/blocks/FingerprintAccessCard";
 import IdentityCard from "../shared/blocks/IdentityCard";
 import LinkedAccountsCard from "../shared/blocks/LinkedAccountsCard";
 import PasswordAccessCard from "../shared/blocks/PasswordAccessCard";
 import PinAccessCard from "../shared/blocks/PinAccessCard";
 import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
+import TierCurrentCard from "../shared/blocks/TierCurrentCard";
+import TierNextCard from "../shared/blocks/TierNextCard";
 import SessionsList from "../shared/blocks/SessionsList";
 import TwoFACard from "../shared/blocks/TwoFACard";
 import VerificationCard from "../shared/blocks/VerificationCard";
@@ -774,6 +779,34 @@ export default function ClientePerfil() {
     );
   }, []);
 
+  const BeneficiosPanel = useCallback(
+    ({ usuario: benefitsUser }) => {
+      const plan = getPlanFallback(benefitsUser?.role);
+      const tier = getTierMeta(benefitsUser);
+      const progress = getTierProgress(benefitsUser);
+
+      return (
+        <Beneficios
+          title="Tier (Liga)"
+          subtitle="Avanza y desbloquea beneficios."
+          blocks={[
+            <TierCurrentCard
+              key="tier-current"
+              badgeLabel={tier.label}
+              pointsLabel={formatCompactNumber(progress.points)}
+              goalLabel={formatCompactNumber(progress.nextGoal)}
+              progress={progress.progress}
+              perks={plan?.perks || []}
+            />,
+            <TierNextCard key="tier-next" perks={plan?.perks || []} />,
+            <ExploreTiersCard key="tier-explore" />,
+          ]}
+        />
+      );
+    },
+    []
+  );
+
   const ManageAccountPanel = useCallback(
     ({ usuario: manageUser, setUser: setManageUser, verification }) => (
       <ManageAccount
@@ -1102,7 +1135,7 @@ export default function ClientePerfil() {
       twofa: TwoFAPanel,
       sessions: SessionsPanel,
       notifications: Notifications,
-      plan: Tier,
+      plan: BeneficiosPanel,
       appearance: AppAppearance,
       language: Language,
       help: SupportHelp,
@@ -1112,6 +1145,7 @@ export default function ClientePerfil() {
     [
       AccessPanel,
       LinkedAccountsPanel,
+      BeneficiosPanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
