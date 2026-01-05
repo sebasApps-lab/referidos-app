@@ -1009,6 +1009,7 @@ export default function ClientePerfil() {
           }
           primaryBlock={
             <BenefitsCard
+              key="overview-benefits"
               title="Tier"
               badgeLabel={tier.label}
               BadgeIcon={Sparkles}
@@ -1017,6 +1018,7 @@ export default function ClientePerfil() {
           }
           secondaryBlock={
             <AliasCard
+              key="overview-alias"
               usuario={overviewUser}
               setUser={setOverviewUser}
               config={aliasConfig}

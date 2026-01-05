@@ -1140,6 +1140,7 @@ export default function NegocioPerfil() {
           }
           primaryBlock={
             <BenefitsCard
+              key="overview-benefits"
               title="Plan"
               badgeLabel={plan?.plan || "FREE"}
               BadgeIcon={Sparkles}
@@ -1148,6 +1149,7 @@ export default function NegocioPerfil() {
           }
           secondaryBlock={
             <NegocioIdentityCard
+              key="overview-negocio"
               title="Identidad del Negocio"
               subtitle="Define como te ven tus clientes y manten tu info actualizada"
               warningText="Completa la informacion de tu negocio, para una mejor experiencia."

@@ -8,7 +8,9 @@ export default function ProfileOverview({
   secondaryBlock,
   extraBlocks = [],
 }) {
-  const blocks = [primaryBlock, secondaryBlock, ...extraBlocks].filter(Boolean);
+  const blocks = React.Children.toArray(
+    [primaryBlock, secondaryBlock, ...extraBlocks].filter(Boolean)
+  );
   return (
     <section className="px-2">
       {headerBadge ? (
