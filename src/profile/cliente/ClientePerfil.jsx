@@ -64,6 +64,7 @@ import BenefitsCard from "../shared/blocks/BenefitsCard";
 import DangerZone from "../shared/blocks/DangerZone";
 import ExploreTiersCard from "../shared/blocks/ExploreTiersCard";
 import FingerprintAccessCard from "../shared/blocks/FingerprintAccessCard";
+import FontSelector from "../shared/blocks/FontSelector";
 import IdentityCard from "../shared/blocks/IdentityCard";
 import LinkedAccountsCard from "../shared/blocks/LinkedAccountsCard";
 import PasswordAccessCard from "../shared/blocks/PasswordAccessCard";
@@ -72,6 +73,7 @@ import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
 import TierCurrentCard from "../shared/blocks/TierCurrentCard";
 import TierNextCard from "../shared/blocks/TierNextCard";
 import SessionsList from "../shared/blocks/SessionsList";
+import ThemeSelector from "../shared/blocks/ThemeSelector";
 import TwoFACard from "../shared/blocks/TwoFACard";
 import NotificationsPreferencesCard, {
   DEFAULT_NOTIFICATION_PREFS,
@@ -847,6 +849,20 @@ export default function ClientePerfil() {
     );
   }, []);
 
+  const AppAppearancePanel = useCallback(function AppAppearancePanel() {
+    const [theme, setTheme] = useState("claro");
+    const [font, setFont] = useState("actual");
+
+    return (
+      <AppAppearance
+        blocks={[
+          <ThemeSelector key="theme" value={theme} onChange={setTheme} />,
+          <FontSelector key="font" value={font} onChange={setFont} />,
+        ]}
+      />
+    );
+  }, []);
+
   const BeneficiosPanel = useCallback(
     ({ usuario: benefitsUser }) => {
       const plan = getPlanFallback(benefitsUser?.role);
@@ -1204,7 +1220,7 @@ export default function ClientePerfil() {
       sessions: SessionsPanel,
       notifications: NotificationsPanel,
       plan: BeneficiosPanel,
-      appearance: AppAppearance,
+      appearance: AppAppearancePanel,
       language: Language,
       help: SupportHelp,
       feedback: SupportFeedback,
@@ -1215,6 +1231,7 @@ export default function ClientePerfil() {
       LinkedAccountsPanel,
       NotificationsPanel,
       BeneficiosPanel,
+      AppAppearancePanel,
       ManageAccountPanel,
       OverviewPanel,
       PersonalDataPanel,
