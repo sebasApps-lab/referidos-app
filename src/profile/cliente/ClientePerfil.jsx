@@ -58,7 +58,9 @@ import SupportFeedback from "../shared/sections/SupportFeedback";
 import AliasCard from "../shared/blocks/AliasCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
 import IdentityCard from "../shared/blocks/IdentityCard";
+import PersonalDataBlock from "../shared/blocks/PersonalDataBlock";
 import VerificationCard from "../shared/blocks/VerificationCard";
+import { useModal } from "../../modals/useModal";
 
 const DEVICE_ICON = {
   Movil: Smartphone,
@@ -70,6 +72,8 @@ export default function ClientePerfil() {
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
   const logout = useAppStore((s) => s.logout);
+  const accessMethods = useAppStore((s) => s.accessMethods);
+  const { openModal } = useModal();
   const { setHeaderOptions } = useClienteHeader();
   const { profileTab, setProfileTab } = useClienteUI({
     defaultProfileTab: "overview",
@@ -218,6 +222,11 @@ export default function ClientePerfil() {
     ]
   );
 
+  const openVerificationMethods = useCallback(() => {
+    setProfileTab("security-access");
+    setProfileView("panel");
+  }, [setProfileTab, setProfileView]);
+
   const OverviewPanel = useCallback(
     ({ usuario: overviewUser, setUser: setOverviewUser, verification }) => {
       const createdAtRaw = overviewUser?.fechacreacion;
@@ -279,6 +288,181 @@ export default function ClientePerfil() {
     },
     [aliasConfig, aliasStatus]
   );
+
+  function PersonalDataPanel({ usuario: personalUser, setUser: setPersonalUser, verification }) {
+    const initial = useMemo(() => {
+      const nombre = personalUser?.nombre || "";
+      const parts = nombre.split(" ").filter(Boolean);
+      return {
+        nombres: personalUser?.nombres || parts.slice(0, 1).join(" ") || nombre,
+        apellidos: personalUser?.apellidos || parts.slice(1).join(" "),
+        direccion:
+          personalUser?.direccion ||
+          personalUser?.ubicacion ||
+          personalUser?.ciudad ||
+          "",
+        email: personalUser?.email || "",
+        telefono: personalUser?.telefono || personalUser?.phone || "",
+      };
+    }, [personalUser]);
+
+    const [form, setForm] = useState(initial);
+    const [confirmedSensitive, setConfirmedSensitive] = useState(false);
+    const [editing, setEditing] = useState({
+      names: false,
+      contact: false,
+    });
+    const [expandedEmail, setExpandedEmail] = useState(false);
+
+    useEffect(() => {
+      setForm(initial);
+    }, [
+      initial.nombres,
+      initial.apellidos,
+      initial.direccion,
+      initial.email,
+      initial.telefono,
+    ]);
+
+    useEffect(() => {
+      if (editing.contact) {
+        setExpandedEmail(false);
+      }
+    }, [editing.contact]);
+
+    const emailChanged = form.email !== initial.email;
+    const phoneChanged = form.telefono !== initial.telefono;
+    const needsSensitiveVerification = emailChanged || phoneChanged;
+    const baseVerified =
+      (!emailChanged || verification.emailVerified) &&
+      (!phoneChanged || verification.phoneVerified);
+    const provider = (personalUser?.provider || "").toLowerCase();
+    const hasPasswordFallback = provider === "email" || provider === "password";
+
+    const handleChange = (field) => (event) => {
+      setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    };
+
+    const handleSaveNames = () => {
+      if (!personalUser) return;
+      const nombreCompleto = [form.nombres, form.apellidos]
+        .filter(Boolean)
+        .join(" ");
+      setPersonalUser({
+        ...personalUser,
+        nombres: form.nombres,
+        apellidos: form.apellidos,
+        nombre: nombreCompleto || personalUser?.nombre,
+      });
+      if (form.nombres?.trim() && form.apellidos?.trim()) {
+        setEditing((prev) => ({ ...prev, names: false }));
+      }
+    };
+
+    const persistContact = (overrideSensitive = false) => {
+      if (!personalUser) return;
+      if (!baseVerified) return;
+      if (!overrideSensitive && needsSensitiveVerification && !confirmedSensitive) {
+        return;
+      }
+      setPersonalUser({ ...personalUser, email: form.email, telefono: form.telefono });
+      if (form.email?.trim() && form.telefono?.trim()) {
+        setEditing((prev) => ({ ...prev, contact: false }));
+      }
+    };
+
+    const handleSaveContact = () => {
+      if (needsSensitiveVerification && !confirmedSensitive) {
+        openModal("ConfirmarCambios", {
+          hasFingerprint: accessMethods?.fingerprint,
+          hasPin: accessMethods?.pin,
+          hasPassword: accessMethods?.password || hasPasswordFallback,
+          userId: personalUser?.id_auth ?? personalUser?.id ?? null,
+          email: personalUser?.email ?? null,
+          displayName: personalUser?.nombre ?? personalUser?.alias ?? "Usuario",
+          onConfirm: () => {
+            setConfirmedSensitive(true);
+            requestAnimationFrame(() => {
+              persistContact(true);
+            });
+          },
+          onOpenMethods: openVerificationMethods,
+        });
+        return;
+      }
+      persistContact(false);
+    };
+
+    const handleCancelNames = () => {
+      setForm((prev) => ({
+        ...prev,
+        nombres: initial.nombres || "",
+        apellidos: initial.apellidos || "",
+      }));
+      setEditing((prev) => ({
+        ...prev,
+        names: false,
+      }));
+      document.activeElement?.blur();
+    };
+
+    const handleCancelContact = () => {
+      setForm((prev) => ({
+        ...prev,
+        email: initial.email || "",
+        telefono: initial.telefono || "",
+      }));
+      setConfirmedSensitive(false);
+      setEditing((prev) => ({
+        ...prev,
+        contact: false,
+      }));
+      document.activeElement?.blur();
+    };
+
+    const fullName = [form.nombres, form.apellidos].filter(Boolean).join(" ");
+    const addressItems = form.direccion?.trim()
+      ? [{ label: "Casa", value: form.direccion || "Sin direccion" }]
+      : [];
+    const showSaveNames = Boolean(form.nombres?.trim() || form.apellidos?.trim());
+    const showSaveContact = Boolean(form.email?.trim() || form.telefono?.trim());
+    const saveContactDisabled = !baseVerified;
+
+    return (
+      <PersonalData
+        blocks={[
+          <PersonalDataBlock
+            key="personal-data"
+            editingNames={editing.names}
+            editingContact={editing.contact}
+            fullName={fullName}
+            nombres={form.nombres}
+            apellidos={form.apellidos}
+            addressItems={addressItems}
+            email={form.email}
+            telefono={form.telefono}
+            expandedEmail={expandedEmail}
+            emailVerified={verification.emailVerified}
+            onEditNames={() => setEditing((prev) => ({ ...prev, names: true }))}
+            onEditAddress={() => {}}
+            onEditContact={() => setEditing((prev) => ({ ...prev, contact: true }))}
+            onChangeNombres={handleChange("nombres")}
+            onChangeApellidos={handleChange("apellidos")}
+            onChangeEmail={handleChange("email")}
+            onChangeTelefono={handleChange("telefono")}
+            onCancelNames={handleCancelNames}
+            onCancelContact={handleCancelContact}
+            onSaveNames={handleSaveNames}
+            onSaveContact={handleSaveContact}
+            showSaveNames={showSaveNames}
+            showSaveContact={showSaveContact}
+            saveContactDisabled={saveContactDisabled}
+            onToggleExpandedEmail={() => setExpandedEmail((prev) => !prev)}
+          />,
+        ]}
+      />
+    );
+  }
 
   const tabGroups = useMemo(
     () => [
@@ -342,7 +526,7 @@ export default function ClientePerfil() {
 
   const sections = useMemo(
     () => ({
-      personal: PersonalData,
+      personal: PersonalDataPanel,
       "security-access": Access,
       "security-links": LinkedAccounts,
       overview: OverviewPanel,
@@ -356,7 +540,7 @@ export default function ClientePerfil() {
       feedback: SupportFeedback,
       manage: ManageAccount,
     }),
-    [OverviewPanel, SessionsPanel, TwoFAPanel]
+    [OverviewPanel, PersonalDataPanel, SessionsPanel, TwoFAPanel]
   );
 
   const handleTabChange = useCallback(

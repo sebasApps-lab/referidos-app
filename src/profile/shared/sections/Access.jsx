@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Asterisk, Check, Eye, EyeOff, Fingerprint, KeyRound, Lock, Minus, Pencil, Plus, TriangleAlert, X } from "lucide-react";
 import { useModal } from "../../../modals/useModal";
+import { useAppStore } from "../../../store/appStore";
 import { supabase } from "../../../lib/supabaseClient";
 
 let accessInfoDismissed = false;
@@ -36,6 +37,7 @@ export default function Access({ usuario }) {
   const pinRevealTimersRef = useRef([]);
   const prevUserIdRef = useRef(null);
   const { openModal } = useModal();
+  const setAccessMethods = useAppStore((s) => s.setAccessMethods);
   const provider = (authProvider || usuario?.provider || "").toLowerCase();
   const hasPassword = provider === "email" || provider === "password";
   const passwordActive = passwordEnabled ?? hasPassword;
@@ -80,6 +82,14 @@ export default function Access({ usuario }) {
       setDismissedMethodsWarning(false);
     }
   }, [methodsCount]);
+
+  useEffect(() => {
+    setAccessMethods({
+      fingerprint: fingerprintEnabled,
+      pin: pinEnabled,
+      password: passwordActive,
+    });
+  }, [fingerprintEnabled, passwordActive, pinEnabled, setAccessMethods]);
 
   useEffect(() => {
     const currentId = usuario?.id_auth ?? null;

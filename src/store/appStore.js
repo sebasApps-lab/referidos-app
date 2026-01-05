@@ -62,9 +62,21 @@ export const useAppStore = create(
       scannerPermissionPrompted: false,
       scannerManualFallbackShown: false,
       negocios: [],
+      accessMethods: {
+        fingerprint: false,
+        pin: false,
+        password: false,
+      },
       loading: false,
       error: null,
       setUser: (usuario) => set({ usuario }),
+      setAccessMethods: (methods) =>
+        set((state) => ({
+          accessMethods: {
+            ...state.accessMethods,
+            ...methods,
+          },
+        })),
       setScannerPermissionPrompted: (value) =>
         set({ scannerPermissionPrompted: value }),
       setScannerManualFallbackShown: (value) =>
