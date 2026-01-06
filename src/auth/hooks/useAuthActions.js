@@ -461,8 +461,16 @@ export default function useAuthActions({
   const startGoogleOneTap = useCallback(async () => {
     setWelcomeError("");
     setWelcomeLoading(true);
+    const fallbackToOAuth = async () => {
+      try {
+        await signInWithOAuth("google", { redirectTo });
+      } catch (err) {
+        setWelcomeError(err?.message || "No se pudo iniciar con Google");
+      }
+    };
+
     if (!GOOGLE_ONE_TAP_CLIENT_ID) {
-      setWelcomeError("Falta configurar Google Client ID");
+      await fallbackToOAuth();
       setWelcomeLoading(false);
       return;
     }
@@ -472,18 +480,21 @@ export default function useAuthActions({
         clientId: GOOGLE_ONE_TAP_CLIENT_ID,
       });
 
-      if (!result || result.type === "dismissed") return;
+      if (!result || result.type !== "credential") {
+        await fallbackToOAuth();
+        return;
+      }
 
       localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
       await signInWithGoogleIdToken({ token: result.credential });
 
       await bootstrapAuth({ force: true });
     } catch (err) {
-      setWelcomeError(err?.message || "No se pudo iniciar con Google");
+      await fallbackToOAuth();
     } finally {
       setWelcomeLoading(false);
     }
-  }, [bootstrapAuth, setWelcomeError, setWelcomeLoading]);
+  }, [bootstrapAuth, redirectTo, setWelcomeError, setWelcomeLoading]);
 
   const startFacebookOneTap = useCallback(() => {}, []);
 
