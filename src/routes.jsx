@@ -8,8 +8,7 @@ import RequireRole from "./router/guards/RequireRole";
 import MainLayout from "./layouts/MainLayout";
 
 // Lazy pages
-const Bienvenido = lazy(() => import("./pages/Bienvenido"));
-const AuthHub = lazy(() => import("./pages/AuthHub"));
+const AuthEntry = lazy(() => import("./pages/AuthEntry"));
 const AppGate = lazy(() => import("./pages/AppGate"));
 
 const ClienteInicio = lazy(() => import("./pages/cliente/ClienteInicio"));
@@ -36,8 +35,8 @@ export default function AppRoutes() {
   return (
     <Routes>
       {/* PUBLIC */}
-      <Route path="/" element={<Bienvenido />} />
-      <Route path="/auth" element={<AuthHub />} />
+      <Route path="/" element={<AppGate publicElement={<AuthEntry />} />} />
+      <Route path="/auth" element={<AppGate publicElement={<AuthEntry />} />} />
 
       {/* APP ENTRY POINT */}
       <Route path="/app" element={<AppGate />} />

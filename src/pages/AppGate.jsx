@@ -1,47 +1,53 @@
 // src/pages/AppGate.jsx
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 
-export default function AppGate() {
-  const navigate = useNavigate();
+export default function AppGate({ publicElement = null }) {
+  const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
+  const bootstrap = useAppStore((s) => s.bootstrap);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
 
   useEffect(() => {
-    // 1)Resolver sesión + onboarding si aún no existe
+    // 1) Resolver session + onboarding si aun no existe
     if (typeof usuario === "undefined") {
       bootstrapAuth({ force: false });
-      return;
     }
+  }, [usuario, bootstrapAuth]);
 
-    // 2) Si no hay sesión → Bienvenido
-    if (!usuario) {
-      navigate("/", { replace: true });
-      return;
+  if (bootstrap || typeof usuario === "undefined") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white">
+        Cargando...
+      </div>
+    );
+  }
+
+  if (!usuario) {
+    return publicElement ?? <Navigate to="/" replace />;
+  }
+
+  if (!onboarding?.allowAccess) {
+    if (publicElement) {
+      if (location.pathname === "/") {
+        return <Navigate to="/auth" replace />;
+      }
+      return publicElement;
     }
+    return <Navigate to="/auth" replace />;
+  }
 
-    // 3) Si hay sesión pero no acceso (onboarding incompleto)
-    if (!onboarding?.allowAccess) {
-      navigate("/auth", { replace: true });
-      return;
-    }
+  if (publicElement) {
+    return <Navigate to="/app" replace />;
+  }
 
-    // 4) Acceso válido → redirigir por rol
-    if (usuario.role === "admin") {
-      navigate("/admin/inicio", { replace: true });
-    } else if (usuario.role === "negocio") {
-      navigate("/negocio/inicio", { replace: true });
-    } else {
-      navigate("/cliente/inicio", { replace: true });
-    }
-  }, [usuario, onboarding, bootstrapAuth, navigate]);
-
-  // Loader simple
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white">
-      Cargando…
-    </div>
-  );
+  if (usuario.role === "admin") {
+    return <Navigate to="/admin/inicio" replace />;
+  }
+  if (usuario.role === "negocio") {
+    return <Navigate to="/negocio/inicio" replace />;
+  }
+  return <Navigate to="/cliente/inicio" replace />;
 }
