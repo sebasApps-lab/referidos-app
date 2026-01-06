@@ -8,22 +8,22 @@ export default function ProfileTabs({
   return (
     <div className="flex flex-col gap-4 px-2 pb-2 pt-2">
       {groups.map((group, groupIndex) => {
-        const isStandalone = group.items?.length === 1 && !group.title;
+        const groupTone = group.tone;
         return (
           <div key={group.title || `group-${groupIndex}`} className="flex flex-col gap-2">
-            {!isStandalone && (
+            {group.title ? (
               <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E30A5]/60">
                 {group.title}
               </p>
-            )}
+            ) : null}
             <div
               className={`flex flex-col gap-0 rounded-2xl overflow-hidden bg-white border divide-y ${
-                isStandalone
+                groupTone === "danger"
                   ? "border-red-200 divide-red-200/60"
                   : "border-[#5E30A5]/20 divide-[#5E30A5]/12"
               }`}
             >
-              {group.items.map((tab, index) => {
+              {group.items?.map((tab, index) => {
               const isActive = active === tab.key;
               const Icon = tab.icon;
               const isDisabled = tab.disabled;
