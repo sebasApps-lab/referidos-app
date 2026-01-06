@@ -28,7 +28,7 @@ export default function WelcomeStep({
           <Link
             to="/auth"
             onClick={onEmail}
-            className="w-full bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
+            className="w-full block bg-[#FFC21C] text-white font-semibold py-3 rounded-lg shadow active:scale-[0.98]"
           >
             <div className="flex items-center justify-center gap-2">
               <MailIcon />

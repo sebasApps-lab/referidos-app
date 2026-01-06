@@ -29,16 +29,9 @@ export default function useAuthPrefill({
   useEffect(() => {
     if (typeof usuario === "undefined") return;
 
-    //1) SesiÇün vÇ­lida pero SIN perfil
-    if (usuario === null) {
-      if (!choiceOpenedRef.current) {
-        choiceOpenedRef.current = true;
-        openChoiceOverlay();
-      }
-      return;
-    }
+    if (!usuario) return;
 
-    //2) Perfil existe pero SIN rol
+    //1) Perfil existe pero SIN rol
     if (!usuario.role) {
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
