@@ -55,7 +55,7 @@ export default function EmailPasswordForm({
       <div className="relative">
         <input
           ref={passwordInputRef}
-          type={isRegister ? passwordType : "password"}
+          type={passwordType}
           placeholder="Ingrese su contrasena..."
           className={passwordInputClassName}
           value={password}
@@ -64,7 +64,7 @@ export default function EmailPasswordForm({
           onBlur={isRegister ? onBlurField : undefined}
           disabled={inputDisabled}
         />
-        {isRegister && password.length > 0 ? (
+        {password.length > 0 ? (
           <button
             type="button"
             onClick={onToggleShowPassword}
