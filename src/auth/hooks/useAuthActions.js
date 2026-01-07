@@ -129,7 +129,7 @@ export default function useAuthActions({
         }
       }
 
-      setEmailError(result.error || "Usuario o contraseÇña incorrectos");
+      setEmailError(result.error || "Email o contrasena incorrectos");
       return;
     }
   }, [email, password, login, setEmailError, setLoginLoading]);
@@ -284,26 +284,27 @@ export default function useAuthActions({
         return;
       }
 
-      //Asegurar sesiÇün activa
+      //Asegurar sesion activa
       const session = data?.session ?? (await supabase.auth.getSession()).data.session;
       if (!session?.user) {
-        setEmailError("No se pudo iniciar la sesión");
+        setEmailError("No se pudo iniciar la sesion");
         return;
       }
 
-      //Avanzar a seleccion de rol
-      setEntryStep("form");
-      setAuthTab("register");
-      setPage(2);
-      openChoiceOverlay();
+      const boot = await bootstrapAuth({ force: true });
+      if (!boot.ok) {
+        setEmailError(boot.error || "No se pudo validar onboarding");
+        return;
+      }
+
     } catch (err) {
       setEmailError(err?.message || "Error al crear la cuenta");
     }
   }, [
     email,
     onResetToWelcome,
-    openChoiceOverlay,
     password,
+    bootstrapAuth,
     setAuthTab,
     setEmailError,
     setEntryStep,
