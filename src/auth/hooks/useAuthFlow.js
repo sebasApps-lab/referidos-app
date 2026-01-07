@@ -28,7 +28,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
   const [codeChecking, setCodeChecking] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
   const [nombreDueno, setNombreDueno] = useState("");
   const [apellidoDueno, setApellidoDueno] = useState("");
   const [ruc, setRuc] = useState("");
@@ -36,8 +35,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
   const [sectorNegocio, setSectorNegocio] = useState("");
   const [calle1, setCalle1] = useState("");
   const [calle2, setCalle2] = useState("");
-  const passwordInputRef = useRef(null);
-  const confirmInputRef = useRef(null);
 
   const sliderGap = 28;
   const containerStyle = useMemo(
@@ -127,7 +124,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     codeChecking,
     showPassword,
     showPasswordConfirm,
-    focusedField,
     nombreDueno,
     apellidoDueno,
     ruc,
@@ -135,8 +131,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     sectorNegocio,
     calle1,
     calle2,
-    passwordInputRef,
-    confirmInputRef,
     containerStyle,
     setCardHeight,
     setSliderHeight,
@@ -158,7 +152,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     setCodeChecking,
     setShowPassword,
     setShowPasswordConfirm,
-    setFocusedField,
     setNombreDueno,
     setApellidoDueno,
     setRuc,

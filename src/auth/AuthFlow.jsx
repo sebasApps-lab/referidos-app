@@ -47,7 +47,6 @@ export default function AuthFlow() {
     flow.setPage(1);
     flow.setShowPassword(false);
     flow.setShowPasswordConfirm(false);
-    flow.setFocusedField(null);
     flow.setEntryStep("welcome");
   }, [
     flow.setApellidoDueno,
@@ -73,7 +72,6 @@ export default function AuthFlow() {
     flow.setWelcomeLoading,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
-    flow.setFocusedField,
   ]);
 
   const actions = useAuthActions({
@@ -140,12 +138,6 @@ export default function AuthFlow() {
     flow.password.length > 0 &&
     flow.passwordConfirm.length > 0 &&
     flow.password === flow.passwordConfirm;
-  const showPasswordRules = flow.focusedField === "new" || flow.password.length > 0;
-  const showPasswordErrors = flow.focusedField !== "new" && flow.password.length > 0;
-  const showConfirmErrors =
-    flow.focusedField !== "confirm" && flow.passwordConfirm.length > 0;
-  const showConfirmRule =
-    hasMinLength && hasNumberAndSymbol && flow.passwordConfirm.length > 0;
   const canSubmitPassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
   const primaryEmailDisabled =
     flow.authTab === "login" ? flow.loginLoading : !canSubmitPassword;
@@ -153,28 +145,6 @@ export default function AuthFlow() {
   const isWelcome = flow.entryStep === "welcome";
   const containerClassName = isWelcome ? "justify-center pb-28" : "relative";
   const brandClassName = isWelcome ? "mb-6" : "mt-12 mb-2 text-center";
-
-  const handlePasswordFocus = React.useCallback(
-    (field) => {
-      flow.setFocusedField(field);
-    },
-    [flow.setFocusedField]
-  );
-
-  const handlePasswordBlur = React.useCallback(() => {
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      if (active === flow.passwordInputRef.current) {
-        flow.setFocusedField("new");
-        return;
-      }
-      if (active === flow.confirmInputRef.current) {
-        flow.setFocusedField("confirm");
-        return;
-      }
-      flow.setFocusedField(null);
-    });
-  }, [flow.setFocusedField, flow.passwordInputRef, flow.confirmInputRef]);
 
 
   const handleBack = () => {
@@ -244,10 +214,6 @@ export default function AuthFlow() {
           hasMinLength={hasMinLength}
           hasNumberAndSymbol={hasNumberAndSymbol}
           passwordsMatch={passwordsMatch}
-          showPasswordRules={showPasswordRules}
-          showPasswordErrors={showPasswordErrors}
-          showConfirmRule={showConfirmRule}
-          showConfirmErrors={showConfirmErrors}
           error={flow.emailError}
           loginLoading={flow.loginLoading}
           onLoginTab={actions.goToLoginTab}
@@ -261,10 +227,6 @@ export default function AuthFlow() {
           onToggleShowPasswordConfirm={() =>
             flow.setShowPasswordConfirm((prev) => !prev)
           }
-          onFocusField={handlePasswordFocus}
-          onBlurField={handlePasswordBlur}
-          passwordInputRef={flow.passwordInputRef}
-          confirmInputRef={flow.confirmInputRef}
           onSubmit={primaryEmailHandler}
           primaryLabel={primaryEmailLabel}
           primaryDisabled={primaryEmailDisabled}
