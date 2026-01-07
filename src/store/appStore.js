@@ -52,6 +52,7 @@ export const useAppStore = create(
        */
       
       bootstrap: true,
+      bootstrapError: false,
       usuario: undefined,
       onboarding: undefined, // último payload de onboarding (allowAccess/reasons/negocio/provider)
       ratings: {},
@@ -138,6 +139,7 @@ export const useAppStore = create(
         } finally {
           set({
             bootstrap: false,
+            bootstrapError: false,
             usuario: null,
             onboarding: undefined,
             promos: [],
@@ -153,29 +155,57 @@ export const useAppStore = create(
       //---------------------
       bootstrapAuth: async ({ force = false } = {}) => {
         try {
-          set ({ bootstrap: true, usuario: undefined, onboarding: undefined, error: null });
+          set({
+            bootstrap: true,
+            bootstrapError: false,
+            usuario: undefined,
+            onboarding: undefined,
+            error: null,
+          });
 
           const { data: { session } = {} } = await supabase.auth.getSession();
           //Sin sesión
           if (!session?.access_token) {
-            set({ bootstrap: false, usuario: null, onboarding: null });
+            set({
+              bootstrap: false,
+              bootstrapError: false,
+              usuario: null,
+              onboarding: null,
+            });
             return { ok: true, usuario: null };
           }
 
           const check = await runOnboardingCheck();
           if (!check?.ok) {
             const errMsg = check?.error || "No se pudo ejecutar onboarding";
-            set({ bootstrap: false, usuario: null, onboarding: check ?? null, error: errMsg });
+            set({
+              bootstrap: false,
+              bootstrapError: false,
+              usuario: null,
+              onboarding: check ?? null,
+              error: errMsg,
+            });
             return { ok: false, error: errMsg };
           }
 
           const nextUser = check?.usuario ?? null;
-          set({ bootstrap: false, usuario: nextUser, onboarding: check });
+          set({
+            bootstrap: false,
+            bootstrapError: false,
+            usuario: nextUser,
+            onboarding: check,
+          });
 
           return { ok: true, usuario: nextUser };
         } catch (error) {
           const message = handleError(error);
-          set({ bootstrap: false, usuario: null, onboarding: null, error: message });
+          set({
+            bootstrap: false,
+            bootstrapError: true,
+            usuario: null,
+            onboarding: null,
+            error: message,
+          });
           return { ok: false, error: message };
         }
       },

@@ -29,7 +29,15 @@ export default function useAuthPrefill({
   useEffect(() => {
     if (typeof usuario === "undefined") return;
 
-    if (!usuario) return;
+    const onboardingOk = onboarding?.ok === true;
+
+    if (!usuario) {
+      if (onboardingOk && !choiceOpenedRef.current) {
+        choiceOpenedRef.current = true;
+        openChoiceOverlay();
+      }
+      return;
+    }
 
     //1) Perfil existe pero SIN rol
     if (!usuario.role) {
