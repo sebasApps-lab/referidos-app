@@ -58,6 +58,9 @@ export default function AppGate({ publicElement = null }) {
     }
 
     if (publicElement) {
+      if (onboarding === null) {
+        return publicElement;
+      }
       if (location.pathname === "/auth") {
         return <Navigate to="/" replace />;
       }
