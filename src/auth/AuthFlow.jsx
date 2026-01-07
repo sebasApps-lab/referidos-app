@@ -27,6 +27,7 @@ export default function AuthFlow() {
   const resetToWelcome = React.useCallback(() => {
     flow.setEmail("");
     flow.setPassword("");
+    flow.setPasswordConfirm("");
     flow.setTelefono("");
     flow.setCodigo("");
     flow.setNombreDueno("");
@@ -44,6 +45,9 @@ export default function AuthFlow() {
     flow.setWelcomeLoading(false);
     flow.setAuthTab("login");
     flow.setPage(1);
+    flow.setShowPassword(false);
+    flow.setShowPasswordConfirm(false);
+    flow.setFocusedField(null);
     flow.setEntryStep("welcome");
   }, [
     flow.setApellidoDueno,
@@ -61,16 +65,21 @@ export default function AuthFlow() {
     flow.setOauthProvider,
     flow.setPage,
     flow.setPassword,
+    flow.setPasswordConfirm,
     flow.setRuc,
     flow.setSectorNegocio,
     flow.setTelefono,
     flow.setWelcomeError,
     flow.setWelcomeLoading,
+    flow.setShowPassword,
+    flow.setShowPasswordConfirm,
+    flow.setFocusedField,
   ]);
 
   const actions = useAuthActions({
     email: flow.email,
     password: flow.password,
+    passwordConfirm: flow.passwordConfirm,
     telefono: flow.telefono,
     nombreDueno: flow.nombreDueno,
     apellidoDueno: flow.apellidoDueno,
@@ -91,6 +100,7 @@ export default function AuthFlow() {
     setPage: flow.setPage,
     goTo: flow.goTo,
     page: flow.page,
+    authTab: flow.authTab,
     onResetToWelcome: resetToWelcome,
   });
 
@@ -122,12 +132,49 @@ export default function AuthFlow() {
       : "REGISTRARSE";
   const primaryEmailHandler =
     flow.authTab === "login" ? actions.handleLogin : actions.handlePrimaryPage1;
+  const hasMinLength = flow.password.length >= 8;
+  const hasNumber = /\d/.test(flow.password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(flow.password);
+  const hasNumberAndSymbol = hasNumber && hasSymbol;
+  const passwordsMatch =
+    flow.password.length > 0 &&
+    flow.passwordConfirm.length > 0 &&
+    flow.password === flow.passwordConfirm;
+  const showPasswordRules = flow.focusedField === "new" || flow.password.length > 0;
+  const showPasswordErrors = flow.focusedField !== "new" && flow.password.length > 0;
+  const showConfirmErrors =
+    flow.focusedField !== "confirm" && flow.passwordConfirm.length > 0;
+  const showConfirmRule =
+    hasMinLength && hasNumberAndSymbol && flow.passwordConfirm.length > 0;
+  const canSubmitPassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
   const primaryEmailDisabled =
-    flow.authTab === "login" ? flow.loginLoading : false;
+    flow.authTab === "login" ? flow.loginLoading : !canSubmitPassword;
 
   const isWelcome = flow.entryStep === "welcome";
   const containerClassName = isWelcome ? "justify-center pb-28" : "relative";
   const brandClassName = isWelcome ? "mb-6" : "mt-12 mb-2 text-center";
+
+  const handlePasswordFocus = React.useCallback(
+    (field) => {
+      flow.setFocusedField(field);
+    },
+    [flow.setFocusedField]
+  );
+
+  const handlePasswordBlur = React.useCallback(() => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active === flow.passwordInputRef.current) {
+        flow.setFocusedField("new");
+        return;
+      }
+      if (active === flow.confirmInputRef.current) {
+        flow.setFocusedField("confirm");
+        return;
+      }
+      flow.setFocusedField(null);
+    });
+  }, [flow.setFocusedField, flow.passwordInputRef, flow.confirmInputRef]);
 
 
   const handleBack = () => {
@@ -191,12 +238,33 @@ export default function AuthFlow() {
           authTab={flow.authTab}
           email={flow.email}
           password={flow.password}
+          passwordConfirm={flow.passwordConfirm}
+          showPassword={flow.showPassword}
+          showPasswordConfirm={flow.showPasswordConfirm}
+          hasMinLength={hasMinLength}
+          hasNumberAndSymbol={hasNumberAndSymbol}
+          passwordsMatch={passwordsMatch}
+          showPasswordRules={showPasswordRules}
+          showPasswordErrors={showPasswordErrors}
+          showConfirmRule={showConfirmRule}
+          showConfirmErrors={showConfirmErrors}
           error={flow.emailError}
           loginLoading={flow.loginLoading}
           onLoginTab={actions.goToLoginTab}
           onRegisterTab={actions.goToRegisterTab}
           onChangeEmail={flow.setEmail}
           onChangePassword={flow.setPassword}
+          onChangePasswordConfirm={flow.setPasswordConfirm}
+          onToggleShowPassword={() =>
+            flow.setShowPassword((prev) => !prev)
+          }
+          onToggleShowPasswordConfirm={() =>
+            flow.setShowPasswordConfirm((prev) => !prev)
+          }
+          onFocusField={handlePasswordFocus}
+          onBlurField={handlePasswordBlur}
+          passwordInputRef={flow.passwordInputRef}
+          confirmInputRef={flow.confirmInputRef}
           onSubmit={primaryEmailHandler}
           primaryLabel={primaryEmailLabel}
           primaryDisabled={primaryEmailDisabled}

@@ -8,12 +8,29 @@ export default function EmailStep({
   authTab,
   email,
   password,
+  passwordConfirm,
+  showPassword,
+  showPasswordConfirm,
+  hasMinLength,
+  hasNumberAndSymbol,
+  passwordsMatch,
+  showPasswordRules,
+  showPasswordErrors,
+  showConfirmRule,
+  showConfirmErrors,
   error,
   loginLoading,
   onLoginTab,
   onRegisterTab,
   onChangeEmail,
   onChangePassword,
+  onChangePasswordConfirm,
+  onToggleShowPassword,
+  onToggleShowPasswordConfirm,
+  onFocusField,
+  onBlurField,
+  passwordInputRef,
+  confirmInputRef,
   onSubmit,
   primaryLabel,
   primaryDisabled,
@@ -36,8 +53,25 @@ export default function EmailStep({
           authTab={authTab}
           email={email}
           password={password}
+          passwordConfirm={passwordConfirm}
+          showPassword={showPassword}
+          showPasswordConfirm={showPasswordConfirm}
+          hasMinLength={hasMinLength}
+          hasNumberAndSymbol={hasNumberAndSymbol}
+          passwordsMatch={passwordsMatch}
+          showPasswordRules={showPasswordRules}
+          showPasswordErrors={showPasswordErrors}
+          showConfirmRule={showConfirmRule}
+          showConfirmErrors={showConfirmErrors}
           onChangeEmail={onChangeEmail}
           onChangePassword={onChangePassword}
+          onChangePasswordConfirm={onChangePasswordConfirm}
+          onToggleShowPassword={onToggleShowPassword}
+          onToggleShowPasswordConfirm={onToggleShowPasswordConfirm}
+          onFocusField={onFocusField}
+          onBlurField={onBlurField}
+          passwordInputRef={passwordInputRef}
+          confirmInputRef={confirmInputRef}
           onSubmit={onSubmit}
           primaryLabel={primaryLabel}
           primaryDisabled={primaryDisabled}

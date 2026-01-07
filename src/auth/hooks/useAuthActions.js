@@ -19,6 +19,7 @@ const GOOGLE_ONE_TAP_CLIENT_ID =
 export default function useAuthActions({
   email,
   password,
+  passwordConfirm,
   telefono,
   nombreDueno,
   apellidoDueno,
@@ -27,6 +28,7 @@ export default function useAuthActions({
   sectorNegocio,
   calle1,
   calle2,
+  authTab,
   setTelefono,
   setEmailError,
   setWelcomeError,
@@ -66,16 +68,34 @@ export default function useAuthActions({
 
   const validatePage1 = useCallback(() => {
     if (!EMAIL_RE.test(email)) {
-      setEmailError("Email inválido");
+      setEmailError("Email invalido");
       return false;
     }
-    if (!password || password.length < 6) {
-      setEmailError("Contraseña mínimo 6 caracteres");
+    if (authTab === "register") {
+      const hasMinLength = password.length >= 8;
+      const hasNumber = /\d/.test(password);
+      const hasSymbol = /[^A-Za-z0-9]/.test(password);
+      const hasNumberAndSymbol = hasNumber && hasSymbol;
+
+      if (!hasMinLength) {
+        setEmailError("La contrasena debe tener al menos 8 caracteres");
+        return false;
+      }
+      if (!hasNumberAndSymbol) {
+        setEmailError("Incluye un simbolo y un numero");
+        return false;
+      }
+      if (password !== passwordConfirm) {
+        setEmailError("Las contrasenas deben coincidir");
+        return false;
+      }
+    } else if (!password || password.length < 6) {
+      setEmailError("Contrasena minimo 6 caracteres");
       return false;
     }
     setEmailError("");
     return true;
-  }, [email, password, setEmailError]);
+  }, [authTab, email, password, passwordConfirm, setEmailError]);
 
   const handleLogin = useCallback(async () => {
     setEmailError("");
