@@ -50,7 +50,7 @@ export default function BusinessDataStep({
 
             <div className="space-y-2">
               <label className={labelClassName}>Categoría</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {categoryList.map((category) => {
                   const isActive = selectedCategory === category.id;
                   const iconColor = isActive ? "text-[#5E30A5]" : "text-gray-500";
@@ -59,16 +59,16 @@ export default function BusinessDataStep({
                       key={category.id}
                       type="button"
                       onClick={() => onChangeCategoria?.(category.id)}
-                      className={`aspect-square rounded-xl border px-3 py-3 flex flex-col items-center justify-center text-center transition-colors ${
+                      className={`aspect-[4/3] rounded-xl border p-2 flex flex-col items-center justify-center text-center transition-colors ${
                         isActive
                           ? "border-[#5E30A5] bg-[#5E30A5]/10"
                           : "border-gray-200 bg-white"
                       }`}
                     >
-                      <div className={`w-10 h-10 flex items-center justify-center ${iconColor}`}>
+                      <div className={`w-8 h-8 flex items-center justify-center ${iconColor}`}>
                         <svg
                           viewBox={category.icon?.viewBox || "0 0 24 24"}
-                          className="w-7 h-7"
+                          className="w-5 h-5"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.6"
@@ -81,7 +81,7 @@ export default function BusinessDataStep({
                           ))}
                         </svg>
                       </div>
-                      <span className="text-xs font-semibold text-gray-700 mt-1">
+                      <span className="text-[11px] font-semibold text-gray-700 mt-1">
                         {category.label}
                       </span>
                     </button>
