@@ -1,6 +1,6 @@
 export const EMAIL_RE = /\S+@\S+\.\S+/;
 export const PHONE_RE = /^09\d{8}$/;
-export const CODE_RE = /^REF-\d{6}$/;
+export const CODE_RE = /^REF-[A-HJ-KM-NP-Z2-9]{4}-[A-HJ-KM-NP-Z2-9]{3}$/;
 
 export function validateEmail(email) {
   return EMAIL_RE.test(email);

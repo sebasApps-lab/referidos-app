@@ -11,7 +11,7 @@ function isPartialFormat(code) {
   if (code === "R" || code === "RE" || code === "REF" || code === "REF-") return true;
   if (!code.startsWith("REF-")) return false;
   const tail = code.slice(4);
-  return /^[0-9]{0,6}$/.test(tail);
+  return /^[A-HJ-KM-NP-Z2-9-]*$/.test(tail);
 }
 
 export default function ModalCodigoNegocio({ onConfirm }) {
