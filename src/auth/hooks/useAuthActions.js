@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import {
+  CODE_RE,
   EMAIL_RE,
   PHONE_RE,
   validateEmail,
@@ -168,18 +169,22 @@ export default function useAuthActions({
     return { ok: true };
   }, [bootstrapAuth, email, setEmailError, telefono]);
 
-  const createNegocioProfile = useCallback(async () => {
-    setEmailError("");
+  const createNegocioProfile = useCallback(async ({
+    bootstrap = true,
+    silent = false,
+  } = {}) => {
+    const reportError = silent ? () => {} : setEmailError;
+    reportError("");
 
     const session = (await supabase.auth.getSession()).data.session;
     if (!session?.user) {
-      setEmailError("Sesion no valida");
-      return { ok: false };
+      reportError("Sesion no valida");
+      return { ok: false, error: "Sesion no valida" };
     }
     const authEmail = session.user.email || email;
     if (!authEmail) {
-      setEmailError("No se pudo obtener el email de la cuenta");
-      return { ok: false };
+      reportError("No se pudo obtener el email de la cuenta");
+      return { ok: false, error: "No se pudo obtener el email de la cuenta" };
     }
 
     //Crear o actualizar perfil de negocio (solo si no tenia rol)
@@ -189,8 +194,8 @@ export default function useAuthActions({
       .eq("id_auth", session.user.id)
       .maybeSingle();
     if (exErr) {
-      setEmailError(exErr.message || "No se pudo leer perfil");
-      return { ok: false };
+      reportError(exErr.message || "No se pudo leer perfil");
+      return { ok: false, error: exErr.message || "No se pudo leer perfil" };
     }
 
     //Crear perfil negocio solo si no tenia rol
@@ -206,12 +211,14 @@ export default function useAuthActions({
         .select()
         .maybeSingle();
       if (error) {
-        setEmailError(error.message || "Error al crear perfil");
-        return { ok: false };
+        reportError(error.message || "Error al crear perfil");
+        return { ok: false, error: error.message || "Error al crear perfil" };
       }
     }
 
-    await bootstrapAuth({ force: true });
+    if (bootstrap) {
+      await bootstrapAuth({ force: true });
+    }
     return { ok: true };
   }, [bootstrapAuth, email, setEmailError]);
 
@@ -226,6 +233,91 @@ export default function useAuthActions({
       return { ok: false };
     },
     [createClienteProfile, createNegocioProfile]
+  );
+
+  const validateNegocioCode = useCallback(
+    async (codeRaw) => {
+      const code = String(codeRaw || "").trim().toUpperCase();
+      if (!CODE_RE.test(code)) {
+        return { ok: false, error: "Codigo de registro invalido" };
+      }
+
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) {
+        return { ok: false, error: "No hay sesion activa" };
+      }
+
+      const { data: validation, error: validationError } =
+        await supabase.functions.invoke("validate-registration-code", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            code,
+            expected_role: "negocio",
+            consume: false,
+          },
+        });
+
+      if (validationError) {
+        return {
+          ok: false,
+          error: validationError.message || "No se pudo validar el codigo",
+        };
+      }
+
+      if (!validation?.ok || !validation?.valid) {
+        const reason = validation?.reason;
+        const message =
+          reason === "revoked"
+            ? "Codigo revocado"
+            : reason === "used"
+              ? "Codigo ya utilizado"
+              : reason === "expired"
+                ? "Codigo expirado"
+                : reason === "role_mismatch"
+                  ? "Codigo no valido para negocio"
+                  : "Codigo de registro invalido";
+        return { ok: false, error: message };
+      }
+
+      const created = await createNegocioProfile({
+        bootstrap: false,
+        silent: true,
+      });
+      if (!created.ok) {
+        return {
+          ok: false,
+          error: created.error || "No se pudo crear el perfil de negocio",
+        };
+      }
+
+      const { data: consumed, error: consumeError } =
+        await supabase.functions.invoke("validate-registration-code", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            code,
+            expected_role: "negocio",
+            consume: true,
+          },
+        });
+
+      if (consumeError) {
+        return {
+          ok: false,
+          error: consumeError.message || "No se pudo consumir el codigo",
+        };
+      }
+
+      if (!consumed?.ok || !consumed?.valid) {
+        return { ok: false, error: "No se pudo consumir el codigo" };
+      }
+
+      return { ok: true };
+    },
+    [createNegocioProfile]
   );
 
   const handleEmailRegister = useCallback(async () => {
@@ -512,5 +604,6 @@ export default function useAuthActions({
     startGoogleOneTap,
     startFacebookOneTap,
     handleFormBack,
+    validateNegocioCode,
   };
 }

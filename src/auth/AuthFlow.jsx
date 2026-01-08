@@ -197,6 +197,7 @@ export default function AuthFlow() {
         <RoleSelectStep
           error={flow.emailError}
           onSubmit={actions.handleRoleSelect}
+          onValidateNegocioCode={actions.validateNegocioCode}
         />
       )}
 
