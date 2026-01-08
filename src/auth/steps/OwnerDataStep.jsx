@@ -30,14 +30,14 @@ export default function OwnerDataStep({
 
   return (
     <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2 h-full">
-      <div className="pb-4 flex h-full flex-col" ref={innerRef}>
+      <div className="flex h-full flex-col" ref={innerRef}>
         <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
           Eres quien administrara el negocio en la app.
         </p>
 
         {error && <ErrorBanner message={error} className="mb-2" />}
 
-        <div className="space-y-6 flex-1">
+        <div className="space-y-6">
           <div className="space-y-1">
             <label className={labelClassName}>Nombre(s)</label>
             <input
@@ -83,20 +83,22 @@ export default function OwnerDataStep({
           </div>
         </div>
 
-        <div className="pt-10 mt-auto">
-          <button
-            onClick={onSubmit}
-            disabled={primaryDisabled}
-            className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60"
-          >
-            Confirmar
-          </button>
-        </div>
+        <div className="mt-auto">
+          <div className="pt-10">
+            <button
+              onClick={onSubmit}
+              disabled={primaryDisabled}
+              className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60"
+            >
+              Confirmar
+            </button>
+          </div>
 
-        <div className="text-center mt-3">
-          <Link to="/" onClick={onGoWelcome} className="text-sm text-gray-700">
-            YA TENGO UNA CUENTA.
-          </Link>
+          <div className="text-center mt-3">
+            <Link to="/" onClick={onGoWelcome} className="text-sm text-gray-700">
+              YA TENGO UNA CUENTA.
+            </Link>
+          </div>
         </div>
       </div>
     </section>

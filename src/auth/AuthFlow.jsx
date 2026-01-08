@@ -141,8 +141,19 @@ export default function AuthFlow() {
     [flow.apellidoDueno, flow.fechaNacimiento, flow.nombreDueno]
   );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
-  const containerClassName = isWelcome ? "justify-center pb-28" : "relative";
-  const brandClassName = isWelcome ? "mb-6" : "mt-12 mb-2 text-center";
+  const isFormStep =
+    flow.step === AUTH_STEPS.OWNER_DATA ||
+    flow.step === AUTH_STEPS.BUSINESS_DATA;
+  const containerClassName = isWelcome
+    ? "justify-center pb-28"
+    : isFormStep
+    ? "relative justify-center"
+    : "relative";
+  const brandClassName = isWelcome
+    ? "mb-6"
+    : isFormStep
+    ? "mb-4 text-center"
+    : "mt-12 mb-2 text-center";
 
 
   const handleBack = () => {
@@ -274,7 +285,7 @@ export default function AuthFlow() {
         >
           <div
             ref={flow.cardInnerRef}
-            className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4 flex flex-col h-full"
+            className="bg-white w-full rounded-2xl shadow-xl px-6 pt-4 pb-4 flex flex-col h-full"
             style={{ boxSizing: "border-box", overflow: "hidden" }}
           >
             <div
