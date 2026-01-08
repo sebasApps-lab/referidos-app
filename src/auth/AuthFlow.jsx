@@ -16,6 +16,7 @@ import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
 import useAuthPrefill from "./hooks/useAuthPrefill";
 import { AUTH_STEPS } from "./constants/authSteps";
+import { getOwnerDataStatus } from "./utils/ownerDataUtils";
 
 export default function AuthFlow() {
   const location = useLocation();
@@ -38,6 +39,7 @@ export default function AuthFlow() {
     flow.setCodigo("");
     flow.setNombreDueno("");
     flow.setApellidoDueno("");
+    flow.setFechaNacimiento("");
     flow.setRuc("");
     flow.setNombreNegocio("");
     flow.setSectorNegocio("");
@@ -61,6 +63,7 @@ export default function AuthFlow() {
     flow.setEmailError,
     flow.setLoginLoading,
     flow.setNombreDueno,
+    flow.setFechaNacimiento,
     flow.setNombreNegocio,
     flow.setOauthLoading,
     flow.setOauthProvider,
@@ -83,6 +86,7 @@ export default function AuthFlow() {
     telefono: flow.telefono,
     nombreDueno: flow.nombreDueno,
     apellidoDueno: flow.apellidoDueno,
+    fechaNacimiento: flow.fechaNacimiento,
     ruc: flow.ruc,
     nombreNegocio: flow.nombreNegocio,
     sectorNegocio: flow.sectorNegocio,
@@ -108,6 +112,7 @@ export default function AuthFlow() {
     setNombreDueno: flow.setNombreDueno,
     setApellidoDueno: flow.setApellidoDueno,
     setTelefono: flow.setTelefono,
+    setFechaNacimiento: flow.setFechaNacimiento,
     setRuc: flow.setRuc,
     setNombreNegocio: flow.setNombreNegocio,
     setSectorNegocio: flow.setSectorNegocio,
@@ -126,6 +131,15 @@ export default function AuthFlow() {
     flow.passwordConfirm.length > 0 &&
     flow.password === flow.passwordConfirm;
   const canSubmitPassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
+  const ownerStatus = useMemo(
+    () =>
+      getOwnerDataStatus({
+        nombre: flow.nombreDueno,
+        apellido: flow.apellidoDueno,
+        fechaNacimiento: flow.fechaNacimiento,
+      }),
+    [flow.apellidoDueno, flow.fechaNacimiento, flow.nombreDueno]
+  );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
   const containerClassName = isWelcome ? "justify-center pb-28" : "relative";
   const brandClassName = isWelcome ? "mb-6" : "mt-12 mb-2 text-center";
@@ -250,9 +264,9 @@ export default function AuthFlow() {
         flow.step === AUTH_STEPS.BUSINESS_DATA) && (
         <div
           ref={flow.cardRef}
-          className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
+          className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible flex flex-col"
           style={{
-            height: flow.cardHeight != null ? `${flow.cardHeight}px` : "auto",
+            height: "80vh",
             boxSizing: "border-box",
             transition: "height 260ms ease",
             overflow: "hidden",
@@ -260,25 +274,30 @@ export default function AuthFlow() {
         >
           <div
             ref={flow.cardInnerRef}
-            className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4"
+            className="bg-white w-full rounded-2xl shadow-xl p-6 pt-4 flex flex-col h-full"
             style={{ boxSizing: "border-box", overflow: "hidden" }}
           >
-            <div ref={flow.sliderRef} style={flow.containerStyle} className="relative z-10">
-              {flow.step === AUTH_STEPS.OWNER_DATA && (
-                <OwnerDataStep
-                  error={flow.emailError}
-                  inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
-                  nombreDueno={flow.nombreDueno}
-                  apellidoDueno={flow.apellidoDueno}
-                  telefono={flow.telefono}
-                  onChangeNombre={flow.setNombreDueno}
-                  onChangeApellido={flow.setApellidoDueno}
-                  onChangeTelefono={flow.setTelefono}
-                  onSubmit={actions.handleOwnerDataNext}
-                  innerRef={flow.regPage1Ref}
-                  onGoWelcome={resetToWelcome}
-                />
-              )}
+            <div
+              ref={flow.sliderRef}
+              style={flow.containerStyle}
+              className="relative z-10 flex-1"
+            >
+      {flow.step === AUTH_STEPS.OWNER_DATA && (
+        <OwnerDataStep
+          error={flow.emailError}
+          inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
+          nombreDueno={flow.nombreDueno}
+          apellidoDueno={flow.apellidoDueno}
+          fechaNacimiento={flow.fechaNacimiento}
+          onChangeNombre={flow.setNombreDueno}
+          onChangeApellido={flow.setApellidoDueno}
+          onChangeFechaNacimiento={flow.setFechaNacimiento}
+          onSubmit={actions.handleOwnerDataNext}
+          innerRef={flow.regPage1Ref}
+          onGoWelcome={resetToWelcome}
+          primaryDisabled={!ownerStatus.canSubmit}
+        />
+      )}
 
               {flow.step === AUTH_STEPS.BUSINESS_DATA && (
                 <BusinessDataStep

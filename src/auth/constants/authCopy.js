@@ -1,4 +1,4 @@
 export const AUTH_BRAND = {
-  name: "REFERIDOS APP",
+  name: "Cuentanos mas sobre tí",
   alpha: "ALPHA v0.0.1",
 };

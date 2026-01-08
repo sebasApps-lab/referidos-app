@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AUTH_STEPS } from "../constants/authSteps";
 import { mapNegocioPrefill } from "../utils/authMappers";
+import { formatBirthdateForInput } from "../utils/ownerDataUtils";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function useAuthPrefill({
@@ -11,6 +12,7 @@ export default function useAuthPrefill({
   setNombreDueno,
   setApellidoDueno,
   setTelefono,
+  setFechaNacimiento,
   setRuc,
   setNombreNegocio,
   setSectorNegocio,
@@ -68,7 +70,8 @@ export default function useAuthPrefill({
 
     if (u.role === "negocio") {
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
-      const missingOwner = !u.nombre || !u.apellido || !u.telefono;
+      const missingOwner =
+        !u.nombre || !u.apellido || !u.fecha_nacimiento;
 
       setStep(
         missingOwner ? AUTH_STEPS.OWNER_DATA : AUTH_STEPS.BUSINESS_DATA
@@ -77,6 +80,7 @@ export default function useAuthPrefill({
       setNombreDueno(prefill.nombreDueno);
       setApellidoDueno(prefill.apellidoDueno);
       setTelefono(prefill.telefono);
+      setFechaNacimiento(formatBirthdateForInput(u.fecha_nacimiento));
       setRuc(prefill.ruc);
       setNombreNegocio(prefill.nombreNegocio);
       setSectorNegocio(prefill.sectorNegocio);
@@ -111,6 +115,7 @@ export default function useAuthPrefill({
     setEmailError,
     setStep,
     setNombreDueno,
+    setFechaNacimiento,
     setNombreNegocio,
     setRuc,
     setSectorNegocio,

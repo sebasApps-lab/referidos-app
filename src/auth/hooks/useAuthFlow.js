@@ -23,6 +23,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [codigo, setCodigo] = useState("");
   const [codeChecking, setCodeChecking] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -128,6 +129,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     password,
     passwordConfirm,
     telefono,
+    fechaNacimiento,
     codigo,
     codeChecking,
     showPassword,
@@ -154,6 +156,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setPassword,
     setPasswordConfirm,
     setTelefono,
+    setFechaNacimiento,
     setCodigo,
     setCodeChecking,
     setShowPassword,

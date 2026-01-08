@@ -67,6 +67,7 @@ type UsuarioProfile = {
     nombre: string | null;
     apellido: string | null;
     telefono: string | null;
+    fecha_nacimiento: string | null;
     ruc: string | null;
     account_status: AccountStatus | null;
 };
@@ -85,7 +86,7 @@ type DireccionProfile = {
     sector: string | null;
 };
 
-const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "telefono"];
+const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "fecha_nacimiento"];
 const BUSINESS_REQUIRED_IN_USUARIOS: (keyof UsuarioProfile)[] = ["ruc"];
 const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre"];
 

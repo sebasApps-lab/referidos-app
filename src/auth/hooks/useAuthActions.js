@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import {
   CODE_RE,
   EMAIL_RE,
-  PHONE_RE,
   validateEmail,
 } from "../../utils/validators";
 import { useAppStore } from "../../store/appStore";
@@ -10,6 +9,10 @@ import { signInWithOAuth, signInWithGoogleIdToken } from "../../services/authSer
 import { supabase } from "../../lib/supabaseClient";
 import { requestGoogleCredential } from "../../utils/googleOneTap";
 import { AUTH_STEPS } from "../constants/authSteps";
+import {
+  buildBirthdateISO,
+  getOwnerDataStatus,
+} from "../utils/ownerDataUtils";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
@@ -24,6 +27,7 @@ export default function useAuthActions({
   telefono,
   nombreDueno,
   apellidoDueno,
+  fechaNacimiento,
   ruc,
   nombreNegocio,
   sectorNegocio,
@@ -373,14 +377,24 @@ export default function useAuthActions({
   ]);
 
   const handleOwnerDataNext = useCallback(async () => {
-    if (!nombreDueno) return setEmailError("Ingrese nombres");
-    if (!apellidoDueno) return setEmailError("Ingrese apellidos");
-    if (!PHONE_RE.test(telefono)) return setEmailError("Ingrese un teléfono válido");
+    const ownerStatus = getOwnerDataStatus({
+      nombre: nombreDueno,
+      apellido: apellidoDueno,
+      fechaNacimiento,
+    });
+    if (!ownerStatus.nombre.trim()) return setEmailError("Ingrese nombres");
+    if (!ownerStatus.apellido.trim()) return setEmailError("Ingrese apellidos");
+    if (!ownerStatus.birthStatus.isValid) {
+      return setEmailError("Ingrese una fecha de nacimiento valida");
+    }
+    if (ownerStatus.birthStatus.isUnderage) {
+      return setEmailError("Tienes que ser mayor de edad para ser el administrador");
+    }
     setEmailError("");
 
     const session = (await supabase.auth.getSession()).data.session;
     if (!session?.user) {
-      setEmailError("No hay sesión activa");
+      setEmailError("No hay sesion activa");
       return;
     }
     //Perfil debe existir y ser rol negocio (ya seteado en SplashChoice)
@@ -402,12 +416,13 @@ export default function useAuthActions({
       setEmailError("Tu cuenta no es de negocio");
       return;
     }
+    const birthdateIso = buildBirthdateISO(fechaNacimiento);
     const { error } = await supabase
       .from("usuarios")
       .update({
-        nombre: nombreDueno,
-        apellido: apellidoDueno,
-        telefono,
+        nombre: ownerStatus.nombre,
+        apellido: ownerStatus.apellido,
+        fecha_nacimiento: birthdateIso,
       })
       .eq("id_auth", session.user.id);
 
@@ -421,10 +436,10 @@ export default function useAuthActions({
   }, [
     apellidoDueno,
     bootstrapAuth,
+    fechaNacimiento,
     goToStep,
     nombreDueno,
     setEmailError,
-    telefono,
   ]);
 
   const handleBusinessRegister = useCallback(async () => {
@@ -632,3 +647,4 @@ export default function useAuthActions({
     validateNegocioCode,
   };
 }
+
