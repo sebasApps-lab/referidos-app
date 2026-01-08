@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AUTH_STEPS } from "../constants/authSteps";
 import { mapNegocioPrefill } from "../utils/authMappers";
-import { formatBirthdateForInput } from "../utils/ownerDataUtils";
+import { formatBirthdateForInput, normalizeOwnerName } from "../utils/ownerDataUtils";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function useAuthPrefill({
@@ -13,6 +13,7 @@ export default function useAuthPrefill({
   setApellidoDueno,
   setTelefono,
   setFechaNacimiento,
+  setOwnerPrefill,
   setRuc,
   setNombreNegocio,
   setSectorNegocio,
@@ -25,8 +26,9 @@ export default function useAuthPrefill({
   useEffect(() => {
     if (typeof usuario === "undefined") {
       choiceOpenedRef.current = false;
+      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
     }
-  }, [usuario]);
+  }, [setOwnerPrefill, usuario]);
 
   useEffect(() => {
     if (typeof usuario === "undefined") return;
@@ -34,6 +36,7 @@ export default function useAuthPrefill({
     const onboardingOk = onboarding?.ok === true;
 
     if (!usuario) {
+      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
       if (onboardingOk && !choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -43,6 +46,7 @@ export default function useAuthPrefill({
 
     //1) Perfil existe pero SIN rol
     if (!usuario.role) {
+      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -72,15 +76,23 @@ export default function useAuthPrefill({
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
       const missingOwner =
         !u.nombre || !u.apellido || !u.fecha_nacimiento;
+      const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
+      const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
+      const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
 
       setStep(
         missingOwner ? AUTH_STEPS.OWNER_DATA : AUTH_STEPS.BUSINESS_DATA
       );
 
-      setNombreDueno(prefill.nombreDueno);
-      setApellidoDueno(prefill.apellidoDueno);
+      setNombreDueno(prefillNombre);
+      setApellidoDueno(prefillApellido);
       setTelefono(prefill.telefono);
-      setFechaNacimiento(formatBirthdateForInput(u.fecha_nacimiento));
+      setFechaNacimiento(prefillFecha);
+      setOwnerPrefill?.({
+        nombre: prefillNombre,
+        apellido: prefillApellido,
+        fechaNacimiento: prefillFecha,
+      });
       setRuc(prefill.ruc);
       setNombreNegocio(prefill.nombreNegocio);
       setSectorNegocio(prefill.sectorNegocio);
@@ -117,6 +129,7 @@ export default function useAuthPrefill({
     setNombreDueno,
     setFechaNacimiento,
     setNombreNegocio,
+    setOwnerPrefill,
     setRuc,
     setSectorNegocio,
     setTelefono,

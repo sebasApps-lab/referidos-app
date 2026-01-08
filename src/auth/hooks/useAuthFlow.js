@@ -30,6 +30,11 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [nombreDueno, setNombreDueno] = useState("");
   const [apellidoDueno, setApellidoDueno] = useState("");
+  const [ownerPrefill, setOwnerPrefill] = useState({
+    nombre: "",
+    apellido: "",
+    fechaNacimiento: "",
+  });
   const [ruc, setRuc] = useState("");
   const [nombreNegocio, setNombreNegocio] = useState("");
   const [sectorNegocio, setSectorNegocio] = useState("");
@@ -136,6 +141,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     showPasswordConfirm,
     nombreDueno,
     apellidoDueno,
+    ownerPrefill,
     ruc,
     nombreNegocio,
     sectorNegocio,
@@ -163,6 +169,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setShowPasswordConfirm,
     setNombreDueno,
     setApellidoDueno,
+    setOwnerPrefill,
     setRuc,
     setNombreNegocio,
     setSectorNegocio,

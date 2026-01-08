@@ -41,6 +41,11 @@ export default function AuthFlow() {
     flow.setNombreDueno("");
     flow.setApellidoDueno("");
     flow.setFechaNacimiento("");
+    flow.setOwnerPrefill({
+      nombre: "",
+      apellido: "",
+      fechaNacimiento: "",
+    });
     flow.setRuc("");
     flow.setNombreNegocio("");
     flow.setSectorNegocio("");
@@ -65,6 +70,7 @@ export default function AuthFlow() {
     flow.setLoginLoading,
     flow.setNombreDueno,
     flow.setFechaNacimiento,
+    flow.setOwnerPrefill,
     flow.setNombreNegocio,
     flow.setOauthLoading,
     flow.setOauthProvider,
@@ -88,6 +94,7 @@ export default function AuthFlow() {
     nombreDueno: flow.nombreDueno,
     apellidoDueno: flow.apellidoDueno,
     fechaNacimiento: flow.fechaNacimiento,
+    ownerPrefill: flow.ownerPrefill,
     ruc: flow.ruc,
     nombreNegocio: flow.nombreNegocio,
     sectorNegocio: flow.sectorNegocio,
@@ -114,6 +121,7 @@ export default function AuthFlow() {
     setApellidoDueno: flow.setApellidoDueno,
     setTelefono: flow.setTelefono,
     setFechaNacimiento: flow.setFechaNacimiento,
+    setOwnerPrefill: flow.setOwnerPrefill,
     setRuc: flow.setRuc,
     setNombreNegocio: flow.setNombreNegocio,
     setSectorNegocio: flow.setSectorNegocio,

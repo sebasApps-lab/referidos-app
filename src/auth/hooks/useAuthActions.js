@@ -12,6 +12,7 @@ import { AUTH_STEPS } from "../constants/authSteps";
 import {
   buildBirthdateISO,
   getOwnerDataStatus,
+  normalizeOwnerName,
 } from "../utils/ownerDataUtils";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
@@ -28,6 +29,7 @@ export default function useAuthActions({
   nombreDueno,
   apellidoDueno,
   fechaNacimiento,
+  ownerPrefill,
   ruc,
   nombreNegocio,
   sectorNegocio,
@@ -392,6 +394,19 @@ export default function useAuthActions({
     }
     setEmailError("");
 
+    const prefillNombre = normalizeOwnerName(ownerPrefill?.nombre || "");
+    const prefillApellido = normalizeOwnerName(ownerPrefill?.apellido || "");
+    const prefillFecha = ownerPrefill?.fechaNacimiento || "";
+    const unchanged =
+      ownerStatus.nombre === prefillNombre &&
+      ownerStatus.apellido === prefillApellido &&
+      (fechaNacimiento || "") === prefillFecha;
+
+    if (unchanged) {
+      goToStep(AUTH_STEPS.BUSINESS_DATA);
+      return;
+    }
+
     const session = (await supabase.auth.getSession()).data.session;
     if (!session?.user) {
       setEmailError("No hay sesion activa");
@@ -439,6 +454,7 @@ export default function useAuthActions({
     fechaNacimiento,
     goToStep,
     nombreDueno,
+    ownerPrefill,
     setEmailError,
   ]);
 
