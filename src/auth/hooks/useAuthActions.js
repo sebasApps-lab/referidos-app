@@ -624,11 +624,11 @@ export default function useAuthActions({
       return;
     }
     if (step === AUTH_STEPS.OWNER_DATA) {
-      setStep(AUTH_STEPS.ROLE_SELECT);
+      goToEmailRegister();
       return;
     }
     goToEmailRegister();
-  }, [goToEmailRegister, goToStep, setStep, step]);
+  }, [goToEmailRegister, goToStep, step]);
 
   return {
     goToEmailLogin,

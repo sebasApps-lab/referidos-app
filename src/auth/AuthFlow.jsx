@@ -22,6 +22,7 @@ export default function AuthFlow() {
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
+  const logout = useAppStore((s) => s.logout);
   const initialStep = useMemo(
     () =>
       location.pathname === "/auth"
@@ -121,7 +122,6 @@ export default function AuthFlow() {
   });
 
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
-  const showForwardButton = flow.step === AUTH_STEPS.OWNER_DATA;
   const hasMinLength = flow.password.length >= 8;
   const hasNumber = /\d/.test(flow.password);
   const hasSymbol = /[^A-Za-z0-9]/.test(flow.password);
@@ -156,6 +156,14 @@ export default function AuthFlow() {
     : "mt-12 mb-2 text-center";
 
 
+  const [showExitConfirm, setShowExitConfirm] = React.useState(false);
+
+  const handleOwnerExit = React.useCallback(async () => {
+    setShowExitConfirm(false);
+    await logout?.();
+    flow.setStep(AUTH_STEPS.EMAIL_REGISTER);
+  }, [logout, flow.setStep]);
+
   const handleBack = () => {
     if (
       flow.step === AUTH_STEPS.EMAIL_LOGIN ||
@@ -164,13 +172,11 @@ export default function AuthFlow() {
       resetToWelcome();
       return;
     }
-    actions.handleFormBack();
-  };
-
-  const handleForward = () => {
     if (flow.step === AUTH_STEPS.OWNER_DATA) {
-      actions.handleOwnerDataNext();
+      setShowExitConfirm(true);
+      return;
     }
+    actions.handleFormBack();
   };
 
   return (
@@ -184,15 +190,6 @@ export default function AuthFlow() {
           onClick={handleBack}
           className="absolute left-2 top-68"
           ariaLabel="Volver"
-        />
-      )}
-
-      {showForwardButton && (
-        <BackButton
-          onClick={handleForward}
-          direction="right"
-          className="absolute right-2 top-68"
-          ariaLabel="Siguiente"
         />
       )}
 
@@ -329,6 +326,35 @@ export default function AuthFlow() {
                   onGoWelcome={resetToWelcome}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-[#0F172A]">
+            <h3 className="text-center text-lg font-semibold text-[#5E30A5]">
+              Confirmar salida
+            </h3>
+            <p className="text-sm text-gray-600 mt-2 text-center">
+              Deberas iniciar sesion para completar registro.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowExitConfirm(false)}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-600 font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleOwnerExit}
+                className="flex-1 py-2.5 rounded-lg font-semibold bg-[#5E30A5] text-white shadow"
+              >
+                Aceptar
+              </button>
             </div>
           </div>
         </div>
