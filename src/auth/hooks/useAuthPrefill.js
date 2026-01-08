@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AUTH_STEPS } from "../constants/authSteps";
 import { mapNegocioPrefill } from "../utils/authMappers";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function useAuthPrefill({
   usuario,
@@ -17,6 +18,7 @@ export default function useAuthPrefill({
   setCalle2,
 }) {
   const choiceOpenedRef = useRef(false);
+  const direccionRequestRef = useRef(0);
 
   useEffect(() => {
     if (typeof usuario === "undefined") {
@@ -80,6 +82,26 @@ export default function useAuthPrefill({
       setSectorNegocio(prefill.sectorNegocio);
       setCalle1(prefill.calle1);
       setCalle2(prefill.calle2);
+
+      const direccionId =
+        neg?.direccion_id || neg?.direccionId || neg?.direccionID || null;
+
+      if (direccionId) {
+        const requestId = ++direccionRequestRef.current;
+        supabase
+          .from("direcciones")
+          .select("calle_1, calle_2, sector")
+          .eq("id", direccionId)
+          .maybeSingle()
+          .then(({ data, error }) => {
+            if (requestId !== direccionRequestRef.current) return;
+            if (error || !data) return;
+            setCalle1(data.calle_1 || "");
+            setCalle2(data.calle_2 || "");
+            setSectorNegocio(data.sector || "");
+          })
+          .catch(() => {});
+      }
     }
   }, [
     onboarding,

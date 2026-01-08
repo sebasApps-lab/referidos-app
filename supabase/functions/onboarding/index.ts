@@ -75,13 +75,19 @@ type NegocioProfile = {
     id: string;
     usuarioid: string;
     nombre: string | null;
-    sector: string | null;
-    direccion: string | null;
+    direccion_id: string | null;
 }
+
+type DireccionProfile = {
+    id: string;
+    calle_1: string | null;
+    calle_2: string | null;
+    sector: string | null;
+};
 
 const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "telefono"];
 const BUSINESS_REQUIRED_IN_USUARIOS: (keyof UsuarioProfile)[] = ["ruc"];
-const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre", "sector", "direccion"];
+const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre"];
 
 serve (async (req) => {
     const origin = req.headers.get("origin") || "*";
@@ -252,6 +258,31 @@ serve (async (req) => {
                 reasons.push(
                     `missing_business_fields:${missingBusiness.join(",")}`
                 );
+            }
+
+            if (!negData.direccion_id) {
+                reasons.push("missing_business_address");
+            } else {
+                const { data: dirData, error: dirErr } = await supabaseAdmin
+                    .from("direcciones")
+                    .select("id, calle_1, calle_2, sector")
+                    .eq("id", negData.direccion_id)
+                    .maybeSingle<DireccionProfile>();
+
+                if (dirErr) {
+                    reasons.push("business_address_query_error");
+                } else if (!dirData) {
+                    reasons.push("missing_business_address");
+                } else {
+                    const hasAddress =
+                        !!(dirData.calle_1 || dirData.calle_2);
+                    if (!hasAddress) {
+                        reasons.push("missing_business_address");
+                    }
+                    if (!dirData.sector) {
+                        reasons.push("missing_business_sector");
+                    }
+                }
             }
         }
     }

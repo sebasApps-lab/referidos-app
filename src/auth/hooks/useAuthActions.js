@@ -466,15 +466,40 @@ export default function useAuthActions({
         return;
       }
 
-      const direccion = calle2
-        ? `${(calle1 || "").trim()}|${(calle2 || "").trim()}`
-        : (calle1 || "").trim();
+      const calle1Value = (calle1 || "").trim();
+      const calle2Value = (calle2 || "").trim();
+      const sectorValue = (sectorNegocio || "").trim();
+      const hasDireccionData = !!(calle1Value || calle2Value || sectorValue);
+      const direccionPayload = {
+        calle_1: calle1Value || null,
+        calle_2: calle2Value || null,
+        sector: sectorValue || null,
+        owner_id: userRow.id,
+      };
+
+      let direccionId = existingNeg?.direccion_id || null;
+
+      if (direccionId && hasDireccionData) {
+        const { error: dirErr } = await supabase
+          .from("direcciones")
+          .update(direccionPayload)
+          .eq("id", direccionId);
+        if (dirErr) throw dirErr;
+      } else if (!direccionId && hasDireccionData) {
+        const { data: newDir, error: dirErr } = await supabase
+          .from("direcciones")
+          .insert(direccionPayload)
+          .select("id")
+          .maybeSingle();
+        if (dirErr) throw dirErr;
+        direccionId = newDir?.id || null;
+      }
 
       const negocioPayload = {
         usuarioid: userRow.id,
         nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
-        sector: sectorNegocio || existingNeg?.sector || null,
-        direccion: direccion || existingNeg?.direccion || null,
+        direccion_id: direccionId,
+        categoria: existingNeg?.categoria || null,
       };
 
       //Crear/actualizar negocio
