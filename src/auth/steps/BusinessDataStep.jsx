@@ -19,34 +19,66 @@ export default function BusinessDataStep({
   innerRef,
   onGoWelcome,
 }) {
+  const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
+  const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";
+
   return (
     <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2 h-full">
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         <div className="flex-1">
-          <h2 className="text-center text-xl font-bold text-[#5E30A5] mb-6">Registrar negocio</h2>
-          <p className="text-sm text-gray-600 mb-3">Datos del negocio</p>
+          <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
+            Datos del negocio
+          </p>
 
           {error && <ErrorBanner message={error} className="mb-2" />}
 
-          <label className="text-sm text-gray-700">RUC</label>
-          <input
-            className={inputClassName}
-            value={ruc}
-            onChange={(event) => onChangeRuc(event.target.value.replace(/[^\d]/g, ""))}
-            maxLength={13}
-          />
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <label className={labelClassName}>RUC</label>
+              <input
+                className={fieldClassName}
+                value={ruc}
+                onChange={(event) => onChangeRuc(event.target.value.replace(/[^\d]/g, ""))}
+                maxLength={13}
+              />
+            </div>
 
-          <label className="text-sm text-gray-700">Nombre negocio</label>
-          <input className={inputClassName} value={nombreNegocio} onChange={(event) => onChangeNombre(event.target.value)} />
+            <div className="space-y-1">
+              <label className={labelClassName}>Nombre negocio</label>
+              <input
+                className={fieldClassName}
+                value={nombreNegocio}
+                onChange={(event) => onChangeNombre(event.target.value)}
+              />
+            </div>
 
-          <label className="text-sm text-gray-700">Sector negocio</label>
-          <input className={inputClassName} value={sectorNegocio} onChange={(event) => onChangeSector(event.target.value)} />
+            <div className="space-y-1">
+              <label className={labelClassName}>Sector negocio</label>
+              <input
+                className={fieldClassName}
+                value={sectorNegocio}
+                onChange={(event) => onChangeSector(event.target.value)}
+              />
+            </div>
 
-          <label className="text-sm text-gray-700">Calle 1</label>
-          <input className={inputClassName} value={calle1} onChange={(event) => onChangeCalle1(event.target.value)} />
+            <div className="space-y-1">
+              <label className={labelClassName}>Calle 1</label>
+              <input
+                className={fieldClassName}
+                value={calle1}
+                onChange={(event) => onChangeCalle1(event.target.value)}
+              />
+            </div>
 
-          <label className="text-sm text-gray-700">Calle 2 (opcional)</label>
-          <input className={inputClassName} value={calle2} onChange={(event) => onChangeCalle2(event.target.value)} />
+            <div className="space-y-1">
+              <label className={labelClassName}>Calle 2 (opcional)</label>
+              <input
+                className={fieldClassName}
+                value={calle2}
+                onChange={(event) => onChangeCalle2(event.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mt-auto pt-4">
