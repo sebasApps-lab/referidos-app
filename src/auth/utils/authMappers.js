@@ -13,6 +13,7 @@ export function mapNegocioPrefill({ usuario, onboarding }) {
     telefono: usuario?.telefono || "",
     ruc: usuario?.ruc || "",
     nombreNegocio: negocio?.nombre || "",
+    categoriaNegocio: negocio?.categoria || "",
     sectorNegocio: negocio?.sector || "",
     calle1,
     calle2,

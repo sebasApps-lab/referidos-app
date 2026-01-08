@@ -13,6 +13,7 @@ export default function OwnerDataStep({
   nombreDueno,
   apellidoDueno,
   fechaNacimiento,
+  subtitle,
   onChangeNombre,
   onChangeApellido,
   onChangeFechaNacimiento,
@@ -32,7 +33,7 @@ export default function OwnerDataStep({
     <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2 h-full">
       <div className="flex h-full flex-col" ref={innerRef}>
         <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
-          Eres quien administrara el negocio en la app.
+          {subtitle || "Eres quien administrara el negocio en la app."}
         </p>
 
         {error && <ErrorBanner message={error} className="mb-2" />}

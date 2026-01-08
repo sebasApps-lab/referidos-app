@@ -32,6 +32,8 @@ export default function useAuthActions({
   ownerPrefill,
   ruc,
   nombreNegocio,
+  categoriaNegocio,
+  isSucursalPrincipal,
   sectorNegocio,
   calle1,
   calle2,
@@ -526,11 +528,14 @@ export default function useAuthActions({
         direccionId = newDir?.id || null;
       }
 
+      const categoriaValue = (categoriaNegocio || "").trim();
+      const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
       const negocioPayload = {
         usuarioid: userRow.id,
         nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
         direccion_id: direccionId,
-        categoria: existingNeg?.categoria || null,
+        categoria: categoriaValue || existingNeg?.categoria || null,
+        tipo: tipoValue,
       };
 
       //Crear/actualizar negocio
@@ -568,6 +573,8 @@ export default function useAuthActions({
     bootstrapAuth,
     calle1,
     calle2,
+    categoriaNegocio,
+    isSucursalPrincipal,
     nombreDueno,
     nombreNegocio,
     ruc,

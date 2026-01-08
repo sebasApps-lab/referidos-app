@@ -37,6 +37,8 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   });
   const [ruc, setRuc] = useState("");
   const [nombreNegocio, setNombreNegocio] = useState("");
+  const [categoriaNegocio, setCategoriaNegocio] = useState("");
+  const [isSucursalPrincipal, setIsSucursalPrincipal] = useState(false);
   const [sectorNegocio, setSectorNegocio] = useState("");
   const [calle1, setCalle1] = useState("");
   const [calle2, setCalle2] = useState("");
@@ -144,6 +146,8 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     ownerPrefill,
     ruc,
     nombreNegocio,
+    categoriaNegocio,
+    isSucursalPrincipal,
     sectorNegocio,
     calle1,
     calle2,
@@ -172,6 +176,8 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setOwnerPrefill,
     setRuc,
     setNombreNegocio,
+    setCategoriaNegocio,
+    setIsSucursalPrincipal,
     setSectorNegocio,
     setCalle1,
     setCalle2,

@@ -17,6 +17,19 @@ import useAuthActions from "./hooks/useAuthActions";
 import useAuthPrefill from "./hooks/useAuthPrefill";
 import { AUTH_STEPS } from "./constants/authSteps";
 import { getOwnerDataStatus } from "./utils/ownerDataUtils";
+import { AUTH_BRAND } from "./constants/authCopy";
+import { BUSINESS_CATEGORIES } from "./constants/businessCategories";
+
+const STEP_COPY = {
+  [AUTH_STEPS.OWNER_DATA]: {
+    header: "Cuentanos mas sobre tí",
+    subtitle: "Eres quien administrara el negocio en la app.",
+  },
+  [AUTH_STEPS.BUSINESS_DATA]: {
+    header: "Ahora, tu negocio",
+    subtitle: "Así te verán tus clientes",
+  },
+};
 
 export default function AuthFlow() {
   const location = useLocation();
@@ -48,6 +61,8 @@ export default function AuthFlow() {
     });
     flow.setRuc("");
     flow.setNombreNegocio("");
+    flow.setCategoriaNegocio("");
+    flow.setIsSucursalPrincipal(false);
     flow.setSectorNegocio("");
     flow.setCalle1("");
     flow.setCalle2("");
@@ -72,6 +87,8 @@ export default function AuthFlow() {
     flow.setFechaNacimiento,
     flow.setOwnerPrefill,
     flow.setNombreNegocio,
+    flow.setCategoriaNegocio,
+    flow.setIsSucursalPrincipal,
     flow.setOauthLoading,
     flow.setOauthProvider,
     flow.setPassword,
@@ -97,6 +114,8 @@ export default function AuthFlow() {
     ownerPrefill: flow.ownerPrefill,
     ruc: flow.ruc,
     nombreNegocio: flow.nombreNegocio,
+    categoriaNegocio: flow.categoriaNegocio,
+    isSucursalPrincipal: flow.isSucursalPrincipal,
     sectorNegocio: flow.sectorNegocio,
     calle1: flow.calle1,
     calle2: flow.calle2,
@@ -124,6 +143,8 @@ export default function AuthFlow() {
     setOwnerPrefill: flow.setOwnerPrefill,
     setRuc: flow.setRuc,
     setNombreNegocio: flow.setNombreNegocio,
+    setCategoriaNegocio: flow.setCategoriaNegocio,
+    setIsSucursalPrincipal: flow.setIsSucursalPrincipal,
     setSectorNegocio: flow.setSectorNegocio,
     setCalle1: flow.setCalle1,
     setCalle2: flow.setCalle2,
@@ -162,6 +183,10 @@ export default function AuthFlow() {
     : isFormStep
     ? "mb-4 text-center"
     : "mt-12 mb-2 text-center";
+  const headerTitle =
+    STEP_COPY[flow.step]?.header || AUTH_BRAND.name;
+  const ownerSubtitle = STEP_COPY[AUTH_STEPS.OWNER_DATA]?.subtitle;
+  const businessSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
 
 
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
@@ -190,7 +215,7 @@ export default function AuthFlow() {
   return (
     <AuthView
       className={containerClassName}
-      header={<AuthBranderHeader className={brandClassName} />}
+      header={<AuthBranderHeader className={brandClassName} text={headerTitle} />}
       footer={<AuthFooter />}
     >
       {showBackButton && (
@@ -305,6 +330,7 @@ export default function AuthFlow() {
           nombreDueno={flow.nombreDueno}
           apellidoDueno={flow.apellidoDueno}
           fechaNacimiento={flow.fechaNacimiento}
+          subtitle={ownerSubtitle}
           onChangeNombre={flow.setNombreDueno}
           onChangeApellido={flow.setApellidoDueno}
           onChangeFechaNacimiento={flow.setFechaNacimiento}
@@ -321,14 +347,14 @@ export default function AuthFlow() {
                   inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
                   ruc={flow.ruc}
                   nombreNegocio={flow.nombreNegocio}
-                  sectorNegocio={flow.sectorNegocio}
-                  calle1={flow.calle1}
-                  calle2={flow.calle2}
+                  categoriaNegocio={flow.categoriaNegocio}
+                  categories={BUSINESS_CATEGORIES}
+                  subtitle={businessSubtitle}
+                  isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeRuc={flow.setRuc}
                   onChangeNombre={flow.setNombreNegocio}
-                  onChangeSector={flow.setSectorNegocio}
-                  onChangeCalle1={flow.setCalle1}
-                  onChangeCalle2={flow.setCalle2}
+                  onChangeCategoria={flow.setCategoriaNegocio}
+                  onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
                   onSubmit={actions.handleBusinessRegister}
                   innerRef={flow.regPage2Ref}
                   onGoWelcome={resetToWelcome}

@@ -16,6 +16,8 @@ export default function useAuthPrefill({
   setOwnerPrefill,
   setRuc,
   setNombreNegocio,
+  setCategoriaNegocio,
+  setIsSucursalPrincipal,
   setSectorNegocio,
   setCalle1,
   setCalle2,
@@ -27,8 +29,10 @@ export default function useAuthPrefill({
     if (typeof usuario === "undefined") {
       choiceOpenedRef.current = false;
       setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setCategoriaNegocio?.("");
+      setIsSucursalPrincipal?.(false);
     }
-  }, [setOwnerPrefill, usuario]);
+  }, [setCategoriaNegocio, setIsSucursalPrincipal, setOwnerPrefill, usuario]);
 
   useEffect(() => {
     if (typeof usuario === "undefined") return;
@@ -37,6 +41,8 @@ export default function useAuthPrefill({
 
     if (!usuario) {
       setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setCategoriaNegocio?.("");
+      setIsSucursalPrincipal?.(false);
       if (onboardingOk && !choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -47,6 +53,8 @@ export default function useAuthPrefill({
     //1) Perfil existe pero SIN rol
     if (!usuario.role) {
       setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setCategoriaNegocio?.("");
+      setIsSucursalPrincipal?.(false);
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -79,6 +87,8 @@ export default function useAuthPrefill({
       const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
       const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
+      const prefillCategoria = prefill.categoriaNegocio || "";
+      const prefillTipo = neg?.tipo || null;
 
       setStep(
         missingOwner ? AUTH_STEPS.OWNER_DATA : AUTH_STEPS.BUSINESS_DATA
@@ -95,6 +105,8 @@ export default function useAuthPrefill({
       });
       setRuc(prefill.ruc);
       setNombreNegocio(prefill.nombreNegocio);
+      setCategoriaNegocio(prefillCategoria);
+      setIsSucursalPrincipal(prefillTipo === "principal");
       setSectorNegocio(prefill.sectorNegocio);
       setCalle1(prefill.calle1);
       setCalle2(prefill.calle2);
@@ -124,12 +136,14 @@ export default function useAuthPrefill({
     setApellidoDueno,
     setCalle1,
     setCalle2,
+    setCategoriaNegocio,
     setEmailError,
     setStep,
     setNombreDueno,
     setFechaNacimiento,
     setNombreNegocio,
     setOwnerPrefill,
+    setIsSucursalPrincipal,
     setRuc,
     setSectorNegocio,
     setTelefono,
