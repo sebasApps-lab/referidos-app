@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AUTH_STEPS } from "../constants/authSteps";
 
-export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
+export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [cardHeight, setCardHeight] = useState(null);
   const [sliderHeight, setSliderHeight] = useState(null);
   const [animating, setAnimating] = useState(false);
-  const [entryStep, setEntryStep] = useState(initialEntryStep);
-  const [authTab, setAuthTab] = useState("login");
-  const [page, setPage] = useState(1);
+  const [step, setStep] = useState(initialStep);
   const [emailError, setEmailError] = useState("");
   const [welcomeError, setWelcomeError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -51,10 +50,24 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     [animating, sliderGap]
   );
 
+  const getActiveFormRef = useCallback(
+    (targetStep = step) =>
+      targetStep === AUTH_STEPS.BUSINESS_DATA
+        ? regPage2Ref.current
+        : regPage1Ref.current,
+    [step]
+  );
+
   const measureHeights = useCallback(
-    (targetPage = page) => {
+    (targetStep = step) => {
+      if (
+        targetStep !== AUTH_STEPS.OWNER_DATA &&
+        targetStep !== AUTH_STEPS.BUSINESS_DATA
+      ) {
+        return;
+      }
       const inner = cardInnerRef.current;
-      const active = targetPage === 3 ? regPage2Ref.current : regPage1Ref.current;
+      const active = getActiveFormRef(targetStep);
       if (!inner || !active) return;
       const p2 = regPage1Ref.current;
       const p3 = regPage2Ref.current;
@@ -69,32 +82,29 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
       setSliderHeight(Math.ceil(contentH));
       setCardHeight(Math.ceil(contentH + pt + pb));
     },
-    [page]
+    [getActiveFormRef]
   );
 
   useLayoutEffect(() => {
-    if (entryStep !== "form") return;
-    measureHeights(page);
-  }, [page, entryStep, measureHeights]);
+    measureHeights(step);
+  }, [step, measureHeights]);
 
   useEffect(() => {
-    if (entryStep !== "form") return;
-    const id = requestAnimationFrame(() => measureHeights(page));
+    const id = requestAnimationFrame(() => measureHeights(step));
     return () => cancelAnimationFrame(id);
-  }, [page, entryStep, measureHeights]);
+  }, [step, measureHeights]);
 
   useEffect(() => {
-    if (entryStep !== "form") return;
-    const active = page === 3 ? regPage2Ref.current : regPage1Ref.current;
+    const active = getActiveFormRef(step);
     if (!active) return;
-    const ro = new ResizeObserver(() => measureHeights(page));
+    const ro = new ResizeObserver(() => measureHeights(step));
     ro.observe(active);
     return () => ro.disconnect();
-  }, [page, entryStep, measureHeights]);
+  }, [getActiveFormRef, step, measureHeights]);
 
-  const goTo = useCallback((nextPage) => {
+  const goToStep = useCallback((nextStep) => {
     setAnimating(true);
-    setPage(nextPage);
+    setStep(nextStep);
     setTimeout(() => setAnimating(false), 360);
   }, []);
 
@@ -102,9 +112,7 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     cardHeight,
     sliderHeight,
     animating,
-    entryStep,
-    authTab,
-    page,
+    step,
     emailError,
     welcomeError,
     loginLoading,
@@ -135,9 +143,7 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     setCardHeight,
     setSliderHeight,
     setAnimating,
-    setEntryStep,
-    setAuthTab,
-    setPage,
+    setStep,
     setEmailError,
     setWelcomeError,
     setLoginLoading,
@@ -159,6 +165,6 @@ export default function useAuthFlow({ initialEntryStep = "welcome" } = {}) {
     setSectorNegocio,
     setCalle1,
     setCalle2,
-    goTo,
+    goToStep,
   };
 }

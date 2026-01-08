@@ -1,12 +1,11 @@
 import { useEffect, useRef } from "react";
+import { AUTH_STEPS } from "../constants/authSteps";
 import { mapNegocioPrefill } from "../utils/authMappers";
 
 export default function useAuthPrefill({
   usuario,
   onboarding,
-  setEntryStep,
-  setAuthTab,
-  setPage,
+  setStep,
   setEmailError,
   setNombreDueno,
   setApellidoDueno,
@@ -16,7 +15,6 @@ export default function useAuthPrefill({
   setSectorNegocio,
   setCalle1,
   setCalle2,
-  openChoiceOverlay,
 }) {
   const choiceOpenedRef = useRef(false);
 
@@ -34,7 +32,7 @@ export default function useAuthPrefill({
     if (!usuario) {
       if (onboardingOk && !choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
-        openChoiceOverlay();
+        setStep(AUTH_STEPS.ROLE_SELECT);
       }
       return;
     }
@@ -43,7 +41,7 @@ export default function useAuthPrefill({
     if (!usuario.role) {
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
-        openChoiceOverlay();
+        setStep(AUTH_STEPS.ROLE_SELECT);
       }
       return;
     }
@@ -61,9 +59,7 @@ export default function useAuthPrefill({
     if (u.role === "admin") return;
 
     if (u.role === "cliente") {
-      setEntryStep("email");
-      setAuthTab("login");
-      setPage(1);
+      setStep(AUTH_STEPS.EMAIL_LOGIN);
       setEmailError(boot.reasons?.join(", ") || "Completa tu registro");
       return;
     }
@@ -72,9 +68,9 @@ export default function useAuthPrefill({
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
       const missingOwner = !u.nombre || !u.apellido || !u.telefono;
 
-      setEntryStep("form");
-      setAuthTab("register");
-      setPage(missingOwner ? 2 : 3);
+      setStep(
+        missingOwner ? AUTH_STEPS.OWNER_DATA : AUTH_STEPS.BUSINESS_DATA
+      );
 
       setNombreDueno(prefill.nombreDueno);
       setApellidoDueno(prefill.apellidoDueno);
@@ -87,16 +83,13 @@ export default function useAuthPrefill({
     }
   }, [
     onboarding,
-    openChoiceOverlay,
     setApellidoDueno,
-    setAuthTab,
     setCalle1,
     setCalle2,
     setEmailError,
-    setEntryStep,
+    setStep,
     setNombreDueno,
     setNombreNegocio,
-    setPage,
     setRuc,
     setSectorNegocio,
     setTelefono,

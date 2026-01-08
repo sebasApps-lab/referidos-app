@@ -5,18 +5,16 @@ import EmailPasswordForm from "../blocks/EmailPasswordForm";
 import ErrorBanner from "../blocks/ErrorBanner";
 import useRegisterPasswordUI from "../hooks/useRegisterPasswordUI";
 
-export default function EmailStep({
-  authTab,
+export default function EmailRegisterStep({
   email,
   password,
   passwordConfirm,
+  error,
   showPassword,
   showPasswordConfirm,
   hasMinLength,
   hasNumberAndSymbol,
   passwordsMatch,
-  error,
-  loginLoading,
   onLoginTab,
   onRegisterTab,
   onChangeEmail,
@@ -25,7 +23,6 @@ export default function EmailStep({
   onToggleShowPassword,
   onToggleShowPasswordConfirm,
   onSubmit,
-  primaryLabel,
   primaryDisabled,
 }) {
   const inputCommon =
@@ -47,13 +44,13 @@ export default function EmailStep({
         {error && <ErrorBanner message={error} className="mb-3 text-center" />}
 
         <AuthTabs
-          activeTab={authTab}
+          activeTab="register"
           onLogin={onLoginTab}
           onRegister={onRegisterTab}
         />
 
         <EmailPasswordForm
-          authTab={authTab}
+          mode="register"
           email={email}
           password={password}
           passwordConfirm={passwordConfirm}
@@ -76,10 +73,10 @@ export default function EmailStep({
           passwordInputRef={passwordInputRef}
           confirmInputRef={confirmInputRef}
           onSubmit={onSubmit}
-          primaryLabel={primaryLabel}
+          primaryLabel="REGISTRARSE"
           primaryDisabled={primaryDisabled}
           inputClassName={inputCommon}
-          inputDisabled={authTab === "login" ? loginLoading : false}
+          inputDisabled={false}
         />
       </AuthCard>
     </div>

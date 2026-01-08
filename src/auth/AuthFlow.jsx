@@ -6,23 +6,29 @@ import AuthBranderHeader from "./blocks/AuthBranderHeader";
 import AuthFooter from "./blocks/AuthFooter";
 import BackButton from "./blocks/BackButton";
 import StepProgress from "./blocks/StepProgress";
-import EmailStep from "./steps/EmailStep";
+import EmailLoginStep from "./steps/EmailLoginStep";
+import EmailRegisterStep from "./steps/EmailRegisterStep";
 import WelcomeStep from "./steps/WelcomeStep";
 import OwnerDataStep from "./steps/OwnerDataStep";
 import BusinessDataStep from "./steps/BusinessDataStep";
+import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
 import useAuthPrefill from "./hooks/useAuthPrefill";
+import { AUTH_STEPS } from "./constants/authSteps";
 
 export default function AuthFlow() {
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
-  const initialEntryStep = useMemo(
-    () => (location.pathname === "/auth" ? "email" : "welcome"),
+  const initialStep = useMemo(
+    () =>
+      location.pathname === "/auth"
+        ? AUTH_STEPS.EMAIL_LOGIN
+        : AUTH_STEPS.WELCOME,
     [location.pathname]
   );
-  const flow = useAuthFlow({ initialEntryStep });
+  const flow = useAuthFlow({ initialStep });
 
   const resetToWelcome = React.useCallback(() => {
     flow.setEmail("");
@@ -43,26 +49,21 @@ export default function AuthFlow() {
     flow.setOauthLoading(false);
     flow.setOauthProvider(null);
     flow.setWelcomeLoading(false);
-    flow.setAuthTab("login");
-    flow.setPage(1);
     flow.setShowPassword(false);
     flow.setShowPasswordConfirm(false);
-    flow.setEntryStep("welcome");
+    flow.setStep(AUTH_STEPS.WELCOME);
   }, [
     flow.setApellidoDueno,
-    flow.setAuthTab,
     flow.setCalle1,
     flow.setCalle2,
     flow.setCodigo,
     flow.setEmail,
     flow.setEmailError,
-    flow.setEntryStep,
     flow.setLoginLoading,
     flow.setNombreDueno,
     flow.setNombreNegocio,
     flow.setOauthLoading,
     flow.setOauthProvider,
-    flow.setPage,
     flow.setPassword,
     flow.setPasswordConfirm,
     flow.setRuc,
@@ -72,6 +73,7 @@ export default function AuthFlow() {
     flow.setWelcomeLoading,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
+    flow.setStep,
   ]);
 
   const actions = useAuthActions({
@@ -86,28 +88,22 @@ export default function AuthFlow() {
     sectorNegocio: flow.sectorNegocio,
     calle1: flow.calle1,
     calle2: flow.calle2,
-    setTelefono: flow.setTelefono,
     setEmailError: flow.setEmailError,
     setWelcomeError: flow.setWelcomeError,
     setLoginLoading: flow.setLoginLoading,
     setOauthLoading: flow.setOauthLoading,
     setOauthProvider: flow.setOauthProvider,
     setWelcomeLoading: flow.setWelcomeLoading,
-    setEntryStep: flow.setEntryStep,
-    setAuthTab: flow.setAuthTab,
-    setPage: flow.setPage,
-    goTo: flow.goTo,
-    page: flow.page,
-    authTab: flow.authTab,
+    setStep: flow.setStep,
+    goToStep: flow.goToStep,
+    step: flow.step,
     onResetToWelcome: resetToWelcome,
   });
 
   useAuthPrefill({
     usuario,
     onboarding,
-    setEntryStep: flow.setEntryStep,
-    setAuthTab: flow.setAuthTab,
-    setPage: flow.setPage,
+    setStep: flow.setStep,
     setEmailError: flow.setEmailError,
     setNombreDueno: flow.setNombreDueno,
     setApellidoDueno: flow.setApellidoDueno,
@@ -117,19 +113,10 @@ export default function AuthFlow() {
     setSectorNegocio: flow.setSectorNegocio,
     setCalle1: flow.setCalle1,
     setCalle2: flow.setCalle2,
-    openChoiceOverlay: actions.openChoiceOverlay,
   });
 
-  const showBackButton = flow.entryStep === "email" || flow.entryStep === "form";
-  const showForwardButton = flow.entryStep === "form" && flow.page < 3;
-  const primaryEmailLabel =
-    flow.authTab === "login"
-      ? flow.loginLoading
-        ? "Ingresando..."
-        : "INGRESAR"
-      : "REGISTRARSE";
-  const primaryEmailHandler =
-    flow.authTab === "login" ? actions.handleLogin : actions.handlePrimaryPage1;
+  const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
+  const showForwardButton = flow.step === AUTH_STEPS.OWNER_DATA;
   const hasMinLength = flow.password.length >= 8;
   const hasNumber = /\d/.test(flow.password);
   const hasSymbol = /[^A-Za-z0-9]/.test(flow.password);
@@ -139,25 +126,25 @@ export default function AuthFlow() {
     flow.passwordConfirm.length > 0 &&
     flow.password === flow.passwordConfirm;
   const canSubmitPassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
-  const primaryEmailDisabled =
-    flow.authTab === "login" ? flow.loginLoading : !canSubmitPassword;
-
-  const isWelcome = flow.entryStep === "welcome";
+  const isWelcome = flow.step === AUTH_STEPS.WELCOME;
   const containerClassName = isWelcome ? "justify-center pb-28" : "relative";
   const brandClassName = isWelcome ? "mb-6" : "mt-12 mb-2 text-center";
 
 
   const handleBack = () => {
-    if (flow.entryStep === "email") {
+    if (
+      flow.step === AUTH_STEPS.EMAIL_LOGIN ||
+      flow.step === AUTH_STEPS.EMAIL_REGISTER
+    ) {
       resetToWelcome();
       return;
     }
-    actions.handleBackFromForm();
+    actions.handleFormBack();
   };
 
   const handleForward = () => {
-    if (flow.page === 2) {
-      actions.handleNext2();
+    if (flow.step === AUTH_STEPS.OWNER_DATA) {
+      actions.handleOwnerDataNext();
     }
   };
 
@@ -184,40 +171,66 @@ export default function AuthFlow() {
         />
       )}
 
-      {flow.entryStep === "form" && flow.page >= 2 && (
+      {(flow.step === AUTH_STEPS.OWNER_DATA ||
+        flow.step === AUTH_STEPS.BUSINESS_DATA) && (
         <div className="w-full max-w-sm px-2 mb-4">
-          <StepProgress page={flow.page} />
+          <StepProgress
+            page={flow.step === AUTH_STEPS.OWNER_DATA ? 2 : 3}
+          />
         </div>
       )}
 
-      {flow.entryStep === "welcome" && (
+      {flow.step === AUTH_STEPS.WELCOME && (
         <WelcomeStep
           error={flow.welcomeError}
           loading={flow.welcomeLoading}
           onEmail={() => {
             flow.setWelcomeError("");
-            flow.setEntryStep("email");
+            flow.setStep(AUTH_STEPS.EMAIL_LOGIN);
           }}
           onGoogle={actions.startGoogleOneTap}
           onFacebook={actions.startFacebookOneTap}
         />
       )}
 
-      {flow.entryStep === "email" && (
-        <EmailStep
-          authTab={flow.authTab}
+      {flow.step === AUTH_STEPS.ROLE_SELECT && (
+        <RoleSelectStep
+          error={flow.emailError}
+          onSubmit={actions.handleRoleSelect}
+        />
+      )}
+
+      {flow.step === AUTH_STEPS.EMAIL_LOGIN && (
+        <EmailLoginStep
+          email={flow.email}
+          password={flow.password}
+          error={flow.emailError}
+          loginLoading={flow.loginLoading}
+          showPassword={flow.showPassword}
+          onLoginTab={actions.goToEmailLogin}
+          onRegisterTab={actions.goToEmailRegister}
+          onChangeEmail={flow.setEmail}
+          onChangePassword={flow.setPassword}
+          onToggleShowPassword={() =>
+            flow.setShowPassword((prev) => !prev)
+          }
+          onSubmit={actions.handleEmailLogin}
+        />
+      )}
+
+      {flow.step === AUTH_STEPS.EMAIL_REGISTER && (
+        <EmailRegisterStep
           email={flow.email}
           password={flow.password}
           passwordConfirm={flow.passwordConfirm}
+          error={flow.emailError}
           showPassword={flow.showPassword}
           showPasswordConfirm={flow.showPasswordConfirm}
           hasMinLength={hasMinLength}
           hasNumberAndSymbol={hasNumberAndSymbol}
           passwordsMatch={passwordsMatch}
-          error={flow.emailError}
-          loginLoading={flow.loginLoading}
-          onLoginTab={actions.goToLoginTab}
-          onRegisterTab={actions.goToRegisterTab}
+          onLoginTab={actions.goToEmailLogin}
+          onRegisterTab={actions.goToEmailRegister}
           onChangeEmail={flow.setEmail}
           onChangePassword={flow.setPassword}
           onChangePasswordConfirm={flow.setPasswordConfirm}
@@ -227,13 +240,13 @@ export default function AuthFlow() {
           onToggleShowPasswordConfirm={() =>
             flow.setShowPasswordConfirm((prev) => !prev)
           }
-          onSubmit={primaryEmailHandler}
-          primaryLabel={primaryEmailLabel}
-          primaryDisabled={primaryEmailDisabled}
+          onSubmit={actions.handleEmailRegister}
+          primaryDisabled={!canSubmitPassword}
         />
       )}
 
-      {flow.entryStep === "form" && (
+      {(flow.step === AUTH_STEPS.OWNER_DATA ||
+        flow.step === AUTH_STEPS.BUSINESS_DATA) && (
         <div
           ref={flow.cardRef}
           className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible"
@@ -250,7 +263,7 @@ export default function AuthFlow() {
             style={{ boxSizing: "border-box", overflow: "hidden" }}
           >
             <div ref={flow.sliderRef} style={flow.containerStyle} className="relative z-10">
-              {flow.page === 2 && (
+              {flow.step === AUTH_STEPS.OWNER_DATA && (
                 <OwnerDataStep
                   error={flow.emailError}
                   inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
@@ -260,13 +273,13 @@ export default function AuthFlow() {
                   onChangeNombre={flow.setNombreDueno}
                   onChangeApellido={flow.setApellidoDueno}
                   onChangeTelefono={flow.setTelefono}
-                  onSubmit={actions.handleNext2}
+                  onSubmit={actions.handleOwnerDataNext}
                   innerRef={flow.regPage1Ref}
                   onGoWelcome={resetToWelcome}
                 />
               )}
 
-              {flow.page === 3 && (
+              {flow.step === AUTH_STEPS.BUSINESS_DATA && (
                 <BusinessDataStep
                   error={flow.emailError}
                   inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
@@ -280,7 +293,7 @@ export default function AuthFlow() {
                   onChangeSector={flow.setSectorNegocio}
                   onChangeCalle1={flow.setCalle1}
                   onChangeCalle2={flow.setCalle2}
-                  onSubmit={actions.handleRegister}
+                  onSubmit={actions.handleBusinessRegister}
                   innerRef={flow.regPage2Ref}
                   onGoWelcome={resetToWelcome}
                 />

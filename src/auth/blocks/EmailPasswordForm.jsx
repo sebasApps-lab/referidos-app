@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 
 export default function EmailPasswordForm({
-  authTab,
+  mode,
   email,
   password,
   passwordConfirm,
@@ -31,12 +31,10 @@ export default function EmailPasswordForm({
   inputClassName,
   inputDisabled,
 }) {
-  const isRegister = authTab === "register";
+  const isRegister = mode === "register";
   const passwordType = showPassword ? "text" : "password";
   const confirmType = showPasswordConfirm ? "text" : "password";
-  const passwordInputClassName = isRegister
-    ? `${inputClassName} pr-10`
-    : inputClassName;
+  const passwordInputClassName = `${inputClassName} pr-10`;
   const confirmInputClassName = `${inputClassName} pr-10`;
 
   return (
@@ -166,7 +164,7 @@ export default function EmailPasswordForm({
         {primaryLabel}
       </button>
 
-      {authTab === "login" ? (
+      {mode === "login" ? (
         <Link
           to="/recuperar"
           className="block text-center text-sm text-gray-400 mt-4 underline"

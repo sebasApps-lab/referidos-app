@@ -1,6 +1,7 @@
 export const AUTH_STEPS = {
   WELCOME: "welcome",
-  EMAIL: "email",
+  EMAIL_LOGIN: "email-login",
+  EMAIL_REGISTER: "email-register",
   OAUTH_CALLBACK: "oauth-callback",
   ROLE_SELECT: "role-select",
   OWNER_DATA: "owner-data",
@@ -9,7 +10,7 @@ export const AUTH_STEPS = {
   ERROR: "error",
 };
 
-export const AUTH_FORM_PAGES = {
-  OWNER: 2,
-  BUSINESS: 3,
+export const AUTH_FORM_STEPS = {
+  OWNER: "owner-data",
+  BUSINESS: "business-data",
 };

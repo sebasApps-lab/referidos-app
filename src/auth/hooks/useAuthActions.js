@@ -6,9 +6,9 @@ import {
 } from "../../utils/validators";
 import { useAppStore } from "../../store/appStore";
 import { signInWithOAuth, signInWithGoogleIdToken } from "../../services/authService";
-import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
 import { requestGoogleCredential } from "../../utils/googleOneTap";
+import { AUTH_STEPS } from "../constants/authSteps";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
@@ -28,76 +28,61 @@ export default function useAuthActions({
   sectorNegocio,
   calle1,
   calle2,
-  authTab,
-  setTelefono,
+  step,
   setEmailError,
   setWelcomeError,
   setLoginLoading,
   setOauthLoading,
   setOauthProvider,
   setWelcomeLoading,
-  setEntryStep,
-  setAuthTab,
-  setPage,
-  goTo,
-  page,
+  setStep,
+  goToStep,
   onResetToWelcome,
 }) {
   const login = useAppStore((s) => s.login);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
-  const onboarding = useAppStore((s) => s.onboarding);
-  const { openModal, closeModal } = useModal();
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
     import.meta.env.VITE_AUTH_REDIRECT_URL;
 
-  const goToLoginTab = useCallback(() => {
-    setAuthTab("login");
-    setEntryStep("email");
-    setPage(1);
+  const goToEmailLogin = useCallback(() => {
+    setStep(AUTH_STEPS.EMAIL_LOGIN);
     setEmailError("");
-  }, [setAuthTab, setEntryStep, setPage, setEmailError]);
+  }, [setEmailError, setStep]);
 
-  const goToRegisterTab = useCallback(() => {
-    setPage(2);
+  const goToEmailRegister = useCallback(() => {
+    setStep(AUTH_STEPS.EMAIL_REGISTER);
     setEmailError("");
-    setEntryStep("email");
-    setAuthTab("register");
-  }, [setPage, setEmailError, setEntryStep, setAuthTab]);
+  }, [setEmailError, setStep]);
 
-  const validatePage1 = useCallback(() => {
+  const validateEmailRegister = useCallback(() => {
     if (!EMAIL_RE.test(email)) {
       setEmailError("Email invalido");
       return false;
     }
-    if (authTab === "register") {
-      const hasMinLength = password.length >= 8;
-      const hasNumber = /\d/.test(password);
-      const hasSymbol = /[^A-Za-z0-9]/.test(password);
-      const hasNumberAndSymbol = hasNumber && hasSymbol;
+    const hasMinLength = password.length >= 8;
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    const hasNumberAndSymbol = hasNumber && hasSymbol;
 
-      if (!hasMinLength) {
-        setEmailError("La contrasena debe tener al menos 8 caracteres");
-        return false;
-      }
-      if (!hasNumberAndSymbol) {
-        setEmailError("Incluye un simbolo y un numero");
-        return false;
-      }
-      if (password !== passwordConfirm) {
-        setEmailError("Las contrasenas deben coincidir");
-        return false;
-      }
-    } else if (!password || password.length < 6) {
-      setEmailError("Contrasena minimo 6 caracteres");
+    if (!hasMinLength) {
+      setEmailError("La contrasena debe tener al menos 8 caracteres");
+      return false;
+    }
+    if (!hasNumberAndSymbol) {
+      setEmailError("Incluye un simbolo y un numero");
+      return false;
+    }
+    if (password !== passwordConfirm) {
+      setEmailError("Las contrasenas deben coincidir");
       return false;
     }
     setEmailError("");
     return true;
-  }, [authTab, email, password, passwordConfirm, setEmailError]);
+  }, [email, password, passwordConfirm, setEmailError]);
 
-  const handleLogin = useCallback(async () => {
+  const handleEmailLogin = useCallback(async () => {
     setEmailError("");
 
     if (!email) return setEmailError("Ingrese su email");
@@ -134,129 +119,117 @@ export default function useAuthActions({
     }
   }, [email, password, login, setEmailError, setLoginLoading]);
 
-  const openChoiceOverlay = useCallback(() => {
-    if (onboarding?.allowAccess) return;
+  const createClienteProfile = useCallback(async () => {
+    setEmailError("");
 
-    openModal("SplashChoiceOverlay", {
-      authCreds: { email, password, telefono },
-      onBack: () => {
-        goToRegisterTab();
-        closeModal();
-      },
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session?.user) {
+      setEmailError("Sesion no valida");
+      return { ok: false };
+    }
+    const authEmail = session.user.email || email;
+    if (!authEmail) {
+      setEmailError("No se pudo obtener el email de la cuenta");
+      return { ok: false };
+    }
 
-      onCliente: async () => {
-        setEmailError("");
+    //Crear perfil si no existe, o actualizar si ya existe
+    const { data: existing, error: exErr } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id_auth", session.user.id)
+      .maybeSingle();
+    if (exErr) {
+      setEmailError(exErr.message || "No se puede leer perfil");
+      return { ok: false };
+    }
 
-        const session = (await supabase.auth.getSession()).data.session;
-        if (!session?.user) {
-          setEmailError("Sesión no válida");
-          return { ok: false };
-        }
-        const authEmail = session.user.email || email;
-        if (!authEmail) {
-          setEmailError("No se pudo obtener el email de la cuenta");
-          return { ok: false };
-        }
+    //Crear perfil cliente solo si no tenia rol
+    if (!existing?.role) {
+      const { error } = await supabase
+        .from("usuarios")
+        .insert({
+          id_auth: session.user.id,
+          email: authEmail,
+          nombre: authEmail.split("@")[0],
+          role: "cliente",
+          telefono: telefono || null,
+          account_status: "active",
+        })
+        .select()
+        .maybeSingle();
+      if (error) {
+        setEmailError(error.message || "Error al crear perfil");
+        return { ok: false };
+      }
+    }
 
-        //Crear perfil si no existe, o actualizar si ya existe
-        const { data: existing, error: exErr } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("id_auth", session.user.id)
-          .maybeSingle();
-        if (exErr) {
-          setEmailError(exErr.message || "No se puede leer perfil");
-          return { ok: false };
-        }
+    await bootstrapAuth({ force: true });
+    return { ok: true };
+  }, [bootstrapAuth, email, setEmailError, telefono]);
 
-        //Crear perfil cliente solo si no tenÇða rol
-        if (!existing?.role) {
-          const { error } = await supabase
-            .from("usuarios")
-            .insert({
-              id_auth: session.user.id,
-              email: authEmail,
-              nombre: authEmail.split("@")[0],
-              role: "cliente",
-              telefono: telefono || null,
-              account_status: "active",
-            })
-            .select()
-            .maybeSingle();
-          if (error) {
-            setEmailError(error.message || "Error al crear perfil");
-            return { ok: false };
-          }
-        }
+  const createNegocioProfile = useCallback(async () => {
+    setEmailError("");
 
-        await bootstrapAuth({ force: true });
-        closeModal();
-        return { ok: true };
-      },
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session?.user) {
+      setEmailError("Sesion no valida");
+      return { ok: false };
+    }
+    const authEmail = session.user.email || email;
+    if (!authEmail) {
+      setEmailError("No se pudo obtener el email de la cuenta");
+      return { ok: false };
+    }
 
-      onNegocio: async (code) => {
-        setEmailError("");
+    //Crear o actualizar perfil de negocio (solo si no tenia rol)
+    const { data: existing, error: exErr } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id_auth", session.user.id)
+      .maybeSingle();
+    if (exErr) {
+      setEmailError(exErr.message || "No se pudo leer perfil");
+      return { ok: false };
+    }
 
-        const session = (await supabase.auth.getSession()).data.session;
-        if (!session?.user) {
-          setEmailError("Sesión no válida");
-          return { ok: false };
-        }
-        const authEmail = session.user.email || email;
-        if (!authEmail) {
-          setEmailError("No se pudo obtener el email de la cuenta");
-          return { ok: false };
-        }
+    //Crear perfil negocio solo si no tenia rol
+    if (!existing?.role) {
+      const { error } = await supabase
+        .from("usuarios")
+        .insert({
+          id_auth: session.user.id,
+          email: authEmail,
+          role: "negocio",
+          account_status: "pending",
+        })
+        .select()
+        .maybeSingle();
+      if (error) {
+        setEmailError(error.message || "Error al crear perfil");
+        return { ok: false };
+      }
+    }
 
-        //Crear o actualizar perfil de negocio (solo si no tenÇða rol)
-        const { data: existing, error: exErr } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("id_auth", session.user.id)
-          .maybeSingle();
-        if (exErr) {
-          setEmailError(exErr.message || "No se pudo leer perfil");
-          return { ok: false };
-        }
+    await bootstrapAuth({ force: true });
+    return { ok: true };
+  }, [bootstrapAuth, email, setEmailError]);
 
-        //Crear perfil negocio solo si no tenÇða rol
-        if (!existing?.role) {
-          const { error } = await supabase
-            .from("usuarios")
-            .insert({
-              id_auth: session.user.id,
-              email: authEmail,
-              role: "negocio",
-              account_status: "pending",
-            })
-            .select()
-            .maybeSingle();
-          if (error) {
-            setEmailError(error.message || "Error al crear perfil");
-            return { ok: false };
-          }
-        }
+  const handleRoleSelect = useCallback(
+    async (role) => {
+      if (role === "cliente") {
+        return createClienteProfile();
+      }
+      if (role === "negocio") {
+        return createNegocioProfile();
+      }
+      return { ok: false };
+    },
+    [createClienteProfile, createNegocioProfile]
+  );
 
-        await bootstrapAuth({ force: true });
-        closeModal();
-
-        return { ok: true };
-      },
-    });
-  }, [
-    onboarding,
-    openModal,
-    closeModal,
-    email,
-    password,
-    telefono,
-    bootstrapAuth,
-    goToRegisterTab,
-    setEmailError,
-  ]);
-
-  const handlePrimaryPage1 = useCallback(async () => {
-    if (!validatePage1()) return;
+  const handleEmailRegister = useCallback(async () => {
+    if (!validateEmailRegister()) return;
     setEmailError("");
 
     try {
@@ -274,10 +247,7 @@ export default function useAuthActions({
             onResetToWelcome();
             return;
           }
-          setAuthTab("login");
-          setEntryStep("welcome");
-          setPage(1);
-          setEmailError("");
+          goToEmailLogin();
           return;
         }
         setEmailError(error.message);
@@ -305,14 +275,12 @@ export default function useAuthActions({
     onResetToWelcome,
     password,
     bootstrapAuth,
-    setAuthTab,
     setEmailError,
-    setEntryStep,
-    setPage,
-    validatePage1,
+    goToEmailLogin,
+    validateEmailRegister,
   ]);
 
-  const handleNext2 = useCallback(async () => {
+  const handleOwnerDataNext = useCallback(async () => {
     if (!nombreDueno) return setEmailError("Ingrese nombres");
     if (!apellidoDueno) return setEmailError("Ingrese apellidos");
     if (!PHONE_RE.test(telefono)) return setEmailError("Ingrese un teléfono válido");
@@ -357,18 +325,17 @@ export default function useAuthActions({
     }
 
     await bootstrapAuth({ force: true });
-    //MantÇ¸n UX: si acabÇü page 2, avanza a page3.
-    setPage(3);
+    goToStep(AUTH_STEPS.BUSINESS_DATA);
   }, [
     apellidoDueno,
     bootstrapAuth,
+    goToStep,
     nombreDueno,
     setEmailError,
-    setPage,
     telefono,
   ]);
 
-  const handleRegister = useCallback(async () => {
+  const handleBusinessRegister = useCallback(async () => {
     try {
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
@@ -519,27 +486,31 @@ export default function useAuthActions({
 
   const startFacebookOneTap = useCallback(() => {}, []);
 
-  const handleBackFromForm = useCallback(() => {
-    if (page === 3) {
-      goTo(2);
+  const handleFormBack = useCallback(() => {
+    if (step === AUTH_STEPS.BUSINESS_DATA) {
+      goToStep(AUTH_STEPS.OWNER_DATA);
       return;
     }
-    goToRegisterTab();
-  }, [goTo, goToRegisterTab, page]);
+    if (step === AUTH_STEPS.OWNER_DATA) {
+      setStep(AUTH_STEPS.ROLE_SELECT);
+      return;
+    }
+    goToEmailRegister();
+  }, [goToEmailRegister, goToStep, setStep, step]);
 
   return {
-    goToLoginTab,
-    goToRegisterTab,
-    handleLogin,
-    handlePrimaryPage1,
-    handleNext2,
-    handleRegister,
+    goToEmailLogin,
+    goToEmailRegister,
+    handleEmailLogin,
+    handleEmailRegister,
+    handleOwnerDataNext,
+    handleBusinessRegister,
+    handleRoleSelect,
     startOAuth,
     startGoogleOAuth,
     startFacebookOAuth,
     startGoogleOneTap,
     startFacebookOneTap,
-    openChoiceOverlay,
-    handleBackFromForm,
+    handleFormBack,
   };
 }
