@@ -16,7 +16,13 @@ const makeSub = (id, label, icon = DEFAULT_SUBCATEGORY_ICON) => ({
 });
 
 const SUB_ICONS = {
-  comidaRapida: makeIcon(["M4 12h16", "M5 9h14", "M6 15h12"]),
+  comidaRapida: makeIcon([
+    "M6 9V6",
+    "M9 9V5",
+    "M12 9V6",
+    "M15 9V5",
+    "M5 9h14l-2 8H7L5 9Z",
+  ]),
   hamburguesas: makeIcon(["M7 9h10", "M5 12h14", "M6 15h12", "M9 8h1"]),
   pizzeria: makeIcon(["M4 5l16 4-7 10-9-14Z", "M9 11h.01", "M12 14h.01"]),
   comidaTipica: makeIcon([
