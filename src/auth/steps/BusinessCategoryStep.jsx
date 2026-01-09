@@ -214,7 +214,7 @@ function CategoryGrid({
               </span>
             )}
             <div
-              className={`w-8 h-8 flex items-center justify-center ${iconColor} flex-shrink-0 mt-1`}
+              className={`w-8 h-8 flex items-center justify-center ${iconColor} flex-shrink-0 mt-0.5`}
             >
               <svg
                 viewBox={icon.viewBox || "0 0 24 24"}
@@ -231,7 +231,7 @@ function CategoryGrid({
                 ))}
               </svg>
             </div>
-            <span className="text-[11px] font-semibold text-gray-700 mt-1 leading-none">
+            <span className="text-[11px] font-semibold text-gray-700 mt-0.5 leading-[1.05] min-h-[22px]">
               {item.label}
             </span>
           </button>

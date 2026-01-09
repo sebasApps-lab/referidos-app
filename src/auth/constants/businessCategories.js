@@ -33,21 +33,8 @@ const SUB_ICONS = {
     "M15.5 8.5h.01",
     "M12 15.5h.01",
   ]),
-  comidaTipica: makeIcon([
-    "M5 13h14",
-    "M7 13a5 5 0 0 0 10 0",
-    "M8 6c0 1 1 2 1 3",
-    "M12 5c0 1 1 2 1 3",
-    "M16 6c0 1 1 2 1 3",
-  ]),
-  parrilladas: makeIcon([
-    "M4 12h16",
-    "M6 12v4",
-    "M10 12v4",
-    "M14 12v4",
-    "M18 12v4",
-    "M7 8h10",
-  ]),
+  comidaTipica: null,
+  parrilladas: null,
   mariscos: makeIcon([
     "M5 12c2-2 4-3 7-3 3 0 5 1 7 3-2 2-4 3-7 3-3 0-5-1-7-3Z",
     "M5 12l-2-2v4l2-2",
@@ -60,21 +47,14 @@ const SUB_ICONS = {
     "M14 6l4-3",
     "M13 8l5-3",
   ]),
-  vegetariana: makeIcon([
-    "M6 13c4-6 8-6 12-6-1 7-5 11-10 11-2 0-4-2-2-5",
-    "M10 12l4 4",
-  ]),
+  vegetariana: null,
   foodTruck: makeIcon([
     "M3 14h11v-5H7l-2 3H3v2",
     "M14 14h5l2-2v-3h-7v5",
     "M6 17a1.5 1.5 0 1 0 0.01 0",
     "M17 17a1.5 1.5 0 1 0 0.01 0",
   ]),
-  comidaOtra: makeIcon([
-    "M7 11a5 5 0 1 0 10 0a5 5 0 1 0 -10 0",
-    "M12 9v2",
-    "M12 14h.01",
-  ]),
+  comidaOtra: null,
 
   ropa: makeIcon(["M6 6l3-2h6l3 2-3 2v10H9V8L6 6Z"]),
   zapatos: makeIcon(["M4 14h14l2 4H4v-4", "M4 14l3-2 4 2h9"]),
@@ -97,7 +77,7 @@ const SUB_ICONS = {
     "M12 6c0-1 1-2 2-2 2 0 2 2 2 2",
   ]),
   papeleria: makeIcon(["M4 20l4-1 9-9-3-3-9 9-1 4Z", "M13 7l3 3"]),
-  comprasOtra: makeIcon(["M7 7h10l-1 12H8L7 7Z", "M9 7V5a3 3 0 0 1 6 0v2"]),
+  comprasOtra: null,
 
   peluqueria: makeIcon(["M6 7l4 4", "M6 13l4-4", "M6 7a2 2 0 1 0 0.01 0", "M6 13a2 2 0 1 0 0.01 0", "M12 10h6"]),
   barberia: makeIcon(["M8 4h8v16H8Z", "M8 7l8 3", "M8 13l8 3"]),
@@ -106,7 +86,7 @@ const SUB_ICONS = {
   facial: makeIcon(["M7 7a5 5 0 0 1 10 0v4a5 5 0 0 1-10 0V7Z", "M10 9h.01", "M14 9h.01", "M10 12c1 1 3 1 4 0"]),
   maquillaje: makeIcon(["M10 3h4v3h-4V3Z", "M9 6h6v8l-3 3-3-3V6Z", "M9 17h6"]),
   unas: makeIcon(["M6 12v-4a1 1 0 0 1 2 0v4", "M10 12V6a1 1 0 0 1 2 0v6", "M14 12V7a1 1 0 0 1 2 0v5", "M6 12c0 4 2 6 6 6s6-2 6-6"]),
-  bellezaOtra: makeIcon(["M12 5l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z", "M6 15l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z"]),
+  bellezaOtra: null,
 
   clinica: makeIcon(["M6 4h12v16H6Z", "M9 4v4h6V4", "M12 11v4", "M10 13h4"]),
   consultorio: makeIcon(["M6 4v5a4 4 0 0 0 8 0V4", "M14 9a3 3 0 1 0 0.01 0", "M14 12v2a4 4 0 0 1-8 0v-1"]),
@@ -114,38 +94,38 @@ const SUB_ICONS = {
   psicologia: makeIcon(["M10 6a4 4 0 0 1 6 4v4a3 3 0 0 1-3 3h-1l-2 3v-3H9a3 3 0 0 1-3-3v-2a4 4 0 0 1 4-4"]),
   fisioterapia: makeIcon(["M6 10l4-4 4 4", "M10 6v8a2 2 0 0 0 2 2h6", "M6 14h4"]),
   laboratorio: makeIcon(["M10 4h4", "M10 4v6l-4 6a2 2 0 0 0 2 3h8a2 2 0 0 0 2-3l-4-6V4", "M9 14h6"]),
-  saludOtra: makeIcon(["M4 12h3l2-3 3 6 2-3h6", "M20 12h0"]),
+  saludOtra: null,
 
   gimnasio: makeIcon(["M4 10h2v4H4z", "M6 12h12", "M18 10h2v4h-2z", "M8 9v6", "M16 9v6"]),
   crossfit: makeIcon(["M10 7a2 2 0 1 1 4 0v2h-4V7Z", "M8 9h8l2 8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4l2-8Z"]),
   yoga: makeIcon(["M12 6v3", "M6 12c2 1 4 1 6-1 2 2 4 2 6 1", "M8 18c2-2 8-2 10 0"]),
-  fitnessOtra: makeIcon(["M12 8a5 5 0 1 0 0.01 0", "M12 8V5", "M9 5h6", "M16 4l2 2"]),
+  fitnessOtra: null,
 
   limpieza: makeIcon(["M6 15l4-4 3 3-4 4-3-3Z", "M13 10l5-5", "M5 18h6"]),
   contabilidad: makeIcon(["M7 4h10v16H7Z", "M9 7h6", "M9 10h2", "M13 10h2", "M9 13h2", "M13 13h2"]),
   abogados: makeIcon(["M12 4v14", "M6 7h6l-3 5-3-5Z", "M12 7h6l-3 5-3-5Z", "M9 18h6"]),
   marketing: makeIcon(["M4 10l12-4v12L4 14v-4Z", "M16 8h3v8h-3", "M8 14l1 4"]),
   diseno: makeIcon(["M12 4l4 4-4 4-4-4 4-4Z", "M12 8v8", "M8 12h8"]),
-  serviciosOtra: makeIcon(["M7 7h10v10H7Z", "M9 7V5h6v2", "M7 12h10"]),
+  serviciosOtra: null,
 
   ventaTecnologia: makeIcon(["M4 6h12v8H4z", "M8 16h4", "M18 8h2v8h-2z"]),
   soporte: makeIcon(["M14 5a3 3 0 0 0-3 3l-6 6 2 2 6-6a3 3 0 0 0 3-3Z", "M6 18l-2 2"]),
   software: makeIcon(["M9 7l-4 5 4 5", "M15 7l4 5-4 5", "M12 6l-2 12"]),
   internet: makeIcon(["M6 10a8 8 0 0 1 12 0", "M8 13a5 5 0 0 1 8 0", "M11 16a2 2 0 0 1 2 0"]),
-  tecnologiaOtra: makeIcon(["M9 7v4", "M15 7v4", "M7 11h10v4a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4v-4Z"]),
+  tecnologiaOtra: null,
 
   veterinaria: makeIcon(["M8 7a1.5 1.5 0 1 0 .01 0", "M12 6a1.5 1.5 0 1 0 .01 0", "M16 7a1.5 1.5 0 1 0 .01 0", "M12 11c3 0 5 2 5 4s-2 3-5 3-5-1-5-3 2-4 5-4Z"]),
   grooming: makeIcon(["M7 8a2 2 0 1 0 .01 0", "M7 16a2 2 0 1 0 .01 0", "M9 10l8 8", "M9 14l8-8"]),
   petShop: makeIcon(["M7 7h6l4 4-6 6-4-4V7Z", "M9 9h.01"]),
   entrenamiento: makeIcon(["M6 10h6a3 3 0 0 1 0 6H6v-6Z", "M12 12h3l2 2"]),
-  mascotasOtra: makeIcon(["M7 12h10", "M5 11a2 2 0 1 0 0 2", "M19 11a2 2 0 1 0 0 2"]),
+  mascotasOtra: null,
 
   cursos: makeIcon(["M6 7h8", "M6 11h8", "M6 15h8", "M16 7l2 2 3-3"]),
   academia: makeIcon(["M5 10h14", "M7 10v8", "M12 10v8", "M17 10v8", "M4 10l8-4 8 4"]),
   idiomas: makeIcon(["M5 8h8v5H8l-3 3V8Z", "M13 10h6v4h-3l-3 2v-6Z"]),
   musica: makeIcon(["M10 5v10a2 2 0 1 0 2 2V7h4V5h-6Z"]),
   tutorias: makeIcon(["M6 6h6a3 3 0 0 1 3 3v9H9a3 3 0 0 0-3 3V6Z", "M12 6h6v15h-6"]),
-  educacionOtra: makeIcon(["M3 8l9-4 9 4-9 4-9-4Z", "M6 12v4c0 2 3 3 6 3s6-1 6-3v-4"]),
+  educacionOtra: null,
 
   pasteleria: makeIcon(["M6 12h12v6H6z", "M8 12V9h8v3", "M9 9a1 1 0 1 0 0.01 0", "M12 9a1 1 0 1 0 .01 0", "M15 9a1 1 0 1 0 .01 0"]),
   reposteria: makeIcon(["M12 5c-2 0-4 2-4 4 0 3 4 6 4 6s4-3 4-6c0-2-2-4-4-4Z", "M12 15v4"]),
@@ -157,7 +137,7 @@ const SUB_ICONS = {
   fotoVideo: makeIcon(["M5 9h14v8H5z", "M9 9l1-2h4l1 2", "M12 13a2 2 0 1 0 0.01 0"]),
   artesanias: makeIcon(["M6 16c2-2 6-2 8 0", "M6 12c2-2 6-2 8 0", "M14 8l4 4", "M18 12l-4 4"]),
   entretenimiento: makeIcon(["M7 12h10l2 4H5l2-4Z", "M9 12v-2", "M8 11h2", "M15 13h2", "M16 12v2"]),
-  otrasOtra: makeIcon(["M12 5l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1 2-4Z"]),
+  otrasOtra: null,
 };
 
 export const BUSINESS_CATEGORIES = [
@@ -277,18 +257,14 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("comida-rapida", "Comida rápida", SUB_ICONS.comidaRapida),
     makeSub("hamburguesas", "Hamburguesas", SUB_ICONS.hamburguesas),
     makeSub("pizzeria", "Pizzería", SUB_ICONS.pizzeria),
-    makeSub("comida-tipica", "Comida típica", SUB_ICONS.comidaTipica),
-    makeSub("parrilladas", "Parrilladas", SUB_ICONS.parrilladas),
+    makeSub("comida-tipica", "Comida típica"),
+    makeSub("parrilladas", "Parrilladas"),
     makeSub("mariscos", "Mariscos", SUB_ICONS.mariscos),
     makeSub("gourmet", "Restaurante gourmet", SUB_ICONS.gourmet),
     makeSub("asiatica", "Comida asiática", SUB_ICONS.asiatica),
-    makeSub(
-      "vegetariana",
-      "Comida vegetariana / vegana",
-      SUB_ICONS.vegetariana
-    ),
+    makeSub("vegetariana", "Vegetariana / vegana"),
     makeSub("food-truck", "Food truck", SUB_ICONS.foodTruck),
-    makeSub("otra", "Otra", SUB_ICONS.comidaOtra),
+    makeSub("otra", "Otra"),
   ],
   cafe: [],
   compras: [
@@ -301,7 +277,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("ferreteria", "Ferretería", SUB_ICONS.ferreteria),
     makeSub("regalos", "Tienda de regalos", SUB_ICONS.regalos),
     makeSub("papeleria", "Papelería", SUB_ICONS.papeleria),
-    makeSub("otra", "Otra", SUB_ICONS.comprasOtra),
+    makeSub("otra", "Otra"),
   ],
   farmacia: [],
   belleza: [
@@ -312,7 +288,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("facial", "Estética facial", SUB_ICONS.facial),
     makeSub("maquillaje", "Maquillaje profesional", SUB_ICONS.maquillaje),
     makeSub("unas", "Centro de uñas", SUB_ICONS.unas),
-    makeSub("otra", "Otra", SUB_ICONS.bellezaOtra),
+    makeSub("otra", "Otra"),
   ],
   salud: [
     makeSub("clinica", "Clínica", SUB_ICONS.clinica),
@@ -321,13 +297,13 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("psicologia", "Psicología", SUB_ICONS.psicologia),
     makeSub("fisioterapia", "Fisioterapia", SUB_ICONS.fisioterapia),
     makeSub("laboratorio", "Laboratorio clínico", SUB_ICONS.laboratorio),
-    makeSub("otra", "Otra", SUB_ICONS.saludOtra),
+    makeSub("otra", "Otra"),
   ],
   fitness: [
     makeSub("gimnasio", "Gimnasio", SUB_ICONS.gimnasio),
     makeSub("crossfit", "CrossFit", SUB_ICONS.crossfit),
     makeSub("yoga", "Yoga / Pilates", SUB_ICONS.yoga),
-    makeSub("otra", "Otra", SUB_ICONS.fitnessOtra),
+    makeSub("otra", "Otra"),
   ],
   "deporte-recreacion": [],
   "servicios-profesionales": [
@@ -336,21 +312,21 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("abogados", "Abogados", SUB_ICONS.abogados),
     makeSub("marketing", "Marketing / Publicidad", SUB_ICONS.marketing),
     makeSub("diseno", "Diseño gráfico", SUB_ICONS.diseno),
-    makeSub("otra", "Otra", SUB_ICONS.serviciosOtra),
+    makeSub("otra", "Otra"),
   ],
   tecnologia: [
     makeSub("venta", "Venta de tecnología", SUB_ICONS.ventaTecnologia),
     makeSub("soporte", "Soporte técnico / Reparación", SUB_ICONS.soporte),
     makeSub("software", "Software / IT", SUB_ICONS.software),
     makeSub("internet", "Internet / redes", SUB_ICONS.internet),
-    makeSub("otra", "Otra", SUB_ICONS.tecnologiaOtra),
+    makeSub("otra", "Otra"),
   ],
   mascotas: [
     makeSub("veterinaria", "Veterinaria", SUB_ICONS.veterinaria),
     makeSub("grooming", "Grooming", SUB_ICONS.grooming),
     makeSub("pet-shop", "Pet shop", SUB_ICONS.petShop),
     makeSub("entrenamiento", "Entrenamiento", SUB_ICONS.entrenamiento),
-    makeSub("otra", "Otra", SUB_ICONS.mascotasOtra),
+    makeSub("otra", "Otra"),
   ],
   educacion: [
     makeSub("cursos", "Cursos", SUB_ICONS.cursos),
@@ -358,7 +334,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("idiomas", "Idiomas", SUB_ICONS.idiomas),
     makeSub("musica", "Música", SUB_ICONS.musica),
     makeSub("tutorias", "Tutorías", SUB_ICONS.tutorias),
-    makeSub("otra", "Otra", SUB_ICONS.educacionOtra),
+    makeSub("otra", "Otra"),
   ],
   otras: [
     makeSub("pasteleria", "Pastelería", SUB_ICONS.pasteleria),
@@ -371,7 +347,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("foto-video", "Fotografía / Video", SUB_ICONS.fotoVideo),
     makeSub("artesanias", "Artesanías", SUB_ICONS.artesanias),
     makeSub("entretenimiento", "Entretenimiento", SUB_ICONS.entretenimiento),
-    makeSub("otra", "Otra", SUB_ICONS.otrasOtra),
+    makeSub("otra", "Otra"),
   ],
 };
 
