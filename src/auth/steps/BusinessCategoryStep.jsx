@@ -87,7 +87,7 @@ export default function BusinessCategoryStep({
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         <div className="flex-1">
           <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
-            {subtitle || "No te preocupes, puedes cambiarlo más adelante."}
+            {subtitle || "No te preocupes, puedes cambiarlo después"}
           </p>
 
           <div className="space-y-4">
@@ -100,7 +100,7 @@ export default function BusinessCategoryStep({
               <button
                 type="button"
                 onClick={() => handleSelectParent("")}
-                className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0 mb-3`}
+                className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0 !mt-3 !mb-3`}
               >
                 <span className="flex-1 text-left text-gray-900">
                   {selectedParentLabel}
@@ -116,12 +116,14 @@ export default function BusinessCategoryStep({
                 items={categoryList}
                 selectedId={selectedParent}
                 onSelect={handleSelectParent}
+                className="mt-3"
               />
             ) : (
               <CategoryGrid
                 items={subcategoryList}
                 selectedId={selectedSub}
                 onSelect={setSelectedSub}
+                className="mt-3"
               />
             )}
           </div>
@@ -151,9 +153,9 @@ export default function BusinessCategoryStep({
   );
 }
 
-function CategoryGrid({ items, selectedId, onSelect }) {
+function CategoryGrid({ items, selectedId, onSelect, className = "" }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={`grid grid-cols-3 gap-2 ${className}`}>
       {items.map((item) => {
         const isActive = selectedId === item.id;
         const iconColor = isActive ? "text-[#5E30A5]" : "text-gray-500";

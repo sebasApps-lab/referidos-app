@@ -34,7 +34,7 @@ const STEP_COPY = {
   [AUTH_STEPS.BUSINESS_CATEGORY]: {
     header: "Cuentanos a qué se dedica tu negocio",
     headerFallback: "¿Cómo definirías tu negocio?",
-    subtitle: "No te preocupes, puedes cambiarlo más adelante.",
+    subtitle: "No te preocupes, puedes cambiarlo después",
     helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
   },
   [AUTH_STEPS.BUSINESS_ADDRESS]: {
