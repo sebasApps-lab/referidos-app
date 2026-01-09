@@ -9,6 +9,8 @@ export default function BusinessDataStep({
   ruc,
   nombreNegocio,
   categoriaNegocio,
+  categoriaPadre,
+  categoriaDetalle,
   subtitle,
   isSucursalPrincipal,
   onChangeRuc,
@@ -22,6 +24,9 @@ export default function BusinessDataStep({
   const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
   const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";
   const selectedCategory = categoriaNegocio || "";
+  const parentLabel = categoriaPadre || "";
+  const subLabel = categoriaDetalle || "";
+  const showSubcategory = Boolean(subLabel);
 
   return (
     <section
@@ -51,18 +56,51 @@ export default function BusinessDataStep({
 
             <div className="space-y-2">
               <label className={labelClassName}>Categoría</label>
-              <button
-                type="button"
-                onClick={onOpenCategory}
-                className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0`}
-              >
-                <span className="flex-1 text-left text-gray-900">
-                  {selectedCategory || "Elige una categoría"}
-                </span>
-                <span className="flex items-center justify-center h-full px-3 border-l border-black text-gray-900">
-                  <PencilIcon className="w-4 h-4" />
-                </span>
-              </button>
+              {showSubcategory ? (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={onOpenCategory}
+                    className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0`}
+                  >
+                    <span className="flex-1 text-left text-gray-900">
+                      {parentLabel}
+                    </span>
+                    <span className="flex items-center justify-center h-full px-3 border-l border-black text-gray-900">
+                      <PencilIcon className="w-4 h-4" />
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenCategory}
+                    className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0`}
+                  >
+                    <span className="flex-1 text-left text-gray-900">
+                      {subLabel}
+                    </span>
+                    <span className="flex items-center justify-center h-full px-3 border-l border-black text-gray-900">
+                      <PencilIcon className="w-4 h-4" />
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenCategory}
+                  className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0`}
+                >
+                  <span
+                    className={`flex-1 text-left ${
+                      selectedCategory ? "text-gray-900" : "text-gray-400"
+                    }`}
+                  >
+                    {selectedCategory || "Elige una categoría"}
+                  </span>
+                  <span className="flex items-center justify-center h-full px-3 border-l border-black text-gray-900">
+                    <PencilIcon className="w-4 h-4" />
+                  </span>
+                </button>
+              )}
             </div>
 
             <div className="space-y-1">

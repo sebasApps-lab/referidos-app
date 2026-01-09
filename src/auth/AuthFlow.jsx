@@ -20,7 +20,11 @@ import useAuthPrefill from "./hooks/useAuthPrefill";
 import { AUTH_STEPS } from "./constants/authSteps";
 import { getOwnerDataStatus } from "./utils/ownerDataUtils";
 import { AUTH_BRAND } from "./constants/authCopy";
-import { BUSINESS_CATEGORIES, BUSINESS_SUBCATEGORIES } from "./constants/businessCategories";
+import {
+  BUSINESS_CATEGORIES,
+  BUSINESS_SUBCATEGORIES,
+  getBusinessCategoryPath,
+} from "./constants/businessCategories";
 
 const STEP_COPY = {
   [AUTH_STEPS.OWNER_DATA]: {
@@ -204,6 +208,10 @@ export default function AuthFlow() {
   const businessSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
   const categorySubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.subtitle;
   const categoryHelper = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.helperLabel;
+  const categoryPath = useMemo(
+    () => getBusinessCategoryPath(flow.categoriaNegocio),
+    [flow.categoriaNegocio]
+  );
 
 
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
@@ -366,6 +374,8 @@ export default function AuthFlow() {
                   subtitle={businessSubtitle}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   categoriaNegocio={flow.categoriaNegocio}
+                  categoriaPadre={categoryPath.parentLabel}
+                  categoriaDetalle={categoryPath.subLabel}
                   onChangeRuc={flow.setRuc}
                   onChangeNombre={flow.setNombreNegocio}
                   onOpenCategory={() => flow.goToStep(AUTH_STEPS.BUSINESS_CATEGORY)}
@@ -378,7 +388,6 @@ export default function AuthFlow() {
 
               {flow.step === AUTH_STEPS.BUSINESS_CATEGORY && (
                 <BusinessCategoryStep
-                  inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
                   subtitle={categorySubtitle}
                   helperLabel={categoryHelper}
                   categories={BUSINESS_CATEGORIES}

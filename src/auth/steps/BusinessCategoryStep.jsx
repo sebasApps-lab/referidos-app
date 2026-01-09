@@ -7,7 +7,6 @@ export default function BusinessCategoryStep({
   categories,
   subcategories,
   currentCategory,
-  inputClassName,
   onConfirmCategory,
   innerRef,
   onGoWelcome,
@@ -65,9 +64,18 @@ export default function BusinessCategoryStep({
     return match?.label || "";
   }, [selectedSub, subcategoryList]);
 
-  const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
+  const parentItems = useMemo(
+    () => categoryList.map((item) => ({ ...item, type: "parent" })),
+    [categoryList]
+  );
+  const subItems = useMemo(
+    () => subcategoryList.map((item) => ({ ...item, type: "sub" })),
+    [subcategoryList]
+  );
+
   const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";
-  const isReady = Boolean(selectedSubLabel);
+  const hasSubcategories = subcategoryList.length > 0;
+  const isReady = Boolean(selectedParent) && (!hasSubcategories || selectedSubLabel);
 
   const handleSelectParent = (id) => {
     setSelectedParent(id);
@@ -75,9 +83,24 @@ export default function BusinessCategoryStep({
   };
 
   const handleConfirm = () => {
-    if (!selectedSubLabel) return;
-    onConfirmCategory?.(selectedSubLabel);
+    if (!selectedParent) return;
+    const value = hasSubcategories ? selectedSubLabel : selectedParentLabel;
+    if (!value) return;
+    onConfirmCategory?.(value);
   };
+
+  const handleClearParent = () => {
+    setSelectedParent("");
+    setSelectedSub("");
+  };
+
+  const showSubcategoryGrid = Boolean(selectedParent) && hasSubcategories;
+  const gridItems = showSubcategoryGrid
+    ? [
+        parentItems.find((item) => item.id === selectedParent),
+        ...subItems,
+      ].filter(Boolean)
+    : parentItems;
 
   return (
     <section
@@ -96,36 +119,15 @@ export default function BusinessCategoryStep({
                 "Así podremos mostrar tus promos a las personas correctas."}
             </label>
 
-            {selectedParent ? (
-              <button
-                type="button"
-                onClick={() => handleSelectParent("")}
-                className={`${fieldClassName} flex items-center gap-2 px-3 !pr-0 !mt-3 !mb-3`}
-              >
-                <span className="flex-1 text-left text-gray-900">
-                  {selectedParentLabel}
-                </span>
-                <span className="flex items-center justify-center h-full px-3 border-l border-black text-gray-900">
-                  <PencilIcon className="w-4 h-4" />
-                </span>
-              </button>
-            ) : null}
-
-            {!selectedParent ? (
-              <CategoryGrid
-                items={categoryList}
-                selectedId={selectedParent}
-                onSelect={handleSelectParent}
-                className="mt-3"
-              />
-            ) : (
-              <CategoryGrid
-                items={subcategoryList}
-                selectedId={selectedSub}
-                onSelect={setSelectedSub}
-                className="mt-3"
-              />
-            )}
+            <CategoryGrid
+              items={gridItems}
+              selectedParentId={selectedParent}
+              selectedSubId={selectedSub}
+              onSelectParent={handleSelectParent}
+              onSelectSub={setSelectedSub}
+              onClearParent={handleClearParent}
+              className="mt-3"
+            />
           </div>
         </div>
 
@@ -153,24 +155,64 @@ export default function BusinessCategoryStep({
   );
 }
 
-function CategoryGrid({ items, selectedId, onSelect, className = "" }) {
+function CategoryGrid({
+  items,
+  selectedParentId,
+  selectedSubId,
+  onSelectParent,
+  onSelectSub,
+  onClearParent,
+  className = "",
+}) {
   return (
     <div className={`grid grid-cols-3 gap-2 ${className}`}>
       {items.map((item) => {
-        const isActive = selectedId === item.id;
+        if (!item) return null;
+        const isParent = item.type === "parent";
+        const isActive = isParent
+          ? selectedParentId === item.id
+          : selectedSubId === item.id;
         const iconColor = isActive ? "text-[#5E30A5]" : "text-gray-500";
         const icon = item.icon || {};
+        const canSelect = !isParent || !isActive;
         return (
           <button
             key={item.id}
             type="button"
-            onClick={() => onSelect?.(item.id)}
-            className={`aspect-[4/3] rounded-xl border p-2 flex flex-col items-center justify-start text-center transition-colors ${
+            onClick={() => {
+              if (!canSelect) return;
+              if (isParent) {
+                onSelectParent?.(item.id);
+              } else {
+                onSelectSub?.(item.id);
+              }
+            }}
+            className={`aspect-[4/3] rounded-xl border p-2 flex flex-col items-center justify-start text-center transition-colors relative ${
               isActive
                 ? "border-[#5E30A5] bg-[#5E30A5]/10"
                 : "border-gray-200 bg-white"
             }`}
           >
+            {isParent && isActive && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClearParent?.();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onClearParent?.();
+                }}
+                className="absolute top-1 right-1 h-5 w-5 rounded-full border border-[#5E30A5] bg-white text-[#5E30A5] text-[12px] leading-none flex items-center justify-center"
+                aria-label="Quitar categoria"
+              >
+                ×
+              </span>
+            )}
             <div
               className={`w-8 h-8 flex items-center justify-center ${iconColor} flex-shrink-0 mt-1`}
             >
@@ -196,23 +238,5 @@ function CategoryGrid({ items, selectedId, onSelect, className = "" }) {
         );
       })}
     </div>
-  );
-}
-
-function PencilIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
   );
 }

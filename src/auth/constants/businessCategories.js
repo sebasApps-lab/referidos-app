@@ -16,7 +16,7 @@ const makeSub = (id, label, icon = DEFAULT_SUBCATEGORY_ICON) => ({
 export const BUSINESS_CATEGORIES = [
   {
     id: "restaurante",
-    label: "Restaurante",
+    label: "Comida",
     icon: {
       viewBox: "0 0 24 24",
       paths: ["M4 14h16", "M6 14a6 6 0 0 1 12 0", "M12 8V6"],
@@ -182,7 +182,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("food-truck", "Food truck"),
     makeSub("otra", "Otra"),
   ],
-  cafe: [makeSub("otra", "Otra")],
+  cafe: [],
   compras: [
     makeSub("ropa", "Ropa"),
     makeSub("zapatos", "Zapatos"),
@@ -195,7 +195,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("papeleria", "Papelería"),
     makeSub("otra", "Otra"),
   ],
-  farmacia: [makeSub("otra", "Otra")],
+  farmacia: [],
   belleza: [
     makeSub("peluqueria", "Peluquería"),
     makeSub("barberia", "Barbería"),
@@ -221,7 +221,7 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("yoga", "Yoga / Pilates"),
     makeSub("otra", "Otra"),
   ],
-  "deporte-recreacion": [makeSub("otra", "Otra")],
+  "deporte-recreacion": [],
   "servicios-profesionales": [
     makeSub("limpieza", "Limpieza profesional"),
     makeSub("contabilidad", "Contabilidad"),
@@ -265,4 +265,30 @@ export const BUSINESS_SUBCATEGORIES = {
     makeSub("entretenimiento", "🎮 Entretenimiento"),
     makeSub("otra", "Otra"),
   ],
+};
+
+export const getBusinessCategoryPath = (value) => {
+  const label = String(value || "").trim();
+  if (!label) {
+    return { parentLabel: "", subLabel: "" };
+  }
+
+  const parentMatch = BUSINESS_CATEGORIES.find((item) => item.label === label);
+  if (parentMatch) {
+    return { parentLabel: parentMatch.label, subLabel: "" };
+  }
+
+  for (const [parentId, list] of Object.entries(BUSINESS_SUBCATEGORIES)) {
+    if (!Array.isArray(list)) continue;
+    const subMatch = list.find((item) => item.label === label);
+    if (subMatch) {
+      const parent = BUSINESS_CATEGORIES.find((item) => item.id === parentId);
+      return {
+        parentLabel: parent?.label || "",
+        subLabel: subMatch.label,
+      };
+    }
+  }
+
+  return { parentLabel: label, subLabel: "" };
 };
