@@ -24,7 +24,15 @@ const SUB_ICONS = {
     "M5 9h14l-2 8H7L5 9Z",
   ]),
   hamburguesas: makeIcon(["M7 9h10", "M5 12h14", "M6 15h12", "M9 8h1"]),
-  pizzeria: makeIcon(["M4 5l16 4-7 10-9-14Z", "M9 11h.01", "M12 14h.01"]),
+  pizzeria: makeIcon([
+    "M12 3a9 9 0 1 0 0.01 0",
+    "M12 12V3",
+    "M12 12l7.8 4.5",
+    "M12 12l-7.8 4.5",
+    "M8.5 8.5h.01",
+    "M15.5 8.5h.01",
+    "M12 15.5h.01",
+  ]),
   comidaTipica: makeIcon([
     "M5 13h14",
     "M7 13a5 5 0 0 0 10 0",
