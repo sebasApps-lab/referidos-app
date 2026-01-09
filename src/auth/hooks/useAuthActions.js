@@ -14,6 +14,11 @@ import {
   getOwnerDataStatus,
   normalizeOwnerName,
 } from "../utils/ownerDataUtils";
+import {
+  getBusinessDataStatus,
+  normalizeBusinessName,
+  normalizeBusinessRuc,
+} from "../utils/businessDataUtils";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
@@ -30,13 +35,11 @@ export default function useAuthActions({
   apellidoDueno,
   fechaNacimiento,
   ownerPrefill,
+  businessPrefill,
   ruc,
   nombreNegocio,
   categoriaNegocio,
   isSucursalPrincipal,
-  sectorNegocio,
-  calle1,
-  calle2,
   step,
   setEmailError,
   setWelcomeError,
@@ -381,7 +384,7 @@ export default function useAuthActions({
     validateEmailRegister,
   ]);
 
-  const handleOwnerDataNext = useCallback(async () => {
+  const handleOwnerData = useCallback(async () => {
     const ownerStatus = getOwnerDataStatus({
       nombre: nombreDueno,
       apellido: apellidoDueno,
@@ -461,8 +464,44 @@ export default function useAuthActions({
     setEmailError,
   ]);
 
-  const handleBusinessRegister = useCallback(async () => {
+  const handleBusinessData = useCallback(async () => {
     try {
+      const businessStatus = getBusinessDataStatus({
+        nombreNegocio,
+        ruc,
+        categoriaNegocio,
+      });
+      if (!businessStatus.nombre.trim()) {
+        setEmailError("Ingresa el nombre del negocio");
+        return;
+      }
+      if (!businessStatus.categoria) {
+        setEmailError("Selecciona una categoria");
+        return;
+      }
+      if (!businessStatus.ruc) {
+        setEmailError("Ingresa el RUC");
+        return;
+      }
+      setEmailError("");
+
+      const prefillNombre = normalizeBusinessName(
+        businessPrefill?.nombreNegocio || ""
+      );
+      const prefillRuc = normalizeBusinessRuc(businessPrefill?.ruc || "");
+      const prefillCategoria = String(
+        businessPrefill?.categoriaNegocio || ""
+      ).trim();
+      const unchanged =
+        businessStatus.nombre === prefillNombre &&
+        businessStatus.ruc === prefillRuc &&
+        businessStatus.categoria === prefillCategoria;
+
+      if (unchanged) {
+        goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
+        return;
+      }
+
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId || !session?.access_token) {
@@ -475,6 +514,8 @@ export default function useAuthActions({
         .from("usuarios")
         .select("*")
         .eq("id_auth", userId)
+        .order("id", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (userErr) {
@@ -494,76 +535,65 @@ export default function useAuthActions({
         .from("negocios")
         .select("*")
         .eq("usuarioid", userRow.id)
+        .order("id", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (negReadErr) {
         setEmailError(negReadErr.message || "No se pudo leer el negocio");
         return;
       }
 
-      const calle1Value = (calle1 || "").trim();
-      const calle2Value = (calle2 || "").trim();
-      const sectorValue = (sectorNegocio || "").trim();
-      const hasDireccionData = !!(calle1Value || calle2Value || sectorValue);
-      const direccionPayload = {
-        calle_1: calle1Value || null,
-        calle_2: calle2Value || null,
-        sector: sectorValue || null,
-        owner_id: userRow.id,
-      };
-
-      let direccionId = existingNeg?.direccion_id || null;
-
-      if (direccionId && hasDireccionData) {
-        const { error: dirErr } = await supabase
-          .from("direcciones")
-          .update(direccionPayload)
-          .eq("id", direccionId);
-        if (dirErr) throw dirErr;
-      } else if (!direccionId && hasDireccionData) {
-        const { data: newDir, error: dirErr } = await supabase
-          .from("direcciones")
-          .insert(direccionPayload)
-          .select("id")
-          .maybeSingle();
-        if (dirErr) throw dirErr;
-        direccionId = newDir?.id || null;
-      }
-
-      const categoriaValue = (categoriaNegocio || "").trim();
       const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
       const negocioPayload = {
         usuarioid: userRow.id,
-        nombre: nombreNegocio || existingNeg?.nombre || "Nombre Local",
-        direccion_id: direccionId,
-        categoria: categoriaValue || existingNeg?.categoria || null,
+        nombre: businessStatus.nombre || existingNeg?.nombre || "Nombre Local",
+        categoria: businessStatus.categoria || existingNeg?.categoria || null,
         tipo: tipoValue,
       };
 
       //Crear/actualizar negocio
       if (existingNeg) {
-        const { error } = await supabase
+        const { data: updatedNeg, error } = await supabase
           .from("negocios")
           .update(negocioPayload)
-          .eq("id", existingNeg.id);
+          .eq("id", existingNeg.id)
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
+        if (!updatedNeg) {
+          setEmailError("No se pudo actualizar el negocio");
+          return;
+        }
       } else {
-        const { error } = await supabase
+        const { data: createdNeg, error } = await supabase
           .from("negocios")
-          .insert(negocioPayload);
+          .insert(negocioPayload)
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
+        if (!createdNeg) {
+          setEmailError("No se pudo crear el negocio");
+          return;
+        }
       }
 
-      //Actualizar perfil de usuario a completo con datos del dueÇño
-      const { error: updErr } = await supabase
+      //Actualizar perfil de usuario a completo con datos del dueno
+      const { data: updatedUser, error: updErr } = await supabase
         .from("usuarios")
         .update({
           nombre: nombreDueno || userRow.nombre,
           apellido: apellidoDueno || userRow.apellido,
           telefono,
-          ruc,
+          ruc: businessStatus.ruc,
         })
-        .eq("id_auth", userId);
+        .eq("id_auth", userId)
+        .select("id")
+        .maybeSingle();
       if (updErr) throw updErr;
+      if (!updatedUser) {
+        setEmailError("No se pudo actualizar el perfil");
+        return;
+      }
 
       await bootstrapAuth({ force: true });
       goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
@@ -573,15 +603,13 @@ export default function useAuthActions({
   }, [
     apellidoDueno,
     bootstrapAuth,
-    calle1,
-    calle2,
+    businessPrefill,
     categoriaNegocio,
     isSucursalPrincipal,
     goToStep,
     nombreDueno,
     nombreNegocio,
     ruc,
-    sectorNegocio,
     setEmailError,
     telefono,
   ]);
@@ -644,7 +672,11 @@ export default function useAuthActions({
 
   const startFacebookOneTap = useCallback(() => {}, []);
 
-  const handleFormBack = useCallback(() => {
+  const handleBusinessAddress = useCallback(() => {
+    return;
+  }, []);
+
+  const handleButtonBack = useCallback(() => {
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {
       goToStep(AUTH_STEPS.BUSINESS_DATA);
       return;
@@ -669,15 +701,16 @@ export default function useAuthActions({
     goToEmailRegister,
     handleEmailLogin,
     handleEmailRegister,
-    handleOwnerDataNext,
-    handleBusinessRegister,
+    handleOwnerData,
+    handleBusinessData,
+    handleBusinessAddress,
     handleRoleSelect,
     startOAuth,
     startGoogleOAuth,
     startFacebookOAuth,
     startGoogleOneTap,
     startFacebookOneTap,
-    handleFormBack,
+    handleButtonBack,
     validateNegocioCode,
   };
 }

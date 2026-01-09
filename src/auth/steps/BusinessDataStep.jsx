@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
-import { normalizeBusinessName } from "../utils/businessDataUtils";
+import { normalizeBusinessName, normalizeBusinessRuc } from "../utils/businessDataUtils";
 
 export default function BusinessDataStep({
   error,
@@ -12,11 +12,9 @@ export default function BusinessDataStep({
   categoriaPadre,
   categoriaDetalle,
   subtitle,
-  isSucursalPrincipal,
   onChangeRuc,
   onChangeNombre,
   onOpenCategory,
-  onChangeSucursalPrincipal,
   onSubmit,
   innerRef,
   onGoWelcome,
@@ -57,7 +55,7 @@ export default function BusinessDataStep({
             <div className="space-y-2">
               <label className={labelClassName}>Categoría</label>
               {showSubcategory ? (
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   <button
                     type="button"
                     onClick={onOpenCategory}
@@ -109,23 +107,12 @@ export default function BusinessDataStep({
                 className={fieldClassName}
                 value={ruc}
                 onChange={(event) =>
-                  onChangeRuc(event.target.value.replace(/[^\d]/g, ""))
+                  onChangeRuc(normalizeBusinessRuc(event.target.value))
                 }
                 maxLength={13}
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={Boolean(isSucursalPrincipal)}
-                onChange={(event) =>
-                  onChangeSucursalPrincipal?.(event.target.checked)
-                }
-                className="h-4 w-4 accent-[#5E30A5]"
-              />
-              Este es mi sucursal principal
-            </label>
           </div>
         </div>
 

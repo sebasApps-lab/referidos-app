@@ -8,7 +8,7 @@ export default function StepProgress({ page }) {
       style={{
         height: 4,
         background: "#FFFFFF",
-        opacity: page === n + 1 ? 1 : 0.35,
+        opacity: page === n ? 1 : 0.35,
         transition: "opacity 200ms",
       }}
     />
@@ -18,6 +18,7 @@ export default function StepProgress({ page }) {
     <div className="flex">
       {segment(1)}
       {segment(2)}
+      {segment(3)}
     </div>
   );
 }

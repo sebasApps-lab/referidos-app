@@ -161,6 +161,8 @@ serve (async (req) => {
         .from("usuarios")
         .select("*")
         .eq("id_auth", user.id)
+        .order("id", { ascending: false })
+        .limit(1)
         .maybeSingle<UsuarioProfile>();
     
     if (profileErr) {
@@ -244,6 +246,8 @@ serve (async (req) => {
             .from("negocios")
             .select("*")
             .eq("usuarioid", profile.id)
+            .order("id", { ascending: false })
+            .limit(1)
             .maybeSingle<NegocioProfile>();
 
         if (negErr) {

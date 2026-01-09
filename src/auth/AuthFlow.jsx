@@ -74,6 +74,11 @@ export default function AuthFlow() {
       apellido: "",
       fechaNacimiento: "",
     });
+    flow.setBusinessPrefill({
+      nombreNegocio: "",
+      ruc: "",
+      categoriaNegocio: "",
+    });
     flow.setRuc("");
     flow.setNombreNegocio("");
     flow.setCategoriaNegocio("");
@@ -101,6 +106,7 @@ export default function AuthFlow() {
     flow.setNombreDueno,
     flow.setFechaNacimiento,
     flow.setOwnerPrefill,
+    flow.setBusinessPrefill,
     flow.setNombreNegocio,
     flow.setCategoriaNegocio,
     flow.setIsSucursalPrincipal,
@@ -127,13 +133,11 @@ export default function AuthFlow() {
     apellidoDueno: flow.apellidoDueno,
     fechaNacimiento: flow.fechaNacimiento,
     ownerPrefill: flow.ownerPrefill,
+    businessPrefill: flow.businessPrefill,
     ruc: flow.ruc,
     nombreNegocio: flow.nombreNegocio,
     categoriaNegocio: flow.categoriaNegocio,
     isSucursalPrincipal: flow.isSucursalPrincipal,
-    sectorNegocio: flow.sectorNegocio,
-    calle1: flow.calle1,
-    calle2: flow.calle2,
     setEmailError: flow.setEmailError,
     setWelcomeError: flow.setWelcomeError,
     setLoginLoading: flow.setLoginLoading,
@@ -156,6 +160,7 @@ export default function AuthFlow() {
     setTelefono: flow.setTelefono,
     setFechaNacimiento: flow.setFechaNacimiento,
     setOwnerPrefill: flow.setOwnerPrefill,
+    setBusinessPrefill: flow.setBusinessPrefill,
     setRuc: flow.setRuc,
     setNombreNegocio: flow.setNombreNegocio,
     setCategoriaNegocio: flow.setCategoriaNegocio,
@@ -234,7 +239,7 @@ export default function AuthFlow() {
       setShowExitConfirm(true);
       return;
     }
-    actions.handleFormBack();
+    actions.handleButtonBack();
   };
 
   return (
@@ -252,10 +257,18 @@ export default function AuthFlow() {
       )}
 
       {(flow.step === AUTH_STEPS.OWNER_DATA ||
-        flow.step === AUTH_STEPS.BUSINESS_DATA) && (
+        flow.step === AUTH_STEPS.BUSINESS_CATEGORY ||
+        flow.step === AUTH_STEPS.BUSINESS_DATA ||
+        flow.step === AUTH_STEPS.BUSINESS_ADDRESS) && (
         <div className="w-full max-w-sm px-2 mb-4">
           <StepProgress
-            page={flow.step === AUTH_STEPS.OWNER_DATA ? 2 : 3}
+            page={
+              flow.step === AUTH_STEPS.OWNER_DATA
+                ? 1
+                : flow.step === AUTH_STEPS.BUSINESS_ADDRESS
+                  ? 3
+                  : 2
+            }
           />
         </div>
       )}
@@ -358,7 +371,7 @@ export default function AuthFlow() {
           onChangeNombre={flow.setNombreDueno}
           onChangeApellido={flow.setApellidoDueno}
           onChangeFechaNacimiento={flow.setFechaNacimiento}
-          onSubmit={actions.handleOwnerDataNext}
+          onSubmit={actions.handleOwnerData}
           innerRef={flow.regPage1Ref}
           onGoWelcome={resetToWelcome}
           primaryDisabled={!ownerStatus.canSubmit}
@@ -372,15 +385,13 @@ export default function AuthFlow() {
                   ruc={flow.ruc}
                   nombreNegocio={flow.nombreNegocio}
                   subtitle={businessSubtitle}
-                  isSucursalPrincipal={flow.isSucursalPrincipal}
                   categoriaNegocio={flow.categoriaNegocio}
                   categoriaPadre={categoryPath.parentLabel}
                   categoriaDetalle={categoryPath.subLabel}
                   onChangeRuc={flow.setRuc}
                   onChangeNombre={flow.setNombreNegocio}
                   onOpenCategory={() => flow.goToStep(AUTH_STEPS.BUSINESS_CATEGORY)}
-                  onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
-                  onSubmit={actions.handleBusinessRegister}
+                  onSubmit={actions.handleBusinessData}
                   innerRef={flow.regPage2Ref}
                   onGoWelcome={resetToWelcome}
                 />
@@ -403,7 +414,11 @@ export default function AuthFlow() {
               )}
 
               {flow.step === AUTH_STEPS.BUSINESS_ADDRESS && (
-                <BusinessAddressStep innerRef={flow.regPage2Ref} />
+                <BusinessAddressStep
+                  innerRef={flow.regPage2Ref}
+                  isSucursalPrincipal={flow.isSucursalPrincipal}
+                  onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
+                />
               )}
             </div>
           </div>
