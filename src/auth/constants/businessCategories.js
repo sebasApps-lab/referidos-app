@@ -1,3 +1,18 @@
+const DEFAULT_SUBCATEGORY_ICON = {
+  viewBox: "0 0 24 24",
+  paths: [
+    "M5 7h14v10H5z",
+    "M8 10h8",
+    "M8 13h6",
+  ],
+};
+
+const makeSub = (id, label, icon = DEFAULT_SUBCATEGORY_ICON) => ({
+  id,
+  label,
+  icon,
+});
+
 export const BUSINESS_CATEGORIES = [
   {
     id: "restaurante",
@@ -9,7 +24,7 @@ export const BUSINESS_CATEGORIES = [
   },
   {
     id: "cafe",
-    label: "Cafe",
+    label: "Café",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
@@ -20,24 +35,22 @@ export const BUSINESS_CATEGORIES = [
     },
   },
   {
-    id: "tienda",
-    label: "Tienda",
+    id: "compras",
+    label: "Compras",
     icon: {
       viewBox: "0 0 24 24",
       paths: ["M6 8h12l-1 10H7L6 8Z", "M9 8a3 3 0 0 1 6 0"],
     },
   },
   {
-    id: "panaderia",
-    label: "Panaderia",
+    id: "farmacia",
+    label: "Farmacia",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
-        "M4 12c0-3.3 3.6-6 8-6s8 2.7 8 6",
-        "M4 12v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4",
-        "M8 10h1",
-        "M12 10h1",
-        "M16 10h1",
+        "M9 3h6",
+        "M10 3v3h4V3",
+        "M8 6h8v12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6Z",
       ],
     },
   },
@@ -77,8 +90,8 @@ export const BUSINESS_CATEGORIES = [
     },
   },
   {
-    id: "deportes",
-    label: "Deportes",
+    id: "deporte-recreacion",
+    label: "Deporte & Recreación",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
@@ -90,8 +103,8 @@ export const BUSINESS_CATEGORIES = [
     },
   },
   {
-    id: "servicios",
-    label: "Servicios",
+    id: "servicios-profesionales",
+    label: "Servicios Profesionales",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
@@ -104,7 +117,7 @@ export const BUSINESS_CATEGORIES = [
   },
   {
     id: "tecnologia",
-    label: "Tecnologia",
+    label: "Tecnología",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
@@ -128,7 +141,7 @@ export const BUSINESS_CATEGORIES = [
   },
   {
     id: "educacion",
-    label: "Educacion",
+    label: "Educación",
     icon: {
       viewBox: "0 0 24 24",
       paths: [
@@ -138,4 +151,118 @@ export const BUSINESS_CATEGORIES = [
       ],
     },
   },
+  {
+    id: "otras",
+    label: "Otras",
+    icon: {
+      viewBox: "0 0 24 24",
+      paths: [
+        "M5 6h4v4H5z",
+        "M10 6h4v4h-4z",
+        "M15 6h4v4h-4z",
+        "M5 12h4v4H5z",
+        "M10 12h4v4h-4z",
+        "M15 12h4v4h-4z",
+      ],
+    },
+  },
 ];
+
+export const BUSINESS_SUBCATEGORIES = {
+  restaurante: [
+    makeSub("comida-rapida", "Comida rápida"),
+    makeSub("hamburguesas", "Hamburguesas"),
+    makeSub("pizzeria", "Pizzería"),
+    makeSub("comida-tipica", "Comida típica"),
+    makeSub("parrilladas", "Parrilladas"),
+    makeSub("mariscos", "Mariscos"),
+    makeSub("gourmet", "Restaurante gourmet"),
+    makeSub("asiatica", "Comida asiática"),
+    makeSub("vegetariana", "Comida vegetariana / vegana"),
+    makeSub("food-truck", "Food truck"),
+    makeSub("otra", "Otra"),
+  ],
+  cafe: [makeSub("otra", "Otra")],
+  compras: [
+    makeSub("ropa", "Ropa"),
+    makeSub("zapatos", "Zapatos"),
+    makeSub("accesorios", "Accesorios"),
+    makeSub("minimarket", "Minimarket"),
+    makeSub("supermercado", "Supermercado"),
+    makeSub("licoreria", "Licorería"),
+    makeSub("ferreteria", "Ferretería"),
+    makeSub("regalos", "Tienda de regalos"),
+    makeSub("papeleria", "Papelería"),
+    makeSub("otra", "Otra"),
+  ],
+  farmacia: [makeSub("otra", "Otra")],
+  belleza: [
+    makeSub("peluqueria", "Peluquería"),
+    makeSub("barberia", "Barbería"),
+    makeSub("manicure", "Manicure / Pedicure"),
+    makeSub("spa", "Spa"),
+    makeSub("facial", "Estética facial"),
+    makeSub("maquillaje", "Maquillaje profesional"),
+    makeSub("unas", "Centro de uñas"),
+    makeSub("otra", "Otra"),
+  ],
+  salud: [
+    makeSub("clinica", "Clínica"),
+    makeSub("consultorio", "Consultorio médico"),
+    makeSub("odontologia", "Odontología"),
+    makeSub("psicologia", "Psicología"),
+    makeSub("fisioterapia", "Fisioterapia"),
+    makeSub("laboratorio", "Laboratorio clínico"),
+    makeSub("otra", "Otra"),
+  ],
+  fitness: [
+    makeSub("gimnasio", "Gimnasio"),
+    makeSub("crossfit", "CrossFit"),
+    makeSub("yoga", "Yoga / Pilates"),
+    makeSub("otra", "Otra"),
+  ],
+  "deporte-recreacion": [makeSub("otra", "Otra")],
+  "servicios-profesionales": [
+    makeSub("limpieza", "Limpieza profesional"),
+    makeSub("contabilidad", "Contabilidad"),
+    makeSub("abogados", "Abogados"),
+    makeSub("marketing", "Marketing / Publicidad"),
+    makeSub("diseno", "Diseño gráfico"),
+    makeSub("otra", "Otra"),
+  ],
+  tecnologia: [
+    makeSub("venta", "Venta de tecnología"),
+    makeSub("soporte", "Soporte técnico / Reparación"),
+    makeSub("software", "Software / IT"),
+    makeSub("internet", "Internet / redes"),
+    makeSub("otra", "Otra"),
+  ],
+  mascotas: [
+    makeSub("veterinaria", "Veterinaria"),
+    makeSub("grooming", "Grooming"),
+    makeSub("pet-shop", "Pet shop"),
+    makeSub("entrenamiento", "Entrenamiento"),
+    makeSub("otra", "Otra"),
+  ],
+  educacion: [
+    makeSub("cursos", "Cursos"),
+    makeSub("academia", "Academia"),
+    makeSub("idiomas", "Idiomas"),
+    makeSub("musica", "Música"),
+    makeSub("tutorias", "Tutorías"),
+    makeSub("otra", "Otra"),
+  ],
+  otras: [
+    makeSub("pasteleria", "Pastelería"),
+    makeSub("reposteria", "Repostería"),
+    makeSub("heladeria", "Heladería"),
+    makeSub("hoteles", "🏨 Hoteles / Hospedaje"),
+    makeSub("automotriz", "🚗 Automotriz"),
+    makeSub("turismo", "✈️ Turismo"),
+    makeSub("eventos", "🎉 Eventos"),
+    makeSub("foto-video", "📸 Fotografía / Video"),
+    makeSub("artesanias", "🧵 Artesanías"),
+    makeSub("entretenimiento", "🎮 Entretenimiento"),
+    makeSub("otra", "Otra"),
+  ],
+};

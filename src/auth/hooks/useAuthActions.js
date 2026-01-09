@@ -226,6 +226,7 @@ export default function useAuthActions({
 
     if (bootstrap) {
       await bootstrapAuth({ force: true });
+      goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
     }
     return { ok: true };
   }, [bootstrapAuth, email, setEmailError]);
@@ -565,6 +566,7 @@ export default function useAuthActions({
       if (updErr) throw updErr;
 
       await bootstrapAuth({ force: true });
+      goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
     } catch (err) {
       setEmailError(err?.message || "Error al registrar negocio");
     }
@@ -575,6 +577,7 @@ export default function useAuthActions({
     calle2,
     categoriaNegocio,
     isSucursalPrincipal,
+    goToStep,
     nombreDueno,
     nombreNegocio,
     ruc,
@@ -642,6 +645,14 @@ export default function useAuthActions({
   const startFacebookOneTap = useCallback(() => {}, []);
 
   const handleFormBack = useCallback(() => {
+    if (step === AUTH_STEPS.BUSINESS_CATEGORY) {
+      goToStep(AUTH_STEPS.BUSINESS_DATA);
+      return;
+    }
+    if (step === AUTH_STEPS.BUSINESS_ADDRESS) {
+      goToStep(AUTH_STEPS.BUSINESS_DATA);
+      return;
+    }
     if (step === AUTH_STEPS.BUSINESS_DATA) {
       goToStep(AUTH_STEPS.OWNER_DATA);
       return;

@@ -11,6 +11,8 @@ import EmailRegisterStep from "./steps/EmailRegisterStep";
 import WelcomeStep from "./steps/WelcomeStep";
 import OwnerDataStep from "./steps/OwnerDataStep";
 import BusinessDataStep from "./steps/BusinessDataStep";
+import BusinessCategoryStep from "./steps/BusinessCategoryStep";
+import BusinessAddressStep from "./steps/BusinessAddressStep";
 import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
@@ -18,7 +20,7 @@ import useAuthPrefill from "./hooks/useAuthPrefill";
 import { AUTH_STEPS } from "./constants/authSteps";
 import { getOwnerDataStatus } from "./utils/ownerDataUtils";
 import { AUTH_BRAND } from "./constants/authCopy";
-import { BUSINESS_CATEGORIES } from "./constants/businessCategories";
+import { BUSINESS_CATEGORIES, BUSINESS_SUBCATEGORIES } from "./constants/businessCategories";
 
 const STEP_COPY = {
   [AUTH_STEPS.OWNER_DATA]: {
@@ -28,6 +30,15 @@ const STEP_COPY = {
   [AUTH_STEPS.BUSINESS_DATA]: {
     header: "Ahora, tu negocio",
     subtitle: "Así te verán tus clientes",
+  },
+  [AUTH_STEPS.BUSINESS_CATEGORY]: {
+    header: "Cuentanos a qué se dedica tu negocio",
+    headerFallback: "¿Cómo definirías tu negocio?",
+    subtitle: "No te preocupes, puedes cambiarlo más adelante.",
+    helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
+  },
+  [AUTH_STEPS.BUSINESS_ADDRESS]: {
+    header: "Ahora, tu negocio",
   },
 };
 
@@ -170,9 +181,12 @@ export default function AuthFlow() {
     [flow.apellidoDueno, flow.fechaNacimiento, flow.nombreDueno]
   );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
-  const isFormStep =
-    flow.step === AUTH_STEPS.OWNER_DATA ||
-    flow.step === AUTH_STEPS.BUSINESS_DATA;
+  const isFormStep = [
+    AUTH_STEPS.OWNER_DATA,
+    AUTH_STEPS.BUSINESS_DATA,
+    AUTH_STEPS.BUSINESS_CATEGORY,
+    AUTH_STEPS.BUSINESS_ADDRESS,
+  ].includes(flow.step);
   const containerClassName = isWelcome
     ? "justify-center pb-28"
     : isFormStep
@@ -183,10 +197,13 @@ export default function AuthFlow() {
     : isFormStep
     ? "mb-4 text-center"
     : "mt-12 mb-2 text-center";
+  const stepCopy = STEP_COPY[flow.step] || {};
   const headerTitle =
-    STEP_COPY[flow.step]?.header || AUTH_BRAND.name;
+    stepCopy.header || stepCopy.headerFallback || AUTH_BRAND.name;
   const ownerSubtitle = STEP_COPY[AUTH_STEPS.OWNER_DATA]?.subtitle;
   const businessSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
+  const categorySubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.subtitle;
+  const categoryHelper = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.helperLabel;
 
 
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
@@ -301,8 +318,7 @@ export default function AuthFlow() {
         />
       )}
 
-      {(flow.step === AUTH_STEPS.OWNER_DATA ||
-        flow.step === AUTH_STEPS.BUSINESS_DATA) && (
+      {isFormStep && (
         <div
           ref={flow.cardRef}
           className="bg-white w-full max-w-sm rounded-2xl shadow-xl mt-2 overflow-visible flex flex-col"
@@ -347,18 +363,38 @@ export default function AuthFlow() {
                   inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
                   ruc={flow.ruc}
                   nombreNegocio={flow.nombreNegocio}
-                  categoriaNegocio={flow.categoriaNegocio}
-                  categories={BUSINESS_CATEGORIES}
                   subtitle={businessSubtitle}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
+                  categoriaNegocio={flow.categoriaNegocio}
                   onChangeRuc={flow.setRuc}
                   onChangeNombre={flow.setNombreNegocio}
-                  onChangeCategoria={flow.setCategoriaNegocio}
+                  onOpenCategory={() => flow.goToStep(AUTH_STEPS.BUSINESS_CATEGORY)}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
                   onSubmit={actions.handleBusinessRegister}
                   innerRef={flow.regPage2Ref}
                   onGoWelcome={resetToWelcome}
                 />
+              )}
+
+              {flow.step === AUTH_STEPS.BUSINESS_CATEGORY && (
+                <BusinessCategoryStep
+                  inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
+                  subtitle={categorySubtitle}
+                  helperLabel={categoryHelper}
+                  categories={BUSINESS_CATEGORIES}
+                  subcategories={BUSINESS_SUBCATEGORIES}
+                  currentCategory={flow.categoriaNegocio}
+                  onConfirmCategory={(value) => {
+                    flow.setCategoriaNegocio(value);
+                    flow.goToStep(AUTH_STEPS.BUSINESS_DATA);
+                  }}
+                  innerRef={flow.regPage2Ref}
+                  onGoWelcome={resetToWelcome}
+                />
+              )}
+
+              {flow.step === AUTH_STEPS.BUSINESS_ADDRESS && (
+                <BusinessAddressStep innerRef={flow.regPage2Ref} />
               )}
             </div>
           </div>

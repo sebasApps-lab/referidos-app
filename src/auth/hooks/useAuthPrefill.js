@@ -84,15 +84,29 @@ export default function useAuthPrefill({
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
       const missingOwner =
         !u.nombre || !u.apellido || !u.fecha_nacimiento;
+      const reasons = boot.reasons || [];
+      const missingBusinessRow = reasons.includes("missing_business_row");
+      const missingBusinessFields =
+        reasons.some((reason) => reason.startsWith("missing_business_fields")) ||
+        reasons.some((reason) => reason.startsWith("missing_business_fields_user"));
+      const missingAddress =
+        reasons.includes("missing_business_address") ||
+        reasons.includes("missing_business_sector");
       const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
       const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
       const prefillCategoria = prefill.categoriaNegocio || "";
       const prefillTipo = neg?.tipo || null;
 
-      setStep(
-        missingOwner ? AUTH_STEPS.OWNER_DATA : AUTH_STEPS.BUSINESS_DATA
-      );
+      if (missingOwner) {
+        setStep(AUTH_STEPS.OWNER_DATA);
+      } else if (missingBusinessRow || missingBusinessFields) {
+        setStep(AUTH_STEPS.BUSINESS_DATA);
+      } else if (missingAddress) {
+        setStep(AUTH_STEPS.BUSINESS_ADDRESS);
+      } else {
+        setStep(AUTH_STEPS.BUSINESS_DATA);
+      }
 
       setNombreDueno(prefillNombre);
       setApellidoDueno(prefillApellido);
