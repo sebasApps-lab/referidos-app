@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
+import { runValidateRegistration } from "../services/registrationClient";
 
 export default function AppGate({ publicElement = null }) {
   const location = useLocation();
@@ -12,6 +13,7 @@ export default function AppGate({ publicElement = null }) {
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
   const logout = useAppStore((s) => s.logout);
   const resetRequestedRef = useRef(false);
+  const validateAttemptedRef = useRef(false);
 
   useEffect(() => {
     // 1) Resolver session + onboarding si aun no existe
@@ -28,6 +30,27 @@ export default function AppGate({ publicElement = null }) {
     resetRequestedRef.current = true;
     logout();
   }, [logout, shouldReset]);
+
+  useEffect(() => {
+    if (bootstrap || typeof usuario === "undefined") return;
+    if (!usuario) return;
+    if (onboarding?.allowAccess !== false) return;
+    const reasons = onboarding?.reasons || [];
+    if (reasons.length !== 1) return;
+    const reason = reasons[0];
+    if (
+      reason !== "missing_account_status" &&
+      reason !== "account_status:pending"
+    ) {
+      return;
+    }
+    if (validateAttemptedRef.current) return;
+    validateAttemptedRef.current = true;
+    (async () => {
+      await runValidateRegistration();
+      await bootstrapAuth({ force: true });
+    })();
+  }, [bootstrap, usuario, onboarding, bootstrapAuth]);
 
   if (bootstrap || typeof usuario === "undefined") {
     return (

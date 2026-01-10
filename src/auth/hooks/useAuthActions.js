@@ -19,6 +19,7 @@ import {
   normalizeBusinessName,
   normalizeBusinessRuc,
 } from "../utils/businessDataUtils";
+import { runValidateRegistration } from "../../services/registrationClient";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
@@ -672,9 +673,14 @@ export default function useAuthActions({
 
   const startFacebookOneTap = useCallback(() => {}, []);
 
-  const handleBusinessAddress = useCallback(() => {
-    return;
-  }, []);
+  const handleBusinessAddress = useCallback(async () => {
+    setEmailError("");
+    const result = await runValidateRegistration();
+    if (!result?.ok || !result?.valid) {
+      setEmailError(result?.message || result?.error || "Aun falta completar datos");
+    }
+    await bootstrapAuth({ force: true });
+  }, [bootstrapAuth, setEmailError]);
 
   const handleButtonBack = useCallback(() => {
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {

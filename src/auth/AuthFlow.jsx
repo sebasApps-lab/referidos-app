@@ -418,6 +418,8 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
+                  error={flow.emailError}
+                  onSubmit={actions.handleBusinessAddress}
                 />
               )}
             </div>
