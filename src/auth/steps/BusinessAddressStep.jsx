@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import {
@@ -6,6 +6,11 @@ import {
   fetchCantonesByProvincia,
   fetchParroquiasByCanton,
 } from "../../services/territoryClient";
+import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
+
+const DEFAULT_MAP_CENTER = { lat: -0.1806532, lng: -78.4678382 };
+
+
 
 export default function BusinessAddressStep({
   innerRef,
@@ -99,12 +104,35 @@ export default function BusinessAddressStep({
     }
   }, [cantonId]);
 
+  const buildDireccionPayload = (overrides = {}) => ({
+    place_id: "",
+    label: "",
+    provider: "",
+    lng: null,
+    provincia_id: "",
+    canton_id: "",
+    street: "",
+    house_number: "",
+    city: "",
+    region: "",
+    country: "",
+    postcode: "",
+    ...direccionPayload,
+    provincia_id: direccionPayload?.provincia_id || provinciaId || "",
+    canton_id: direccionPayload?.canton_id || cantonId || "",
+    ...overrides,
+  });
+
+  const updateDireccionPayload = (overrides = {}) => {
+    onChangeDireccionPayload?.(buildDireccionPayload(overrides));
+  };
+
   const handleConfirm = () => {
     setLocalError("");
     const placeId = String(direccionPayload?.place_id || "").trim();
     const label = String(direccionPayload?.label || "").trim();
     if (!placeId || !label) {
-      setLocalError("Selecciona una dirección de la lista.");
+      setLocalError("Selecciona una direcci\u00f3n de la lista.");
       return;
     }
     setAddressLabel(label);
@@ -112,20 +140,19 @@ export default function BusinessAddressStep({
   };
 
   const resetDireccionPayload = (overrides = {}) => {
-    onChangeDireccionPayload?.({
+    updateDireccionPayload({
       place_id: "",
       label: "",
       provider: "",
-      lat: null,
       lng: null,
-      provincia_id: overrides.provincia_id ?? provinciaId ?? "",
-      canton_id: overrides.canton_id ?? cantonId ?? "",
       street: "",
       house_number: "",
       city: "",
       region: "",
       country: "",
       postcode: "",
+      provincia_id: overrides.provincia_id ?? provinciaId ?? "",
+      canton_id: overrides.canton_id ?? cantonId ?? "",
     });
   };
 
@@ -135,15 +162,13 @@ export default function BusinessAddressStep({
     setSearchError("");
     if (item.lat && item.lng) {
       setCoords({
-        lat: Number(item.lat),
         lng: Number(item.lng),
       });
     }
-    onChangeDireccionPayload?.({
+    updateDireccionPayload({
       place_id: item.id,
       label: item.label || "",
       provider: item.provider || "",
-      lat: item.lat ?? null,
       lng: item.lng ?? null,
       provincia_id: provinciaId || "",
       canton_id: cantonId || "",
@@ -251,8 +276,10 @@ export default function BusinessAddressStep({
   const displayCoords =
     coords ||
     (direccionPayload?.lat != null && direccionPayload?.lng != null
-      ? { lat: Number(direccionPayload.lat), lng: Number(direccionPayload.lng) }
       : null);
+  const mapCenter = displayCoords || DEFAULT_MAP_CENTER;
+
+
 
   const clearSearchState = () => {
     setSearchValue("");
@@ -313,7 +340,7 @@ export default function BusinessAddressStep({
       return;
     }
     if (!cantonId) {
-      setSearchError("Selecciona un cantón");
+      setSearchError("Selecciona un cant\u00f3n");
       return;
     }
     if (!parroquiaId) {
@@ -366,7 +393,7 @@ export default function BusinessAddressStep({
         {stage === "map" ? (
           <>
             <p className="text-sm text-gray-600 mt-3 mb-4 text-center">
-              {subtitle || "Ayúdanos a conectar tu negocio con personas cerca de ti."}
+              {subtitle || "Ay\u00fadanos a conectar tu negocio con personas cerca de ti."}
             </p>
 
             {(localError || error) && (
@@ -374,28 +401,16 @@ export default function BusinessAddressStep({
             )}
 
             <div className="flex-1 flex flex-col gap-4">
-              {/* Mapa deshabilitado por ahora: se agregará con proveedor externo. */}
-              {/*
-              <div
-                className="relative flex-1 min-h-[280px] rounded-2xl overflow-hidden border border-gray-200"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-              >
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(135deg, rgba(94,48,165,0.08), rgba(16,185,129,0.08)), linear-gradient(#E5E7EB 1px, transparent 1px), linear-gradient(90deg, #E5E7EB 1px, transparent 1px)",
-                    backgroundSize: "100% 100%, 38px 38px, 38px 38px",
-                    backgroundPosition: `0 0, ${mapOffset.x}px ${mapOffset.y}px, ${mapOffset.x}px ${mapOffset.y}px`,
-                  }}
-                />
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full">
-                  <PinIcon className="h-8 w-8 text-[#5E30A5]" />
-                </div>
-              </div>
-              */}
+              <LeafletMapPicker
+                center={mapCenter}
+                onCenterChange={(nextCenter) => {
+                  setCoords(nextCenter);
+                  updateDireccionPayload({
+                    lng: nextCenter.lng,
+                  });
+                }}
+                className="min-h-[260px] h-[260px] w-full rounded-2xl overflow-hidden border border-gray-200"
+              />
               <div className="space-y-3">
                 <SearchableSelect
                   label="Provincia"
@@ -410,8 +425,8 @@ export default function BusinessAddressStep({
                 />
 
                 <SearchableSelect
-                  label="Cantón"
-                  placeholder="Selecciona cantón"
+                  label="Cant\u00f3n"
+                  placeholder="Selecciona cant\u00f3n"
                   value={cantonId}
                   options={cantonOptions}
                   disabled={!canSelectCanton}
@@ -526,18 +541,18 @@ export default function BusinessAddressStep({
             <div className="flex-1 space-y-6 mt-3">
               <div className="space-y-1">
                 <label className="block text-xs text-gray-500 ml-1">
-                  Dirección confirmada
+                  {"Direcci\u00f3n confirmada"}
                 </label>
                 <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900">
                   {addressLabel ||
                     direccionPayload?.label ||
-                    "Sin dirección"}
+                    "Sin direcci\u00f3n"}
                 </div>
               </div>
 
               {displayCoords ? (
                 <div className="text-xs text-gray-500 ml-1">
-                  {`Lat: ${displayCoords.lat.toFixed(6)} • Lng: ${displayCoords.lng.toFixed(6)}`}
+                  {`Lat: ${displayCoords.lat.toFixed(6)} | Lng: ${displayCoords.lng.toFixed(6)}`}
                 </div>
               ) : null}
 
@@ -566,7 +581,7 @@ export default function BusinessAddressStep({
         )}
       </div>
 
-      {/* Modales de ubicación/GPS deshabilitados hasta integrar mapa. */}
+      {/* Modales de ubicacion/GPS deshabilitados hasta integrar permisos.
     </section>
   );
 }
@@ -715,6 +730,8 @@ function XIcon({ className = "" }) {
       <path d="M18 6l-12 12" />
     </svg>
   );
+}
+
 function SearchIcon({ className = "" }) {
   return (
     <svg
@@ -731,3 +748,6 @@ function SearchIcon({ className = "" }) {
     </svg>
   );
 }
+
+
+

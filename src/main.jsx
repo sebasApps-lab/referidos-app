@@ -7,6 +7,7 @@ import App from "./App";
 import "./styles/carousel.css";
 import "./styles/no-scrollbar.css";
 
+import "leaflet/dist/leaflet.css";
 
 import "./index.css"; // si usas Tailwind o estilos globales
 import { registerSW } from "virtual:pwa-register";
