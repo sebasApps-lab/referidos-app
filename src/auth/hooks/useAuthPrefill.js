@@ -105,15 +105,16 @@ export default function useAuthPrefill({
     if (u.role === "negocio") {
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
       const missingOwner =
-        !u.nombre || !u.apellido || !u.fecha_nacimiento;
+        !u.nombre || !u.apellido || !u.fecha_nacimiento || !u.genero;
       const reasons = boot.reasons || [];
       const missingBusinessRow = reasons.includes("missing_business_row");
       const missingBusinessFields =
-        reasons.some((reason) => reason.startsWith("missing_business_fields")) ||
-        reasons.some((reason) => reason.startsWith("missing_business_fields_user"));
+        reasons.some((reason) => reason.startsWith("missing_business_fields"));
       const missingAddress =
-        reasons.includes("missing_business_address") ||
-        reasons.includes("missing_business_sector");
+        reasons.includes("missing_address_row") ||
+        reasons.includes("missing_address_fields") ||
+        reasons.includes("missing_sucursales_row") ||
+        reasons.includes("missing_sucursales_fields");
       const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
       const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);

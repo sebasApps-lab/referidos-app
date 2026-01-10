@@ -68,7 +68,7 @@ type UsuarioProfile = {
     apellido: string | null;
     telefono: string | null;
     fecha_nacimiento: string | null;
-    ruc: string | null;
+    genero: string | null;
     account_status: AccountStatus | null;
 };
 
@@ -76,19 +76,31 @@ type NegocioProfile = {
     id: string;
     usuarioid: string;
     nombre: string | null;
+    categoria: string | null;
+};
+
+type SucursalProfile = {
+    id: string;
+    negocioid: string;
     direccion_id: string | null;
-}
+    horarios: unknown;
+    tipo: string | null;
+    fechacreacion: string | null;
+};
 
 type DireccionProfile = {
     id: string;
     calle_1: string | null;
     calle_2: string | null;
     sector: string | null;
+    referencia: string | null;
+    ciudad: string | null;
+    lat: number | null;
+    lng: number | null;
 };
 
-const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "fecha_nacimiento"];
-const BUSINESS_REQUIRED_IN_USUARIOS: (keyof UsuarioProfile)[] = ["ruc"];
-const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre"];
+const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "fecha_nacimiento", "genero"];
+const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre", "categoria"];
 
 serve (async (req) => {
     const origin = req.headers.get("origin") || "*";
@@ -233,15 +245,6 @@ serve (async (req) => {
             reasons.push(`missing_owner_fields:${missingOwner.join(",")}`);
         }
 
-        const missingBusinessInUser = BUSINESS_REQUIRED_IN_USUARIOS.filter(
-            (f) => !profile[f]
-        );
-        if (missingBusinessInUser.length) {
-            reasons.push(
-                `missing_business_fields_user:${missingBusinessInUser.join(",")}`
-            );
-        }
-
         const { data: negData, error: negErr } = await supabaseAdmin
             .from("negocios")
             .select("*")
@@ -265,27 +268,54 @@ serve (async (req) => {
                 );
             }
 
-            if (!negData.direccion_id) {
-                reasons.push("missing_business_address");
-            } else {
-                const { data: dirData, error: dirErr } = await supabaseAdmin
-                    .from("direcciones")
-                    .select("id, calle_1, calle_2, sector")
-                    .eq("id", negData.direccion_id)
-                    .maybeSingle<DireccionProfile>();
+            const { data: sucData, error: sucErr } = await supabaseAdmin
+                .from("sucursales")
+                .select("id, negocioid, direccion_id, horarios, tipo, fechacreacion")
+                .eq("negocioid", negData.id);
 
-                if (dirErr) {
-                    reasons.push("business_address_query_error");
-                } else if (!dirData) {
-                    reasons.push("missing_business_address");
+            if (sucErr) {
+                reasons.push("business_query_error");
+            } else if (!sucData || sucData.length === 0) {
+                reasons.push("missing_sucursales_row");
+            } else {
+                const sorted = [...sucData].sort((a, b) => {
+                    const aTime = a.fechacreacion ? Date.parse(a.fechacreacion) : 0;
+                    const bTime = b.fechacreacion ? Date.parse(b.fechacreacion) : 0;
+                    return bTime - aTime;
+                });
+                const principal =
+                    sorted.find((row) => row.tipo === "principal") || sorted[0];
+
+                const hasHorarios = (value: unknown) => {
+                    if (!value) return false;
+                    if (Array.isArray(value)) return value.length > 0;
+                    if (typeof value === "object") return Object.keys(value as object).length > 0;
+                    return true;
+                };
+
+                if (!principal.direccion_id || !principal.tipo || !hasHorarios(principal.horarios)) {
+                    reasons.push("missing_sucursales_fields");
                 } else {
-                    const hasAddress =
-                        !!(dirData.calle_1 || dirData.calle_2);
-                    if (!hasAddress) {
-                        reasons.push("missing_business_address");
-                    }
-                    if (!dirData.sector) {
-                        reasons.push("missing_business_sector");
+                    const { data: dirData, error: dirErr } = await supabaseAdmin
+                        .from("direcciones")
+                        .select("id, calle_1, calle_2, sector, referencia, ciudad, lat, lng")
+                        .eq("id", principal.direccion_id)
+                        .maybeSingle<DireccionProfile>();
+
+                    if (dirErr) {
+                        reasons.push("business_address_query_error");
+                    } else if (!dirData) {
+                        reasons.push("missing_address_row");
+                    } else {
+                        const missingFields =
+                            !dirData.calle_1 ||
+                            !dirData.ciudad ||
+                            !dirData.sector ||
+                            dirData.lat === null ||
+                            dirData.lng === null;
+                        if (missingFields) {
+                            reasons.push("missing_address_fields");
+                        }
                     }
                 }
             }
