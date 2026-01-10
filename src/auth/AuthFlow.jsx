@@ -220,6 +220,16 @@ export default function AuthFlow() {
 
 
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
+  const statusErrorRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (statusErrorRef.current) return;
+    const message = sessionStorage.getItem("auth_status_error");
+    if (!message) return;
+    statusErrorRef.current = true;
+    sessionStorage.removeItem("auth_status_error");
+    flow.setWelcomeError(message);
+  }, [flow]);
 
   const handleOwnerExit = React.useCallback(async () => {
     setShowExitConfirm(false);
