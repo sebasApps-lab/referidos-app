@@ -28,11 +28,11 @@ import {
 
 const STEP_COPY = {
   [AUTH_STEPS.OWNER_DATA]: {
-    header: "Cuentanos mas sobre tí",
+    header: "Cuentanos mas sobre ti",
     subtitle: "Eres quien administrara el negocio en la app.",
   },
   [AUTH_STEPS.BUSINESS_DATA]: {
-    header: "Ahora, tu negocio",
+    header: "Ahora tu negocio",
     subtitle: "Así te verán tus clientes",
   },
   [AUTH_STEPS.BUSINESS_CATEGORY]: {
@@ -42,7 +42,8 @@ const STEP_COPY = {
     helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
   },
   [AUTH_STEPS.BUSINESS_ADDRESS]: {
-    header: "Ahora, tu negocio",
+    header: "¿Dónde estás ubicado?",
+    subtitle: "Ayúdanos a conectar tu negocio con personas cerca de ti.",
   },
 };
 
@@ -215,6 +216,7 @@ export default function AuthFlow() {
   const businessSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
   const categorySubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.subtitle;
   const categoryHelper = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.helperLabel;
+  const addressSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_ADDRESS]?.subtitle;
   const categoryPath = useMemo(
     () => getBusinessCategoryPath(flow.categoriaNegocio),
     [flow.categoriaNegocio]
@@ -430,6 +432,7 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
+                  subtitle={addressSubtitle}
                   error={flow.emailError}
                   onSubmit={actions.handleBusinessAddress}
                 />
