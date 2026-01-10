@@ -84,18 +84,25 @@ export function buildBirthdateISO(value = "") {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function getOwnerDataStatus({ nombre, apellido, fechaNacimiento }) {
+export function getOwnerDataStatus({ nombre, apellido, fechaNacimiento, genero }) {
   const nameValue = normalizeOwnerName(nombre || "");
   const lastValue = normalizeOwnerName(apellido || "");
+  const genderValue = String(genero || "").trim();
   const hasNombre = nameValue.trim().length > 0;
   const hasApellido = lastValue.trim().length > 0;
+  const hasGenero = genderValue.length > 0;
   const birthStatus = getBirthdateStatus(fechaNacimiento || "");
 
   return {
     nombre: nameValue,
     apellido: lastValue,
+    genero: genderValue,
     birthStatus,
     canSubmit:
-      hasNombre && hasApellido && birthStatus.isValid && !birthStatus.isUnderage,
+      hasNombre &&
+      hasApellido &&
+      hasGenero &&
+      birthStatus.isValid &&
+      !birthStatus.isUnderage,
   };
 }

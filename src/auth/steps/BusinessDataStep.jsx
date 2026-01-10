@@ -1,18 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
-import { normalizeBusinessName, normalizeBusinessRuc } from "../utils/businessDataUtils";
+import { normalizeBusinessName } from "../utils/businessDataUtils";
 
 export default function BusinessDataStep({
   error,
   inputClassName,
-  ruc,
   nombreNegocio,
   categoriaNegocio,
   categoriaPadre,
   categoriaDetalle,
   subtitle,
-  onChangeRuc,
   onChangeNombre,
   onOpenCategory,
   onSubmit,
@@ -99,18 +97,6 @@ export default function BusinessDataStep({
                   </span>
                 </button>
               )}
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClassName}>RUC</label>
-              <input
-                className={fieldClassName}
-                value={ruc}
-                onChange={(event) =>
-                  onChangeRuc(normalizeBusinessRuc(event.target.value))
-                }
-                maxLength={13}
-              />
             </div>
 
           </div>

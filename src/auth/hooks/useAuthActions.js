@@ -17,7 +17,6 @@ import {
 import {
   getBusinessDataStatus,
   normalizeBusinessName,
-  normalizeBusinessRuc,
 } from "../utils/businessDataUtils";
 import { runValidateRegistration } from "../../services/registrationClient";
 
@@ -34,10 +33,10 @@ export default function useAuthActions({
   telefono,
   nombreDueno,
   apellidoDueno,
+  genero,
   fechaNacimiento,
   ownerPrefill,
   businessPrefill,
-  ruc,
   nombreNegocio,
   categoriaNegocio,
   isSucursalPrincipal,
@@ -389,10 +388,12 @@ export default function useAuthActions({
     const ownerStatus = getOwnerDataStatus({
       nombre: nombreDueno,
       apellido: apellidoDueno,
+      genero,
       fechaNacimiento,
     });
     if (!ownerStatus.nombre.trim()) return setEmailError("Ingrese nombres");
     if (!ownerStatus.apellido.trim()) return setEmailError("Ingrese apellidos");
+    if (!ownerStatus.genero.trim()) return setEmailError("Selecciona un género");
     if (!ownerStatus.birthStatus.isValid) {
       return setEmailError("Ingrese una fecha de nacimiento valida");
     }
@@ -404,10 +405,12 @@ export default function useAuthActions({
     const prefillNombre = normalizeOwnerName(ownerPrefill?.nombre || "");
     const prefillApellido = normalizeOwnerName(ownerPrefill?.apellido || "");
     const prefillFecha = ownerPrefill?.fechaNacimiento || "";
+    const prefillGenero = ownerPrefill?.genero || "";
     const unchanged =
       ownerStatus.nombre === prefillNombre &&
       ownerStatus.apellido === prefillApellido &&
-      (fechaNacimiento || "") === prefillFecha;
+      (fechaNacimiento || "") === prefillFecha &&
+      ownerStatus.genero === prefillGenero;
 
     if (unchanged) {
       goToStep(AUTH_STEPS.BUSINESS_DATA);
@@ -444,6 +447,7 @@ export default function useAuthActions({
       .update({
         nombre: ownerStatus.nombre,
         apellido: ownerStatus.apellido,
+        genero: ownerStatus.genero,
         fecha_nacimiento: birthdateIso,
       })
       .eq("id_auth", session.user.id);
@@ -459,6 +463,7 @@ export default function useAuthActions({
     apellidoDueno,
     bootstrapAuth,
     fechaNacimiento,
+    genero,
     goToStep,
     nombreDueno,
     ownerPrefill,
@@ -469,7 +474,7 @@ export default function useAuthActions({
     try {
       const businessStatus = getBusinessDataStatus({
         nombreNegocio,
-        ruc,
+        ruc: "",
         categoriaNegocio,
       });
       if (!businessStatus.nombre.trim()) {
@@ -480,22 +485,16 @@ export default function useAuthActions({
         setEmailError("Selecciona una categoria");
         return;
       }
-      if (!businessStatus.ruc) {
-        setEmailError("Ingresa el RUC");
-        return;
-      }
       setEmailError("");
 
       const prefillNombre = normalizeBusinessName(
         businessPrefill?.nombreNegocio || ""
       );
-      const prefillRuc = normalizeBusinessRuc(businessPrefill?.ruc || "");
       const prefillCategoria = String(
         businessPrefill?.categoriaNegocio || ""
       ).trim();
       const unchanged =
         businessStatus.nombre === prefillNombre &&
-        businessStatus.ruc === prefillRuc &&
         businessStatus.categoria === prefillCategoria;
 
       if (unchanged) {
@@ -585,7 +584,6 @@ export default function useAuthActions({
           nombre: nombreDueno || userRow.nombre,
           apellido: apellidoDueno || userRow.apellido,
           telefono,
-          ruc: businessStatus.ruc,
         })
         .eq("id_auth", userId)
         .select("id")
@@ -610,7 +608,6 @@ export default function useAuthActions({
     goToStep,
     nombreDueno,
     nombreNegocio,
-    ruc,
     setEmailError,
     telefono,
   ]);

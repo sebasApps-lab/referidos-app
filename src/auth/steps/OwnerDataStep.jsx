@@ -12,10 +12,12 @@ export default function OwnerDataStep({
   inputClassName,
   nombreDueno,
   apellidoDueno,
+  genero,
   fechaNacimiento,
   subtitle,
   onChangeNombre,
   onChangeApellido,
+  onChangeGenero,
   onChangeFechaNacimiento,
   onSubmit,
   innerRef,
@@ -28,9 +30,21 @@ export default function OwnerDataStep({
   );
   const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
   const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";
+  const genderOptions = [
+    { label: "Femenino", value: "femenino" },
+    { label: "Masculino", value: "masculino" },
+    { label: "No-binario", value: "no_binario" },
+    { label: "Prefiero no especificar", value: "no_especificar" },
+  ];
+  const selectedGenero = genero || "no_especificar";
+  const optionBase =
+    "px-3 py-1.5 text-xs border rounded-full transition-colors";
 
   return (
-    <section style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }} className="px-2 h-full">
+    <section
+      style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }}
+      className="px-2 h-full"
+    >
       <div className="flex h-full flex-col" ref={innerRef}>
         <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
           {subtitle || "Eres quien administrara el negocio en la app."}
@@ -81,6 +95,31 @@ export default function OwnerDataStep({
                 Tienes que ser mayor de edad para ser el administrador.
               </div>
             ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <label className={labelClassName}>
+              ¿Con qué género te identificas?
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {genderOptions.map((option) => {
+                const isSelected = selectedGenero === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onChangeGenero?.(option.value)}
+                    className={`${optionBase} ${
+                      isSelected
+                        ? "border-[#5E30A5] text-[#5E30A5] bg-[#F5F0FF]"
+                        : "border-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 

@@ -11,11 +11,11 @@ export default function useAuthPrefill({
   setEmailError,
   setNombreDueno,
   setApellidoDueno,
+  setGenero,
   setTelefono,
   setFechaNacimiento,
   setOwnerPrefill,
   setBusinessPrefill,
-  setRuc,
   setNombreNegocio,
   setCategoriaNegocio,
   setIsSucursalPrincipal,
@@ -29,7 +29,13 @@ export default function useAuthPrefill({
   useEffect(() => {
     if (typeof usuario === "undefined") {
       choiceOpenedRef.current = false;
-      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setOwnerPrefill?.({
+        nombre: "",
+        apellido: "",
+        fechaNacimiento: "",
+        genero: "",
+      });
+      setGenero?.("no_especificar");
       setBusinessPrefill?.({
         nombreNegocio: "",
         ruc: "",
@@ -41,6 +47,7 @@ export default function useAuthPrefill({
   }, [
     setBusinessPrefill,
     setCategoriaNegocio,
+    setGenero,
     setIsSucursalPrincipal,
     setOwnerPrefill,
     usuario,
@@ -52,7 +59,13 @@ export default function useAuthPrefill({
     const onboardingOk = onboarding?.ok === true;
 
     if (!usuario) {
-      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setOwnerPrefill?.({
+        nombre: "",
+        apellido: "",
+        fechaNacimiento: "",
+        genero: "",
+      });
+      setGenero?.("no_especificar");
       setBusinessPrefill?.({
         nombreNegocio: "",
         ruc: "",
@@ -69,7 +82,13 @@ export default function useAuthPrefill({
 
     //1) Perfil existe pero SIN rol
     if (!usuario.role) {
-      setOwnerPrefill?.({ nombre: "", apellido: "", fechaNacimiento: "" });
+      setOwnerPrefill?.({
+        nombre: "",
+        apellido: "",
+        fechaNacimiento: "",
+        genero: "",
+      });
+      setGenero?.("no_especificar");
       setBusinessPrefill?.({
         nombreNegocio: "",
         ruc: "",
@@ -118,6 +137,7 @@ export default function useAuthPrefill({
       const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
       const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
+      const prefillGenero = u.genero || "";
       const prefillCategoria = prefill.categoriaNegocio || "";
       const prefillTipo = neg?.tipo || null;
 
@@ -139,13 +159,14 @@ export default function useAuthPrefill({
         nombre: prefillNombre,
         apellido: prefillApellido,
         fechaNacimiento: prefillFecha,
+        genero: prefillGenero,
       });
+      setGenero?.(prefillGenero || "no_especificar");
       setBusinessPrefill?.({
         nombreNegocio: prefill.nombreNegocio || "",
         ruc: prefill.ruc || "",
         categoriaNegocio: prefillCategoria,
       });
-      setRuc(prefill.ruc);
       setNombreNegocio(prefill.nombreNegocio);
       setCategoriaNegocio(prefillCategoria);
       setIsSucursalPrincipal(prefillTipo === "principal");
@@ -184,10 +205,10 @@ export default function useAuthPrefill({
     setStep,
     setNombreDueno,
     setFechaNacimiento,
+    setGenero,
     setNombreNegocio,
     setOwnerPrefill,
     setIsSucursalPrincipal,
-    setRuc,
     setSectorNegocio,
     setTelefono,
     usuario,

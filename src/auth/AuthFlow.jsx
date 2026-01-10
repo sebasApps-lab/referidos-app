@@ -68,18 +68,19 @@ export default function AuthFlow() {
     flow.setCodigo("");
     flow.setNombreDueno("");
     flow.setApellidoDueno("");
+    flow.setGenero("no_especificar");
     flow.setFechaNacimiento("");
     flow.setOwnerPrefill({
       nombre: "",
       apellido: "",
       fechaNacimiento: "",
+      genero: "",
     });
     flow.setBusinessPrefill({
       nombreNegocio: "",
       ruc: "",
       categoriaNegocio: "",
     });
-    flow.setRuc("");
     flow.setNombreNegocio("");
     flow.setCategoriaNegocio("");
     flow.setIsSucursalPrincipal(false);
@@ -106,6 +107,7 @@ export default function AuthFlow() {
     flow.setNombreDueno,
     flow.setFechaNacimiento,
     flow.setOwnerPrefill,
+    flow.setGenero,
     flow.setBusinessPrefill,
     flow.setNombreNegocio,
     flow.setCategoriaNegocio,
@@ -114,7 +116,6 @@ export default function AuthFlow() {
     flow.setOauthProvider,
     flow.setPassword,
     flow.setPasswordConfirm,
-    flow.setRuc,
     flow.setSectorNegocio,
     flow.setTelefono,
     flow.setWelcomeError,
@@ -131,10 +132,10 @@ export default function AuthFlow() {
     telefono: flow.telefono,
     nombreDueno: flow.nombreDueno,
     apellidoDueno: flow.apellidoDueno,
+    genero: flow.genero,
     fechaNacimiento: flow.fechaNacimiento,
     ownerPrefill: flow.ownerPrefill,
     businessPrefill: flow.businessPrefill,
-    ruc: flow.ruc,
     nombreNegocio: flow.nombreNegocio,
     categoriaNegocio: flow.categoriaNegocio,
     isSucursalPrincipal: flow.isSucursalPrincipal,
@@ -157,11 +158,11 @@ export default function AuthFlow() {
     setEmailError: flow.setEmailError,
     setNombreDueno: flow.setNombreDueno,
     setApellidoDueno: flow.setApellidoDueno,
+    setGenero: flow.setGenero,
     setTelefono: flow.setTelefono,
     setFechaNacimiento: flow.setFechaNacimiento,
     setOwnerPrefill: flow.setOwnerPrefill,
     setBusinessPrefill: flow.setBusinessPrefill,
-    setRuc: flow.setRuc,
     setNombreNegocio: flow.setNombreNegocio,
     setCategoriaNegocio: flow.setCategoriaNegocio,
     setIsSucursalPrincipal: flow.setIsSucursalPrincipal,
@@ -185,9 +186,10 @@ export default function AuthFlow() {
       getOwnerDataStatus({
         nombre: flow.nombreDueno,
         apellido: flow.apellidoDueno,
+        genero: flow.genero,
         fechaNacimiento: flow.fechaNacimiento,
       }),
-    [flow.apellidoDueno, flow.fechaNacimiento, flow.nombreDueno]
+    [flow.apellidoDueno, flow.fechaNacimiento, flow.genero, flow.nombreDueno]
   );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
   const isFormStep = [
@@ -377,9 +379,11 @@ export default function AuthFlow() {
           nombreDueno={flow.nombreDueno}
           apellidoDueno={flow.apellidoDueno}
           fechaNacimiento={flow.fechaNacimiento}
+          genero={flow.genero}
           subtitle={ownerSubtitle}
           onChangeNombre={flow.setNombreDueno}
           onChangeApellido={flow.setApellidoDueno}
+          onChangeGenero={flow.setGenero}
           onChangeFechaNacimiento={flow.setFechaNacimiento}
           onSubmit={actions.handleOwnerData}
           innerRef={flow.regPage1Ref}
@@ -392,13 +396,11 @@ export default function AuthFlow() {
                 <BusinessDataStep
                   error={flow.emailError}
                   inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
-                  ruc={flow.ruc}
                   nombreNegocio={flow.nombreNegocio}
                   subtitle={businessSubtitle}
                   categoriaNegocio={flow.categoriaNegocio}
                   categoriaPadre={categoryPath.parentLabel}
                   categoriaDetalle={categoryPath.subLabel}
-                  onChangeRuc={flow.setRuc}
                   onChangeNombre={flow.setNombreNegocio}
                   onOpenCategory={() => flow.goToStep(AUTH_STEPS.BUSINESS_CATEGORY)}
                   onSubmit={actions.handleBusinessData}
