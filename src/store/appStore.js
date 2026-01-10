@@ -141,7 +141,7 @@ export const useAppStore = create(
             bootstrap: false,
             bootstrapError: false,
             usuario: null,
-            onboarding: undefined,
+            onboarding: null,
             promos: [],
             negocios: [],
             scannerPermissionPrompted: false,
