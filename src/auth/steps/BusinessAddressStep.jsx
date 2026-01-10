@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 
@@ -169,7 +169,7 @@ export default function BusinessAddressStep({
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
   const canSearch =
-    canSelectParroquia &&
+    Boolean(parroquiaId) &&
     searchValue.trim().length >= 4 &&
     !isSearching;
 
@@ -183,40 +183,53 @@ export default function BusinessAddressStep({
       ? { lat: Number(direccionPayload.lat), lng: Number(direccionPayload.lng) }
       : null);
 
-  const handleProvinciaChange = (event) => {
-    const value = event.target.value;
+  const clearSearchState = () => {
+    setSearchValue("");
+    setSearchResults([]);
+    setSearchError("");
+    setHasSearched(false);
+    setAddressLabel("");
+    setCoords(null);
+  };
+
+  const handleProvinciaChange = (value) => {
     setProvinciaId(value);
     setCantonId("");
     setParroquiaId("");
-    setSearchValue("");
-    setSearchResults([]);
-    setSearchError("");
-    setHasSearched(false);
-    setAddressLabel("");
-    setCoords(null);
+    clearSearchState();
     resetDireccionPayload({ provincia_id: value, canton_id: "" });
   };
 
-  const handleCantonChange = (event) => {
-    const value = event.target.value;
+  const handleCantonChange = (value) => {
     setCantonId(value);
     setParroquiaId("");
-    setSearchValue("");
-    setSearchResults([]);
-    setSearchError("");
-    setHasSearched(false);
-    setAddressLabel("");
-    setCoords(null);
+    clearSearchState();
     resetDireccionPayload({ provincia_id: provinciaId, canton_id: value });
   };
 
-  const handleParroquiaChange = (event) => {
-    setParroquiaId(event.target.value);
-    setSearchResults([]);
-    setSearchError("");
-    setHasSearched(false);
-    setAddressLabel("");
-    setCoords(null);
+  const handleParroquiaChange = (value) => {
+    setParroquiaId(value);
+    clearSearchState();
+  };
+
+  const handleProvinciaClear = () => {
+    setProvinciaId("");
+    setCantonId("");
+    setParroquiaId("");
+    clearSearchState();
+    resetDireccionPayload({ provincia_id: "", canton_id: "" });
+  };
+
+  const handleCantonClear = () => {
+    setCantonId("");
+    setParroquiaId("");
+    clearSearchState();
+    resetDireccionPayload({ provincia_id: provinciaId, canton_id: "" });
+  };
+
+  const handleParroquiaClear = () => {
+    setParroquiaId("");
+    clearSearchState();
   };
 
   const handleSearch = async () => {
@@ -229,7 +242,11 @@ export default function BusinessAddressStep({
       return;
     }
     if (!cantonId) {
-      setSearchError("Selecciona una ciudad");
+      setSearchError("Selecciona un cantón");
+      return;
+    }
+    if (!parroquiaId) {
+      setSearchError("Selecciona una ciudad/sector");
       return;
     }
     if (street.length < 4) {
@@ -309,64 +326,37 @@ export default function BusinessAddressStep({
               </div>
               */}
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="block text-xs text-gray-500 ml-1">
-                    Provincia
-                  </label>
-                  <select
-                    value={provinciaId}
-                    onChange={handleProvinciaChange}
-                    disabled={isLoadingTerritory || Boolean(territoryError)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {isLoadingTerritory ? "Cargando..." : "Selecciona provincia"}
-                    </option>
-                    {provinciaOptions.map((prov) => (
-                      <option key={prov.id} value={prov.id}>
-                        {prov.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="Provincia"
+                  placeholder={
+                    isLoadingTerritory ? "Cargando..." : "Selecciona provincia"
+                  }
+                  value={provinciaId}
+                  options={provinciaOptions}
+                  disabled={isLoadingTerritory || Boolean(territoryError)}
+                  onChange={handleProvinciaChange}
+                  onClear={handleProvinciaClear}
+                />
 
-                <div className="space-y-1">
-                  <label className="block text-xs text-gray-500 ml-1">
-                    Ciudad
-                  </label>
-                  <select
-                    value={cantonId}
-                    onChange={handleCantonChange}
-                    disabled={!canSelectCanton}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">Selecciona ciudad</option>
-                    {cantonOptions.map((canton) => (
-                      <option key={canton.id} value={canton.id}>
-                        {canton.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="Cantón"
+                  placeholder="Selecciona cantón"
+                  value={cantonId}
+                  options={cantonOptions}
+                  disabled={!canSelectCanton}
+                  onChange={handleCantonChange}
+                  onClear={handleCantonClear}
+                />
 
-                <div className="space-y-1">
-                  <label className="block text-xs text-gray-500 ml-1">
-                    Sector (opcional)
-                  </label>
-                  <select
-                    value={parroquiaId}
-                    onChange={handleParroquiaChange}
-                    disabled={!canSelectParroquia}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">Selecciona sector</option>
-                    {parroquiaOptions.map((parroquia) => (
-                      <option key={parroquia.id} value={parroquia.id}>
-                        {parroquia.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  label="Ciudad/sector"
+                  placeholder="Selecciona ciudad/sector"
+                  value={parroquiaId}
+                  options={parroquiaOptions}
+                  disabled={!canSelectParroquia}
+                  onChange={handleParroquiaChange}
+                  onClear={handleParroquiaClear}
+                />
 
                 {territoryError && (
                   <div className="text-xs text-red-500 ml-1">
@@ -375,7 +365,7 @@ export default function BusinessAddressStep({
                 )}
               </div>
 
-              {canSelectParroquia && (
+              {parroquiaId && (
                 <div className="space-y-2">
                   <label className="block text-xs text-gray-500 ml-1">
                     Calle
@@ -507,6 +497,152 @@ export default function BusinessAddressStep({
 
       {/* Modales de ubicación/GPS deshabilitados hasta integrar mapa. */}
     </section>
+  );
+}
+
+function SearchableSelect({
+  label,
+  placeholder,
+  value,
+  options,
+  onChange,
+  onClear,
+  disabled,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+  const lastSelectedRef = useRef(null);
+
+  const selected = useMemo(
+    () => options.find((item) => item.id === value),
+    [options, value]
+  );
+
+  useEffect(() => {
+    setInputValue(selected?.nombre || "");
+    if (selected) {
+      lastSelectedRef.current = selected;
+    }
+  }, [selected?.nombre]);
+
+  const filtered = useMemo(() => {
+    const query = inputValue.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter((item) =>
+      item.nombre.toLowerCase().includes(query)
+    );
+  }, [inputValue, options]);
+
+  const handleSelect = (item) => {
+    lastSelectedRef.current = item;
+    onChange?.(item.id);
+    setInputValue(item.nombre);
+    setIsOpen(false);
+    inputRef.current?.blur();
+  };
+
+  const handleClear = () => {
+    setInputValue("");
+    setIsOpen(false);
+    lastSelectedRef.current = null;
+    onClear?.();
+    if (!isFocused) {
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    setTimeout(() => {
+      setIsOpen(false);
+      const fallback = selected || lastSelectedRef.current;
+      if (!fallback) {
+        setInputValue("");
+      } else {
+        setInputValue(fallback.nombre);
+      }
+    }, 120);
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs text-gray-500 ml-1">{label}</label>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          placeholder={placeholder}
+          onFocus={() => {
+            setIsFocused(true);
+            if (!disabled) setIsOpen(true);
+          }}
+          onClick={() => {
+            if (!disabled) setIsOpen(true);
+          }}
+          onChange={(event) => {
+            setInputValue(event.target.value);
+            if (!disabled) setIsOpen(true);
+          }}
+          onBlur={handleBlur}
+          disabled={disabled}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-9 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+        />
+        {inputValue && !disabled && (
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={handleClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            aria-label={`Limpiar ${label}`}
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        )}
+        {isOpen && !disabled && (
+          <div className="absolute left-0 right-0 top-full mt-2 z-30 rounded-lg border border-gray-200 bg-white shadow-lg max-h-44 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-500">
+                Sin resultados
+              </div>
+            ) : (
+              filtered.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleSelect(item);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {item.nombre}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function XIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6l-12 12" />
+    </svg>
   );
 }
 

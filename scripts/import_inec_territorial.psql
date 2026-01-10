@@ -15,9 +15,7 @@ create temp table if not exists inec_territorial_raw (
 
 truncate table inec_territorial_raw;
 
-\copy inec_territorial_raw (provincia_id, provincia_nombre, canton_id, canton_nombre, parroquia_id, parroquia_nombre, parroquia_tipo, anio)
-from 'public/inec/organizacion-territorial-ecuador-2025.csv'
-with (format csv, header true, encoding 'UTF8');
+\copy inec_territorial_raw (provincia_id, provincia_nombre, canton_id, canton_nombre, parroquia_id, parroquia_nombre, parroquia_tipo, anio) from 'public/inec/organizacion-territorial-ecuador-2025.csv' with (format csv, header true, encoding 'UTF8');
 
 insert into public.provincias (id, nombre)
 select distinct provincia_id, provincia_nombre
