@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
+import {
+  fetchProvincias,
+  fetchCantonesByProvincia,
+  fetchParroquiasByCanton,
+} from "../../services/territoryClient";
 
 export default function BusinessAddressStep({
   innerRef,
@@ -42,31 +47,31 @@ export default function BusinessAddressStep({
   useEffect(() => {
     let active = true;
 
-    const loadTerritory = async () => {
+    const loadProvincias = async () => {
       setIsLoadingTerritory(true);
       setTerritoryError("");
-      try {
-        const response = await fetch(
-          "/inec/organizacion-territorial-ecuador-2025.csv"
-        );
-        if (!response.ok) {
-          throw new Error("No se pudo cargar el catálogo territorial");
-        }
-        const text = await response.text();
-        if (!active) return;
-        const parsed = parseTerritoryCsv(text);
-        setTerritory(parsed);
-      } catch (err) {
-        if (!active) return;
-        setTerritoryError(
-          err?.message || "No se pudo cargar provincias y ciudades"
-        );
-      } finally {
-        if (active) setIsLoadingTerritory(false);
+      const result = await fetchProvincias();
+      if (!active) return;
+      if (!result.ok) {
+        setTerritoryError(result.error || "No se pudo cargar provincias");
+        setIsLoadingTerritory(false);
+        return;
       }
+
+      const provinciaById = {};
+      (result.data || []).forEach((prov) => {
+        provinciaById[prov.id] = prov;
+      });
+
+      setTerritory((prev) => ({
+        ...prev,
+        provincias: result.data || [],
+        provinciaById,
+      }));
+      setIsLoadingTerritory(false);
     };
 
-    loadTerritory();
+    loadProvincias();
     return () => {
       active = false;
     };
@@ -150,6 +155,72 @@ export default function BusinessAddressStep({
       postcode: item.postcode || "",
     });
   };
+
+  useEffect(() => {
+    let active = true;
+    const loadCantones = async () => {
+      if (!provinciaId) return;
+      const result = await fetchCantonesByProvincia(provinciaId);
+      if (!active) return;
+      if (!result.ok) {
+        setTerritoryError(result.error || "No se pudo cargar cantones");
+        return;
+      }
+      const cantonById = {};
+      (result.data || []).forEach((canton) => {
+        cantonById[canton.id] = canton;
+      });
+      setTerritory((prev) => ({
+        ...prev,
+        cantonesByProvincia: {
+          ...prev.cantonesByProvincia,
+          [provinciaId]: result.data || [],
+        },
+        cantonById: {
+          ...prev.cantonById,
+          ...cantonById,
+        },
+      }));
+    };
+
+    loadCantones();
+    return () => {
+      active = false;
+    };
+  }, [provinciaId]);
+
+  useEffect(() => {
+    let active = true;
+    const loadParroquias = async () => {
+      if (!cantonId) return;
+      const result = await fetchParroquiasByCanton(cantonId);
+      if (!active) return;
+      if (!result.ok) {
+        setTerritoryError(result.error || "No se pudo cargar parroquias");
+        return;
+      }
+      const parroquiaById = {};
+      (result.data || []).forEach((parroquia) => {
+        parroquiaById[parroquia.id] = parroquia;
+      });
+      setTerritory((prev) => ({
+        ...prev,
+        parroquiasByCanton: {
+          ...prev.parroquiasByCanton,
+          [cantonId]: result.data || [],
+        },
+        parroquiaById: {
+          ...prev.parroquiaById,
+          ...parroquiaById,
+        },
+      }));
+    };
+
+    loadParroquias();
+    return () => {
+      active = false;
+    };
+  }, [cantonId]);
 
   const provinciaOptions = territory.provincias;
   const cantonOptions = useMemo(
@@ -644,157 +715,6 @@ function XIcon({ className = "" }) {
       <path d="M18 6l-12 12" />
     </svg>
   );
-}
-
-function parseTerritoryCsv(text) {
-  const rows = parseCsvRows(text);
-  if (!rows.length) {
-    return {
-      provincias: [],
-      cantonesByProvincia: {},
-      parroquiasByCanton: {},
-      provinciaById: {},
-      cantonById: {},
-      parroquiaById: {},
-    };
-  }
-
-  const header = rows[0].map((value) => value.trim().toLowerCase());
-  const getIndex = (name) => header.indexOf(name);
-  const idxProvId = getIndex("provincia_id");
-  const idxProvName = getIndex("provincia_nombre");
-  const idxCantonId = getIndex("canton_id");
-  const idxCantonName = getIndex("canton_nombre");
-  const idxParroquiaId = getIndex("parroquia_id");
-  const idxParroquiaName = getIndex("parroquia_nombre");
-  const idxParroquiaTipo = getIndex("parroquia_tipo");
-
-  const provinciaById = {};
-  const cantonById = {};
-  const parroquiaById = {};
-  const cantonesByProvincia = {};
-  const parroquiasByCanton = {};
-  const cantonSeen = new Set();
-  const parroquiaSeen = new Set();
-
-  rows.slice(1).forEach((row) => {
-    const provinciaId = (row[idxProvId] || "").trim();
-    const provinciaNombre = (row[idxProvName] || "").trim();
-    const cantonId = (row[idxCantonId] || "").trim();
-    const cantonNombre = (row[idxCantonName] || "").trim();
-    const parroquiaId = (row[idxParroquiaId] || "").trim();
-    const parroquiaNombre = (row[idxParroquiaName] || "").trim();
-    const parroquiaTipo = (row[idxParroquiaTipo] || "").trim();
-
-    if (provinciaId && provinciaNombre) {
-      provinciaById[provinciaId] = {
-        id: provinciaId,
-        nombre: provinciaNombre,
-      };
-    }
-
-    if (provinciaId && cantonId && cantonNombre && !cantonSeen.has(cantonId)) {
-      cantonSeen.add(cantonId);
-      cantonById[cantonId] = {
-        id: cantonId,
-        provincia_id: provinciaId,
-        nombre: cantonNombre,
-      };
-      if (!cantonesByProvincia[provinciaId]) {
-        cantonesByProvincia[provinciaId] = [];
-      }
-      cantonesByProvincia[provinciaId].push(cantonById[cantonId]);
-    }
-
-    if (cantonId && parroquiaId && parroquiaNombre && !parroquiaSeen.has(parroquiaId)) {
-      parroquiaSeen.add(parroquiaId);
-      parroquiaById[parroquiaId] = {
-        id: parroquiaId,
-        canton_id: cantonId,
-        provincia_id: provinciaId,
-        nombre: parroquiaNombre,
-        tipo: parroquiaTipo,
-      };
-      if (!parroquiasByCanton[cantonId]) {
-        parroquiasByCanton[cantonId] = [];
-      }
-      parroquiasByCanton[cantonId].push(parroquiaById[parroquiaId]);
-    }
-  });
-
-  const provincias = Object.values(provinciaById).sort((a, b) =>
-    a.nombre.localeCompare(b.nombre, "es")
-  );
-
-  Object.keys(cantonesByProvincia).forEach((provId) => {
-    cantonesByProvincia[provId].sort((a, b) =>
-      a.nombre.localeCompare(b.nombre, "es")
-    );
-  });
-
-  Object.keys(parroquiasByCanton).forEach((cantonId) => {
-    parroquiasByCanton[cantonId].sort((a, b) =>
-      a.nombre.localeCompare(b.nombre, "es")
-    );
-  });
-
-  return {
-    provincias,
-    cantonesByProvincia,
-    parroquiasByCanton,
-    provinciaById,
-    cantonById,
-    parroquiaById,
-  };
-}
-
-function parseCsvRows(text) {
-  const rows = [];
-  let row = [];
-  let value = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    if (char === "\"") {
-      const nextChar = text[i + 1];
-      if (inQuotes && nextChar === "\"") {
-        value += "\"";
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (!inQuotes && (char === "\n" || char === "\r")) {
-      if (char === "\r" && text[i + 1] === "\n") {
-        i += 1;
-      }
-      row.push(value);
-      rows.push(row);
-      row = [];
-      value = "";
-      continue;
-    }
-
-    if (!inQuotes && char === ",") {
-      row.push(value);
-      value = "";
-      continue;
-    }
-
-    value += char;
-  }
-
-  if (value.length > 0 || row.length > 0) {
-    row.push(value);
-    rows.push(row);
-  }
-
-  return rows.filter((line) => line.some((cell) => String(cell).trim() !== ""));
-}
-
 function SearchIcon({ className = "" }) {
   return (
     <svg
