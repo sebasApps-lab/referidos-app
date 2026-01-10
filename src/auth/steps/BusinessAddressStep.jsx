@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
+import { searchAddresses } from "../../services/addressSearchClient";
 
 const LOCATION_ERROR = {
   denied: "No diste permiso de ubicación.",
@@ -17,20 +18,16 @@ export default function BusinessAddressStep({
 }) {
   const [stage, setStage] = useState("map");
   const [searchValue, setSearchValue] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [addressLabel, setAddressLabel] = useState("");
   const [coords, setCoords] = useState(null);
   const [localError, setLocalError] = useState("");
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showGpsModal, setShowGpsModal] = useState(false);
   const [requestingLocation, setRequestingLocation] = useState(false);
-  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
-  const dragRef = useRef({
-    dragging: false,
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-  });
 
   useEffect(() => {
     if (!navigator?.geolocation) return;
@@ -66,29 +63,45 @@ export default function BusinessAddressStep({
       });
   }, []);
 
-  const handlePointerDown = (event) => {
-    dragRef.current.dragging = true;
-    dragRef.current.startX = event.clientX;
-    dragRef.current.startY = event.clientY;
-    dragRef.current.originX = mapOffset.x;
-    dragRef.current.originY = mapOffset.y;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
+  useEffect(() => {
+    const trimmed = searchValue.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setSearchError("");
+      setIsSearching(false);
+      return;
+    }
 
-  const handlePointerMove = (event) => {
-    if (!dragRef.current.dragging) return;
-    const dx = event.clientX - dragRef.current.startX;
-    const dy = event.clientY - dragRef.current.startY;
-    setMapOffset({
-      x: dragRef.current.originX + dx,
-      y: dragRef.current.originY + dy,
-    });
-  };
+    if (
+      selectedSuggestion &&
+      trimmed.toLowerCase() === String(selectedSuggestion.label || "").toLowerCase()
+    ) {
+      setSuggestions([]);
+      setSearchError("");
+      setIsSearching(false);
+      return;
+    }
 
-  const handlePointerUp = (event) => {
-    dragRef.current.dragging = false;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  };
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      const result = await searchAddresses(trimmed, {
+        limit: 6,
+        country: "ec",
+        language: "es",
+      });
+      if (!result.ok) {
+        setSearchError("No se pudo buscar direcciones");
+        setSuggestions([]);
+      } else {
+        const results = Array.isArray(result.results) ? result.results : [];
+        setSearchError("");
+        setSuggestions(results);
+      }
+      setIsSearching(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchValue, selectedSuggestion]);
 
   const requestLocation = () => {
     if (!navigator?.geolocation) {
@@ -126,6 +139,18 @@ export default function BusinessAddressStep({
 
   const handleConfirm = () => {
     setLocalError("");
+    if (selectedSuggestion) {
+      setAddressLabel(selectedSuggestion.label || "");
+      if (selectedSuggestion.lat && selectedSuggestion.lng) {
+        setCoords({
+          lat: Number(selectedSuggestion.lat),
+          lng: Number(selectedSuggestion.lng),
+        });
+      }
+      setStage("summary");
+      return;
+    }
+
     const trimmed = searchValue.trim();
     const label = trimmed || (coords ? "Ubicación actual" : "");
     if (!label) {
@@ -135,6 +160,21 @@ export default function BusinessAddressStep({
     setAddressLabel(label);
     setStage("summary");
   };
+
+  const handleSelectSuggestion = (item) => {
+    setSelectedSuggestion(item);
+    setSearchValue(item.label || "");
+    setSuggestions([]);
+    setSearchError("");
+    if (item.lat && item.lng) {
+      setCoords({
+        lat: Number(item.lat),
+        lng: Number(item.lng),
+      });
+    }
+  };
+
+  const hasQuery = searchValue.trim().length >= 3;
 
   return (
     <section
@@ -183,8 +223,42 @@ export default function BusinessAddressStep({
                     className="w-full border border-gray-200 rounded-lg px-9 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
                     placeholder="Buscar dirección"
                     value={searchValue}
-                    onChange={(event) => setSearchValue(event.target.value)}
+                    onChange={(event) => {
+                      setSearchValue(event.target.value);
+                      setSelectedSuggestion(null);
+                    }}
                   />
+                  {(hasQuery || isSearching || searchError) && (
+                    <div className="absolute left-0 right-0 top-full mt-2 z-20 rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+                      {isSearching && (
+                        <div className="px-3 py-2 text-xs text-gray-500">
+                          Buscando...
+                        </div>
+                      )}
+                      {!isSearching && searchError && (
+                        <div className="px-3 py-2 text-xs text-red-500">
+                          {searchError}
+                        </div>
+                      )}
+                      {!isSearching && !searchError && suggestions.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-gray-500">
+                          Sin resultados
+                        </div>
+                      )}
+                      {!isSearching &&
+                        !searchError &&
+                        suggestions.map((item) => (
+                          <button
+                            key={item.id || item.label}
+                            type="button"
+                            onClick={() => handleSelectSuggestion(item)}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -286,14 +360,6 @@ export default function BusinessAddressStep({
         </div>
       )}
     </section>
-  );
-}
-
-function PinIcon({ className = "" }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-      <path d="M12 2a7 7 0 0 0-7 7c0 4.5 5 11 6.4 12.7a.8.8 0 0 0 1.2 0C14 20 19 13.5 19 9a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
-    </svg>
   );
 }
 
