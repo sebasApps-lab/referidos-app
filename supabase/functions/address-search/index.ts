@@ -209,7 +209,23 @@ async function getAuthUser(req: Request, corsHeaders: Record<string, string>) {
 }
 
 function normalizeQuery(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
+  let text = value.toLowerCase().trim();
+  text = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  text = text.replace(/c\//g, "calle ");
+  text = text.replace(/[^a-z0-9\s]/g, " ");
+  const tokens = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => {
+      if (token === "av" || token === "ave" || token === "avda") {
+        return "avenida";
+      }
+      if (token === "cl" || token === "cll") {
+        return "calle";
+      }
+      return token;
+    });
+  return tokens.join(" ");
 }
 
 function buildQueryKey(

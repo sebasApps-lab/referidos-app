@@ -88,6 +88,21 @@ export default function AuthFlow() {
     flow.setSectorNegocio("");
     flow.setCalle1("");
     flow.setCalle2("");
+    flow.setDireccionPayload({
+      place_id: "",
+      label: "",
+      provider: "",
+      lat: null,
+      lng: null,
+      provincia_id: "",
+      canton_id: "",
+      street: "",
+      house_number: "",
+      city: "",
+      region: "",
+      country: "",
+      postcode: "",
+    });
     flow.setEmailError("");
     flow.setWelcomeError("");
     flow.setLoginLoading(false);
@@ -121,6 +136,7 @@ export default function AuthFlow() {
     flow.setTelefono,
     flow.setWelcomeError,
     flow.setWelcomeLoading,
+    flow.setDireccionPayload,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
     flow.setStep,
@@ -140,6 +156,7 @@ export default function AuthFlow() {
     nombreNegocio: flow.nombreNegocio,
     categoriaNegocio: flow.categoriaNegocio,
     isSucursalPrincipal: flow.isSucursalPrincipal,
+    direccionPayload: flow.direccionPayload,
     setEmailError: flow.setEmailError,
     setWelcomeError: flow.setWelcomeError,
     setLoginLoading: flow.setLoginLoading,
@@ -170,6 +187,7 @@ export default function AuthFlow() {
     setSectorNegocio: flow.setSectorNegocio,
     setCalle1: flow.setCalle1,
     setCalle2: flow.setCalle2,
+    setDireccionPayload: flow.setDireccionPayload,
   });
 
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
@@ -432,6 +450,8 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
+                  direccionPayload={flow.direccionPayload}
+                  onChangeDireccionPayload={flow.setDireccionPayload}
                   subtitle={addressSubtitle}
                   error={flow.emailError}
                   onSubmit={actions.handleBusinessAddress}

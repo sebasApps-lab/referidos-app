@@ -48,6 +48,21 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [sectorNegocio, setSectorNegocio] = useState("");
   const [calle1, setCalle1] = useState("");
   const [calle2, setCalle2] = useState("");
+  const [direccionPayload, setDireccionPayload] = useState({
+    place_id: "",
+    label: "",
+    provider: "",
+    lat: null,
+    lng: null,
+    provincia_id: "",
+    canton_id: "",
+    street: "",
+    house_number: "",
+    city: "",
+    region: "",
+    country: "",
+    postcode: "",
+  });
 
   const sliderGap = 28;
   const containerStyle = useMemo(
@@ -158,6 +173,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     sectorNegocio,
     calle1,
     calle2,
+    direccionPayload,
     containerStyle,
     setCardHeight,
     setSliderHeight,
@@ -189,6 +205,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setSectorNegocio,
     setCalle1,
     setCalle2,
+    setDireccionPayload,
     goToStep,
   };
 }

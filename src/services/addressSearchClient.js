@@ -1,19 +1,32 @@
 // src/services/addressSearchClient.js
 import { supabase } from "../lib/supabaseClient";
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const MIN_INTERVAL_MS = 500;
-const MIN_QUERY_LENGTH = 3;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const MIN_INTERVAL_MS = 700;
+const MIN_QUERY_LENGTH = 4;
 
 const memoryCache = new Map();
 const inFlight = new Map();
 let lastRequestAt = 0;
 
 function normalizeQuery(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+  let text = String(value || "").toLowerCase().trim();
+  text = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  text = text.replace(/c\//g, "calle ");
+  text = text.replace(/[^a-z0-9\s]/g, " ");
+  const tokens = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => {
+      if (token === "av" || token === "ave" || token === "avda") {
+        return "avenida";
+      }
+      if (token === "cl" || token === "cll") {
+        return "calle";
+      }
+      return token;
+    });
+  return tokens.join(" ");
 }
 
 function buildKey(query, { limit, country, language }) {
@@ -75,7 +88,10 @@ export async function searchAddresses(
       return { ok: false, error: error.message || String(error) };
     }
 
-    const results = Array.isArray(data?.results) ? data.results : [];
+    const provider = data?.provider || data?.source || "edge";
+    const results = Array.isArray(data?.results)
+      ? data.results.map((item) => ({ ...item, provider }))
+      : [];
     memoryCache.set(key, { ts: Date.now(), results });
     return { ok: true, results, source: data?.source || "edge" };
   })();

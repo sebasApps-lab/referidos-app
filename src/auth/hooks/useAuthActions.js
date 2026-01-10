@@ -40,6 +40,7 @@ export default function useAuthActions({
   nombreNegocio,
   categoriaNegocio,
   isSucursalPrincipal,
+  direccionPayload,
   step,
   setEmailError,
   setWelcomeError,
@@ -672,12 +673,165 @@ export default function useAuthActions({
 
   const handleBusinessAddress = useCallback(async () => {
     setEmailError("");
+    const placeId = String(direccionPayload?.place_id || "").trim();
+    const label = String(direccionPayload?.label || "").trim();
+    const provider = String(direccionPayload?.provider || "").trim();
+    const provinciaId = String(direccionPayload?.provincia_id || "").trim();
+    const cantonId = String(direccionPayload?.canton_id || "").trim();
+    const latValue = direccionPayload?.lat ?? null;
+    const lngValue = direccionPayload?.lng ?? null;
+    if (!placeId || !label) {
+      setEmailError("Selecciona una dirección de la lista");
+      return;
+    }
+
+    const street = String(direccionPayload?.street || "").trim();
+    const houseNumber = String(direccionPayload?.house_number || "").trim();
+    const city = String(direccionPayload?.city || "").trim();
+    const region = String(direccionPayload?.region || "").trim();
+    const country = String(direccionPayload?.country || "").trim();
+
+    const calle1 = street
+      ? [street, houseNumber].filter(Boolean).join(" ")
+      : label;
+    const ciudad = city || region || country || "Ecuador";
+    const sector = region || city || country || "Ecuador";
+
+    if (latValue == null || lngValue == null) {
+      setEmailError("Selecciona una dirección válida");
+      return;
+    }
+
+    const session = (await supabase.auth.getSession())?.data?.session;
+    const userId = session?.user?.id;
+    if (!userId) {
+      setEmailError("No hay sesión activa. Inicia sesión y vuelve a intentar.");
+      return;
+    }
+
+    const { data: userRow, error: userErr } = await supabase
+      .from("usuarios")
+      .select("id, role")
+      .eq("id_auth", userId)
+      .maybeSingle();
+
+    if (userErr || !userRow) {
+      setEmailError(userErr?.message || "No se pudo leer el perfil");
+      return;
+    }
+    if (userRow.role !== "negocio") {
+      setEmailError("Tu cuenta no es de negocio");
+      return;
+    }
+
+    const { data: negocioRow, error: negErr } = await supabase
+      .from("negocios")
+      .select("id")
+      .eq("usuarioid", userRow.id)
+      .maybeSingle();
+
+    if (negErr || !negocioRow) {
+      setEmailError(negErr?.message || "No se pudo leer el negocio");
+      return;
+    }
+
+    const { data: sucursales, error: sucErr } = await supabase
+      .from("sucursales")
+      .select("id, direccion_id, status, tipo, fechacreacion")
+      .eq("negocioid", negocioRow.id)
+      .order("fechacreacion", { ascending: false });
+
+    if (sucErr) {
+      setEmailError(sucErr.message || "No se pudo leer sucursales");
+      return;
+    }
+
+    const allSucursales = Array.isArray(sucursales) ? sucursales : [];
+    const draftSucursal = allSucursales.find(
+      (row) => String(row.status || "draft").toLowerCase() === "draft"
+    );
+    const targetSucursal = draftSucursal || allSucursales[0] || null;
+
+    const direccionData = {
+      owner_id: userRow.id,
+      calle_1: calle1,
+      calle_2: null,
+      referencia: null,
+      ciudad,
+      sector,
+      lat: Number(latValue),
+      lng: Number(lngValue),
+      place_id: placeId,
+      label,
+      provider: provider || null,
+      provincia_id: provinciaId || null,
+      canton_id: cantonId || null,
+    };
+
+    let direccionId = targetSucursal?.direccion_id || null;
+
+    if (direccionId) {
+      const { error: dirErr } = await supabase
+        .from("direcciones")
+        .update(direccionData)
+        .eq("id", direccionId);
+      if (dirErr) {
+        setEmailError(dirErr.message || "No se pudo actualizar la dirección");
+        return;
+      }
+    } else {
+      const { data: newDir, error: dirErr } = await supabase
+        .from("direcciones")
+        .insert(direccionData)
+        .select("id")
+        .maybeSingle();
+      if (dirErr || !newDir?.id) {
+        setEmailError(dirErr?.message || "No se pudo guardar la dirección");
+        return;
+      }
+      direccionId = newDir.id;
+    }
+
+    const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
+    const statusValue =
+      String(targetSucursal?.status || "").trim() || "draft";
+
+    if (targetSucursal) {
+      const { error: updErr } = await supabase
+        .from("sucursales")
+        .update({
+          direccion_id: direccionId,
+          tipo: tipoValue,
+          status: statusValue,
+        })
+        .eq("id", targetSucursal.id);
+
+      if (updErr) {
+        setEmailError(updErr.message || "No se pudo actualizar la sucursal");
+        return;
+      }
+    } else {
+      const { error: insErr } = await supabase
+        .from("sucursales")
+        .insert({
+          negocioid: negocioRow.id,
+          direccion_id: direccionId,
+          tipo: tipoValue,
+          status: "draft",
+        });
+
+      if (insErr) {
+        setEmailError(insErr.message || "No se pudo crear la sucursal");
+        return;
+      }
+    }
+
     const result = await runValidateRegistration();
     if (!result?.ok || !result?.valid) {
-      setEmailError(result?.message || result?.error || "Aun falta completar datos");
+      setEmailError(result?.message || result?.error || "Aún falta completar datos");
     }
     await bootstrapAuth({ force: true });
-  }, [bootstrapAuth, setEmailError]);
+  }, [bootstrapAuth, direccionPayload, isSucursalPrincipal, setEmailError]);
 
   const handleButtonBack = useCallback(() => {
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {

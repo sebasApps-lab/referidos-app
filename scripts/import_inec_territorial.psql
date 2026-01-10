@@ -1,0 +1,64 @@
+\set ON_ERROR_STOP on
+
+begin;
+
+create temp table if not exists inec_territorial_raw (
+  provincia_id text,
+  provincia_nombre text,
+  canton_id text,
+  canton_nombre text,
+  parroquia_id text,
+  parroquia_nombre text,
+  parroquia_tipo text,
+  anio text
+);
+
+truncate table inec_territorial_raw;
+
+\copy inec_territorial_raw (provincia_id, provincia_nombre, canton_id, canton_nombre, parroquia_id, parroquia_nombre, parroquia_tipo, anio)
+from 'public/inec/organizacion-territorial-ecuador-2025.csv'
+with (format csv, header true, encoding 'UTF8');
+
+insert into public.provincias (id, nombre)
+select distinct provincia_id, provincia_nombre
+from inec_territorial_raw
+where provincia_id is not null
+  and provincia_id <> ''
+  and provincia_nombre is not null
+  and provincia_nombre <> ''
+on conflict (id)
+do update set nombre = excluded.nombre;
+
+insert into public.cantones (id, provincia_id, nombre)
+select distinct canton_id, provincia_id, canton_nombre
+from inec_territorial_raw
+where canton_id is not null
+  and canton_id <> ''
+  and provincia_id is not null
+  and provincia_id <> ''
+  and canton_nombre is not null
+  and canton_nombre <> ''
+on conflict (id)
+do update set
+  provincia_id = excluded.provincia_id,
+  nombre = excluded.nombre;
+
+insert into public.parroquias (id, canton_id, provincia_id, nombre, tipo)
+select distinct parroquia_id, canton_id, provincia_id, parroquia_nombre, nullif(parroquia_tipo, '')
+from inec_territorial_raw
+where parroquia_id is not null
+  and parroquia_id <> ''
+  and canton_id is not null
+  and canton_id <> ''
+  and provincia_id is not null
+  and provincia_id <> ''
+  and parroquia_nombre is not null
+  and parroquia_nombre <> ''
+on conflict (id)
+do update set
+  canton_id = excluded.canton_id,
+  provincia_id = excluded.provincia_id,
+  nombre = excluded.nombre,
+  tipo = excluded.tipo;
+
+commit;

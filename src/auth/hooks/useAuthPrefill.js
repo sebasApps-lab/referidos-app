@@ -22,6 +22,7 @@ export default function useAuthPrefill({
   setSectorNegocio,
   setCalle1,
   setCalle2,
+  setDireccionPayload,
 }) {
   const choiceOpenedRef = useRef(false);
   const direccionRequestRef = useRef(0);
@@ -43,10 +44,26 @@ export default function useAuthPrefill({
       });
       setCategoriaNegocio?.("");
       setIsSucursalPrincipal?.(false);
+      setDireccionPayload?.({
+        place_id: "",
+        label: "",
+        provider: "",
+        lat: null,
+        lng: null,
+        provincia_id: "",
+        canton_id: "",
+        street: "",
+        house_number: "",
+        city: "",
+        region: "",
+        country: "",
+        postcode: "",
+      });
     }
   }, [
     setBusinessPrefill,
     setCategoriaNegocio,
+    setDireccionPayload,
     setGenero,
     setIsSucursalPrincipal,
     setOwnerPrefill,
@@ -73,6 +90,21 @@ export default function useAuthPrefill({
       });
       setCategoriaNegocio?.("");
       setIsSucursalPrincipal?.(false);
+      setDireccionPayload?.({
+        place_id: "",
+        label: "",
+        provider: "",
+        lat: null,
+        lng: null,
+        provincia_id: "",
+        canton_id: "",
+        street: "",
+        house_number: "",
+        city: "",
+        region: "",
+        country: "",
+        postcode: "",
+      });
       if (onboardingOk && !choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -96,6 +128,21 @@ export default function useAuthPrefill({
       });
       setCategoriaNegocio?.("");
       setIsSucursalPrincipal?.(false);
+      setDireccionPayload?.({
+        place_id: "",
+        label: "",
+        provider: "",
+        lat: null,
+        lng: null,
+        provincia_id: "",
+        canton_id: "",
+        street: "",
+        house_number: "",
+        city: "",
+        region: "",
+        country: "",
+        postcode: "",
+      });
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
         setStep(AUTH_STEPS.ROLE_SELECT);
@@ -181,7 +228,7 @@ export default function useAuthPrefill({
         const requestId = ++direccionRequestRef.current;
         supabase
           .from("direcciones")
-          .select("calle_1, calle_2, sector")
+          .select("calle_1, calle_2, sector, ciudad, lat, lng, place_id, label, provider, provincia_id, canton_id")
           .eq("id", direccionId)
           .maybeSingle()
           .then(({ data, error }) => {
@@ -190,6 +237,21 @@ export default function useAuthPrefill({
             setCalle1(data.calle_1 || "");
             setCalle2(data.calle_2 || "");
             setSectorNegocio(data.sector || "");
+            setDireccionPayload?.({
+              place_id: data.place_id || "",
+              label: data.label || "",
+              provider: data.provider || "",
+              lat: data.lat ?? null,
+              lng: data.lng ?? null,
+              provincia_id: data.provincia_id || "",
+              canton_id: data.canton_id || "",
+              street: data.calle_1 || "",
+              house_number: "",
+              city: data.ciudad || "",
+              region: data.sector || "",
+              country: "",
+              postcode: "",
+            });
           })
           .catch(() => {});
       }
@@ -201,6 +263,7 @@ export default function useAuthPrefill({
     setCalle1,
     setCalle2,
     setCategoriaNegocio,
+    setDireccionPayload,
     setEmailError,
     setStep,
     setNombreDueno,

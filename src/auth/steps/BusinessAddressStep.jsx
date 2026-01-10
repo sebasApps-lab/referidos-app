@@ -1,170 +1,132 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
-
-const LOCATION_ERROR = {
-  denied: "No diste permiso de ubicación.",
-  unavailable: "El GPS no está activado.",
-  timeout: "No se pudo obtener tu ubicación.",
-};
 
 export default function BusinessAddressStep({
   innerRef,
   isSucursalPrincipal,
   onChangeSucursalPrincipal,
+  direccionPayload,
+  onChangeDireccionPayload,
   subtitle,
   error,
   onSubmit,
 }) {
   const [stage, setStage] = useState("map");
   const [searchValue, setSearchValue] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [addressLabel, setAddressLabel] = useState("");
   const [coords, setCoords] = useState(null);
   const [localError, setLocalError] = useState("");
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [showGpsModal, setShowGpsModal] = useState(false);
-  const [requestingLocation, setRequestingLocation] = useState(false);
+  const [territory, setTerritory] = useState({
+    provincias: [],
+    cantonesByProvincia: {},
+    parroquiasByCanton: {},
+    provinciaById: {},
+    cantonById: {},
+    parroquiaById: {},
+  });
+  const [territoryError, setTerritoryError] = useState("");
+  const [isLoadingTerritory, setIsLoadingTerritory] = useState(true);
+  const [provinciaId, setProvinciaId] = useState(
+    () => direccionPayload?.provincia_id || ""
+  );
+  const [cantonId, setCantonId] = useState(
+    () => direccionPayload?.canton_id || ""
+  );
+  const [parroquiaId, setParroquiaId] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
-    if (!navigator?.geolocation) return;
-    if (!navigator.permissions?.query) {
-      setShowLocationModal(true);
-      return;
-    }
+    let active = true;
 
-    navigator.permissions
-      .query({ name: "geolocation" })
-      .then((status) => {
-        if (status.state !== "granted") {
-          setShowLocationModal(true);
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setCoords({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-            });
-          },
-          (err) => {
-            if (err.code === err.POSITION_UNAVAILABLE) {
-              setShowGpsModal(true);
-            }
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
+    const loadTerritory = async () => {
+      setIsLoadingTerritory(true);
+      setTerritoryError("");
+      try {
+        const response = await fetch(
+          "/inec/organizacion-territorial-ecuador-2025.csv"
         );
-      })
-      .catch(() => {
-        setShowLocationModal(true);
-      });
+        if (!response.ok) {
+          throw new Error("No se pudo cargar el catálogo territorial");
+        }
+        const text = await response.text();
+        if (!active) return;
+        const parsed = parseTerritoryCsv(text);
+        setTerritory(parsed);
+      } catch (err) {
+        if (!active) return;
+        setTerritoryError(
+          err?.message || "No se pudo cargar provincias y ciudades"
+        );
+      } finally {
+        if (active) setIsLoadingTerritory(false);
+      }
+    };
+
+    loadTerritory();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    const trimmed = searchValue.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setSearchError("");
-      setIsSearching(false);
-      return;
+    if (!provinciaId && direccionPayload?.provincia_id) {
+      setProvinciaId(direccionPayload.provincia_id);
     }
-
-    if (
-      selectedSuggestion &&
-      trimmed.toLowerCase() === String(selectedSuggestion.label || "").toLowerCase()
-    ) {
-      setSuggestions([]);
-      setSearchError("");
-      setIsSearching(false);
-      return;
+    if (!cantonId && direccionPayload?.canton_id) {
+      setCantonId(direccionPayload.canton_id);
     }
+  }, [direccionPayload?.canton_id, direccionPayload?.provincia_id, cantonId, provinciaId]);
 
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      const result = await searchAddresses(trimmed, {
-        limit: 6,
-        country: "ec",
-        language: "es",
-      });
-      if (!result.ok) {
-        setSearchError("No se pudo buscar direcciones");
-        setSuggestions([]);
-      } else {
-        const results = Array.isArray(result.results) ? result.results : [];
-        setSearchError("");
-        setSuggestions(results);
-      }
-      setIsSearching(false);
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [searchValue, selectedSuggestion]);
-
-  const requestLocation = () => {
-    if (!navigator?.geolocation) {
-      setLocalError("Tu navegador no soporta ubicación.");
-      return;
+  useEffect(() => {
+    if (!provinciaId) {
+      setCantonId("");
+      setParroquiaId("");
     }
-    setRequestingLocation(true);
-    setLocalError("");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-        setShowLocationModal(false);
-        setShowGpsModal(false);
-        setRequestingLocation(false);
-      },
-      (err) => {
-        setRequestingLocation(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setLocalError(LOCATION_ERROR.denied);
-          setShowLocationModal(true);
-          return;
-        }
-        if (err.code === err.POSITION_UNAVAILABLE) {
-          setShowGpsModal(true);
-          return;
-        }
-        setLocalError(LOCATION_ERROR.timeout);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
+  }, [provinciaId]);
+
+  useEffect(() => {
+    if (!cantonId) {
+      setParroquiaId("");
+    }
+  }, [cantonId]);
 
   const handleConfirm = () => {
     setLocalError("");
-    if (selectedSuggestion) {
-      setAddressLabel(selectedSuggestion.label || "");
-      if (selectedSuggestion.lat && selectedSuggestion.lng) {
-        setCoords({
-          lat: Number(selectedSuggestion.lat),
-          lng: Number(selectedSuggestion.lng),
-        });
-      }
-      setStage("summary");
-      return;
-    }
-
-    const trimmed = searchValue.trim();
-    const label = trimmed || (coords ? "Ubicación actual" : "");
-    if (!label) {
-      setLocalError("Ingresa una dirección o activa tu ubicación.");
+    const placeId = String(direccionPayload?.place_id || "").trim();
+    const label = String(direccionPayload?.label || "").trim();
+    if (!placeId || !label) {
+      setLocalError("Selecciona una dirección de la lista.");
       return;
     }
     setAddressLabel(label);
     setStage("summary");
   };
 
+  const resetDireccionPayload = (overrides = {}) => {
+    onChangeDireccionPayload?.({
+      place_id: "",
+      label: "",
+      provider: "",
+      lat: null,
+      lng: null,
+      provincia_id: overrides.provincia_id ?? provinciaId ?? "",
+      canton_id: overrides.canton_id ?? cantonId ?? "",
+      street: "",
+      house_number: "",
+      city: "",
+      region: "",
+      country: "",
+      postcode: "",
+    });
+  };
+
   const handleSelectSuggestion = (item) => {
-    setSelectedSuggestion(item);
     setSearchValue(item.label || "");
-    setSuggestions([]);
+    setSearchResults([]);
     setSearchError("");
     if (item.lat && item.lng) {
       setCoords({
@@ -172,9 +134,140 @@ export default function BusinessAddressStep({
         lng: Number(item.lng),
       });
     }
+    onChangeDireccionPayload?.({
+      place_id: item.id,
+      label: item.label || "",
+      provider: item.provider || "",
+      lat: item.lat ?? null,
+      lng: item.lng ?? null,
+      provincia_id: provinciaId || "",
+      canton_id: cantonId || "",
+      street: item.street || "",
+      house_number: item.house_number || "",
+      city: item.city || "",
+      region: item.region || "",
+      country: item.country || "",
+      postcode: item.postcode || "",
+    });
   };
 
-  const hasQuery = searchValue.trim().length >= 3;
+  const provinciaOptions = territory.provincias;
+  const cantonOptions = useMemo(
+    () => territory.cantonesByProvincia[provinciaId] || [],
+    [territory.cantonesByProvincia, provinciaId]
+  );
+  const parroquiaOptions = useMemo(
+    () => territory.parroquiasByCanton[cantonId] || [],
+    [territory.parroquiasByCanton, cantonId]
+  );
+
+  const provinciaNombre = territory.provinciaById[provinciaId]?.nombre || "";
+  const cantonNombre = territory.cantonById[cantonId]?.nombre || "";
+  const parroquiaNombre =
+    territory.parroquiaById[parroquiaId]?.nombre || "";
+
+  const canSelectCanton = Boolean(provinciaId);
+  const canSelectParroquia = Boolean(cantonId);
+  const canSearch =
+    canSelectParroquia &&
+    searchValue.trim().length >= 4 &&
+    !isSearching;
+
+  const canConfirm = Boolean(
+    String(direccionPayload?.place_id || "").trim() &&
+      String(direccionPayload?.label || "").trim()
+  );
+  const displayCoords =
+    coords ||
+    (direccionPayload?.lat != null && direccionPayload?.lng != null
+      ? { lat: Number(direccionPayload.lat), lng: Number(direccionPayload.lng) }
+      : null);
+
+  const handleProvinciaChange = (event) => {
+    const value = event.target.value;
+    setProvinciaId(value);
+    setCantonId("");
+    setParroquiaId("");
+    setSearchValue("");
+    setSearchResults([]);
+    setSearchError("");
+    setHasSearched(false);
+    setAddressLabel("");
+    setCoords(null);
+    resetDireccionPayload({ provincia_id: value, canton_id: "" });
+  };
+
+  const handleCantonChange = (event) => {
+    const value = event.target.value;
+    setCantonId(value);
+    setParroquiaId("");
+    setSearchValue("");
+    setSearchResults([]);
+    setSearchError("");
+    setHasSearched(false);
+    setAddressLabel("");
+    setCoords(null);
+    resetDireccionPayload({ provincia_id: provinciaId, canton_id: value });
+  };
+
+  const handleParroquiaChange = (event) => {
+    setParroquiaId(event.target.value);
+    setSearchResults([]);
+    setSearchError("");
+    setHasSearched(false);
+    setAddressLabel("");
+    setCoords(null);
+  };
+
+  const handleSearch = async () => {
+    setLocalError("");
+    setCoords(null);
+    setAddressLabel("");
+    const street = searchValue.trim();
+    if (!provinciaId) {
+      setSearchError("Selecciona una provincia");
+      return;
+    }
+    if (!cantonId) {
+      setSearchError("Selecciona una ciudad");
+      return;
+    }
+    if (street.length < 4) {
+      setSearchError("Ingresa la calle");
+      return;
+    }
+    const query = [
+      street,
+      parroquiaNombre,
+      cantonNombre,
+      provinciaNombre,
+      "Ecuador",
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    resetDireccionPayload({ provincia_id: provinciaId, canton_id: cantonId });
+    setIsSearching(true);
+    setHasSearched(true);
+    setSearchError("");
+    setSearchResults([]);
+
+    const result = await searchAddresses(query, {
+      limit: 6,
+      country: "ec",
+      language: "es",
+    });
+
+    if (!result.ok) {
+      setSearchError("No se pudo buscar direcciones");
+      setSearchResults([]);
+    } else {
+      const results = Array.isArray(result.results) ? result.results : [];
+      setSearchResults(results);
+    }
+
+    setIsSearching(false);
+  };
 
   return (
     <section
@@ -215,21 +308,108 @@ export default function BusinessAddressStep({
                 </div>
               </div>
               */}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Provincia
+                  </label>
+                  <select
+                    value={provinciaId}
+                    onChange={handleProvinciaChange}
+                    disabled={isLoadingTerritory || Boolean(territoryError)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                  >
+                    <option value="">
+                      {isLoadingTerritory ? "Cargando..." : "Selecciona provincia"}
+                    </option>
+                    {provinciaOptions.map((prov) => (
+                      <option key={prov.id} value={prov.id}>
+                        {prov.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-2">
-                <div className="relative">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    className="w-full border border-gray-200 rounded-lg px-9 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
-                    placeholder="Buscar dirección"
-                    value={searchValue}
-                    onChange={(event) => {
-                      setSearchValue(event.target.value);
-                      setSelectedSuggestion(null);
-                    }}
-                  />
-                  {(hasQuery || isSearching || searchError) && (
-                    <div className="absolute left-0 right-0 top-full mt-2 z-20 rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden">
+                <div className="space-y-1">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Ciudad
+                  </label>
+                  <select
+                    value={cantonId}
+                    onChange={handleCantonChange}
+                    disabled={!canSelectCanton}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                  >
+                    <option value="">Selecciona ciudad</option>
+                    {cantonOptions.map((canton) => (
+                      <option key={canton.id} value={canton.id}>
+                        {canton.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Sector (opcional)
+                  </label>
+                  <select
+                    value={parroquiaId}
+                    onChange={handleParroquiaChange}
+                    disabled={!canSelectParroquia}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                  >
+                    <option value="">Selecciona sector</option>
+                    {parroquiaOptions.map((parroquia) => (
+                      <option key={parroquia.id} value={parroquia.id}>
+                        {parroquia.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {territoryError && (
+                  <div className="text-xs text-red-500 ml-1">
+                    {territoryError}
+                  </div>
+                )}
+              </div>
+
+              {canSelectParroquia && (
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Calle
+                  </label>
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-9 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+                      placeholder="Escribe la calle"
+                      value={searchValue}
+                      onChange={(event) => {
+                        setSearchValue(event.target.value);
+                        setSearchResults([]);
+                        setSearchError("");
+                        setHasSearched(false);
+                        setCoords(null);
+                        setAddressLabel("");
+                        resetDireccionPayload({
+                          provincia_id: provinciaId,
+                          canton_id: cantonId,
+                        });
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    disabled={!canSearch}
+                    className="w-full border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSearching ? "Buscando..." : "Buscar"}
+                  </button>
+                  {(isSearching || searchError || hasSearched) && (
+                    <div className="border border-gray-200 rounded-lg max-h-44 overflow-y-auto bg-white">
                       {isSearching && (
                         <div className="px-3 py-2 text-xs text-gray-500">
                           Buscando...
@@ -240,14 +420,16 @@ export default function BusinessAddressStep({
                           {searchError}
                         </div>
                       )}
-                      {!isSearching && !searchError && suggestions.length === 0 && (
-                        <div className="px-3 py-2 text-xs text-gray-500">
-                          Sin resultados
-                        </div>
-                      )}
                       {!isSearching &&
                         !searchError &&
-                        suggestions.map((item) => (
+                        searchResults.length === 0 && (
+                          <div className="px-3 py-2 text-xs text-gray-500">
+                            Sin resultados
+                          </div>
+                        )}
+                      {!isSearching &&
+                        !searchError &&
+                        searchResults.map((item) => (
                           <button
                             key={item.id || item.label}
                             type="button"
@@ -260,14 +442,18 @@ export default function BusinessAddressStep({
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow"
-                >
-                  Confirmar
-                </button>
-              </div>
+              )}
+            </div>
+
+            <div className="mt-auto pt-4">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={!canConfirm}
+                className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Confirmar
+              </button>
             </div>
           </>
         ) : (
@@ -282,13 +468,15 @@ export default function BusinessAddressStep({
                   Dirección confirmada
                 </label>
                 <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900">
-                  {addressLabel || "Sin dirección"}
+                  {addressLabel ||
+                    direccionPayload?.label ||
+                    "Sin dirección"}
                 </div>
               </div>
 
-              {coords ? (
+              {displayCoords ? (
                 <div className="text-xs text-gray-500 ml-1">
-                  {`Lat: ${coords.lat.toFixed(6)} • Lng: ${coords.lng.toFixed(6)}`}
+                  {`Lat: ${displayCoords.lat.toFixed(6)} • Lng: ${displayCoords.lng.toFixed(6)}`}
                 </div>
               ) : null}
 
@@ -317,50 +505,158 @@ export default function BusinessAddressStep({
         )}
       </div>
 
-      {showLocationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6 backdrop-blur-[2px]">
-          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-[#0F172A] text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#F3E8FF] text-[#5E30A5]">
-              <LocationOffIcon className="h-7 w-7" />
-            </div>
-            <h3 className="text-lg font-semibold">Activa tu ubicación</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Necesitamos tu ubicación para ubicar tu negocio en el mapa.
-            </p>
-            <button
-              type="button"
-              onClick={requestLocation}
-              disabled={requestingLocation}
-              className="mt-5 w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60"
-            >
-              {requestingLocation ? "Activando..." : "Activar ubicación"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showGpsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6 backdrop-blur-[2px]">
-          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 text-[#0F172A] text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FEE2E2] text-[#B91C1C]">
-              <GpsOffIcon className="h-7 w-7" />
-            </div>
-            <h3 className="text-lg font-semibold">El GPS no está activado</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Enciende el GPS e intenta nuevamente para continuar.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowGpsModal(false)}
-              className="mt-5 w-full border border-gray-300 text-gray-600 font-semibold py-2.5 rounded-lg"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Modales de ubicación/GPS deshabilitados hasta integrar mapa. */}
     </section>
   );
+}
+
+function parseTerritoryCsv(text) {
+  const rows = parseCsvRows(text);
+  if (!rows.length) {
+    return {
+      provincias: [],
+      cantonesByProvincia: {},
+      parroquiasByCanton: {},
+      provinciaById: {},
+      cantonById: {},
+      parroquiaById: {},
+    };
+  }
+
+  const header = rows[0].map((value) => value.trim().toLowerCase());
+  const getIndex = (name) => header.indexOf(name);
+  const idxProvId = getIndex("provincia_id");
+  const idxProvName = getIndex("provincia_nombre");
+  const idxCantonId = getIndex("canton_id");
+  const idxCantonName = getIndex("canton_nombre");
+  const idxParroquiaId = getIndex("parroquia_id");
+  const idxParroquiaName = getIndex("parroquia_nombre");
+  const idxParroquiaTipo = getIndex("parroquia_tipo");
+
+  const provinciaById = {};
+  const cantonById = {};
+  const parroquiaById = {};
+  const cantonesByProvincia = {};
+  const parroquiasByCanton = {};
+  const cantonSeen = new Set();
+  const parroquiaSeen = new Set();
+
+  rows.slice(1).forEach((row) => {
+    const provinciaId = (row[idxProvId] || "").trim();
+    const provinciaNombre = (row[idxProvName] || "").trim();
+    const cantonId = (row[idxCantonId] || "").trim();
+    const cantonNombre = (row[idxCantonName] || "").trim();
+    const parroquiaId = (row[idxParroquiaId] || "").trim();
+    const parroquiaNombre = (row[idxParroquiaName] || "").trim();
+    const parroquiaTipo = (row[idxParroquiaTipo] || "").trim();
+
+    if (provinciaId && provinciaNombre) {
+      provinciaById[provinciaId] = {
+        id: provinciaId,
+        nombre: provinciaNombre,
+      };
+    }
+
+    if (provinciaId && cantonId && cantonNombre && !cantonSeen.has(cantonId)) {
+      cantonSeen.add(cantonId);
+      cantonById[cantonId] = {
+        id: cantonId,
+        provincia_id: provinciaId,
+        nombre: cantonNombre,
+      };
+      if (!cantonesByProvincia[provinciaId]) {
+        cantonesByProvincia[provinciaId] = [];
+      }
+      cantonesByProvincia[provinciaId].push(cantonById[cantonId]);
+    }
+
+    if (cantonId && parroquiaId && parroquiaNombre && !parroquiaSeen.has(parroquiaId)) {
+      parroquiaSeen.add(parroquiaId);
+      parroquiaById[parroquiaId] = {
+        id: parroquiaId,
+        canton_id: cantonId,
+        provincia_id: provinciaId,
+        nombre: parroquiaNombre,
+        tipo: parroquiaTipo,
+      };
+      if (!parroquiasByCanton[cantonId]) {
+        parroquiasByCanton[cantonId] = [];
+      }
+      parroquiasByCanton[cantonId].push(parroquiaById[parroquiaId]);
+    }
+  });
+
+  const provincias = Object.values(provinciaById).sort((a, b) =>
+    a.nombre.localeCompare(b.nombre, "es")
+  );
+
+  Object.keys(cantonesByProvincia).forEach((provId) => {
+    cantonesByProvincia[provId].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es")
+    );
+  });
+
+  Object.keys(parroquiasByCanton).forEach((cantonId) => {
+    parroquiasByCanton[cantonId].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es")
+    );
+  });
+
+  return {
+    provincias,
+    cantonesByProvincia,
+    parroquiasByCanton,
+    provinciaById,
+    cantonById,
+    parroquiaById,
+  };
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === "\"") {
+      const nextChar = text[i + 1];
+      if (inQuotes && nextChar === "\"") {
+        value += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && (char === "\n" || char === "\r")) {
+      if (char === "\r" && text[i + 1] === "\n") {
+        i += 1;
+      }
+      row.push(value);
+      rows.push(row);
+      row = [];
+      value = "";
+      continue;
+    }
+
+    if (!inQuotes && char === ",") {
+      row.push(value);
+      value = "";
+      continue;
+    }
+
+    value += char;
+  }
+
+  if (value.length > 0 || row.length > 0) {
+    row.push(value);
+    rows.push(row);
+  }
+
+  return rows.filter((line) => line.some((cell) => String(cell).trim() !== ""));
 }
 
 function SearchIcon({ className = "" }) {
@@ -376,45 +672,6 @@ function SearchIcon({ className = "" }) {
     >
       <circle cx="11" cy="11" r="7" />
       <path d="M20 20l-3.5-3.5" />
-    </svg>
-  );
-}
-
-function LocationOffIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 6a3 3 0 0 1 3 3" />
-      <path d="M12 2a7 7 0 0 1 7 7c0 4.5-5 11-7 13-2-2-7-8.5-7-13a7 7 0 0 1 7-7" />
-      <path d="M4 4l16 16" />
-    </svg>
-  );
-}
-
-function GpsOffIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 4l0 3" />
-      <path d="M12 17l0 3" />
-      <path d="M4 12l3 0" />
-      <path d="M17 12l3 0" />
-      <path d="M12 8a4 4 0 1 1-4 4" />
-      <path d="M4 4l16 16" />
     </svg>
   );
 }

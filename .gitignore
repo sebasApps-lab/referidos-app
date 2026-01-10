@@ -19,6 +19,9 @@ dist-ssr
 .env.production
 .env.development
 !.env.example
+public/inec/*.ods
+public/inec/*.zip
+!public/inec/*.csv
 
 # Editor directories and files
 .vscode/*
