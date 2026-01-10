@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import {
@@ -30,6 +30,11 @@ export default function BusinessAddressStep({
   const [addressLabel, setAddressLabel] = useState("");
   const [coords, setCoords] = useState(null);
   const [localError, setLocalError] = useState("");
+  const [mapStatus, setMapStatus] = useState("loading");
+  const [mapGate, setMapGate] = useState("pending");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [gpsModalOpen, setGpsModalOpen] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -104,35 +109,137 @@ export default function BusinessAddressStep({
     }
   }, [cantonId]);
 
-  const buildDireccionPayload = (overrides = {}) => ({
-    place_id: "",
-    label: "",
-    provider: "",
-    lng: null,
-    provincia_id: "",
-    canton_id: "",
-    street: "",
-    house_number: "",
-    city: "",
-    region: "",
-    country: "",
-    postcode: "",
-    ...direccionPayload,
-    provincia_id: direccionPayload?.provincia_id || provinciaId || "",
-    canton_id: direccionPayload?.canton_id || cantonId || "",
-    ...overrides,
-  });
+  const buildDireccionPayload = useCallback(
+    (overrides = {}) => ({
+      place_id: "",
+      label: "",
+      provider: "",
+      lat: null,
+      lng: null,
+      provincia_id: "",
+      canton_id: "",
+      street: "",
+      house_number: "",
+      city: "",
+      region: "",
+      country: "",
+      postcode: "",
+      ...direccionPayload,
+      provincia_id: direccionPayload?.provincia_id || provinciaId || "",
+      canton_id: direccionPayload?.canton_id || cantonId || "",
+      ...overrides,
+    }),
+    [direccionPayload, provinciaId, cantonId]
+  );
 
-  const updateDireccionPayload = (overrides = {}) => {
-    onChangeDireccionPayload?.(buildDireccionPayload(overrides));
-  };
+  const updateDireccionPayload = useCallback(
+    (overrides = {}) => {
+      onChangeDireccionPayload?.(buildDireccionPayload(overrides));
+    },
+    [buildDireccionPayload, onChangeDireccionPayload]
+  );
+
+  const requestLocation = useCallback(() => {
+    if (!navigator?.geolocation) {
+      setMapGate("ready");
+      return;
+    }
+    setIsRequestingLocation(true);
+    setMapGate("ready");
+    setLocationModalOpen(false);
+    setGpsModalOpen(false);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextCenter = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setCoords(nextCenter);
+        updateDireccionPayload({
+          lat: nextCenter.lat,
+          lng: nextCenter.lng,
+        });
+        setLocationModalOpen(false);
+        setGpsModalOpen(false);
+        setIsRequestingLocation(false);
+        setMapGate("ready");
+      },
+      (error) => {
+        setIsRequestingLocation(false);
+        setMapGate("ready");
+        if (error?.code === 1) {
+          setLocationModalOpen(true);
+          setGpsModalOpen(false);
+          return;
+        }
+        if (error?.code === 2) {
+          setGpsModalOpen(true);
+          return;
+        }
+        setLocationModalOpen(true);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, [updateDireccionPayload]);
+
+  useEffect(() => {
+    let active = true;
+    if (!navigator?.geolocation) {
+      setMapGate("ready");
+      return undefined;
+    }
+
+    const checkPermission = async () => {
+      if (!navigator.permissions?.query) {
+        setLocationModalOpen(true);
+        setMapGate("pending");
+        return;
+      }
+      try {
+        const status = await navigator.permissions.query({
+          name: "geolocation",
+        });
+        if (!active) return;
+        if (status.state === "granted") {
+          requestLocation();
+        } else {
+          setLocationModalOpen(true);
+          setMapGate("pending");
+        }
+        status.onchange = () => {
+          if (!active) return;
+          if (status.state === "granted") {
+            requestLocation();
+          }
+        };
+      } catch (error) {
+        setLocationModalOpen(true);
+        setMapGate("pending");
+      }
+    };
+
+    checkPermission();
+    return () => {
+      active = false;
+    };
+  }, [requestLocation]);
+
+  const handleLocationModalClose = useCallback(() => {
+    setLocationModalOpen(false);
+    setMapGate("ready");
+  }, []);
+
+  const handleGpsModalClose = useCallback(() => {
+    setGpsModalOpen(false);
+    setMapGate("ready");
+  }, []);
 
   const handleConfirm = () => {
     setLocalError("");
     const placeId = String(direccionPayload?.place_id || "").trim();
     const label = String(direccionPayload?.label || "").trim();
     if (!placeId || !label) {
-      setLocalError("Selecciona una direcci\u00f3n de la lista.");
+      setLocalError("Selecciona una dirección de la lista.");
       return;
     }
     setAddressLabel(label);
@@ -144,6 +251,7 @@ export default function BusinessAddressStep({
       place_id: "",
       label: "",
       provider: "",
+      lat: null,
       lng: null,
       street: "",
       house_number: "",
@@ -162,6 +270,7 @@ export default function BusinessAddressStep({
     setSearchError("");
     if (item.lat && item.lng) {
       setCoords({
+        lat: Number(item.lat),
         lng: Number(item.lng),
       });
     }
@@ -169,6 +278,7 @@ export default function BusinessAddressStep({
       place_id: item.id,
       label: item.label || "",
       provider: item.provider || "",
+      lat: item.lat ?? null,
       lng: item.lng ?? null,
       provincia_id: provinciaId || "",
       canton_id: cantonId || "",
@@ -259,15 +369,21 @@ export default function BusinessAddressStep({
 
   const provinciaNombre = territory.provinciaById[provinciaId]?.nombre || "";
   const cantonNombre = territory.cantonById[cantonId]?.nombre || "";
-  const parroquiaNombre =
-    territory.parroquiaById[parroquiaId]?.nombre || "";
+  const parroquiaNombre = territory.parroquiaById[parroquiaId]?.nombre || "";
+
+  const isManualFallback = mapStatus === "error";
+  const hasTerritorySelection = Boolean(
+    provinciaId && cantonId && parroquiaId
+  );
+  const shouldRenderMap = mapGate === "ready";
 
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
   const canSearch =
-    Boolean(parroquiaId) &&
     searchValue.trim().length >= 4 &&
-    !isSearching;
+    !isSearching &&
+    (!isManualFallback || hasTerritorySelection);
+  const shouldShowSearch = !isManualFallback || hasTerritorySelection;
 
   const canConfirm = Boolean(
     String(direccionPayload?.place_id || "").trim() &&
@@ -276,6 +392,7 @@ export default function BusinessAddressStep({
   const displayCoords =
     coords ||
     (direccionPayload?.lat != null && direccionPayload?.lng != null
+      ? { lat: Number(direccionPayload.lat), lng: Number(direccionPayload.lng) }
       : null);
   const mapCenter = displayCoords || DEFAULT_MAP_CENTER;
 
@@ -335,31 +452,30 @@ export default function BusinessAddressStep({
     setCoords(null);
     setAddressLabel("");
     const street = searchValue.trim();
-    if (!provinciaId) {
-      setSearchError("Selecciona una provincia");
-      return;
-    }
-    if (!cantonId) {
-      setSearchError("Selecciona un cant\u00f3n");
-      return;
-    }
-    if (!parroquiaId) {
-      setSearchError("Selecciona una ciudad/sector");
-      return;
+    if (isManualFallback) {
+      if (!provinciaId) {
+        setSearchError("Selecciona una provincia");
+        return;
+      }
+      if (!cantonId) {
+        setSearchError("Selecciona un cantón");
+        return;
+      }
+      if (!parroquiaId) {
+        setSearchError("Selecciona una ciudad/sector");
+        return;
+      }
     }
     if (street.length < 4) {
       setSearchError("Ingresa la calle");
       return;
     }
-    const query = [
-      street,
-      parroquiaNombre,
-      cantonNombre,
-      provinciaNombre,
-      "Ecuador",
-    ]
-      .filter(Boolean)
-      .join(", ");
+    const queryParts = [street];
+    if (isManualFallback) {
+      queryParts.push(parroquiaNombre, cantonNombre, provinciaNombre);
+    }
+    queryParts.push("Ecuador");
+    const query = queryParts.filter(Boolean).join(", ");
 
     resetDireccionPayload({ provincia_id: provinciaId, canton_id: cantonId });
     setIsSearching(true);
@@ -393,7 +509,7 @@ export default function BusinessAddressStep({
         {stage === "map" ? (
           <>
             <p className="text-sm text-gray-600 mt-3 mb-4 text-center">
-              {subtitle || "Ay\u00fadanos a conectar tu negocio con personas cerca de ti."}
+              {subtitle || "Ayúdanos a conectar tu negocio con personas cerca de ti."}
             </p>
 
             {(localError || error) && (
@@ -401,57 +517,70 @@ export default function BusinessAddressStep({
             )}
 
             <div className="flex-1 flex flex-col gap-4">
-              <LeafletMapPicker
-                center={mapCenter}
-                onCenterChange={(nextCenter) => {
-                  setCoords(nextCenter);
-                  updateDireccionPayload({
-                    lng: nextCenter.lng,
-                  });
-                }}
-                className="min-h-[260px] h-[260px] w-full rounded-2xl overflow-hidden border border-gray-200"
-              />
-              <div className="space-y-3">
-                <SearchableSelect
-                  label="Provincia"
-                  placeholder={
-                    isLoadingTerritory ? "Cargando..." : "Selecciona provincia"
-                  }
-                  value={provinciaId}
-                  options={provinciaOptions}
-                  disabled={isLoadingTerritory || Boolean(territoryError)}
-                  onChange={handleProvinciaChange}
-                  onClear={handleProvinciaClear}
+              {shouldRenderMap ? (
+                <LeafletMapPicker
+                  center={mapCenter}
+                  onReady={() => setMapStatus("ready")}
+                  onError={() => setMapStatus("error")}
+                  onCenterChange={(nextCenter) => {
+                    setCoords(nextCenter);
+                    updateDireccionPayload({
+                      lat: nextCenter.lat,
+                      lng: nextCenter.lng,
+                    });
+                  }}
+                  className="min-h-[260px] h-[260px] w-full rounded-2xl overflow-hidden border border-gray-200"
                 />
+              ) : (
+                <div className="min-h-[260px] h-[260px] w-full rounded-2xl border border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                  Cargando mapa...
+                </div>
+              )}
+              {isManualFallback && (
+                <div className="space-y-3">
+                  <SearchableSelect
+                    label="Provincia"
+                    placeholder={
+                      isLoadingTerritory
+                        ? "Cargando..."
+                        : "Selecciona provincia"
+                    }
+                    value={provinciaId}
+                    options={provinciaOptions}
+                    disabled={isLoadingTerritory || Boolean(territoryError)}
+                    onChange={handleProvinciaChange}
+                    onClear={handleProvinciaClear}
+                  />
 
-                <SearchableSelect
-                  label="Cant\u00f3n"
-                  placeholder="Selecciona cant\u00f3n"
-                  value={cantonId}
-                  options={cantonOptions}
-                  disabled={!canSelectCanton}
-                  onChange={handleCantonChange}
-                  onClear={handleCantonClear}
-                />
+                  <SearchableSelect
+                    label="Cantón"
+                    placeholder="Selecciona cantón"
+                    value={cantonId}
+                    options={cantonOptions}
+                    disabled={!canSelectCanton}
+                    onChange={handleCantonChange}
+                    onClear={handleCantonClear}
+                  />
 
-                <SearchableSelect
-                  label="Ciudad/sector"
-                  placeholder="Selecciona ciudad/sector"
-                  value={parroquiaId}
-                  options={parroquiaOptions}
-                  disabled={!canSelectParroquia}
-                  onChange={handleParroquiaChange}
-                  onClear={handleParroquiaClear}
-                />
+                  <SearchableSelect
+                    label="Ciudad/sector"
+                    placeholder="Selecciona ciudad/sector"
+                    value={parroquiaId}
+                    options={parroquiaOptions}
+                    disabled={!canSelectParroquia}
+                    onChange={handleParroquiaChange}
+                    onClear={handleParroquiaClear}
+                  />
 
-                {territoryError && (
-                  <div className="text-xs text-red-500 ml-1">
-                    {territoryError}
-                  </div>
-                )}
-              </div>
+                  {territoryError && (
+                    <div className="text-xs text-red-500 ml-1">
+                      {territoryError}
+                    </div>
+                  )}
+                </div>
+              )}
 
-              {parroquiaId && (
+              {shouldShowSearch && (
                 <div className="space-y-2">
                   <label className="block text-xs text-gray-500 ml-1">
                     Calle
@@ -541,12 +670,12 @@ export default function BusinessAddressStep({
             <div className="flex-1 space-y-6 mt-3">
               <div className="space-y-1">
                 <label className="block text-xs text-gray-500 ml-1">
-                  {"Direcci\u00f3n confirmada"}
+                  Dirección confirmada
                 </label>
                 <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900">
                   {addressLabel ||
                     direccionPayload?.label ||
-                    "Sin direcci\u00f3n"}
+                    "Sin dirección"}
                 </div>
               </div>
 
@@ -581,8 +710,124 @@ export default function BusinessAddressStep({
         )}
       </div>
 
-      {/* Modales de ubicacion/GPS deshabilitados hasta integrar permisos.
+      <LocationPermissionModal
+        open={stage === "map" && locationModalOpen}
+        onConfirm={requestLocation}
+        onClose={handleLocationModalClose}
+        isLoading={isRequestingLocation}
+      />
+      <GpsDisabledModal
+        open={stage === "map" && gpsModalOpen}
+        onClose={handleGpsModalClose}
+      />
     </section>
+  );
+}
+
+function LocationPermissionModal({
+  open,
+  onConfirm,
+  onClose,
+  isLoading,
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <LocationOffIcon className="h-6 w-6" />
+        </div>
+        <div className="text-base font-semibold text-[#2F1A55]">
+          Ubicación desactivada
+        </div>
+        <p className="mt-2 text-sm text-slate-500">
+          Activa la ubicación para centrar el mapa.
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500"
+          >
+            Ahora no
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488] disabled:opacity-60"
+          >
+            {isLoading ? "Activando..." : "Activar ubicación"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GpsDisabledModal({ open, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <GpsOffIcon className="h-6 w-6" />
+        </div>
+        <div className="text-base font-semibold text-[#2F1A55]">
+          GPS desactivado
+        </div>
+        <p className="mt-2 text-sm text-slate-500">
+          El GPS no está activado.
+        </p>
+        <div className="mt-6 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LocationOffIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M4 4l16 16" />
+    </svg>
+  );
+}
+
+function GpsOffIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2l4 9-4-2-4 2 4-9z" />
+      <circle cx="12" cy="12" r="7" />
+      <path d="M4 4l16 16" />
+    </svg>
   );
 }
 
@@ -748,6 +993,11 @@ function SearchIcon({ className = "" }) {
     </svg>
   );
 }
+
+
+
+
+
 
 
 

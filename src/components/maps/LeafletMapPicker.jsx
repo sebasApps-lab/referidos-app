@@ -5,43 +5,66 @@ export default function LeafletMapPicker({
   center,
   zoom = 16,
   onCenterChange,
+  onReady,
+  onError,
   className = "",
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const onCenterChangeRef = useRef(onCenterChange);
   const lat = Number(center?.lat ?? 0);
   const lng = Number(center?.lng ?? 0);
 
   useEffect(() => {
+    onCenterChangeRef.current = onCenterChange;
+  }, [onCenterChange]);
+
+  useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = L.map(containerRef.current, {
-      zoomControl: false,
-      attributionControl: false,
-      doubleClickZoom: false,
-    });
+    let mapInstance;
+    let handleMoveEnd;
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
+    try {
+      mapInstance = L.map(containerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        doubleClickZoom: false,
+      });
 
-    map.setView([lat, lng], zoom, { animate: false });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(mapInstance);
 
-    const handleMoveEnd = () => {
-      const nextCenter = map.getCenter();
-      onCenterChange?.({ lat: nextCenter.lat, lng: nextCenter.lng });
-    };
+      mapInstance.setView([lat, lng], zoom, { animate: false });
 
-    map.on("moveend", handleMoveEnd);
-    mapRef.current = map;
+      handleMoveEnd = () => {
+        const nextCenter = mapInstance.getCenter();
+        onCenterChangeRef.current?.({
+          lat: nextCenter.lat,
+          lng: nextCenter.lng,
+        });
+      };
+
+      mapInstance.on("moveend", handleMoveEnd);
+      mapRef.current = mapInstance;
+      onReady?.();
+    } catch (error) {
+      if (mapInstance) {
+        mapInstance.remove();
+      }
+      mapRef.current = null;
+      onError?.(error);
+      return undefined;
+    }
 
     return () => {
-      map.off("moveend", handleMoveEnd);
-      map.remove();
+      mapInstance?.off("moveend", handleMoveEnd);
+      mapInstance?.remove();
       mapRef.current = null;
     };
-  }, [lat, lng, zoom, onCenterChange]);
+  }, [lat, lng, zoom, onReady, onError]);
 
   useEffect(() => {
     const map = mapRef.current;
