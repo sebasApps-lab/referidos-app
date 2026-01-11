@@ -1,5 +1,6 @@
 // src/modals/ModalProvider.jsx
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useModalStore } from "./modalStore";
 import { modalRegistry } from "./modalRegistry";
 
@@ -35,11 +36,12 @@ export default function ModalProvider() {
   }, []);
 
   if (!activeModal) return null;
+  if (typeof document === "undefined") return null;
 
   const ModalComponent = modalRegistry[activeModal];
   if (!ModalComponent) return null;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: "fixed",
@@ -75,6 +77,7 @@ export default function ModalProvider() {
       >
         <ModalComponent {...modalProps} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

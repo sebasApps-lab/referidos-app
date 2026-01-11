@@ -11,6 +11,8 @@ import ModalSplashEmailConfirmation from "../components/modals/ModalSplashEmailC
 import ModalFingerprintPrompt from "../components/modals/ModalFingerprintPrompt";
 import ModalNotifications from "../components/modals/ModalNotifications";
 import ModalConfirmarCambios from "../components/modals/ModalConfirmarCambios";
+import ModalLocationPermission from "../components/modals/ModalLocationPermission";
+import ModalGpsDisabled from "../components/modals/ModalGpsDisabled";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -24,4 +26,6 @@ export const modalRegistry = {
   FingerprintPrompt: ModalFingerprintPrompt,
   Notifications: ModalNotifications,
   ConfirmarCambios: ModalConfirmarCambios,
+  LocationPermission: ModalLocationPermission,
+  GpsDisabled: ModalGpsDisabled,
 };

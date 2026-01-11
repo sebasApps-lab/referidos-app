@@ -1,5 +1,4 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import {
@@ -8,6 +7,7 @@ import {
   fetchParroquiasByCanton,
 } from "../../services/territoryClient";
 import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
+import { useModal } from "../../modals/useModal";
 
 const DEFAULT_MAP_CENTER = { lat: -0.1806532, lng: -78.4678382 };
 
@@ -32,9 +32,8 @@ export default function BusinessAddressStep({
   const [coords, setCoords] = useState(null);
   const [localError, setLocalError] = useState("");
   const [mapStatus, setMapStatus] = useState("loading");
-  const [locationModalOpen, setLocationModalOpen] = useState(false);
-  const [gpsModalOpen, setGpsModalOpen] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const { openModal, closeModal, activeModal } = useModal();
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -144,13 +143,38 @@ export default function BusinessAddressStep({
     updateDireccionPayloadRef.current = updateDireccionPayload;
   }, [updateDireccionPayload]);
 
+  const requestLocationRef = useRef(null);
+  const didPromptLocationRef = useRef(false);
+
+  const openLocationModal = useCallback(() => {
+    openModal("LocationPermission", {
+      onConfirm: () => requestLocationRef.current?.(),
+    });
+  }, [openModal]);
+
+  const openGpsModal = useCallback(() => {
+    openModal("GpsDisabled");
+  }, [openModal]);
+
+  const closeLocationModal = useCallback(() => {
+    if (activeModal === "LocationPermission") {
+      closeModal();
+    }
+  }, [activeModal, closeModal]);
+
+  const closeGpsModal = useCallback(() => {
+    if (activeModal === "GpsDisabled") {
+      closeModal();
+    }
+  }, [activeModal, closeModal]);
+
   const requestLocation = useCallback(() => {
     if (!navigator?.geolocation) {
       return;
     }
+    if (isRequestingLocation) return;
     setIsRequestingLocation(true);
-    setLocationModalOpen(false);
-    setGpsModalOpen(false);
+    closeModal();
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const nextCenter = {
@@ -162,26 +186,27 @@ export default function BusinessAddressStep({
           lat: nextCenter.lat,
           lng: nextCenter.lng,
         });
-        setLocationModalOpen(false);
-        setGpsModalOpen(false);
         setIsRequestingLocation(false);
       },
       (error) => {
         setIsRequestingLocation(false);
         if (error?.code === 1) {
-          setLocationModalOpen(true);
-          setGpsModalOpen(false);
+          openLocationModal();
           return;
         }
         if (error?.code === 2) {
-          setGpsModalOpen(true);
+          openGpsModal();
           return;
         }
-        setLocationModalOpen(true);
+        openLocationModal();
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, []);
+  }, [closeModal, isRequestingLocation, openGpsModal, openLocationModal]);
+
+  useEffect(() => {
+    requestLocationRef.current = requestLocation;
+  }, [requestLocation]);
 
   useEffect(() => {
     let active = true;
@@ -190,8 +215,12 @@ export default function BusinessAddressStep({
     }
 
     const checkPermission = async () => {
-      setLocationModalOpen(true);
+      if (stage !== "map") return;
       if (!navigator.permissions?.query) {
+        if (!didPromptLocationRef.current) {
+          didPromptLocationRef.current = true;
+          openLocationModal();
+        }
         return;
       }
       try {
@@ -200,18 +229,24 @@ export default function BusinessAddressStep({
         });
         if (!active) return;
         if (status.state === "granted") {
-          setLocationModalOpen(false);
+          closeLocationModal();
         } else {
-          setLocationModalOpen(true);
+          if (!didPromptLocationRef.current) {
+            didPromptLocationRef.current = true;
+            openLocationModal();
+          }
         }
         status.onchange = () => {
           if (!active) return;
           if (status.state === "granted") {
-            setLocationModalOpen(false);
+            closeLocationModal();
           }
         };
       } catch (error) {
-        setLocationModalOpen(true);
+        if (!didPromptLocationRef.current) {
+          didPromptLocationRef.current = true;
+          openLocationModal();
+        }
       }
     };
 
@@ -219,15 +254,14 @@ export default function BusinessAddressStep({
     return () => {
       active = false;
     };
-  }, [requestLocation]);
+  }, [closeLocationModal, openLocationModal, stage]);
 
-  const handleLocationModalClose = useCallback(() => {
-    setLocationModalOpen(false);
-  }, []);
-
-  const handleGpsModalClose = useCallback(() => {
-    setGpsModalOpen(false);
-  }, []);
+  useEffect(() => {
+    if (stage !== "map") {
+      closeLocationModal();
+      closeGpsModal();
+    }
+  }, [closeGpsModal, closeLocationModal, stage]);
 
   const handleConfirm = () => {
     setLocalError("");
@@ -705,125 +739,7 @@ export default function BusinessAddressStep({
         )}
       </div>
 
-      <LocationPermissionModal
-        open={stage === "map" && locationModalOpen}
-        onConfirm={requestLocation}
-        onClose={handleLocationModalClose}
-        isLoading={isRequestingLocation}
-      />
-      <GpsDisabledModal
-        open={stage === "map" && gpsModalOpen}
-        onClose={handleGpsModalClose}
-      />
     </section>
-  );
-}
-
-function LocationPermissionModal({
-  open,
-  onConfirm,
-  onClose,
-  isLoading,
-}) {
-  if (!open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-          <LocationOffIcon className="h-6 w-6" />
-        </div>
-        <div className="text-base font-semibold text-[#2F1A55]">
-          Permitir ubicación
-        </div>
-        <p className="mt-2 text-sm text-slate-500">
-          Necesitamos tu permiso para centrar el mapa en tu ubicación.
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500"
-          >
-            Ahora no
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488] disabled:opacity-60"
-          >
-            {isLoading ? "Activando..." : "Permitir ubicación"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function GpsDisabledModal({ open, onClose }) {
-  if (!open) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-          <GpsOffIcon className="h-6 w-6" />
-        </div>
-        <div className="text-base font-semibold text-[#2F1A55]">
-          GPS desactivado
-        </div>
-        <p className="mt-2 text-sm text-slate-500">
-          Activa el GPS de tu dispositivo para continuar.
-        </p>
-        <div className="mt-6 flex items-center justify-center">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
-          >
-            Entendido
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function LocationOffIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
-      <circle cx="12" cy="10" r="3" />
-      <path d="M4 4l16 16" />
-    </svg>
-  );
-}
-
-function GpsOffIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 3l5 9-5-2-5 2 5-9z" />
-      <path d="M4 4l16 16" />
-    </svg>
   );
 }
 
