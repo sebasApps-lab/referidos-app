@@ -144,6 +144,7 @@ export default function BusinessAddressStep({
   }, [updateDireccionPayload]);
 
   const requestLocationRef = useRef(null);
+  const didAutoLocateRef = useRef(false);
   const didPromptLocationRef = useRef(false);
 
   const openLocationModal = useCallback(() => {
@@ -230,6 +231,16 @@ export default function BusinessAddressStep({
         if (!active) return;
         if (status.state === "granted") {
           closeLocationModal();
+          if (!didAutoLocateRef.current) {
+            const hasCoords =
+              coords ||
+              (direccionPayload?.lat != null &&
+                direccionPayload?.lng != null);
+            if (!hasCoords) {
+              didAutoLocateRef.current = true;
+              requestLocationRef.current?.();
+            }
+          }
         } else {
           if (!didPromptLocationRef.current) {
             didPromptLocationRef.current = true;
@@ -240,6 +251,16 @@ export default function BusinessAddressStep({
           if (!active) return;
           if (status.state === "granted") {
             closeLocationModal();
+            if (!didAutoLocateRef.current) {
+              const hasCoords =
+                coords ||
+                (direccionPayload?.lat != null &&
+                  direccionPayload?.lng != null);
+              if (!hasCoords) {
+                didAutoLocateRef.current = true;
+                requestLocationRef.current?.();
+              }
+            }
           }
         };
       } catch (error) {
@@ -254,7 +275,14 @@ export default function BusinessAddressStep({
     return () => {
       active = false;
     };
-  }, [closeLocationModal, openLocationModal, stage]);
+  }, [
+    closeLocationModal,
+    openLocationModal,
+    stage,
+    coords,
+    direccionPayload?.lat,
+    direccionPayload?.lng,
+  ]);
 
   useEffect(() => {
     if (stage !== "map") {

@@ -12,12 +12,22 @@ export default function LeafletMapPicker({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const onCenterChangeRef = useRef(onCenterChange);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
   const lat = Number(center?.lat ?? 0);
   const lng = Number(center?.lng ?? 0);
 
   useEffect(() => {
     onCenterChangeRef.current = onCenterChange;
   }, [onCenterChange]);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -49,13 +59,13 @@ export default function LeafletMapPicker({
 
       mapInstance.on("moveend", handleMoveEnd);
       mapRef.current = mapInstance;
-      onReady?.();
+      onReadyRef.current?.();
     } catch (error) {
       if (mapInstance) {
         mapInstance.remove();
       }
       mapRef.current = null;
-      onError?.(error);
+      onErrorRef.current?.(error);
       return undefined;
     }
 
@@ -64,18 +74,25 @@ export default function LeafletMapPicker({
       mapInstance?.remove();
       mapRef.current = null;
     };
-  }, [lat, lng, zoom, onReady, onError]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const current = map.getCenter();
+    if (
+      Math.abs(current.lat - lat) < 0.000001 &&
+      Math.abs(current.lng - lng) < 0.000001
+    ) {
+      return;
+    }
     map.setView([lat, lng], map.getZoom(), { animate: false });
   }, [lat, lng]);
 
   return (
     <div className={`relative ${className}`}>
       <div ref={containerRef} className="h-full w-full" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-[1000] -translate-x-1/2 -translate-y-full">
         <PinIcon className="h-8 w-8 text-[#5E30A5]" />
       </div>
     </div>
