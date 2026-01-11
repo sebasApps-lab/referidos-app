@@ -39,7 +39,7 @@ function GpsOffIcon({ className = "" }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 3l5 9-5-2-5 2 5-9z" />
+      <path d="M12 0.518l8 15-8-3.5-8 3.5 8-15z" />
       <path d="M4 4l16 16" />
     </svg>
   );
