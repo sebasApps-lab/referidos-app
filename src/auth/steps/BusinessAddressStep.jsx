@@ -2,6 +2,7 @@
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import { reverseGeocode } from "../../services/addressReverseClient";
+import { saveGpsFallbackLocation } from "../../services/gpsFallbackClient";
 import {
   fetchProvincias,
   fetchCantonesByProvincia,
@@ -210,6 +211,7 @@ export default function BusinessAddressStep({
           lat: nextCenter.lat,
           lng: nextCenter.lng,
         });
+        saveGpsFallbackLocation(nextCenter).catch(() => {});
         setIsRequestingLocation(false);
       },
       (error) => {

@@ -2,6 +2,8 @@
 
 BEGIN;
 
+drop view if exists public.negocios_publicos;
+
 create unique index if not exists sucursales_one_draft_per_negocio
   on public.sucursales(negocioId)
   where status = 'draft' and negocioId is not null;
@@ -9,7 +11,8 @@ create unique index if not exists sucursales_one_draft_per_negocio
 -- Direcciones: unificar calles y agregar parroquia/parroquia_id
 alter table public.direcciones
   add column if not exists parroquia text,
-  add column if not exists parroquia_id text references public.parroquias(id) on delete set null;
+  add column if not exists parroquia_id text references public.parroquias(id) on delete set null,
+  add column if not exists is_user_provided boolean default false;
 
 do $$
 begin
@@ -57,7 +60,23 @@ end $$;
 create index if not exists idx_direcciones_parroquia_id
   on public.direcciones(parroquia_id);
 
-create or replace view public.negocios_publicos as
+create unique index if not exists direcciones_one_fallback_per_owner
+  on public.direcciones(owner_id)
+  where is_user_provided = false and owner_id is not null;
+
+update public.direcciones d
+set is_user_provided = true
+where exists (
+  select 1 from public.sucursales s
+  where s.direccion_id = d.id
+)
+or exists (
+  select 1 from public.usuarios u
+  where u.direccion_id = d.id
+);
+
+create or replace view public.negocios_publicos
+with (security_invoker = true) as
 select
   n.id,
   n.nombre,

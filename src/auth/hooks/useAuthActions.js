@@ -761,6 +761,7 @@ export default function useAuthActions({
       canton_id: cantonId || null,
       parroquia_id: parroquiaId || null,
       parroquia: parroquiaId ? null : (parroquiaText || null),
+      is_user_provided: true,
     };
 
     let direccionId = targetSucursal?.direccion_id || null;
