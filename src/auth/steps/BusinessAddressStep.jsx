@@ -167,7 +167,9 @@ export default function BusinessAddressStep({
   }, [openModal]);
 
   const openGpsModal = useCallback(() => {
-    openModal("GpsDisabled");
+    openModal("GpsDisabled", {
+      onRetry: () => requestLocationRef.current?.(),
+    });
   }, [openModal]);
 
   const closeLocationModal = useCallback(() => {
@@ -188,7 +190,6 @@ export default function BusinessAddressStep({
     }
     if (isRequestingLocation) return;
     setIsRequestingLocation(true);
-    closeModal();
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const nextCenter = {
@@ -208,15 +209,10 @@ export default function BusinessAddressStep({
       },
       (error) => {
         setIsRequestingLocation(false);
-        if (error?.code === 1) {
-          openLocationModal();
-          return;
-        }
         if (error?.code === 2 || error?.code === 3) {
           openGpsModal();
           return;
         }
-        openLocationModal();
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -235,10 +231,6 @@ export default function BusinessAddressStep({
     const checkPermission = async () => {
       if (stage !== "map") return;
       if (!navigator.permissions?.query) {
-        if (!didPromptLocationRef.current) {
-          didPromptLocationRef.current = true;
-          openLocationModal();
-        }
         return;
       }
       try {
@@ -284,10 +276,7 @@ export default function BusinessAddressStep({
           }
         };
       } catch (error) {
-        if (!didPromptLocationRef.current) {
-          didPromptLocationRef.current = true;
-          openLocationModal();
-        }
+        return;
       }
     };
 
@@ -368,6 +357,7 @@ export default function BusinessAddressStep({
     setSearchValue(item.label || "");
     setSearchResults([]);
     setSearchError("");
+    setHasSearched(false);
     if (item.lat && item.lng) {
       programmaticMoveRef.current = true;
       setCoords({

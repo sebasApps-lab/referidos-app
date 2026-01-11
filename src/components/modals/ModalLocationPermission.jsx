@@ -26,8 +26,8 @@ export default function ModalLocationPermission({ onConfirm }) {
         <button
           type="button"
           onClick={() => {
-            closeModal();
             onConfirm?.();
+            closeModal();
           }}
           className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
         >

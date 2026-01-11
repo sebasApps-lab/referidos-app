@@ -1,7 +1,7 @@
 import React from "react";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalGpsDisabled() {
+export default function ModalGpsDisabled({ onRetry }) {
   const { closeModal } = useModal();
 
   return (
@@ -18,7 +18,10 @@ export default function ModalGpsDisabled() {
       <div className="mt-6 flex items-center justify-center">
         <button
           type="button"
-          onClick={closeModal}
+          onClick={() => {
+            onRetry?.();
+            closeModal();
+          }}
           className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
         >
           Entendido
