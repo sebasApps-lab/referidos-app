@@ -58,7 +58,7 @@ export default function LeafletMapPicker({
       });
 
       if (mapInstance.attributionControl?.setPosition) {
-        mapInstance.attributionControl.setPosition("topleft");
+        mapInstance.attributionControl.setPosition("bottomleft");
       }
 
       L.tileLayer(tileUrl, {
@@ -123,7 +123,7 @@ export default function LeafletMapPicker({
     <div className={`relative ${className}`}>
       <div ref={containerRef} className="h-full w-full" />
       <div className="pointer-events-none absolute left-1/2 top-1/2 z-[1000] -translate-x-1/2 -translate-y-full">
-        <PinIcon className="h-8 w-8 text-[#5E30A5]" />
+        <PinIcon className="h-9 w-9 text-[#5E30A5]" />
       </div>
     </div>
   );

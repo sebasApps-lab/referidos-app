@@ -51,6 +51,7 @@ export default function BusinessAddressStep({
   const { openModal, closeModal, activeModal } = useModal();
   const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
   const [animateZoom, setAnimateZoom] = useState(false);
+  const [showZoomHint, setShowZoomHint] = useState(false);
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -326,6 +327,7 @@ export default function BusinessAddressStep({
   }, [closeGpsModal, closeLocationModal, stage]);
 
   const startConfirmZoom = () => {
+    if (animateZoom) return;
     if (zoomSequenceRef.current) {
       clearTimeout(zoomSequenceRef.current);
     }
@@ -372,7 +374,8 @@ export default function BusinessAddressStep({
       return;
     }
 
-    if (mapZoom <= 16) {
+    if (mapZoom < 16) {
+      setShowZoomHint(true);
       startConfirmZoom();
       return;
     }
@@ -856,6 +859,22 @@ export default function BusinessAddressStep({
               <div className="flex-1 flex flex-col gap-4">
                 {shouldRenderMap ? (
                   <div className="-mx-5 relative border-y border-gray-200 overflow-hidden">
+                    {showZoomHint && (
+                      <div className="absolute left-0 right-0 top-1 z-[1001]">
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3 text-xs text-emerald-600 shadow-sm">
+                          <PinOutlineIcon className="h-6 w-6 text-emerald-500" />
+                          Asegurate de senalar el punto correcto y pulsa confirmar.
+                          <button
+                            type="button"
+                            onClick={() => setShowZoomHint(false)}
+                            className="ml-auto text-emerald-400 hover:text-emerald-600"
+                            aria-label="Cerrar aviso"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <LeafletMapPicker
                       center={mapCenter}
                       zoom={mapZoom}
