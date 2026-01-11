@@ -5,6 +5,7 @@ export default function LeafletMapPicker({
   center,
   zoom = 16,
   onCenterChange,
+  onZoomChange,
   onReady,
   onError,
   className = "",
@@ -12,6 +13,7 @@ export default function LeafletMapPicker({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const onCenterChangeRef = useRef(onCenterChange);
+  const onZoomChangeRef = useRef(onZoomChange);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
   const lat = Number(center?.lat ?? 0);
@@ -20,6 +22,10 @@ export default function LeafletMapPicker({
   useEffect(() => {
     onCenterChangeRef.current = onCenterChange;
   }, [onCenterChange]);
+
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -34,6 +40,7 @@ export default function LeafletMapPicker({
 
     let mapInstance;
     let handleMoveEnd;
+    let handleZoomEnd;
 
     try {
       mapInstance = L.map(containerRef.current, {
@@ -56,8 +63,13 @@ export default function LeafletMapPicker({
           lng: nextCenter.lng,
         });
       };
+      handleZoomEnd = () => {
+        const nextZoom = mapInstance.getZoom();
+        onZoomChangeRef.current?.(nextZoom);
+      };
 
       mapInstance.on("moveend", handleMoveEnd);
+      mapInstance.on("zoomend", handleZoomEnd);
       mapRef.current = mapInstance;
       onReadyRef.current?.();
     } catch (error) {
@@ -71,6 +83,7 @@ export default function LeafletMapPicker({
 
     return () => {
       mapInstance?.off("moveend", handleMoveEnd);
+      mapInstance?.off("zoomend", handleZoomEnd);
       mapInstance?.remove();
       mapRef.current = null;
     };

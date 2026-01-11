@@ -1,6 +1,7 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
+import { reverseGeocode } from "../../services/addressReverseClient";
 import {
   fetchProvincias,
   fetchCantonesByProvincia,
@@ -10,6 +11,7 @@ import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
 import { useModal } from "../../modals/useModal";
 
 const DEFAULT_MAP_CENTER = { lat: -0.1806532, lng: -78.4678382 };
+const FALLBACK_ZOOM = 13;
 
 
 
@@ -29,7 +31,10 @@ export default function BusinessAddressStep({
   const [searchError, setSearchError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [addressLabel, setAddressLabel] = useState("");
+  const [reverseError, setReverseError] = useState("");
+  const [isReverseLoading, setIsReverseLoading] = useState(false);
   const [coords, setCoords] = useState(null);
+  const [coordsSource, setCoordsSource] = useState(null);
   const [localError, setLocalError] = useState("");
   const [mapStatus, setMapStatus] = useState("loading");
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -52,6 +57,11 @@ export default function BusinessAddressStep({
   );
   const [parroquiaId, setParroquiaId] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [hasMapMoved, setHasMapMoved] = useState(false);
+  const [hasMapZoomed, setHasMapZoomed] = useState(false);
+  const initialMoveSkippedRef = useRef(false);
+  const initialZoomSkippedRef = useRef(false);
+  const programmaticMoveRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -182,7 +192,9 @@ export default function BusinessAddressStep({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
+        programmaticMoveRef.current = true;
         setCoords(nextCenter);
+        setCoordsSource("gps");
         updateDireccionPayloadRef.current?.({
           lat: nextCenter.lat,
           lng: nextCenter.lng,
@@ -291,15 +303,38 @@ export default function BusinessAddressStep({
     }
   }, [closeGpsModal, closeLocationModal, stage]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setLocalError("");
-    const placeId = String(direccionPayload?.place_id || "").trim();
-    const label = String(direccionPayload?.label || "").trim();
-    if (!placeId || !label) {
-      setLocalError("Selecciona una dirección de la lista.");
+    setReverseError("");
+    const center = displayCoords || mapCenter;
+    if (!center) {
+      setLocalError("Selecciona una ubicación válida.");
       return;
     }
-    setAddressLabel(label);
+    setIsReverseLoading(true);
+    const result = await reverseGeocode(center.lat, center.lng);
+    setIsReverseLoading(false);
+    if (!result.ok) {
+      setReverseError("No se pudo obtener la dirección.");
+      return;
+    }
+    const data = result.data || {};
+    setAddressLabel(data.label || "");
+    updateDireccionPayload({
+      place_id: data.id || "",
+      label: data.label || "",
+      provider: data.provider || "",
+      lat: center.lat,
+      lng: center.lng,
+      street: data.street || "",
+      house_number: data.house_number || "",
+      city: data.city || "",
+      region: data.region || "",
+      country: data.country || "",
+      postcode: data.postcode || "",
+      provincia_id: provinciaId,
+      canton_id: cantonId,
+    });
     setStage("summary");
   };
 
@@ -326,10 +361,12 @@ export default function BusinessAddressStep({
     setSearchResults([]);
     setSearchError("");
     if (item.lat && item.lng) {
+      programmaticMoveRef.current = true;
       setCoords({
         lat: Number(item.lat),
         lng: Number(item.lng),
       });
+      setCoordsSource("search");
     }
     updateDireccionPayload({
       place_id: item.id,
@@ -433,6 +470,14 @@ export default function BusinessAddressStep({
     provinciaId && cantonId && parroquiaId
   );
   const shouldRenderMap = true;
+  const hasSearchSelection = Boolean(
+    String(direccionPayload?.place_id || "").trim() &&
+      String(direccionPayload?.label || "").trim()
+  );
+  const hasCoords = Boolean(
+    coords ||
+      (direccionPayload?.lat != null && direccionPayload?.lng != null)
+  );
 
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
@@ -442,10 +487,11 @@ export default function BusinessAddressStep({
     (!isManualFallback || hasTerritorySelection);
   const shouldShowSearch = !isManualFallback || hasTerritorySelection;
 
-  const canConfirm = Boolean(
-    String(direccionPayload?.place_id || "").trim() &&
-      String(direccionPayload?.label || "").trim()
-  );
+  const canConfirm =
+    hasSearchSelection ||
+    coordsSource === "gps" ||
+    (coordsSource === "manual" && hasMapMoved && hasMapZoomed) ||
+    (coordsSource == null && hasCoords);
   const displayCoords =
     coords ||
     (direccionPayload?.lat != null && direccionPayload?.lng != null
@@ -461,7 +507,11 @@ export default function BusinessAddressStep({
     setSearchError("");
     setHasSearched(false);
     setAddressLabel("");
+    setReverseError("");
     setCoords(null);
+    setCoordsSource(null);
+    setHasMapMoved(false);
+    setHasMapZoomed(false);
   };
 
   const handleProvinciaChange = (value) => {
@@ -506,8 +556,6 @@ export default function BusinessAddressStep({
 
   const handleSearch = async () => {
     setLocalError("");
-    setCoords(null);
-    setAddressLabel("");
     const street = searchValue.trim();
     if (isManualFallback) {
       if (!provinciaId) {
@@ -534,11 +582,24 @@ export default function BusinessAddressStep({
     queryParts.push("Ecuador");
     const query = queryParts.filter(Boolean).join(", ");
 
-    resetDireccionPayload({ provincia_id: provinciaId, canton_id: cantonId });
+    updateDireccionPayload({
+      place_id: "",
+      label: "",
+      provider: "",
+      street: "",
+      house_number: "",
+      city: "",
+      region: "",
+      country: "",
+      postcode: "",
+      provincia_id: provinciaId,
+      canton_id: cantonId,
+    });
     setIsSearching(true);
     setHasSearched(true);
     setSearchError("");
     setSearchResults([]);
+    setReverseError("");
 
     const result = await searchAddresses(query, {
       limit: 6,
@@ -560,7 +621,7 @@ export default function BusinessAddressStep({
   return (
     <section
       style={{ boxSizing: "border-box", position: "relative" }}
-      className="px-2 h-full"
+      className="h-full"
     >
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         {stage === "map" ? (
@@ -569,27 +630,64 @@ export default function BusinessAddressStep({
               {subtitle || "Ayúdanos a conectar tu negocio con personas cerca de ti."}
             </p>
 
-            {(localError || error) && (
-              <ErrorBanner message={localError || error} className="mb-3" />
+            {(localError || reverseError || error) && (
+              <ErrorBanner message={localError || reverseError || error} className="mb-3" />
             )}
 
             <div className="flex-1 flex flex-col gap-4">
               {shouldRenderMap ? (
-                <LeafletMapPicker
-                  center={mapCenter}
-                  onReady={() => setMapStatus("ready")}
-                  onError={() => setMapStatus("error")}
-                  onCenterChange={(nextCenter) => {
-                    setCoords(nextCenter);
-                    updateDireccionPayload({
-                      lat: nextCenter.lat,
-                      lng: nextCenter.lng,
-                    });
-                  }}
-                  className="min-h-[260px] h-[260px] w-full rounded-2xl overflow-hidden border border-gray-200"
-                />
+                <div className="-mx-5 relative border-y border-gray-200 overflow-hidden">
+                  <LeafletMapPicker
+                    center={mapCenter}
+                    zoom={FALLBACK_ZOOM}
+                    onReady={() => setMapStatus("ready")}
+                    onError={() => setMapStatus("error")}
+                    onCenterChange={(nextCenter) => {
+                      if (!initialMoveSkippedRef.current) {
+                        initialMoveSkippedRef.current = true;
+                        return;
+                      }
+                      if (programmaticMoveRef.current) {
+                        programmaticMoveRef.current = false;
+                        return;
+                      }
+                      setCoords(nextCenter);
+                      setCoordsSource("manual");
+                      const movedEnough =
+                        Math.abs(nextCenter.lat - DEFAULT_MAP_CENTER.lat) >
+                          0.0002 ||
+                        Math.abs(nextCenter.lng - DEFAULT_MAP_CENTER.lng) >
+                          0.0002;
+                      if (movedEnough) {
+                        setHasMapMoved(true);
+                      }
+                      updateDireccionPayload({
+                        lat: nextCenter.lat,
+                        lng: nextCenter.lng,
+                      });
+                    }}
+                    onZoomChange={(nextZoom) => {
+                      if (!initialZoomSkippedRef.current) {
+                        initialZoomSkippedRef.current = true;
+                        return;
+                      }
+                      if (Math.abs(nextZoom - FALLBACK_ZOOM) >= 1) {
+                        setHasMapZoomed(true);
+                      }
+                    }}
+                    className="min-h-[320px] h-[320px] w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => requestLocationRef.current?.()}
+                    className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-white/95 shadow-lg flex items-center justify-center text-gray-700 z-[1000]"
+                    aria-label="Reintentar ubicación"
+                  >
+                    <CompassIcon className="h-6 w-6" />
+                  </button>
+                </div>
               ) : (
-                <div className="min-h-[260px] h-[260px] w-full rounded-2xl border border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                <div className="-mx-5 min-h-[320px] h-[320px] w-full border-y border-gray-200 flex items-center justify-center text-xs text-gray-400">
                   Cargando mapa...
                 </div>
               )}
@@ -638,38 +736,32 @@ export default function BusinessAddressStep({
               )}
 
               {shouldShowSearch && (
-                <div className="space-y-2">
-                  <label className="block text-xs text-gray-500 ml-1">
-                    Calle
-                  </label>
+                <div className="-mx-3 space-y-2">
                   <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <PinOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 h-4 w-4" />
                     <input
-                      className="w-full border border-gray-200 rounded-lg px-9 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
-                      placeholder="Escribe la calle"
+                      className="w-full border border-gray-200 rounded-lg pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+                      placeholder="Busca la dirección si no la encuentras en el mapa..."
                       value={searchValue}
                       onChange={(event) => {
                         setSearchValue(event.target.value);
                         setSearchResults([]);
                         setSearchError("");
                         setHasSearched(false);
-                        setCoords(null);
-                        setAddressLabel("");
-                        resetDireccionPayload({
-                          provincia_id: provinciaId,
-                          canton_id: cantonId,
-                        });
                       }}
                     />
+                    {searchValue.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSearch}
+                        disabled={!canSearch}
+                        className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 text-gray-400 disabled:opacity-40"
+                        aria-label="Buscar dirección"
+                      >
+                        <SearchTiltIcon className="h-4 w-4 -rotate-12" />
+                      </button>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSearch}
-                    disabled={!canSearch}
-                    className="w-full border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isSearching ? "Buscando..." : "Buscar"}
-                  </button>
                   {(isSearching || searchError || hasSearched) && (
                     <div className="border border-gray-200 rounded-lg max-h-44 overflow-y-auto bg-white">
                       {isSearching && (
@@ -711,17 +803,17 @@ export default function BusinessAddressStep({
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={!canConfirm}
+                disabled={!canConfirm || isReverseLoading}
                 className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Confirmar
+                {isReverseLoading ? "Confirmando..." : "Confirmar"}
               </button>
             </div>
           </>
         ) : (
           <>
-            {(localError || error) && (
-              <ErrorBanner message={localError || error} className="mb-3" />
+            {(localError || reverseError || error) && (
+              <ErrorBanner message={localError || reverseError || error} className="mb-3" />
             )}
 
             <div className="flex-1 space-y-6 mt-3">
@@ -734,6 +826,27 @@ export default function BusinessAddressStep({
                     direccionPayload?.label ||
                     "Sin dirección"}
                 </div>
+              </div>
+
+              <div className="space-y-1 text-xs text-gray-500 ml-1">
+                {direccionPayload?.street && (
+                  <div>{`Calle: ${direccionPayload.street}`}</div>
+                )}
+                {direccionPayload?.house_number && (
+                  <div>{`Numero: ${direccionPayload.house_number}`}</div>
+                )}
+                {direccionPayload?.city && (
+                  <div>{`Ciudad: ${direccionPayload.city}`}</div>
+                )}
+                {direccionPayload?.region && (
+                  <div>{`Provincia: ${direccionPayload.region}`}</div>
+                )}
+                {direccionPayload?.country && (
+                  <div>{`Pais: ${direccionPayload.country}`}</div>
+                )}
+                {direccionPayload?.postcode && (
+                  <div>{`Codigo postal: ${direccionPayload.postcode}`}</div>
+                )}
               </div>
 
               {displayCoords ? (
@@ -917,7 +1030,24 @@ function XIcon({ className = "" }) {
   );
 }
 
-function SearchIcon({ className = "" }) {
+function PinOutlineIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function SearchTiltIcon({ className = "" }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -930,6 +1060,27 @@ function SearchIcon({ className = "" }) {
     >
       <circle cx="11" cy="11" r="7" />
       <path d="M20 20l-3.5-3.5" />
+    </svg>
+  );
+}
+
+function CompassIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 3v4" />
+      <path d="M12 17v4" />
+      <path d="M3 12h4" />
+      <path d="M17 12h4" />
+      <circle cx="12" cy="12" r="2" />
     </svg>
   );
 }
