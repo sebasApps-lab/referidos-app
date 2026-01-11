@@ -388,7 +388,8 @@ export default function BusinessAddressStep({
       return;
     }
     const data = result.data || {};
-    const displayLabel = data.display_label || data.label || "";
+    const fields = data.display_fields || {};
+    const displayLabel = formatDisplayParts(data);
     const rawLabel = data.raw_label || data.label || "";
     setAddressLabel(displayLabel);
     updateDireccionPayload({
@@ -399,17 +400,17 @@ export default function BusinessAddressStep({
       lat: center.lat,
       lng: center.lng,
       parroquia_id: data.parroquia_id || "",
-      parroquia: data.parroquia || "",
-      ciudad: data.ciudad || "",
-      sector: data.sector || "",
-      calles: data.calles || "",
-      house_number: data.house_number || "",
-      postcode: data.postcode || "",
+      parroquia: fields.parroquia ?? data.parroquia ?? "",
+      ciudad: fields.ciudad ?? data.ciudad ?? "",
+      sector: fields.sector ?? data.sector ?? "",
+      calles: fields.calles ?? data.calles ?? "",
+      house_number: fields.house_number ?? data.house_number ?? "",
+      postcode: fields.postcode ?? data.postcode ?? "",
       provincia_id: data.provincia_id || provinciaId,
       canton_id: data.canton_id || cantonId,
-      provincia: data.provincia || "",
-      canton: data.canton || "",
-      country: data.country || "",
+      provincia: fields.provincia ?? data.provincia ?? "",
+      canton: fields.canton ?? data.canton ?? "",
+      country: fields.country ?? data.country ?? "",
     });
     setStage("summary");
   };
@@ -442,7 +443,8 @@ export default function BusinessAddressStep({
   };
 
   const applySearchSelection = (item) => {
-    const displayLabel = item.display_label || item.label || "";
+    const fields = item.display_fields || {};
+    const displayLabel = formatDisplayParts(item);
     const rawLabel = item.raw_label || item.label || "";
     setSearchValue(displayLabel);
     setSearchResults([]);
@@ -469,15 +471,15 @@ export default function BusinessAddressStep({
       provincia_id: item.provincia_id || provinciaId || "",
       canton_id: item.canton_id || cantonId || "",
       parroquia_id: item.parroquia_id || "",
-      parroquia: item.parroquia || "",
-      ciudad: item.ciudad || "",
-      sector: item.sector || "",
-      calles: item.calles || item.street || "",
-      house_number: item.house_number || "",
-      postcode: item.postcode || "",
-      provincia: item.provincia || "",
-      canton: item.canton || "",
-      country: item.country || "",
+      parroquia: fields.parroquia ?? item.parroquia ?? "",
+      ciudad: fields.ciudad ?? item.ciudad ?? "",
+      sector: fields.sector ?? item.sector ?? "",
+      calles: fields.calles ?? item.calles ?? item.street ?? "",
+      house_number: fields.house_number ?? item.house_number ?? "",
+      postcode: fields.postcode ?? item.postcode ?? "",
+      provincia: fields.provincia ?? item.provincia ?? "",
+      canton: fields.canton ?? item.canton ?? "",
+      country: fields.country ?? item.country ?? "",
     });
   };
 
@@ -798,7 +800,7 @@ export default function BusinessAddressStep({
                 : "text-gray-700 hover:bg-gray-50"
             }`}
           >
-            {item.display_label || item.label}
+            {formatDisplayParts(item)}
           </button>
         ))}
     </div>
@@ -1005,42 +1007,53 @@ export default function BusinessAddressStep({
             )}
 
             <div className="flex-1 space-y-6 mt-3">
-              <div className="space-y-1">
-                <label className="block text-xs text-gray-500 ml-1">
-                  Dirección confirmada
-                </label>
-                <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900">
-                  {addressLabel ||
-                    direccionPayload?.display_label ||
-                    direccionPayload?.label ||
-                    "Sin dirección"}
-                </div>
-              </div>
-
-              <div className="space-y-1 text-xs text-gray-500 ml-1">
-                {direccionPayload?.calles && (
-                  <div>{`Calle: ${direccionPayload.calles}`}</div>
+              <div className="space-y-2 text-sm text-gray-700">
+                {payloadProvincia && (
+                  <div>
+                    <span className="text-gray-500">Provincia:</span> {payloadProvincia}
+                  </div>
                 )}
-                {direccionPayload?.house_number && (
-                  <div>{`Numero: ${direccionPayload.house_number}`}</div>
-                )}
-                {payloadCiudad && (
-                  <div>{`Ciudad: ${payloadCiudad}`}</div>
+                {direccionPayload?.ciudad && (
+                  <div>
+                    <span className="text-gray-500">Ciudad:</span> {direccionPayload.ciudad}
+                  </div>
                 )}
                 {direccionPayload?.sector && (
-                  <div>{`Sector: ${direccionPayload.sector}`}</div>
+                  <div>
+                    <span className="text-gray-500">Sector:</span> {direccionPayload.sector}
+                  </div>
                 )}
-                {payloadProvincia && (
-                  <div>{`Provincia: ${payloadProvincia}`}</div>
+                {direccionPayload?.calles && (
+                  <div>
+                    <span className="text-gray-500">Calle:</span> {direccionPayload.calles}
+                  </div>
                 )}
-                {direccionPayload?.country && (
-                  <div>{`Pais: ${direccionPayload.country}`}</div>
+                {direccionPayload?.house_number && (
+                  <div>
+                    <span className="text-gray-500">Numero:</span> {direccionPayload.house_number}
+                  </div>
                 )}
                 {direccionPayload?.postcode && (
-                  <div>{`Codigo postal: ${direccionPayload.postcode}`}</div>
+                  <div>
+                    <span className="text-gray-500">Codigo postal:</span> {direccionPayload.postcode}
+                  </div>
+                )}
+                {payloadCanton && (
+                  <div>
+                    <span className="text-gray-500">Canton:</span> {payloadCanton}
+                  </div>
+                )}
+                {payloadParroquia && (
+                  <div>
+                    <span className="text-gray-500">Parroquia:</span> {payloadParroquia}
+                  </div>
+                )}
+                {direccionPayload?.country && (
+                  <div>
+                    <span className="text-gray-500">Pais:</span> {direccionPayload.country}
+                  </div>
                 )}
               </div>
-
               {displayCoords ? (
                 <div className="text-xs text-gray-500 ml-1">
                   {`Lat: ${displayCoords.lat.toFixed(6)} | Lng: ${displayCoords.lng.toFixed(6)}`}
@@ -1075,6 +1088,27 @@ export default function BusinessAddressStep({
     </section>
   );
 }
+
+function formatDisplayParts(item) {
+  const parts = Array.isArray(item?.display_parts) ? item.display_parts : [];
+  const filtered = parts.filter((value) => value);
+  if (filtered.length > 0) return filtered.join(", ");
+  const fields = item?.display_fields || {};
+  const fallback = [
+    fields.provincia,
+    fields.ciudad,
+    fields.sector,
+    fields.calles,
+    fields.postcode,
+    fields.house_number,
+    fields.canton,
+    fields.parroquia,
+    fields.country,
+  ].filter((value) => value);
+  if (fallback.length > 0) return fallback.join(", ");
+  return String(item?.label || "");
+}
+
 
 function haversineDistance(a, b) {
   const toRad = (value) => (Number(value) * Math.PI) / 180;

@@ -21,11 +21,25 @@ type Parroquia = {
   tipo?: string | null;
 };
 
+type DisplayFields = {
+  provincia: string | null;
+  ciudad: string | null;
+  sector: string | null;
+  calles: string | null;
+  postcode: string | null;
+  house_number: string | null;
+  canton: string | null;
+  parroquia: string | null;
+  country: string | null;
+};
+
 export type NormalizedResult = {
   id: string;
   label: string;
   raw_label: string;
   display_label: string;
+  display_fields: DisplayFields;
+  display_parts: Array<string | null>;
   lat: number;
   lng: number;
   calles?: string | null;
@@ -283,12 +297,36 @@ export async function normalizeMapTilerResults(
       postcode,
       provincia: provinciaName,
     });
+    const displayFields: DisplayFields = {
+      provincia: provinciaName || null,
+      ciudad: ciudad || null,
+      sector: sector || null,
+      calles: calles || null,
+      postcode: postcode || null,
+      house_number: houseNumber || null,
+      canton: cantonName || null,
+      parroquia: parroquiaText || null,
+      country: result.country ? String(result.country) : null,
+    };
+    const displayParts = [
+      displayFields.provincia,
+      displayFields.ciudad,
+      displayFields.sector,
+      displayFields.calles,
+      displayFields.postcode,
+      displayFields.house_number,
+      displayFields.canton,
+      displayFields.parroquia,
+      displayFields.country,
+    ];
 
     return {
       id: String(result.id || rawLabel),
       label: rawLabel,
       raw_label: rawLabel,
       display_label: displayLabel,
+      display_fields: displayFields,
+      display_parts: displayParts,
       lat: Number(result.lat ?? 0),
       lng: Number(result.lng ?? 0),
       calles: calles || null,
@@ -330,11 +368,35 @@ export function normalizeNominatimResults(results: ProviderResult[]) {
     const rawLabel = String(result.label || "");
     const displayLabel = rawLabel;
     const calleLabel = cleanStreet(result.street || "", result.house_number ?? null);
+    const displayFields: DisplayFields = {
+      provincia: result.region ? String(result.region) : null,
+      ciudad: null,
+      sector: result.city ? String(result.city) : null,
+      calles: calleLabel || null,
+      postcode: result.postcode ?? null,
+      house_number: result.house_number ?? null,
+      canton: null,
+      parroquia: null,
+      country: result.country ? String(result.country) : null,
+    };
+    const displayParts = [
+      displayFields.provincia,
+      displayFields.ciudad,
+      displayFields.sector,
+      displayFields.calles,
+      displayFields.postcode,
+      displayFields.house_number,
+      displayFields.canton,
+      displayFields.parroquia,
+      displayFields.country,
+    ];
     return {
       id: String(result.id || rawLabel),
       label: rawLabel,
       raw_label: rawLabel,
       display_label: displayLabel,
+      display_fields: displayFields,
+      display_parts: displayParts,
       lat: Number(result.lat ?? 0),
       lng: Number(result.lng ?? 0),
       calles: calleLabel || null,
@@ -354,4 +416,3 @@ export function normalizeNominatimResults(results: ProviderResult[]) {
     } as NormalizedResult;
   });
 }
-
