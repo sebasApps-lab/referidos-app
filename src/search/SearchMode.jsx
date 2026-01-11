@@ -14,8 +14,13 @@ export default function SearchMode({
   loading,
   footer,
   children,
+  variant = "overlay",
+  headerClassName = "",
+  contentClassName = "",
+  panelClassName = "",
   className = "",
 }) {
+  const isInline = variant === "inline";
   const handleClose = useCallback(() => {
     if (onBack) {
       onBack();
@@ -34,21 +39,33 @@ export default function SearchMode({
     <div className={`relative ${className}`}>
       <div
         className={`transition duration-200 ${
-          open ? "opacity-60 scale-[0.98] pointer-events-none" : "opacity-100"
+          open ? "pointer-events-none" : ""
         }`}
       >
         {children}
       </div>
 
-      <SearchOverlay open={open} onClick={handleClose} />
+      {!isInline && <SearchOverlay open={open} onClick={handleClose} />}
 
       <div
-        className={`fixed inset-0 z-[6] flex flex-col transition duration-200 ${
+        className={`${
+          isInline
+            ? "absolute inset-0 z-[50] bg-white"
+            : "fixed inset-0 z-[100]"
+        } flex flex-col transition duration-200 ${panelClassName} ${
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       >
-        <div className="pt-2">{searchBar}</div>
-        <div className="flex-1 overflow-y-auto px-4 pb-6">
+        <div className={`${isInline ? "pt-0" : "pt-2"} ${headerClassName}`}>
+          {searchBar}
+        </div>
+        <div
+          className={`${
+            isInline
+              ? "flex-1 px-4 pb-6 pt-4"
+              : "flex-1 overflow-y-auto px-4 pb-6 pt-[calc(var(--cliente-header-height,0px)+32px)]"
+          } ${contentClassName}`}
+        >
           {loading}
           {results}
           {empty}

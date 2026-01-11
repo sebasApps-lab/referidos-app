@@ -25,7 +25,7 @@ export default function SearchIdle({
 
   return (
     <div className="mt-6">
-      <div className="mb-6">
+      <div className="mb-6 -mx-4">
         <PromoSection
           title="Hot"
           promos={safePromos}

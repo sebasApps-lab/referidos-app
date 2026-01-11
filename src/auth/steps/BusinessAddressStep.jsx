@@ -10,6 +10,7 @@ import {
 } from "../../services/territoryClient";
 import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
 import { useModal } from "../../modals/useModal";
+import AddressStepSearch from "../../search/auth/AddressStepSearch";
 
 const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
 const FALLBACK_ZOOM = 11;
@@ -19,6 +20,8 @@ const CLOSE_ZOOM = 16;
 
 export default function BusinessAddressStep({
   innerRef,
+  searchModeOpen,
+  onSearchModeChange,
   isSucursalPrincipal,
   onChangeSucursalPrincipal,
   direccionPayload,
@@ -29,6 +32,11 @@ export default function BusinessAddressStep({
 }) {
   const [stage, setStage] = useState("map");
   const [searchValue, setSearchValue] = useState("");
+  const isSearchModeOpen = Boolean(searchModeOpen);
+  const setIsSearchModeOpen = useCallback((next) => {
+    onSearchModeChange?.(next);
+  }, [onSearchModeChange]);
+  const [selectedSearchItem, setSelectedSearchItem] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
@@ -373,12 +381,17 @@ export default function BusinessAddressStep({
   };
 
   const handleSelectSuggestion = (item) => {
+    setSelectedSearchItem(item);
+  };
+
+  const applySearchSelection = (item) => {
     const displayLabel = item.display_label || item.label || "";
     const rawLabel = item.raw_label || item.label || "";
     setSearchValue(displayLabel);
     setSearchResults([]);
     setSearchError("");
     setHasSearched(false);
+    setIsSearchModeOpen(false);
     if (item.lat && item.lng) {
       programmaticMoveRef.current = true;
       setCoords({
@@ -517,6 +530,7 @@ export default function BusinessAddressStep({
     !isSearching &&
     (!isManualFallback || hasTerritorySelection);
   const shouldShowSearch = !isManualFallback || hasTerritorySelection;
+  const searchModeActive = isSearchModeOpen && shouldShowSearch;
 
   const canConfirm =
     hasSearchSelection ||
@@ -539,10 +553,12 @@ export default function BusinessAddressStep({
     setHasSearched(false);
     setAddressLabel("");
     setReverseError("");
+    setSelectedSearchItem(null);
     setCoords(null);
     setCoordsSource(null);
     setHasMapMoved(false);
     setHasMapZoomed(false);
+    setIsSearchModeOpen(false);
     programmaticZoomRef.current = true;
     setMapZoom(FALLBACK_ZOOM);
   };
@@ -638,6 +654,8 @@ export default function BusinessAddressStep({
     setSearchError("");
     setSearchResults([]);
     setReverseError("");
+    setSelectedSearchItem(null);
+    setIsSearchModeOpen(true);
 
     const result = await searchAddresses(query, {
       limit: 6,
@@ -659,6 +677,80 @@ export default function BusinessAddressStep({
     setIsSearching(false);
   };
 
+  const handleConfirmSearch = () => {
+    if (!selectedSearchItem) return;
+    applySearchSelection(selectedSearchItem);
+    setSelectedSearchItem(null);
+  };
+
+  const searchInput = (
+    <div className="relative">
+      <PinOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 h-4 w-4" />
+      <input
+        className="w-full border border-gray-200 rounded-lg pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+        placeholder="Busca la direccion si no la encuentras..."
+        value={searchValue}
+        onFocus={() => setIsSearchModeOpen(true)}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setSearchValue(nextValue);
+          setSearchResults([]);
+          setSearchError("");
+          setHasSearched(false);
+          setSelectedSearchItem(null);
+          setIsSearchModeOpen(true);
+        }}
+      />
+      {searchValue.trim().length > 0 && (
+        <button
+          type="button"
+          onClick={handleSearch}
+          disabled={!canSearch}
+          className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 bg-[#5E30A5] text-white disabled:opacity-40 rounded-r-lg"
+          aria-label="Buscar direcci¢n"
+        >
+          <SearchTiltIcon className="h-4 w-4 -rotate-12 text-white" />
+        </button>
+      )}
+    </div>
+  );
+
+  const searchResultsList = (
+    <div className="-mx-3 flex-1 overflow-y-auto rounded-lg bg-white">
+      {isSearching && (
+        <div className="px-3 py-2 text-xs text-gray-500">Buscando...</div>
+      )}
+      {!isSearching && searchError && (
+        <div className="px-3 py-2 text-xs text-red-500">{searchError}</div>
+      )}
+      {!isSearching &&
+        !searchError &&
+        hasSearched &&
+        searchResults.length === 0 && (
+          <div className="px-3 py-2 text-xs text-gray-500">
+            Sin resultados
+          </div>
+        )}
+      {!isSearching &&
+        !searchError &&
+        searchResults.map((item) => (
+          <button
+            key={item.id || item.label}
+            type="button"
+            onClick={() => handleSelectSuggestion(item)}
+            className={`w-full text-left px-3 py-2 text-sm transition ${
+              (selectedSearchItem?.id || selectedSearchItem?.label) ===
+              (item.id || item.label)
+                ? "bg-[#F1ECFF] text-[#2F1A55]"
+                : "text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {item.display_label || item.label}
+          </button>
+        ))}
+    </div>
+  );
+
   return (
     <section
       style={{ boxSizing: "border-box", position: "relative" }}
@@ -666,197 +758,175 @@ export default function BusinessAddressStep({
     >
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         {stage === "map" ? (
-          <>
-            <p className="text-sm text-gray-600 mt-3 mb-4 text-center">
-              {subtitle || "Ayúdanos a conectar tu negocio con personas cerca de ti."}
-            </p>
+          <AddressStepSearch
+            open={searchModeActive}
+            onBack={() => setIsSearchModeOpen(false)}
+            variant="inline"
+            className="h-full"
+            headerClassName="px-4 pt-3"
+            contentClassName="flex flex-col gap-3 overflow-hidden"
+            searchBar={
+              <>
+                <p className="text-sm text-gray-600 text-center">
+                  {subtitle ||
+                    "Ay?anos a conectar tu negocio con personas cerca de ti."}
+                </p>
+                <div className="mt-3 -mx-3">{searchInput}</div>
+              </>
+            }
+            results={searchResultsList}
+            footer={
+              <div className="px-4 pb-4">
+                <button
+                  type="button"
+                  onClick={handleConfirmSearch}
+                  disabled={!selectedSearchItem}
+                  className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Confirmar
+                </button>
+              </div>
+            }
+          >
+            {!searchModeActive ? (
+              <>
+              <p className="text-sm text-gray-600 mt-3 mb-4 text-center">
+                {subtitle ||
+                  "Ay?anos a conectar tu negocio con personas cerca de ti."}
+              </p>
 
-            {(localError || reverseError || error) && (
-              <ErrorBanner message={localError || reverseError || error} className="mb-3" />
-            )}
-
-            <div className="flex-1 flex flex-col gap-4">
-              {shouldRenderMap ? (
-                <div className="-mx-5 relative border-y border-gray-200 overflow-hidden">
-                  <LeafletMapPicker
-                    center={mapCenter}
-                    zoom={mapZoom}
-                    onReady={() => setMapStatus("ready")}
-                    onError={() => setMapStatus("error")}
-                    onCenterChange={(nextCenter) => {
-                      if (!initialMoveSkippedRef.current) {
-                        initialMoveSkippedRef.current = true;
-                        return;
-                      }
-                      if (programmaticMoveRef.current) {
-                        programmaticMoveRef.current = false;
-                        return;
-                      }
-                      setCoords(nextCenter);
-                      setCoordsSource("manual");
-                      const movedEnough =
-                        Math.abs(nextCenter.lat - DEFAULT_MAP_CENTER.lat) >
-                          0.0002 ||
-                        Math.abs(nextCenter.lng - DEFAULT_MAP_CENTER.lng) >
-                          0.0002;
-                      if (movedEnough) {
-                        setHasMapMoved(true);
-                      }
-                      updateDireccionPayload({
-                        lat: nextCenter.lat,
-                        lng: nextCenter.lng,
-                      });
-                    }}
-                    onZoomChange={(nextZoom) => {
-                      if (!initialZoomSkippedRef.current) {
-                        initialZoomSkippedRef.current = true;
-                        return;
-                      }
-                      if (programmaticZoomRef.current) {
-                        programmaticZoomRef.current = false;
-                        setMapZoom(nextZoom);
-                        return;
-                      }
-                      setMapZoom(nextZoom);
-                      if (Math.abs(nextZoom - FALLBACK_ZOOM) >= 1) {
-                        setHasMapZoomed(true);
-                      }
-                    }}
-                    className="min-h-[320px] h-[320px] w-full"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => requestLocationRef.current?.()}
-                    className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-white/95 shadow-lg flex items-center justify-center text-gray-700 z-[1000]"
-                    aria-label="Reintentar ubicación"
-                  >
-                    <CompassIcon className="h-6 w-6" />
-                  </button>
-                </div>
-              ) : (
-                <div className="-mx-5 min-h-[320px] h-[320px] w-full border-y border-gray-200 flex items-center justify-center text-xs text-gray-400">
-                  Cargando mapa...
-                </div>
-              )}
-              {isManualFallback && (
-                <div className="space-y-3">
-                  <SearchableSelect
-                    label="Provincia"
-                    placeholder={
-                      isLoadingTerritory
-                        ? "Cargando..."
-                        : "Selecciona provincia"
-                    }
-                    value={provinciaId}
-                    options={provinciaOptions}
-                    disabled={isLoadingTerritory || Boolean(territoryError)}
-                    onChange={handleProvinciaChange}
-                    onClear={handleProvinciaClear}
-                  />
-
-                  <SearchableSelect
-                    label="Cantón"
-                    placeholder="Selecciona cantón"
-                    value={cantonId}
-                    options={cantonOptions}
-                    disabled={!canSelectCanton}
-                    onChange={handleCantonChange}
-                    onClear={handleCantonClear}
-                  />
-
-                  <SearchableSelect
-                    label="Ciudad/sector"
-                    placeholder="Selecciona ciudad/sector"
-                    value={parroquiaId}
-                    options={parroquiaOptions}
-                    disabled={!canSelectParroquia}
-                    onChange={handleParroquiaChange}
-                    onClear={handleParroquiaClear}
-                  />
-
-                  {territoryError && (
-                    <div className="text-xs text-red-500 ml-1">
-                      {territoryError}
-                    </div>
-                  )}
-                </div>
+              {(localError || reverseError || error) && (
+                <ErrorBanner
+                  message={localError || reverseError || error}
+                  className="mb-3"
+                />
               )}
 
-              {shouldShowSearch && (
-                <div className="-mx-3 space-y-2">
-                  <div className="relative">
-                    <PinOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 h-4 w-4" />
-                    <input
-                      className="w-full border border-gray-200 rounded-lg pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
-                      placeholder="Busca la dirección si no la encuentras en el mapa..."
-                      value={searchValue}
-                      onChange={(event) => {
-                        setSearchValue(event.target.value);
-                        setSearchResults([]);
-                        setSearchError("");
-                        setHasSearched(false);
+              <div className="flex-1 flex flex-col gap-4">
+                {shouldRenderMap ? (
+                  <div className="-mx-5 relative border-y border-gray-200 overflow-hidden">
+                    <LeafletMapPicker
+                      center={mapCenter}
+                      zoom={mapZoom}
+                      onReady={() => setMapStatus("ready")}
+                      onError={() => setMapStatus("error")}
+                      onCenterChange={(nextCenter) => {
+                        if (!initialMoveSkippedRef.current) {
+                          initialMoveSkippedRef.current = true;
+                          return;
+                        }
+                        if (programmaticMoveRef.current) {
+                          programmaticMoveRef.current = false;
+                          return;
+                        }
+                        setCoords(nextCenter);
+                        setCoordsSource("manual");
+                        const movedEnough =
+                          Math.abs(nextCenter.lat - DEFAULT_MAP_CENTER.lat) >
+                            0.0002 ||
+                          Math.abs(nextCenter.lng - DEFAULT_MAP_CENTER.lng) >
+                            0.0002;
+                        if (movedEnough) {
+                          setHasMapMoved(true);
+                        }
+                        updateDireccionPayload({
+                          lat: nextCenter.lat,
+                          lng: nextCenter.lng,
+                        });
                       }}
+                      onZoomChange={(nextZoom) => {
+                        if (!initialZoomSkippedRef.current) {
+                          initialZoomSkippedRef.current = true;
+                          return;
+                        }
+                        if (programmaticZoomRef.current) {
+                          programmaticZoomRef.current = false;
+                          setMapZoom(nextZoom);
+                          return;
+                        }
+                        setMapZoom(nextZoom);
+                        if (Math.abs(nextZoom - FALLBACK_ZOOM) >= 1) {
+                          setHasMapZoomed(true);
+                        }
+                      }}
+                      className="min-h-[320px] h-[320px] w-full"
                     />
-                    {searchValue.trim().length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleSearch}
-                        disabled={!canSearch}
-                        className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 bg-[#5E30A5] text-white disabled:opacity-40"
-                        aria-label="Buscar dirección"
-                      >
-                        <SearchTiltIcon className="h-4 w-4 -rotate-12 text-white" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => requestLocationRef.current?.()}
+                      className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-white/95 shadow-lg flex items-center justify-center text-gray-700 z-[1000]"
+                      aria-label="Reintentar ubicaci?"
+                    >
+                      <CompassIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="-mx-5 min-h-[320px] h-[320px] w-full border-y border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                    Cargando mapa...
+                  </div>
+                )}
+                {isManualFallback && (
+                  <div className="space-y-3">
+                    <SearchableSelect
+                      label="Provincia"
+                      placeholder={
+                        isLoadingTerritory
+                          ? "Cargando..."
+                          : "Selecciona provincia"
+                      }
+                      value={provinciaId}
+                      options={provinciaOptions}
+                      disabled={isLoadingTerritory || Boolean(territoryError)}
+                      onChange={handleProvinciaChange}
+                      onClear={handleProvinciaClear}
+                    />
+
+                    <SearchableSelect
+                      label="Cant?"
+                      placeholder="Selecciona cant?"
+                      value={cantonId}
+                      options={cantonOptions}
+                      disabled={!canSelectCanton}
+                      onChange={handleCantonChange}
+                      onClear={handleCantonClear}
+                    />
+
+                    <SearchableSelect
+                      label="Ciudad/sector"
+                      placeholder="Selecciona ciudad/sector"
+                      value={parroquiaId}
+                      options={parroquiaOptions}
+                      disabled={!canSelectParroquia}
+                      onChange={handleParroquiaChange}
+                      onClear={handleParroquiaClear}
+                    />
+
+                    {territoryError && (
+                      <div className="text-xs text-red-500 ml-1">
+                        {territoryError}
+                      </div>
                     )}
                   </div>
-                  {(isSearching || searchError || hasSearched) && (
-                    <div className="border border-gray-200 rounded-lg max-h-44 overflow-y-auto bg-white">
-                      {isSearching && (
-                        <div className="px-3 py-2 text-xs text-gray-500">
-                          Buscando...
-                        </div>
-                      )}
-                      {!isSearching && searchError && (
-                        <div className="px-3 py-2 text-xs text-red-500">
-                          {searchError}
-                        </div>
-                      )}
-                      {!isSearching &&
-                        !searchError &&
-                        searchResults.length === 0 && (
-                          <div className="px-3 py-2 text-xs text-gray-500">
-                            Sin resultados
-                          </div>
-                        )}
-                      {!isSearching &&
-                        !searchError &&
-                        searchResults.map((item) => (
-                          <button
-                            key={item.id || item.label}
-                            type="button"
-                            onClick={() => handleSelectSuggestion(item)}
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            {item.display_label || item.label}
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
 
-            <div className="mt-auto pt-4">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={!canConfirm || isReverseLoading}
-                className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isReverseLoading ? "Confirmando..." : "Confirmar"}
-              </button>
-            </div>
-          </>
+                {!searchModeActive && shouldShowSearch && (
+                  <div className="-mx-3">{searchInput}</div>
+                )}
+              </div>
+
+              <div className="mt-auto pt-4">
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={!canConfirm || isReverseLoading}
+                  className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isReverseLoading ? "Confirmando..." : "Confirmar"}
+                </button>
+              </div>
+              </>
+            ) : null}
+          </AddressStepSearch>
         ) : (
           <>
             {(localError || reverseError || error) && (

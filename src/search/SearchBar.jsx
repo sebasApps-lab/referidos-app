@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 export default function SearchBar({
   value,
   onChange,
@@ -8,6 +10,16 @@ export default function SearchBar({
   showBack = false,
   autoFocus = false,
 }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const frameId = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [autoFocus]);
+
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
@@ -61,6 +73,7 @@ export default function SearchBar({
           </svg>
 
           <input
+            ref={inputRef}
             placeholder="Buscar local"
             value={value}
             onChange={(e) => onChange(e.target.value)}

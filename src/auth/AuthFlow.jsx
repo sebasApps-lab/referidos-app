@@ -114,6 +114,7 @@ export default function AuthFlow() {
     flow.setOauthLoading(false);
     flow.setOauthProvider(null);
     flow.setWelcomeLoading(false);
+    flow.setIsAddressSearchModeOpen(false);
     flow.setShowPassword(false);
     flow.setShowPasswordConfirm(false);
     flow.setStep(AUTH_STEPS.WELCOME);
@@ -141,6 +142,7 @@ export default function AuthFlow() {
     flow.setTelefono,
     flow.setWelcomeError,
     flow.setWelcomeLoading,
+    flow.setIsAddressSearchModeOpen,
     flow.setDireccionPayload,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
@@ -272,12 +274,25 @@ export default function AuthFlow() {
       resetToWelcome();
       return;
     }
+    if (
+      flow.step === AUTH_STEPS.BUSINESS_ADDRESS &&
+      flow.isAddressSearchModeOpen
+    ) {
+      flow.setIsAddressSearchModeOpen(false);
+      return;
+    }
     if (flow.step === AUTH_STEPS.OWNER_DATA) {
       setShowExitConfirm(true);
       return;
     }
     actions.handleButtonBack();
   };
+
+  React.useEffect(() => {
+    if (flow.step !== AUTH_STEPS.BUSINESS_ADDRESS && flow.isAddressSearchModeOpen) {
+      flow.setIsAddressSearchModeOpen(false);
+    }
+  }, [flow.isAddressSearchModeOpen, flow.setIsAddressSearchModeOpen, flow.step]);
 
   return (
     <AuthView
@@ -453,6 +468,8 @@ export default function AuthFlow() {
               {flow.step === AUTH_STEPS.BUSINESS_ADDRESS && (
                 <BusinessAddressStep
                   innerRef={flow.regPage2Ref}
+                  searchModeOpen={flow.isAddressSearchModeOpen}
+                  onSearchModeChange={flow.setIsAddressSearchModeOpen}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
                   direccionPayload={flow.direccionPayload}
