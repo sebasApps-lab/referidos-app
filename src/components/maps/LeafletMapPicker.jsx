@@ -93,14 +93,15 @@ export default function LeafletMapPicker({
     const map = mapRef.current;
     if (!map || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const current = map.getCenter();
-    if (
-      Math.abs(current.lat - lat) < 0.000001 &&
-      Math.abs(current.lng - lng) < 0.000001
-    ) {
-      return;
-    }
-    map.setView([lat, lng], map.getZoom(), { animate: false });
-  }, [lat, lng]);
+    const currentZoom = map.getZoom();
+    const targetZoom = Number.isFinite(zoom) ? zoom : currentZoom;
+    const centerChanged =
+      Math.abs(current.lat - lat) >= 0.000001 ||
+      Math.abs(current.lng - lng) >= 0.000001;
+    const zoomChanged = Math.abs(currentZoom - targetZoom) >= 0.01;
+    if (!centerChanged && !zoomChanged) return;
+    map.setView([lat, lng], targetZoom, { animate: false });
+  }, [lat, lng, zoom]);
 
   return (
     <div className={`relative ${className}`}>

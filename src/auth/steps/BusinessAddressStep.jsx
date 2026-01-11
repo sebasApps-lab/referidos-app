@@ -10,8 +10,9 @@ import {
 import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
 import { useModal } from "../../modals/useModal";
 
-const DEFAULT_MAP_CENTER = { lat: -0.1806532, lng: -78.4678382 };
-const FALLBACK_ZOOM = 13;
+const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
+const FALLBACK_ZOOM = 11;
+const CLOSE_ZOOM = 16;
 
 
 
@@ -39,6 +40,7 @@ export default function BusinessAddressStep({
   const [mapStatus, setMapStatus] = useState("loading");
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const { openModal, closeModal, activeModal } = useModal();
+  const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -62,6 +64,7 @@ export default function BusinessAddressStep({
   const initialMoveSkippedRef = useRef(false);
   const initialZoomSkippedRef = useRef(false);
   const programmaticMoveRef = useRef(false);
+  const programmaticZoomRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -195,6 +198,8 @@ export default function BusinessAddressStep({
         programmaticMoveRef.current = true;
         setCoords(nextCenter);
         setCoordsSource("gps");
+        programmaticZoomRef.current = true;
+        setMapZoom(CLOSE_ZOOM);
         updateDireccionPayloadRef.current?.({
           lat: nextCenter.lat,
           lng: nextCenter.lng,
@@ -207,7 +212,7 @@ export default function BusinessAddressStep({
           openLocationModal();
           return;
         }
-        if (error?.code === 2) {
+        if (error?.code === 2 || error?.code === 3) {
           openGpsModal();
           return;
         }
@@ -273,6 +278,9 @@ export default function BusinessAddressStep({
                 requestLocationRef.current?.();
               }
             }
+          } else if (!didPromptLocationRef.current) {
+            didPromptLocationRef.current = true;
+            openLocationModal();
           }
         };
       } catch (error) {
@@ -367,6 +375,8 @@ export default function BusinessAddressStep({
         lng: Number(item.lng),
       });
       setCoordsSource("search");
+      programmaticZoomRef.current = true;
+      setMapZoom(CLOSE_ZOOM);
     }
     updateDireccionPayload({
       place_id: item.id,
@@ -512,6 +522,8 @@ export default function BusinessAddressStep({
     setCoordsSource(null);
     setHasMapMoved(false);
     setHasMapZoomed(false);
+    programmaticZoomRef.current = true;
+    setMapZoom(FALLBACK_ZOOM);
   };
 
   const handleProvinciaChange = (value) => {
@@ -639,7 +651,7 @@ export default function BusinessAddressStep({
                 <div className="-mx-5 relative border-y border-gray-200 overflow-hidden">
                   <LeafletMapPicker
                     center={mapCenter}
-                    zoom={FALLBACK_ZOOM}
+                    zoom={mapZoom}
                     onReady={() => setMapStatus("ready")}
                     onError={() => setMapStatus("error")}
                     onCenterChange={(nextCenter) => {
@@ -671,6 +683,12 @@ export default function BusinessAddressStep({
                         initialZoomSkippedRef.current = true;
                         return;
                       }
+                      if (programmaticZoomRef.current) {
+                        programmaticZoomRef.current = false;
+                        setMapZoom(nextZoom);
+                        return;
+                      }
+                      setMapZoom(nextZoom);
                       if (Math.abs(nextZoom - FALLBACK_ZOOM) >= 1) {
                         setHasMapZoomed(true);
                       }
