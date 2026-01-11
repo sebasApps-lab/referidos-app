@@ -4,6 +4,7 @@ import L from "leaflet";
 export default function LeafletMapPicker({
   center,
   zoom = 16,
+  animateZoom = false,
   onCenterChange,
   onZoomChange,
   onReady,
@@ -115,8 +116,8 @@ export default function LeafletMapPicker({
       Math.abs(current.lng - lng) >= 0.000001;
     const zoomChanged = Math.abs(currentZoom - targetZoom) >= 0.01;
     if (!centerChanged && !zoomChanged) return;
-    map.setView([lat, lng], targetZoom, { animate: false });
-  }, [lat, lng, zoom]);
+    map.setView([lat, lng], targetZoom, { animate: animateZoom });
+  }, [lat, lng, zoom, animateZoom]);
 
   return (
     <div className={`relative ${className}`}>

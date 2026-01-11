@@ -50,6 +50,7 @@ export default function BusinessAddressStep({
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const { openModal, closeModal, activeModal } = useModal();
   const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
+  const [animateZoom, setAnimateZoom] = useState(false);
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -74,6 +75,7 @@ export default function BusinessAddressStep({
   const initialZoomSkippedRef = useRef(false);
   const programmaticMoveRef = useRef(false);
   const programmaticZoomRef = useRef(false);
+  const zoomSequenceRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -173,6 +175,14 @@ export default function BusinessAddressStep({
   const requestLocationRef = useRef(null);
   const didAutoLocateRef = useRef(false);
   const didPromptLocationRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (zoomSequenceRef.current) {
+        clearTimeout(zoomSequenceRef.current);
+      }
+    };
+  }, []);
 
   const openLocationModal = useCallback(() => {
     openModal("LocationPermission", {
@@ -315,6 +325,39 @@ export default function BusinessAddressStep({
     }
   }, [closeGpsModal, closeLocationModal, stage]);
 
+  const startConfirmZoom = () => {
+    if (zoomSequenceRef.current) {
+      clearTimeout(zoomSequenceRef.current);
+    }
+    setAnimateZoom(true);
+    const currentZoom = Number.isFinite(mapZoom) ? Math.floor(mapZoom) : FALLBACK_ZOOM;
+    const startZoom = Math.min(currentZoom + 1, 18);
+    const steps = [];
+    for (let z = startZoom; z <= 18; z += 1) {
+      steps.push(z);
+    }
+    if (steps.length == 0) {
+      setAnimateZoom(false);
+      return;
+    }
+    let index = 0;
+    const tick = () => {
+      const nextZoom = steps[index];
+      programmaticZoomRef.current = true;
+      setMapZoom(nextZoom);
+      index += 1;
+      if (index >= steps.length) {
+        zoomSequenceRef.current = null;
+        setTimeout(() => {
+          setAnimateZoom(false);
+        }, 250);
+        return;
+      }
+      zoomSequenceRef.current = setTimeout(tick, 220);
+    };
+    tick();
+  };
+
   const handleConfirm = async () => {
     setLocalError("");
     setReverseError("");
@@ -323,6 +366,17 @@ export default function BusinessAddressStep({
       setLocalError("Selecciona una ubicación válida.");
       return;
     }
+
+    if (!isOffFallback) {
+      setLocalError("Selecciona una ubicación válida.");
+      return;
+    }
+
+    if (mapZoom <= 16) {
+      startConfirmZoom();
+      return;
+    }
+
     setIsReverseLoading(true);
     const result = await reverseGeocode(center.lat, center.lng);
     setIsReverseLoading(false);
@@ -514,15 +568,6 @@ export default function BusinessAddressStep({
     provinciaId && cantonId && parroquiaId
   );
   const shouldRenderMap = true;
-  const hasSearchSelection = Boolean(
-    String(direccionPayload?.place_id || "").trim() &&
-      String(direccionPayload?.label || "").trim()
-  );
-  const hasCoords = Boolean(
-    coords ||
-      (direccionPayload?.lat != null && direccionPayload?.lng != null)
-  );
-
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
   const canSearch =
@@ -532,17 +577,18 @@ export default function BusinessAddressStep({
   const shouldShowSearch = !isManualFallback || hasTerritorySelection;
   const searchModeActive = isSearchModeOpen && shouldShowSearch;
 
-  const canConfirm =
-    hasSearchSelection ||
-    coordsSource === "gps" ||
-    (coordsSource === "manual" && hasMapMoved && hasMapZoomed) ||
-    (coordsSource == null && hasCoords);
   const displayCoords =
     coords ||
     (direccionPayload?.lat != null && direccionPayload?.lng != null
       ? { lat: Number(direccionPayload.lat), lng: Number(direccionPayload.lng) }
       : null);
   const mapCenter = displayCoords || DEFAULT_MAP_CENTER;
+  const isOffFallback = Boolean(
+    displayCoords &&
+      (Math.abs(displayCoords.lat - DEFAULT_MAP_CENTER.lat) > 0.0002 ||
+        Math.abs(displayCoords.lng - DEFAULT_MAP_CENTER.lng) > 0.0002)
+  );
+  const canConfirm = isOffFallback;
 
 
 
@@ -855,6 +901,7 @@ export default function BusinessAddressStep({
                         }
                       }}
                       className="min-h-[320px] h-[320px] w-full"
+                      animateZoom={animateZoom}
                     />
                     <button
                       type="button"
