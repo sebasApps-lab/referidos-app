@@ -7,10 +7,10 @@ import {
   HeaderPanelContainer,
   SearchbarPanel,
 } from "../../components/header-panels";
-import SearchContainer from "../../components/search/SearchContainer";
-import SearchResults from "../../components/search/SearchResults";
-import { useSearchMode } from "../../components/search/useSearchMode";
-import SearchIdle from "../../components/search/SearchIdle";
+import ClienteInicioSearch from "../../search/cliente/ClienteInicioSearch";
+import SearchResults from "../../search/SearchResults";
+import { useSearchMode } from "../../search/hooks/useSearchMode";
+import SearchIdle from "../../search/SearchIdle";
 import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import LoaderOverlay from "../../components/ui/LoaderOverlay";
@@ -48,7 +48,7 @@ export default function ClienteInicio() {
     if (promos.length > 0) initRatings(promos);
   }, [promos, initRatings]);
 
-  const { query, setQuery, isSearching, onFocus, onCancel } = useSearchMode();
+  const { query, setQuery, isSearching, onFocus, onBack } = useSearchMode();
   const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
@@ -104,13 +104,13 @@ export default function ClienteInicio() {
   useLayoutEffect(() => {
     setHeaderOptions({
       mode,
-      onSearchBack: onCancel,
+      onSearchBack: onBack,
       headerVisible,
     });
     return () => {
       setHeaderOptions({ mode: "default", onSearchBack: null, headerVisible: true });
     };
-  }, [headerVisible, mode, onCancel, setHeaderOptions]);
+  }, [headerVisible, mode, onBack, setHeaderOptions]);
 
   useEffect(() => {
     startPromosAutoRefresh();
@@ -130,8 +130,9 @@ export default function ClienteInicio() {
 
   return (
     <div className="pb-16">
-      <SearchContainer
-        mode={mode}
+      <ClienteInicioSearch
+        open={isSearching}
+        onBack={onBack}
         searchBar={
           dockTarget
             ? createPortal(
@@ -144,7 +145,7 @@ export default function ClienteInicio() {
                     value={query}
                     onChange={setQuery}
                     onFocus={onFocus}
-                    onCancel={onCancel}
+                    onCancel={onBack}
                     showBack={false}
                     autoFocus={mode === "search"}
                   />
@@ -166,19 +167,22 @@ export default function ClienteInicio() {
                   className="w-full"
                 />
               )}
-              emptyState={<InicioEmptyState variant="search" onClear={onCancel} />}
+              emptyState={<InicioEmptyState variant="search" onClear={onBack} />}
               showEmpty
-              wrapperClassName="mt-6 px-4"
+              wrapperClassName="mt-6"
               listClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               titleClassName="text-sm font-semibold text-[#2F1A55] mb-3"
             />
-          ) : (
+          ) : null
+        }
+        suggestions={
+          !hasQuery ? (
             <SearchIdle
               hotPromos={hotPromos}
               ratings={ratings}
               onSelectSuggestion={(term) => setQuery(term)}
             />
-          )
+          ) : null
         }
       >
         <div className={headerEntering ? "cliente-merge-enter" : ""}>
@@ -213,7 +217,7 @@ export default function ClienteInicio() {
             <InicioBeneficios usuario={usuario} />
           </>
         )}
-      </SearchContainer>
+      </ClienteInicioSearch>
     </div>
   );
 }

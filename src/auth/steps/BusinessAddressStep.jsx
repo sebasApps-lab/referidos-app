@@ -802,10 +802,10 @@ export default function BusinessAddressStep({
                         type="button"
                         onClick={handleSearch}
                         disabled={!canSearch}
-                        className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 text-gray-400 disabled:opacity-40"
+                        className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 bg-[#5E30A5] text-white disabled:opacity-40"
                         aria-label="Buscar dirección"
                       >
-                        <SearchTiltIcon className="h-4 w-4 -rotate-12" />
+                        <SearchTiltIcon className="h-4 w-4 -rotate-12 text-white" />
                       </button>
                     )}
                   </div>

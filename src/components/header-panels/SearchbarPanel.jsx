@@ -1,4 +1,4 @@
-import SearchBar from "../search/SearchBar";
+import SearchBar from "../../search/SearchBar";
 
 export default function SearchbarPanel({
   value,

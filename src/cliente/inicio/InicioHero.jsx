@@ -6,7 +6,7 @@ import {
   getTierJourney,
   getTierProgress,
 } from "../services/clienteUI";
-import SearchBar from "../../components/search/SearchBar";
+import SearchBar from "../../search/SearchBar";
 
 export default function InicioHero({
   usuario,

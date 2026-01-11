@@ -6,7 +6,7 @@ import {
   NotificationsPanel,
 } from "../../layouts/header-panels";
 import { TabTitle } from "../../layouts/header-elements";
-import SearchHeader from "../../components/search/SearchHeader";
+import SearchHeader from "../../search/SearchHeader";
 import { useNegocioHeader } from "./NegocioHeaderContext";
 import {
   getAvatarSrc,

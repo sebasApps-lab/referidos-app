@@ -11,7 +11,7 @@ import {
   TabTitle,
   UserIdentity,
 } from "../../components/header-elements";
-import SearchHeader from "../../components/search/SearchHeader";
+import SearchHeader from "../../search/SearchHeader";
 import { useClienteHeader } from "./ClienteHeaderContext";
 import {
   getAvatarSrc,
