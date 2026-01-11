@@ -14,6 +14,7 @@ export default function SearchMode({
   loading,
   footer,
   children,
+  childrenClassName = "",
   variant = "overlay",
   headerClassName = "",
   contentClassName = "",
@@ -40,7 +41,7 @@ export default function SearchMode({
       <div
         className={`transition duration-200 ${
           open ? "pointer-events-none" : ""
-        }`}
+        } ${childrenClassName}`}
       >
         {children}
       </div>
@@ -62,7 +63,7 @@ export default function SearchMode({
         <div
           className={`${
             isInline
-              ? "flex-1 px-4 pb-6 pt-4"
+              ? "flex-1 pb-6 pt-4"
               : "flex-1 overflow-y-auto px-4 pb-6 pt-[calc(var(--cliente-header-height,0px)+32px)]"
           } ${contentClassName}`}
         >

@@ -16,6 +16,13 @@ export default function LeafletMapPicker({
   const onZoomChangeRef = useRef(onZoomChange);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const mapTilerKey = import.meta.env.VITE_MAPTILER_KEY;
+  const tileUrl = mapTilerKey
+    ? `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${mapTilerKey}`
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const tileAttribution = mapTilerKey
+    ? "&copy; <a href=\"https://www.maptiler.com/copyright/\">MapTiler</a> &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>"
+    : "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>";
   const lat = Number(center?.lat ?? 0);
   const lng = Number(center?.lng ?? 0);
 
@@ -45,14 +52,22 @@ export default function LeafletMapPicker({
     try {
       mapInstance = L.map(containerRef.current, {
         zoomControl: false,
-        attributionControl: false,
+        attributionControl: true,
         doubleClickZoom: false,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      if (mapInstance.attributionControl?.setPosition) {
+        mapInstance.attributionControl.setPosition("topleft");
+      }
+
+      L.tileLayer(tileUrl, {
+        attribution: tileAttribution,
+        maxZoom: 20,
       }).addTo(mapInstance);
+
+      if (mapInstance.attributionControl?.setPrefix) {
+        mapInstance.attributionControl.setPrefix("");
+      }
 
       mapInstance.setView([lat, lng], zoom, { animate: false });
 

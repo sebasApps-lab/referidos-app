@@ -769,6 +769,7 @@ export default function BusinessAddressStep({
             className="h-full"
             headerClassName="pt-3"
             contentClassName="flex flex-col gap-3 overflow-hidden px-0"
+            childrenClassName="flex h-full flex-col"
             searchBar={
               <>
                 <p className="text-sm text-gray-600 text-center">
