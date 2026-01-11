@@ -678,6 +678,7 @@ export default function useAuthActions({
     const provider = String(direccionPayload?.provider || "").trim();
     const provinciaId = String(direccionPayload?.provincia_id || "").trim();
     const cantonId = String(direccionPayload?.canton_id || "").trim();
+    const parroquiaId = String(direccionPayload?.parroquia_id || "").trim();
     const latValue = direccionPayload?.lat ?? null;
     const lngValue = direccionPayload?.lng ?? null;
     if (!placeId || !label) {
@@ -685,17 +686,10 @@ export default function useAuthActions({
       return;
     }
 
-    const street = String(direccionPayload?.street || "").trim();
-    const houseNumber = String(direccionPayload?.house_number || "").trim();
-    const city = String(direccionPayload?.city || "").trim();
-    const region = String(direccionPayload?.region || "").trim();
-    const country = String(direccionPayload?.country || "").trim();
-
-    const calle1 = street
-      ? [street, houseNumber].filter(Boolean).join(" ")
-      : label;
-    const ciudad = city || region || country || "Ecuador";
-    const sector = region || city || country || "Ecuador";
+    const calles = String(direccionPayload?.calles || "").trim();
+    const ciudad = String(direccionPayload?.ciudad || "").trim();
+    const sector = String(direccionPayload?.sector || "").trim();
+    const parroquiaText = String(direccionPayload?.parroquia || "").trim();
 
     if (latValue == null || lngValue == null) {
       setEmailError("Selecciona una dirección válida");
@@ -754,11 +748,10 @@ export default function useAuthActions({
 
     const direccionData = {
       owner_id: userRow.id,
-      calle_1: calle1,
-      calle_2: null,
+      calles: calles || null,
       referencia: null,
-      ciudad,
-      sector,
+      ciudad: ciudad || null,
+      sector: sector || null,
       lat: Number(latValue),
       lng: Number(lngValue),
       place_id: placeId,
@@ -766,6 +759,8 @@ export default function useAuthActions({
       provider: provider || null,
       provincia_id: provinciaId || null,
       canton_id: cantonId || null,
+      parroquia_id: parroquiaId || null,
+      parroquia: parroquiaId ? null : (parroquiaText || null),
     };
 
     let direccionId = targetSucursal?.direccion_id || null;

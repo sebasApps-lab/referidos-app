@@ -51,17 +51,22 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [direccionPayload, setDireccionPayload] = useState({
     place_id: "",
     label: "",
+    display_label: "",
     provider: "",
     lat: null,
     lng: null,
     provincia_id: "",
     canton_id: "",
-    street: "",
+    parroquia_id: "",
+    parroquia: "",
+    ciudad: "",
+    sector: "",
+    calles: "",
     house_number: "",
-    city: "",
-    region: "",
-    country: "",
     postcode: "",
+    provincia: "",
+    canton: "",
+    country: "",
   });
 
   const sliderGap = 28;

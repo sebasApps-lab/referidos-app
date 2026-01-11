@@ -47,17 +47,22 @@ export default function useAuthPrefill({
       setDireccionPayload?.({
         place_id: "",
         label: "",
+        display_label: "",
         provider: "",
         lat: null,
         lng: null,
         provincia_id: "",
         canton_id: "",
-        street: "",
+        parroquia_id: "",
+        parroquia: "",
+        ciudad: "",
+        sector: "",
+        calles: "",
         house_number: "",
-        city: "",
-        region: "",
-        country: "",
         postcode: "",
+        provincia: "",
+        canton: "",
+        country: "",
       });
     }
   }, [
@@ -93,17 +98,22 @@ export default function useAuthPrefill({
       setDireccionPayload?.({
         place_id: "",
         label: "",
+        display_label: "",
         provider: "",
         lat: null,
         lng: null,
         provincia_id: "",
         canton_id: "",
-        street: "",
+        parroquia_id: "",
+        parroquia: "",
+        ciudad: "",
+        sector: "",
+        calles: "",
         house_number: "",
-        city: "",
-        region: "",
-        country: "",
         postcode: "",
+        provincia: "",
+        canton: "",
+        country: "",
       });
       if (onboardingOk && !choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
@@ -131,17 +141,22 @@ export default function useAuthPrefill({
       setDireccionPayload?.({
         place_id: "",
         label: "",
+        display_label: "",
         provider: "",
         lat: null,
         lng: null,
         provincia_id: "",
         canton_id: "",
-        street: "",
+        parroquia_id: "",
+        parroquia: "",
+        ciudad: "",
+        sector: "",
+        calles: "",
         house_number: "",
-        city: "",
-        region: "",
-        country: "",
         postcode: "",
+        provincia: "",
+        canton: "",
+        country: "",
       });
       if (!choiceOpenedRef.current) {
         choiceOpenedRef.current = true;
@@ -228,29 +243,34 @@ export default function useAuthPrefill({
         const requestId = ++direccionRequestRef.current;
         supabase
           .from("direcciones")
-          .select("calle_1, calle_2, sector, ciudad, lat, lng, place_id, label, provider, provincia_id, canton_id")
+          .select("calles, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
           .eq("id", direccionId)
           .maybeSingle()
           .then(({ data, error }) => {
             if (requestId !== direccionRequestRef.current) return;
             if (error || !data) return;
-            setCalle1(data.calle_1 || "");
-            setCalle2(data.calle_2 || "");
+            setCalle1(data.calles || "");
+            setCalle2("");
             setSectorNegocio(data.sector || "");
             setDireccionPayload?.({
               place_id: data.place_id || "",
               label: data.label || "",
+              display_label: data.label || "",
               provider: data.provider || "",
               lat: data.lat ?? null,
               lng: data.lng ?? null,
               provincia_id: data.provincia_id || "",
               canton_id: data.canton_id || "",
-              street: data.calle_1 || "",
+              parroquia_id: data.parroquia_id || "",
+              parroquia: data.parroquia || "",
+              ciudad: data.ciudad || "",
+              sector: data.sector || "",
+              calles: data.calles || "",
               house_number: "",
-              city: data.ciudad || "",
-              region: data.sector || "",
-              country: "",
               postcode: "",
+              provincia: "",
+              canton: "",
+              country: "",
             });
           })
           .catch(() => {});

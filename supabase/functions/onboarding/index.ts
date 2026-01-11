@@ -90,11 +90,14 @@ type SucursalProfile = {
 
 type DireccionProfile = {
     id: string;
-    calle_1: string | null;
-    calle_2: string | null;
+    calles: string | null;
     sector: string | null;
     referencia: string | null;
     ciudad: string | null;
+    provincia_id: string | null;
+    canton_id: string | null;
+    parroquia_id: string | null;
+    parroquia: string | null;
     lat: number | null;
     lng: number | null;
 };
@@ -298,7 +301,7 @@ serve (async (req) => {
                 } else {
                     const { data: dirData, error: dirErr } = await supabaseAdmin
                         .from("direcciones")
-                        .select("id, calle_1, calle_2, sector, referencia, ciudad, lat, lng")
+                        .select("id, calles, sector, referencia, ciudad, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
                         .eq("id", principal.direccion_id)
                         .maybeSingle<DireccionProfile>();
 
@@ -307,10 +310,16 @@ serve (async (req) => {
                     } else if (!dirData) {
                         reasons.push("missing_address_row");
                     } else {
+                        const hasUbicacion =
+                            Boolean(dirData.ciudad) ||
+                            Boolean(dirData.parroquia_id) ||
+                            Boolean(dirData.parroquia);
                         const missingFields =
-                            !dirData.calle_1 ||
-                            !dirData.ciudad ||
+                            !dirData.calles ||
+                            !hasUbicacion ||
                             !dirData.sector ||
+                            !dirData.provincia_id ||
+                            !dirData.canton_id ||
                             dirData.lat === null ||
                             dirData.lng === null;
                         if (missingFields) {

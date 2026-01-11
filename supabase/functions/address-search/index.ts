@@ -3,6 +3,11 @@
 
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  normalizeMapTilerResults,
+  normalizeNominatimResults,
+  type NormalizedResult,
+} from "../_shared/addressNormalize.ts";
 
 const supabaseUrl = Deno.env.get("URL") ?? Deno.env.get("SUPABASE_URL");
 const publishableKey =
@@ -42,7 +47,7 @@ const OSM_MIN_INTERVAL_MS = parseInt(
 
 let lastOsmRequestAt = 0;
 
-type NormalizedResult = {
+type ProviderResult = {
   id: string;
   label: string;
   lat: number;
@@ -114,6 +119,7 @@ serve(async (req) => {
     );
   }
 
+  let maptilerRateLimited = false;
   if (MAPTILER_KEY) {
     const maptiler = await searchMapTiler({
       query: rawQuery,
@@ -123,48 +129,60 @@ serve(async (req) => {
     });
 
     if (maptiler.ok) {
+      const normalized = await normalizeMapTilerResults(
+        maptiler.results,
+        supabaseAdmin,
+      );
       await storeCache({
         query: rawQuery,
         queryKey,
         provider: "maptiler",
-        results: maptiler.results,
+        results: normalized,
       });
 
-      if (maptiler.results.length > 0) {
-        return json(
-          {
-            ok: true,
-            source: "maptiler",
-            cached: false,
-            provider: "maptiler",
-            results: maptiler.results,
-          },
-          200,
-          corsHeaders,
-        );
-      }
+      return json(
+        {
+          ok: true,
+          source: "maptiler",
+          cached: false,
+          provider: "maptiler",
+          results: normalized,
+        },
+        200,
+        corsHeaders,
+      );
     }
+
+    maptilerRateLimited = maptiler.rateLimited === true;
   }
 
-  const osm = await searchNominatim({ query: rawQuery, limit, country, language });
-  if (osm.ok) {
-    await storeCache({
+  if (!MAPTILER_KEY || maptilerRateLimited) {
+    const osm = await searchNominatim({
       query: rawQuery,
-      queryKey,
-      provider: "nominatim",
-      results: osm.results,
+      limit,
+      country,
+      language,
     });
-    return json(
-      {
-        ok: true,
-        source: "nominatim",
-        cached: false,
+    if (osm.ok) {
+      const normalized = normalizeNominatimResults(osm.results);
+      await storeCache({
+        query: rawQuery,
+        queryKey,
         provider: "nominatim",
-        results: osm.results,
-      },
-      200,
-      corsHeaders,
-    );
+        results: normalized,
+      });
+      return json(
+        {
+          ok: true,
+          source: "nominatim",
+          cached: false,
+          provider: "nominatim",
+          results: normalized,
+        },
+        200,
+        corsHeaders,
+      );
+    }
   }
 
   const stale = await getCachedResult(queryKey, true);
@@ -297,7 +315,9 @@ async function searchMapTiler({
   country: string;
   language: string;
 }) {
-  if (!MAPTILER_KEY) return { ok: false, results: [] as NormalizedResult[] };
+  if (!MAPTILER_KEY) {
+    return { ok: false, rateLimited: false, results: [] as ProviderResult[] };
+  }
 
   const url = new URL(`${MAPTILER_BASE}/${encodeURIComponent(query)}.json`);
   url.searchParams.set("key", MAPTILER_KEY);
@@ -307,7 +327,12 @@ async function searchMapTiler({
   if (language) url.searchParams.set("language", language);
 
   const res = await fetch(url.toString());
-  if (!res.ok) return { ok: false, results: [] as NormalizedResult[] };
+  if (res.status === 429 || res.status === 402) {
+    return { ok: false, rateLimited: true, results: [] as ProviderResult[] };
+  }
+  if (!res.ok) {
+    return { ok: false, rateLimited: false, results: [] as ProviderResult[] };
+  }
 
   const data = await res.json();
   const features = Array.isArray(data?.features) ? data.features : [];
@@ -333,9 +358,9 @@ async function searchMapTiler({
       country: pickContext(["country"]),
       postcode: pickContext(["postcode"]),
     };
-  }).filter((result: NormalizedResult) => Boolean(result.label));
+  }).filter((result: ProviderResult) => Boolean(result.label));
 
-  return { ok: true, results };
+  return { ok: true, rateLimited: false, results };
 }
 
 async function searchNominatim({
@@ -371,7 +396,7 @@ async function searchNominatim({
     },
   });
 
-  if (!res.ok) return { ok: false, results: [] as NormalizedResult[] };
+  if (!res.ok) return { ok: false, results: [] as ProviderResult[] };
 
   const data = await res.json();
   const results = Array.isArray(data)

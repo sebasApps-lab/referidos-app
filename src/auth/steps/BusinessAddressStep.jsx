@@ -125,17 +125,22 @@ export default function BusinessAddressStep({
     (overrides = {}) => ({
       place_id: "",
       label: "",
+      display_label: "",
       provider: "",
       lat: null,
       lng: null,
       provincia_id: "",
       canton_id: "",
-      street: "",
+      parroquia_id: "",
+      parroquia: "",
+      ciudad: "",
+      sector: "",
+      calles: "",
       house_number: "",
-      city: "",
-      region: "",
-      country: "",
       postcode: "",
+      provincia: "",
+      canton: "",
+      country: "",
       ...direccionPayload,
       provincia_id: direccionPayload?.provincia_id || provinciaId || "",
       canton_id: direccionPayload?.canton_id || cantonId || "",
@@ -316,21 +321,28 @@ export default function BusinessAddressStep({
       return;
     }
     const data = result.data || {};
-    setAddressLabel(data.label || "");
+    const displayLabel = data.display_label || data.label || "";
+    const rawLabel = data.raw_label || data.label || "";
+    setAddressLabel(displayLabel);
     updateDireccionPayload({
       place_id: data.id || "",
-      label: data.label || "",
+      label: rawLabel,
+      display_label: displayLabel,
       provider: data.provider || "",
       lat: center.lat,
       lng: center.lng,
-      street: data.street || "",
+      parroquia_id: data.parroquia_id || "",
+      parroquia: data.parroquia || "",
+      ciudad: data.ciudad || "",
+      sector: data.sector || "",
+      calles: data.calles || "",
       house_number: data.house_number || "",
-      city: data.city || "",
-      region: data.region || "",
-      country: data.country || "",
       postcode: data.postcode || "",
-      provincia_id: provinciaId,
-      canton_id: cantonId,
+      provincia_id: data.provincia_id || provinciaId,
+      canton_id: data.canton_id || cantonId,
+      provincia: data.provincia || "",
+      canton: data.canton || "",
+      country: data.country || "",
     });
     setStage("summary");
   };
@@ -339,22 +351,29 @@ export default function BusinessAddressStep({
     updateDireccionPayload({
       place_id: "",
       label: "",
+      display_label: "",
       provider: "",
       lat: null,
       lng: null,
-      street: "",
+      parroquia_id: "",
+      parroquia: "",
+      ciudad: "",
+      sector: "",
+      calles: "",
       house_number: "",
-      city: "",
-      region: "",
-      country: "",
       postcode: "",
+      provincia: "",
+      canton: "",
+      country: "",
       provincia_id: overrides.provincia_id ?? provinciaId ?? "",
       canton_id: overrides.canton_id ?? cantonId ?? "",
     });
   };
 
   const handleSelectSuggestion = (item) => {
-    setSearchValue(item.label || "");
+    const displayLabel = item.display_label || item.label || "";
+    const rawLabel = item.raw_label || item.label || "";
+    setSearchValue(displayLabel);
     setSearchResults([]);
     setSearchError("");
     setHasSearched(false);
@@ -370,18 +389,23 @@ export default function BusinessAddressStep({
     }
     updateDireccionPayload({
       place_id: item.id,
-      label: item.label || "",
+      label: rawLabel,
+      display_label: displayLabel,
       provider: item.provider || "",
       lat: item.lat ?? null,
       lng: item.lng ?? null,
-      provincia_id: provinciaId || "",
-      canton_id: cantonId || "",
-      street: item.street || "",
+      provincia_id: item.provincia_id || provinciaId || "",
+      canton_id: item.canton_id || cantonId || "",
+      parroquia_id: item.parroquia_id || "",
+      parroquia: item.parroquia || "",
+      ciudad: item.ciudad || "",
+      sector: item.sector || "",
+      calles: item.calles || item.street || "",
       house_number: item.house_number || "",
-      city: item.city || "",
-      region: item.region || "",
-      country: item.country || "",
       postcode: item.postcode || "",
+      provincia: item.provincia || "",
+      canton: item.canton || "",
+      country: item.country || "",
     });
   };
 
@@ -464,6 +488,11 @@ export default function BusinessAddressStep({
   const provinciaNombre = territory.provinciaById[provinciaId]?.nombre || "";
   const cantonNombre = territory.cantonById[cantonId]?.nombre || "";
   const parroquiaNombre = territory.parroquiaById[parroquiaId]?.nombre || "";
+  const payloadProvincia = direccionPayload?.provincia || provinciaNombre || "";
+  const payloadCanton = direccionPayload?.canton || cantonNombre || "";
+  const payloadParroquia = direccionPayload?.parroquia || parroquiaNombre || "";
+  const payloadCiudad =
+    direccionPayload?.ciudad || payloadCanton || payloadParroquia || "";
 
   const isManualFallback = mapStatus === "error";
   const hasTerritorySelection = Boolean(
@@ -587,13 +616,18 @@ export default function BusinessAddressStep({
     updateDireccionPayload({
       place_id: "",
       label: "",
+      display_label: "",
       provider: "",
-      street: "",
+      parroquia_id: "",
+      parroquia: "",
+      ciudad: "",
+      sector: "",
+      calles: "",
       house_number: "",
-      city: "",
-      region: "",
-      country: "",
       postcode: "",
+      provincia: "",
+      canton: "",
+      country: "",
       provincia_id: provinciaId,
       canton_id: cantonId,
     });
@@ -613,7 +647,10 @@ export default function BusinessAddressStep({
       setSearchError("No se pudo buscar direcciones");
       setSearchResults([]);
     } else {
-      const results = Array.isArray(result.results) ? result.results : [];
+      let results = Array.isArray(result.results) ? result.results : [];
+      if (coordsSource === "gps" && coords?.lat != null && coords?.lng != null) {
+        results = sortByDistance(results, coords);
+      }
       setSearchResults(results);
     }
 
@@ -798,7 +835,7 @@ export default function BusinessAddressStep({
                             onClick={() => handleSelectSuggestion(item)}
                             className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
-                            {item.label}
+                            {item.display_label || item.label}
                           </button>
                         ))}
                     </div>
@@ -831,23 +868,27 @@ export default function BusinessAddressStep({
                 </label>
                 <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900">
                   {addressLabel ||
+                    direccionPayload?.display_label ||
                     direccionPayload?.label ||
                     "Sin dirección"}
                 </div>
               </div>
 
               <div className="space-y-1 text-xs text-gray-500 ml-1">
-                {direccionPayload?.street && (
-                  <div>{`Calle: ${direccionPayload.street}`}</div>
+                {direccionPayload?.calles && (
+                  <div>{`Calle: ${direccionPayload.calles}`}</div>
                 )}
                 {direccionPayload?.house_number && (
                   <div>{`Numero: ${direccionPayload.house_number}`}</div>
                 )}
-                {direccionPayload?.city && (
-                  <div>{`Ciudad: ${direccionPayload.city}`}</div>
+                {payloadCiudad && (
+                  <div>{`Ciudad: ${payloadCiudad}`}</div>
                 )}
-                {direccionPayload?.region && (
-                  <div>{`Provincia: ${direccionPayload.region}`}</div>
+                {direccionPayload?.sector && (
+                  <div>{`Sector: ${direccionPayload.sector}`}</div>
+                )}
+                {payloadProvincia && (
+                  <div>{`Provincia: ${payloadProvincia}`}</div>
                 )}
                 {direccionPayload?.country && (
                   <div>{`Pais: ${direccionPayload.country}`}</div>
@@ -890,6 +931,34 @@ export default function BusinessAddressStep({
 
     </section>
   );
+}
+
+function haversineDistance(a, b) {
+  const toRad = (value) => (Number(value) * Math.PI) / 180;
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const dLat = lat2 - lat1;
+  const dLng = toRad(b.lng) - toRad(a.lng);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat +
+    Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  return 6371 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function sortByDistance(results, origin) {
+  return [...results].sort((a, b) => {
+    const aValid = Number.isFinite(Number(a?.lat)) &&
+      Number.isFinite(Number(a?.lng));
+    const bValid = Number.isFinite(Number(b?.lat)) &&
+      Number.isFinite(Number(b?.lng));
+    if (!aValid && !bValid) return 0;
+    if (!aValid) return 1;
+    if (!bValid) return -1;
+    const distA = haversineDistance(origin, { lat: a.lat, lng: a.lng });
+    const distB = haversineDistance(origin, { lat: b.lat, lng: b.lng });
+    return distA - distB;
+  });
 }
 
 function SearchableSelect({

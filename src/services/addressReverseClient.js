@@ -69,7 +69,15 @@ export async function reverseGeocode(
     if (!result) {
       return { ok: false, error: "no_result" };
     }
-    const payload = { ...result, provider: result.provider || data?.provider };
+    const rawLabel = result?.raw_label || result?.label || "";
+    const displayLabel = result?.display_label || result?.label || "";
+    const payload = {
+      ...result,
+      label: rawLabel || result?.label || "",
+      raw_label: rawLabel,
+      display_label: displayLabel,
+      provider: result.provider || data?.provider,
+    };
     memoryCache.set(key, { ts: Date.now(), data: payload });
     return { ok: true, data: payload, source: data?.source || "edge" };
   })();

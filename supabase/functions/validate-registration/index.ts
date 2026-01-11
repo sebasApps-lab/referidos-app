@@ -156,11 +156,14 @@ serve(async (req) => {
     string,
     {
       id: string;
-      calle_1: string | null;
-      calle_2: string | null;
+      calles: string | null;
       referencia: string | null;
       ciudad: string | null;
       sector: string | null;
+      provincia_id: string | null;
+      canton_id: string | null;
+      parroquia_id: string | null;
+      parroquia: string | null;
       lat: number | null;
       lng: number | null;
     }
@@ -168,7 +171,7 @@ serve(async (req) => {
   if (direccionIds.length > 0) {
     const { data: direcciones, error: dirErr } = await supabaseAdmin
       .from("direcciones")
-      .select("id, calle_1, calle_2, referencia, ciudad, sector, lat, lng")
+      .select("id, calles, referencia, ciudad, sector, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
       .in("id", direccionIds);
     if (dirErr) {
       return json(
@@ -180,11 +183,14 @@ serve(async (req) => {
     (direcciones || []).forEach((dir) => {
       direccionMap.set(dir.id, {
         id: dir.id,
-        calle_1: dir.calle_1 ?? null,
-        calle_2: dir.calle_2 ?? null,
+        calles: dir.calles ?? null,
         referencia: dir.referencia ?? null,
         ciudad: dir.ciudad ?? null,
         sector: dir.sector ?? null,
+        provincia_id: dir.provincia_id ?? null,
+        canton_id: dir.canton_id ?? null,
+        parroquia_id: dir.parroquia_id ?? null,
+        parroquia: dir.parroquia ?? null,
         lat: dir.lat ?? null,
         lng: dir.lng ?? null,
       });
@@ -198,10 +204,16 @@ serve(async (req) => {
     if (!direccionId) return false;
     const dir = direccionMap.get(direccionId);
     if (!dir) return false;
+    const hasUbicacion =
+      hasValue(dir.ciudad) ||
+      hasValue(dir.parroquia_id) ||
+      hasValue(dir.parroquia);
     return (
-      hasValue(dir.calle_1) &&
-      hasValue(dir.ciudad) &&
+      hasValue(dir.calles) &&
+      hasUbicacion &&
       hasValue(dir.sector) &&
+      hasValue(dir.provincia_id) &&
+      hasValue(dir.canton_id) &&
       dir.lat != null &&
       dir.lng != null
     );

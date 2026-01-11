@@ -90,7 +90,17 @@ export async function searchAddresses(
 
     const provider = data?.provider || data?.source || "edge";
     const results = Array.isArray(data?.results)
-      ? data.results.map((item) => ({ ...item, provider }))
+      ? data.results.map((item) => {
+        const rawLabel = item?.raw_label || item?.label || "";
+        const displayLabel = item?.display_label || item?.label || "";
+        return {
+          ...item,
+          label: rawLabel || item?.label || "",
+          raw_label: rawLabel,
+          display_label: displayLabel,
+          provider: item?.provider || provider,
+        };
+      })
       : [];
     memoryCache.set(key, { ts: Date.now(), results });
     return { ok: true, results, source: data?.source || "edge" };

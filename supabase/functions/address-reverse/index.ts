@@ -3,6 +3,11 @@
 
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  normalizeMapTilerResults,
+  normalizeNominatimResults,
+  type NormalizedResult,
+} from "../_shared/addressNormalize.ts";
 
 const supabaseUrl = Deno.env.get("URL") ?? Deno.env.get("SUPABASE_URL");
 const publishableKey =
@@ -41,7 +46,7 @@ const OSM_MIN_INTERVAL_MS = parseInt(
 
 let lastOsmRequestAt = 0;
 
-type NormalizedResult = {
+type ProviderResult = {
   id: string;
   label: string;
   lat: number;
@@ -52,7 +57,6 @@ type NormalizedResult = {
   region?: string | null;
   country?: string | null;
   postcode?: string | null;
-  provider?: string | null;
 };
 
 serve(async (req) => {
@@ -106,48 +110,63 @@ serve(async (req) => {
     );
   }
 
+  let maptilerRateLimited = false;
   if (MAPTILER_KEY) {
     const maptiler = await reverseMapTiler({ lat, lng, language });
     if (maptiler.ok && maptiler.result) {
-      await storeCache({
-        query: `${lat},${lng}`,
-        queryKey,
-        provider: "maptiler",
-        results: [maptiler.result],
-      });
-      return json(
-        {
-          ok: true,
-          source: "maptiler",
-          cached: false,
-          provider: "maptiler",
-          result: maptiler.result,
-        },
-        200,
-        corsHeaders,
+      const normalized = await normalizeMapTilerResults(
+        [maptiler.result],
+        supabaseAdmin,
       );
+      const result = normalized[0] ?? null;
+      if (result) {
+        await storeCache({
+          query: `${lat},${lng}`,
+          queryKey,
+          provider: "maptiler",
+          results: [result],
+        });
+        return json(
+          {
+            ok: true,
+            source: "maptiler",
+            cached: false,
+            provider: "maptiler",
+            result,
+          },
+          200,
+          corsHeaders,
+        );
+      }
     }
+    maptilerRateLimited = maptiler.rateLimited === true;
   }
 
-  const osm = await reverseNominatim({ lat, lng, language });
-  if (osm.ok && osm.result) {
-    await storeCache({
-      query: `${lat},${lng}`,
-      queryKey,
-      provider: "nominatim",
-      results: [osm.result],
-    });
-    return json(
-      {
-        ok: true,
-        source: "nominatim",
-        cached: false,
-        provider: "nominatim",
-        result: osm.result,
-      },
-      200,
-      corsHeaders,
-    );
+  if (!MAPTILER_KEY || maptilerRateLimited) {
+    const osm = await reverseNominatim({ lat, lng, language });
+    if (osm.ok && osm.result) {
+      const normalized = normalizeNominatimResults([osm.result]);
+      const result = normalized[0] ?? null;
+      if (result) {
+        await storeCache({
+          query: `${lat},${lng}`,
+          queryKey,
+          provider: "nominatim",
+          results: [result],
+        });
+        return json(
+          {
+            ok: true,
+            source: "nominatim",
+            cached: false,
+            provider: "nominatim",
+            result,
+          },
+          200,
+          corsHeaders,
+        );
+      }
+    }
   }
 
   const stale = await getCachedResult(queryKey, true);
@@ -248,14 +267,19 @@ async function reverseMapTiler({
   lng: number;
   language: string;
 }) {
-  if (!MAPTILER_KEY) return { ok: false, result: null };
+  if (!MAPTILER_KEY) {
+    return { ok: false, rateLimited: false, result: null };
+  }
 
   const url = new URL(`${MAPTILER_BASE}/${lng},${lat}.json`);
   url.searchParams.set("key", MAPTILER_KEY);
   url.searchParams.set("language", language);
 
   const res = await fetch(url.toString());
-  if (!res.ok) return { ok: false, result: null };
+  if (res.status === 429 || res.status === 402) {
+    return { ok: false, rateLimited: true, result: null };
+  }
+  if (!res.ok) return { ok: false, rateLimited: false, result: null };
 
   const data = await res.json();
   const feature = Array.isArray(data?.features) ? data.features[0] : null;
@@ -269,7 +293,7 @@ async function reverseMapTiler({
       prefixes.some((prefix) => String(item?.id || "").startsWith(prefix)),
     )?.text ?? null;
 
-  const result: NormalizedResult = {
+  const result: ProviderResult = {
     id: String(feature?.id ?? feature?.place_name ?? ""),
     label: String(feature?.place_name ?? feature?.text ?? ""),
     lat: Number(centerLat ?? lat),
@@ -282,7 +306,7 @@ async function reverseMapTiler({
     postcode: pickContext(["postcode"]),
   };
 
-  return { ok: true, result };
+  return { ok: true, rateLimited: false, result };
 }
 
 async function reverseNominatim({
@@ -318,7 +342,7 @@ async function reverseNominatim({
   if (!res.ok) return { ok: false, result: null };
 
   const data = await res.json();
-  const result: NormalizedResult = {
+  const result: ProviderResult = {
     id: String(data?.place_id ?? data?.osm_id ?? ""),
     label: String(data?.display_name ?? ""),
     lat: Number(data?.lat ?? lat),
