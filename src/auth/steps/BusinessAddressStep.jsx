@@ -1,4 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import {
@@ -31,7 +32,6 @@ export default function BusinessAddressStep({
   const [coords, setCoords] = useState(null);
   const [localError, setLocalError] = useState("");
   const [mapStatus, setMapStatus] = useState("loading");
-  const [mapGate, setMapGate] = useState("pending");
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [gpsModalOpen, setGpsModalOpen] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -138,14 +138,17 @@ export default function BusinessAddressStep({
     },
     [buildDireccionPayload, onChangeDireccionPayload]
   );
+  const updateDireccionPayloadRef = useRef(updateDireccionPayload);
+
+  useEffect(() => {
+    updateDireccionPayloadRef.current = updateDireccionPayload;
+  }, [updateDireccionPayload]);
 
   const requestLocation = useCallback(() => {
     if (!navigator?.geolocation) {
-      setMapGate("ready");
       return;
     }
     setIsRequestingLocation(true);
-    setMapGate("ready");
     setLocationModalOpen(false);
     setGpsModalOpen(false);
     navigator.geolocation.getCurrentPosition(
@@ -155,18 +158,16 @@ export default function BusinessAddressStep({
           lng: position.coords.longitude,
         };
         setCoords(nextCenter);
-        updateDireccionPayload({
+        updateDireccionPayloadRef.current?.({
           lat: nextCenter.lat,
           lng: nextCenter.lng,
         });
         setLocationModalOpen(false);
         setGpsModalOpen(false);
         setIsRequestingLocation(false);
-        setMapGate("ready");
       },
       (error) => {
         setIsRequestingLocation(false);
-        setMapGate("ready");
         if (error?.code === 1) {
           setLocationModalOpen(true);
           setGpsModalOpen(false);
@@ -180,19 +181,17 @@ export default function BusinessAddressStep({
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [updateDireccionPayload]);
+  }, []);
 
   useEffect(() => {
     let active = true;
     if (!navigator?.geolocation) {
-      setMapGate("ready");
       return undefined;
     }
 
     const checkPermission = async () => {
+      setLocationModalOpen(true);
       if (!navigator.permissions?.query) {
-        setLocationModalOpen(true);
-        setMapGate("pending");
         return;
       }
       try {
@@ -201,20 +200,18 @@ export default function BusinessAddressStep({
         });
         if (!active) return;
         if (status.state === "granted") {
-          requestLocation();
+          setLocationModalOpen(false);
         } else {
           setLocationModalOpen(true);
-          setMapGate("pending");
         }
         status.onchange = () => {
           if (!active) return;
           if (status.state === "granted") {
-            requestLocation();
+            setLocationModalOpen(false);
           }
         };
       } catch (error) {
         setLocationModalOpen(true);
-        setMapGate("pending");
       }
     };
 
@@ -226,12 +223,10 @@ export default function BusinessAddressStep({
 
   const handleLocationModalClose = useCallback(() => {
     setLocationModalOpen(false);
-    setMapGate("ready");
   }, []);
 
   const handleGpsModalClose = useCallback(() => {
     setGpsModalOpen(false);
-    setMapGate("ready");
   }, []);
 
   const handleConfirm = () => {
@@ -375,7 +370,7 @@ export default function BusinessAddressStep({
   const hasTerritorySelection = Boolean(
     provinciaId && cantonId && parroquiaId
   );
-  const shouldRenderMap = mapGate === "ready";
+  const shouldRenderMap = true;
 
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
@@ -502,7 +497,7 @@ export default function BusinessAddressStep({
 
   return (
     <section
-      style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }}
+      style={{ boxSizing: "border-box", position: "relative" }}
       className="px-2 h-full"
     >
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
@@ -732,17 +727,17 @@ function LocationPermissionModal({
 }) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
           <LocationOffIcon className="h-6 w-6" />
         </div>
         <div className="text-base font-semibold text-[#2F1A55]">
-          Ubicación desactivada
+          Permitir ubicación
         </div>
         <p className="mt-2 text-sm text-slate-500">
-          Activa la ubicación para centrar el mapa.
+          Necesitamos tu permiso para centrar el mapa en tu ubicación.
         </p>
         <div className="mt-6 flex items-center justify-center gap-2">
           <button
@@ -758,19 +753,20 @@ function LocationPermissionModal({
             disabled={isLoading}
             className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488] disabled:opacity-60"
           >
-            {isLoading ? "Activando..." : "Activar ubicación"}
+            {isLoading ? "Activando..." : "Permitir ubicación"}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 function GpsDisabledModal({ open, onClose }) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
           <GpsOffIcon className="h-6 w-6" />
@@ -779,7 +775,7 @@ function GpsDisabledModal({ open, onClose }) {
           GPS desactivado
         </div>
         <p className="mt-2 text-sm text-slate-500">
-          El GPS no está activado.
+          Activa el GPS de tu dispositivo para continuar.
         </p>
         <div className="mt-6 flex items-center justify-center">
           <button
@@ -791,7 +787,8 @@ function GpsDisabledModal({ open, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -824,8 +821,7 @@ function GpsOffIcon({ className = "" }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 2l4 9-4-2-4 2 4-9z" />
-      <circle cx="12" cy="12" r="7" />
+      <path d="M12 3l5 9-5-2-5 2 5-9z" />
       <path d="M4 4l16 16" />
     </svg>
   );
@@ -993,6 +989,8 @@ function SearchIcon({ className = "" }) {
     </svg>
   );
 }
+
+
 
 
 
