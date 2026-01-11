@@ -687,7 +687,11 @@ export default function BusinessAddressStep({
     <div className="relative">
       <PinOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 h-4 w-4" />
       <input
-        className="w-full border border-gray-200 rounded-lg pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+        className={`w-full border border-gray-200 pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none ${
+          searchValue.trim().length > 0
+            ? "rounded-l-lg rounded-r-none"
+            : "rounded-lg"
+        }`}
         placeholder="Busca la direccion si no la encuentras..."
         value={searchValue}
         onFocus={() => setIsSearchModeOpen(true)}
@@ -763,8 +767,8 @@ export default function BusinessAddressStep({
             onBack={() => setIsSearchModeOpen(false)}
             variant="inline"
             className="h-full"
-            headerClassName="px-4 pt-3"
-            contentClassName="flex flex-col gap-3 overflow-hidden"
+            headerClassName="pt-3"
+            contentClassName="flex flex-col gap-3 overflow-hidden px-0"
             searchBar={
               <>
                 <p className="text-sm text-gray-600 text-center">
@@ -776,7 +780,7 @@ export default function BusinessAddressStep({
             }
             results={searchResultsList}
             footer={
-              <div className="px-4 pb-4">
+              <div className="pb-4">
                 <button
                   type="button"
                   onClick={handleConfirmSearch}
