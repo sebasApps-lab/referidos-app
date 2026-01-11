@@ -199,28 +199,82 @@ function cleanStreet(street: string, houseNumber: string | null) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function buildDisplayLabel(result: {
-  ciudad?: string | null;
-  canton?: string | null;
-  parroquia?: string | null;
-  sector?: string | null;
-  calles?: string | null;
-  postcode?: string | null;
-  provincia?: string | null;
-}) {
-  const parts: string[] = [];
-  if (result.ciudad) {
-    parts.push(result.ciudad);
-  } else if (result.canton) {
-    parts.push(result.canton);
-  } else if (result.parroquia) {
-    parts.push(result.parroquia);
+function formatProvince(value: string | null) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+function buildDisplayParts(
+  fields: DisplayFields,
+  options: { includePostcode: boolean; includeHouseNumber: boolean }
+) {
+  const parts: Array<string | null> = new Array(6).fill(null);
+  const parroquiaOrCiudad = fields.parroquia || fields.ciudad || null;
+  const shouldIncludeCanton = !parroquiaOrCiudad && !fields.sector && !fields.calles;
+
+  let calles = fields.calles || null;
+  if (calles && options.includeHouseNumber && fields.house_number) {
+    calles = `${calles} ${fields.house_number}`.trim();
   }
-  if (result.sector) parts.push(result.sector);
-  if (result.calles) parts.push(result.calles);
-  if (result.postcode) parts.push(result.postcode);
-  if (result.provincia) parts.push(result.provincia);
-  return parts.filter(Boolean).join(", ");
+
+  parts[0] = options.includePostcode ? fields.postcode || null : null;
+  parts[1] = calles;
+  parts[2] = fields.sector || null;
+  parts[3] = parroquiaOrCiudad;
+  parts[4] = shouldIncludeCanton ? fields.canton || null : null;
+  parts[5] = fields.provincia || null;
+
+  return parts;
+}
+
+function buildDisplayKey(parts: Array<string | null>) {
+  return parts
+    .map((part) => normalizeText(part || ""))
+    .join("|")
+    .trim();
+}
+
+function applyDisplayParts(results: NormalizedResult[]) {
+  const baseKeys = new Map<string, number>();
+  const baseParts = results.map((item) => {
+    const parts = buildDisplayParts(item.display_fields, {
+      includePostcode: false,
+      includeHouseNumber: false,
+    });
+    const key = buildDisplayKey(parts);
+    baseKeys.set(key, (baseKeys.get(key) || 0) + 1);
+    return { parts, key };
+  });
+
+  const includePostcode = baseParts.map(({ key }) => (baseKeys.get(key) || 0) > 1);
+
+  const postcodeKeys = new Map<string, number>();
+  const postcodeParts = results.map((item, index) => {
+    const parts = buildDisplayParts(item.display_fields, {
+      includePostcode: includePostcode[index],
+      includeHouseNumber: false,
+    });
+    const key = buildDisplayKey(parts);
+    postcodeKeys.set(key, (postcodeKeys.get(key) || 0) + 1);
+    return { parts, key };
+  });
+
+  const includeHouseNumber = postcodeParts.map(({ key }, index) =>
+    includePostcode[index] && (postcodeKeys.get(key) || 0) > 1
+  );
+
+  results.forEach((item, index) => {
+    const parts = buildDisplayParts(item.display_fields, {
+      includePostcode: includePostcode[index],
+      includeHouseNumber: includeHouseNumber[index],
+    });
+    item.display_parts = parts;
+    item.display_label = parts.filter(Boolean).join(", ");
+  });
+
+  return results;
 }
 
 export async function normalizeMapTilerResults(
@@ -269,6 +323,7 @@ export async function normalizeMapTilerResults(
       cantonId = parroquiaMatch.canton_id ?? null;
       cantonName = cantonId ? territory.cantonById.get(cantonId)?.nombre ?? null : null;
       provinciaId = parroquiaMatch.provincia_id ?? null;
+      parroquiaText = parroquiaMatch.nombre;
       ciudad = null;
     } else if (afterPostcode) {
       parroquiaText = afterPostcode;
@@ -288,17 +343,8 @@ export async function normalizeMapTilerResults(
       provinciaName = String(result.region);
     }
 
-    const displayLabel = buildDisplayLabel({
-      ciudad,
-      canton: cantonName,
-      parroquia: parroquiaText,
-      sector,
-      calles,
-      postcode,
-      provincia: provinciaName,
-    });
     const displayFields: DisplayFields = {
-      provincia: provinciaName || null,
+      provincia: formatProvince(provinciaName || null),
       ciudad: ciudad || null,
       sector: sector || null,
       calles: calles || null,
@@ -308,25 +354,13 @@ export async function normalizeMapTilerResults(
       parroquia: parroquiaText || null,
       country: result.country ? String(result.country) : null,
     };
-    const displayParts = [
-      displayFields.provincia,
-      displayFields.ciudad,
-      displayFields.sector,
-      displayFields.calles,
-      displayFields.postcode,
-      displayFields.house_number,
-      displayFields.canton,
-      displayFields.parroquia,
-      displayFields.country,
-    ];
-
     return {
       id: String(result.id || rawLabel),
       label: rawLabel,
       raw_label: rawLabel,
-      display_label: displayLabel,
+      display_label: "",
       display_fields: displayFields,
-      display_parts: displayParts,
+      display_parts: [],
       lat: Number(result.lat ?? 0),
       lng: Number(result.lng ?? 0),
       calles: calles || null,
@@ -346,30 +380,15 @@ export async function normalizeMapTilerResults(
     } as NormalizedResult;
   });
 
-  const counts = new Map<string, number>();
-  normalized.forEach((item) => {
-    const key = item.display_label || "";
-    if (!key) return;
-    counts.set(key, (counts.get(key) || 0) + 1);
-  });
-
-  normalized.forEach((item) => {
-    const key = item.display_label || "";
-    const duplicates = key && (counts.get(key) || 0) > 1;
-    if (!duplicates || !item.house_number) return;
-    item.display_label = [key, item.house_number].filter(Boolean).join(", ");
-  });
-
-  return normalized;
+  return applyDisplayParts(normalized);
 }
 
 export function normalizeNominatimResults(results: ProviderResult[]) {
-  return results.map((result) => {
+  const normalized = results.map((result) => {
     const rawLabel = String(result.label || "");
-    const displayLabel = rawLabel;
     const calleLabel = cleanStreet(result.street || "", result.house_number ?? null);
     const displayFields: DisplayFields = {
-      provincia: result.region ? String(result.region) : null,
+      provincia: formatProvince(result.region ? String(result.region) : null),
       ciudad: null,
       sector: result.city ? String(result.city) : null,
       calles: calleLabel || null,
@@ -379,24 +398,13 @@ export function normalizeNominatimResults(results: ProviderResult[]) {
       parroquia: null,
       country: result.country ? String(result.country) : null,
     };
-    const displayParts = [
-      displayFields.provincia,
-      displayFields.ciudad,
-      displayFields.sector,
-      displayFields.calles,
-      displayFields.postcode,
-      displayFields.house_number,
-      displayFields.canton,
-      displayFields.parroquia,
-      displayFields.country,
-    ];
     return {
       id: String(result.id || rawLabel),
       label: rawLabel,
       raw_label: rawLabel,
-      display_label: displayLabel,
+      display_label: "",
       display_fields: displayFields,
-      display_parts: displayParts,
+      display_parts: [],
       lat: Number(result.lat ?? 0),
       lng: Number(result.lng ?? 0),
       calles: calleLabel || null,
@@ -415,4 +423,5 @@ export function normalizeNominatimResults(results: ProviderResult[]) {
       normalized: false,
     } as NormalizedResult;
   });
+  return applyDisplayParts(normalized);
 }

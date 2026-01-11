@@ -1094,19 +1094,30 @@ function formatDisplayParts(item) {
   const filtered = parts.filter((value) => value);
   if (filtered.length > 0) return filtered.join(", ");
   const fields = item?.display_fields || {};
+  const provincia = formatProvince(fields.provincia);
+  const parroquiaOrCiudad = fields.parroquia || fields.ciudad || null;
+  const shouldIncludeCanton = !parroquiaOrCiudad && !fields.sector && !fields.calles;
+  let calles = fields.calles || null;
+  if (calles && fields.house_number) {
+    calles = `${calles} ${fields.house_number}`.trim();
+  }
   const fallback = [
-    fields.provincia,
-    fields.ciudad,
-    fields.sector,
-    fields.calles,
-    fields.postcode,
-    fields.house_number,
-    fields.canton,
-    fields.parroquia,
-    fields.country,
+    fields.postcode || null,
+    calles,
+    fields.sector || null,
+    parroquiaOrCiudad,
+    shouldIncludeCanton ? fields.canton || null : null,
+    provincia,
   ].filter((value) => value);
   if (fallback.length > 0) return fallback.join(", ");
   return String(item?.label || "");
+}
+
+function formatProvince(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 
