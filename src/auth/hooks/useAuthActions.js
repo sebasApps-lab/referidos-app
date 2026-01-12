@@ -26,6 +26,64 @@ const OAUTH_LOGIN_PENDING = "oauth_login_pending";
 const GOOGLE_ONE_TAP_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_ONE_TAP_CLIENT_ID ||
   import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const DEFAULT_SUCURSAL_HORARIOS = {
+  semanal: {
+    lunes: [{ abre: "10:00", cierra: "18:00" }],
+    martes: [{ abre: "10:00", cierra: "18:00" }],
+    miercoles: [{ abre: "10:00", cierra: "18:00" }],
+    jueves: [{ abre: "10:00", cierra: "18:00" }],
+    viernes: [{ abre: "10:00", cierra: "18:00" }],
+    sabado: [],
+    domingo: [],
+  },
+  excepciones: [],
+};
+
+const normalizeNullableString = (value) => {
+  const text = String(value ?? "").trim();
+  return text ? text : null;
+};
+
+const normalizeNullableNumber = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+const areDireccionesEqual = (current, next) => {
+  if (!current || !next) return false;
+  return (
+    normalizeNullableString(current.owner_id) ===
+      normalizeNullableString(next.owner_id) &&
+    normalizeNullableString(current.calles) ===
+      normalizeNullableString(next.calles) &&
+    normalizeNullableString(current.referencia) ===
+      normalizeNullableString(next.referencia) &&
+    normalizeNullableString(current.ciudad) ===
+      normalizeNullableString(next.ciudad) &&
+    normalizeNullableString(current.sector) ===
+      normalizeNullableString(next.sector) &&
+    normalizeNullableString(current.place_id) ===
+      normalizeNullableString(next.place_id) &&
+    normalizeNullableString(current.label) ===
+      normalizeNullableString(next.label) &&
+    normalizeNullableString(current.provider) ===
+      normalizeNullableString(next.provider) &&
+    normalizeNullableString(current.provincia_id) ===
+      normalizeNullableString(next.provincia_id) &&
+    normalizeNullableString(current.canton_id) ===
+      normalizeNullableString(next.canton_id) &&
+    normalizeNullableString(current.parroquia_id) ===
+      normalizeNullableString(next.parroquia_id) &&
+    normalizeNullableString(current.parroquia) ===
+      normalizeNullableString(next.parroquia) &&
+    normalizeNullableNumber(current.lat) ===
+      normalizeNullableNumber(next.lat) &&
+    normalizeNullableNumber(current.lng) ===
+      normalizeNullableNumber(next.lng) &&
+    Boolean(current.is_user_provided) === Boolean(next.is_user_provided)
+  );
+};
 
 export default function useAuthActions({
   email,
@@ -596,24 +654,59 @@ export default function useAuthActions({
       if (negocioId) {
         const { data: sucRows, error: sucErr } = await supabase
           .from("sucursales")
-          .select("id, status")
+          .select("id, status, direccion_id, horarios")
           .eq("negocioid", negocioId);
         if (sucErr) {
           setEmailError(sucErr.message || "No se pudo leer sucursales");
           return;
         }
-        const hasDraft = (sucRows || []).some(
+        const allSucursales = Array.isArray(sucRows) ? sucRows : [];
+        const draftSucursal = allSucursales.find(
           (row) => String(row.status || "draft").toLowerCase() === "draft"
         );
-        if (!hasDraft) {
+        const usedDireccionIds = new Set(
+          allSucursales
+            .map((row) => row.direccion_id)
+            .filter((id) => Boolean(id))
+        );
+        let freeDireccionId = null;
+
+        const { data: direcciones, error: dirErr } = await supabase
+          .from("direcciones")
+          .select("id")
+          .eq("owner_id", userRow.id)
+          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false });
+
+        if (dirErr) {
+          setEmailError(dirErr.message || "No se pudo leer direcciones");
+          return;
+        }
+
+        freeDireccionId =
+          (direcciones || []).find((dir) => !usedDireccionIds.has(dir.id))
+            ?.id || null;
+
+        if (!draftSucursal) {
           const { error: insErr } = await supabase
             .from("sucursales")
             .insert({
               negocioid: negocioId,
+              direccion_id: freeDireccionId || null,
+              horarios: DEFAULT_SUCURSAL_HORARIOS,
               status: "draft",
             });
           if (insErr) {
             setEmailError(insErr.message || "No se pudo crear la sucursal");
+            return;
+          }
+        } else if (!draftSucursal.direccion_id && freeDireccionId) {
+          const { error: updErr } = await supabase
+            .from("sucursales")
+            .update({ direccion_id: freeDireccionId })
+            .eq("id", draftSucursal.id);
+          if (updErr) {
+            setEmailError(updErr.message || "No se pudo asociar la direccion");
             return;
           }
         }
@@ -792,14 +885,31 @@ export default function useAuthActions({
 
     let direccionId = targetSucursal?.direccion_id || null;
 
+
     if (direccionId) {
-      const { error: dirErr } = await supabase
+      const { data: existingDir, error: existingDirErr } = await supabase
         .from("direcciones")
-        .update(direccionData)
-        .eq("id", direccionId);
-      if (dirErr) {
-        setEmailError(dirErr.message || "No se pudo actualizar la dirección");
+        .select(
+          "id, owner_id, calles, referencia, ciudad, sector, lat, lng, place_id, label, provider, provincia_id, canton_id, parroquia_id, parroquia, is_user_provided"
+        )
+        .eq("id", direccionId)
+        .maybeSingle();
+
+      if (existingDirErr) {
+        setEmailError(existingDirErr.message || "No se pudo leer la direccion");
         return;
+      }
+
+      const needsUpdate = !areDireccionesEqual(existingDir, direccionData);
+      if (needsUpdate) {
+        const { error: dirErr } = await supabase
+          .from("direcciones")
+          .update(direccionData)
+          .eq("id", direccionId);
+        if (dirErr) {
+          setEmailError(dirErr.message || "No se pudo actualizar la direccion");
+          return;
+        }
       }
     } else {
       const { data: newDir, error: dirErr } = await supabase
@@ -839,6 +949,7 @@ export default function useAuthActions({
           negocioid: negocioRow.id,
           direccion_id: direccionId,
           tipo: tipoValue,
+          horarios: DEFAULT_SUCURSAL_HORARIOS,
           status: "draft",
         });
 

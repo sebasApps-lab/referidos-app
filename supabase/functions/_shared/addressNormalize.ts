@@ -361,6 +361,9 @@ export async function normalizeMapTilerResults(
         ? territory.cabeceraByCantonId.get(cantonId) ?? null
         : null;
       ciudad = cabecera?.nombre ?? null;
+      if (cabecera?.id) {
+        parroquiaId = cabecera.id;
+      }
     } else if (parroquiaMatch) {
       parroquiaId = parroquiaMatch.id;
       cantonId = parroquiaMatch.canton_id ?? null;
