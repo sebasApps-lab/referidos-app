@@ -43,6 +43,7 @@ const OSM_MIN_INTERVAL_MS = parseInt(
   Deno.env.get("OSM_MIN_INTERVAL_MS") ?? "1100",
   10,
 );
+const NORMALIZED_VERSION = 1;
 
 let lastOsmRequestAt = 0;
 
@@ -130,6 +131,7 @@ serve(async (req) => {
           queryKey,
           provider: "maptiler",
           results: [result],
+          rawResults: [maptiler.result],
         });
         return json(
           {
@@ -158,6 +160,7 @@ serve(async (req) => {
           queryKey,
           provider: "nominatim",
           results: [result],
+          rawResults: [osm.result],
         });
         return json(
           {
@@ -245,25 +248,34 @@ async function getCachedResult(
   const baseQuery = () => {
     const query = supabaseAdmin
       .from("address_search_cache")
-      .select("provider, results, expires_at, created_at")
-      .order("created_at", { ascending: false })
-      .limit(1);
+      .select(
+        "id, provider, results, raw_results, normalized_version, query, query_key, expires_at, created_at",
+      )
+      .order("created_at", { ascending: false });
     return allowExpired ? query : query.gt("expires_at", nowIso);
   };
 
-  const { data } = await baseQuery().eq("query_key", queryKey).maybeSingle();
-  if (!data && fuzzy) {
-    const { data: fuzzyData } = await baseQuery()
+  const { data } = await baseQuery()
+    .eq("query_key", queryKey)
+    .limit(5);
+
+  const preferred = pickPreferredProvider(data);
+  if (preferred) {
+    return await ensureNormalizedCacheRow(preferred);
+  }
+
+  if (fuzzy) {
+    const { data: rows } = await baseQuery()
       .like("query", fuzzy.queryLike)
       .like("query_key", fuzzy.languageLike)
-      .maybeSingle();
-    if (fuzzyData) {
-      return fuzzyData as { provider: string; results: NormalizedResult[] };
+      .limit(30);
+    const preferredMatch = pickPreferredProvider(rows);
+    if (preferredMatch) {
+      return await ensureNormalizedCacheRow(preferredMatch);
     }
   }
 
-  if (!data) return null;
-  return data as { provider: string; results: NormalizedResult[] };
+  return null;
 }
 
 async function storeCache({
@@ -271,11 +283,13 @@ async function storeCache({
   queryKey,
   provider,
   results,
+  rawResults,
 }: {
   query: string;
   queryKey: string;
   provider: string;
   results: NormalizedResult[];
+  rawResults: ProviderResult[];
 }) {
   const expiresAt = new Date(
     Date.now() + CACHE_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -289,10 +303,92 @@ async function storeCache({
         query_key: queryKey,
         provider,
         results,
+        raw_results: rawResults,
+        normalized_version: NORMALIZED_VERSION,
         expires_at: expiresAt,
       },
       { onConflict: "query_key,provider" },
     );
+}
+
+type CachedRow = {
+  id: string;
+  provider: string;
+  results: NormalizedResult[] | ProviderResult[];
+  raw_results?: ProviderResult[] | null;
+  normalized_version?: number | null;
+  query?: string | null;
+  query_key?: string | null;
+};
+
+function pickPreferredProvider(rows?: Array<any>) {
+  if (!rows || rows.length === 0) return null;
+  const maptiler = rows.find((row) => row?.provider === "maptiler");
+  if (maptiler) return maptiler as CachedRow;
+  return rows[0] as CachedRow;
+}
+
+function looksNormalized(results: unknown) {
+  if (!Array.isArray(results) || results.length === 0) return false;
+  const sample = results[0] as Record<string, unknown>;
+  return Boolean(
+    sample.display_fields ||
+      sample.display_parts ||
+      sample.calles ||
+      sample.canton_id ||
+      sample.parroquia_id ||
+      sample.normalized,
+  );
+}
+
+async function ensureNormalizedCacheRow(row: CachedRow) {
+  const hasNormalizedVersion = Number.isFinite(row.normalized_version);
+  const isNormalized = looksNormalized(row.results);
+
+  if (hasNormalizedVersion && (row.normalized_version ?? 0) >= NORMALIZED_VERSION && isNormalized) {
+    return row;
+  }
+
+  if (!hasNormalizedVersion && isNormalized) {
+    await supabaseAdmin
+      .from("address_search_cache")
+      .update({ normalized_version: NORMALIZED_VERSION })
+      .eq("id", row.id);
+    return { ...row, normalized_version: NORMALIZED_VERSION };
+  }
+
+  const rawResults = Array.isArray(row.raw_results) && row.raw_results.length > 0
+    ? row.raw_results
+    : Array.isArray(row.results)
+    ? (row.results as ProviderResult[])
+    : [];
+
+  if (rawResults.length === 0) {
+    return null;
+  }
+
+  let normalizedResults: NormalizedResult[] = [];
+  if (row.provider === "maptiler") {
+    normalizedResults = await normalizeMapTilerResults(rawResults, supabaseAdmin);
+  } else {
+    normalizedResults = normalizeNominatimResults(rawResults);
+  }
+
+  await supabaseAdmin
+    .from("address_search_cache")
+    .update({
+      results: normalizedResults,
+      raw_results: rawResults,
+      normalized_version: NORMALIZED_VERSION,
+    })
+    .eq("id", row.id);
+
+  return {
+    ...row,
+    results: normalizedResults,
+    raw_results: rawResults,
+    normalized_version: NORMALIZED_VERSION,
+  };
 }
 
 async function reverseMapTiler({

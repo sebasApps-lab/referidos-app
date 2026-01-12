@@ -247,21 +247,24 @@ function buildDisplayParts(
   fields: DisplayFields,
   options: { includePostcode: boolean; includeHouseNumber: boolean }
 ) {
-  const parts: Array<string | null> = new Array(6).fill(null);
+  const parts: Array<string | null> = new Array(4).fill(null);
   const parroquiaOrCiudad = fields.parroquia || fields.ciudad || null;
-  const shouldIncludeCanton = !parroquiaOrCiudad && !fields.sector && !fields.calles;
+  const cantonFallback = !parroquiaOrCiudad ? fields.canton || null : null;
 
   let calles = fields.calles || null;
   if (calles && options.includeHouseNumber && fields.house_number) {
     calles = `${calles} ${fields.house_number}`.trim();
   }
 
-  parts[0] = options.includePostcode ? fields.postcode || null : null;
-  parts[1] = calles;
-  parts[2] = fields.sector || null;
-  parts[3] = parroquiaOrCiudad;
-  parts[4] = shouldIncludeCanton ? fields.canton || null : null;
-  parts[5] = fields.provincia || null;
+  let locality = parroquiaOrCiudad || cantonFallback;
+  if (options.includePostcode && fields.postcode) {
+    locality = locality ? `${locality} ${fields.postcode}`.trim() : fields.postcode;
+  }
+
+  parts[0] = calles;
+  parts[1] = locality;
+  parts[2] = fields.provincia || null;
+  parts[3] = fields.sector || null;
 
   return parts;
 }

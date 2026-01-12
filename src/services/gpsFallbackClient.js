@@ -63,3 +63,43 @@ export async function saveGpsFallbackLocation({ lat, lng }) {
   return { ok: true, id: created.id, updated: false };
 }
 
+export async function getGpsFallbackLocation() {
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  if (!session?.user) {
+    return { ok: false, error: "no_session" };
+  }
+
+  const { data: userRow, error: userErr } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("id_auth", session.user.id)
+    .maybeSingle();
+
+  if (userErr || !userRow?.id) {
+    return { ok: false, error: userErr?.message || "no_user" };
+  }
+
+  const { data, error } = await supabase
+    .from("direcciones")
+    .select("lat, lng, updated_at")
+    .eq("owner_id", userRow.id)
+    .eq("is_user_provided", false)
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, error: error.message || "read_failed" };
+  }
+
+  if (!data?.lat || !data?.lng) {
+    return { ok: false, error: "no_location" };
+  }
+
+  return {
+    ok: true,
+    location: {
+      lat: Number(data.lat),
+      lng: Number(data.lng),
+      updated_at: data.updated_at || null,
+    },
+  };
+}

@@ -2,6 +2,7 @@
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import { reverseGeocode } from "../../services/addressReverseClient";
+import { getGpsFallbackLocation } from "../../services/gpsFallbackClient";
 import {
   fetchProvincias,
   fetchCantonesByProvincia,
@@ -185,6 +186,31 @@ export default function BusinessAddressStep({
     programmaticZoomRef,
     closeZoom: CLOSE_ZOOM,
   });
+
+  useEffect(() => {
+    let active = true;
+    if (coordsSource === "gps" || coords) {
+      return undefined;
+    }
+
+    const loadFallbackLocation = async () => {
+      const result = await getGpsFallbackLocation();
+      if (!active || !result?.ok || !result.location) return;
+      const fallbackCoords = {
+        lat: result.location.lat,
+        lng: result.location.lng,
+      };
+      if (coords) return;
+      programmaticMoveRef.current = true;
+      setCoords(fallbackCoords);
+      setCoordsSource("fallback");
+    };
+
+    loadFallbackLocation();
+    return () => {
+      active = false;
+    };
+  }, [coords, coordsSource, setCoords, setCoordsSource]);
 
   const startConfirmZoom = () => {
     if (animateZoom) return;
@@ -583,7 +609,7 @@ export default function BusinessAddressStep({
       setSearchResults([]);
     } else {
       let results = Array.isArray(result.results) ? result.results : [];
-      if (coordsSource === "gps" && coords?.lat != null && coords?.lng != null) {
+      if (coords?.lat != null && coords?.lng != null) {
         results = sortByDistance(results, coords);
       }
       setSearchResults(results);
@@ -599,13 +625,11 @@ export default function BusinessAddressStep({
   };
 
   const searchInput = (
-    <div className="relative">
+    <div className="relative rounded-lg border border-gray-200 overflow-hidden focus-within:border-[#5E30A5] focus-within:ring-2 focus-within:ring-[#5E30A5]/30">
       <PinOutlineIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 h-4 w-4" />
       <input
-        className={`w-full border border-gray-200 pl-9 pr-12 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none ${
-          searchValue.trim().length > 0
-            ? "rounded-l-lg rounded-r-none"
-            : "rounded-lg"
+        className={`w-full pl-9 pr-12 py-2 text-sm border-0 focus:outline-none ${
+          searchValue.trim().length > 0 ? "rounded-none" : "rounded-lg"
         }`}
         placeholder="Busca la direccion si no la encuentras..."
         value={searchValue}
@@ -625,7 +649,7 @@ export default function BusinessAddressStep({
           type="button"
           onClick={handleSearch}
           disabled={!canSearch}
-          className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 bg-[#5E30A5] text-white disabled:opacity-40 rounded-r-lg"
+          className="absolute right-0 top-0 h-full px-3 flex items-center justify-center border-l border-gray-200 bg-[#5E30A5] text-white disabled:opacity-40 rounded-none"
           aria-label="Buscar direcci¢n"
         >
           <SearchTiltIcon className="h-4 w-4 -rotate-12 text-white" />
@@ -657,7 +681,7 @@ export default function BusinessAddressStep({
             key={item.id || item.label}
             type="button"
             onClick={() => handleSelectSuggestion(item)}
-            className={`w-full text-left px-3 py-2 text-sm transition ${
+            className={`w-full text-left px-3 py-3 text-sm transition border-b border-gray-200/60 last:border-b-0 ${
               (selectedSearchItem?.id || selectedSearchItem?.label) ===
               (item.id || item.label)
                 ? "bg-[#F1ECFF] text-[#2F1A55]"
@@ -683,7 +707,7 @@ export default function BusinessAddressStep({
             variant="inline"
             className="h-full"
             headerClassName="pt-3"
-            contentClassName="flex flex-col gap-3 overflow-hidden px-0"
+            contentClassName="flex flex-col gap-3 px-0"
             childrenClassName="flex h-full flex-col"
             searchBar={
               <>
@@ -942,23 +966,39 @@ function formatDisplayParts(item) {
   const filtered = parts.filter((value) => value);
   if (filtered.length > 0) return filtered.join(", ");
   const fields = item?.display_fields || {};
-  const provincia = formatProvince(fields.provincia);
-  const parroquiaOrCiudad = fields.parroquia || fields.ciudad || null;
-  const shouldIncludeCanton = !parroquiaOrCiudad && !fields.sector && !fields.calles;
+  const provincia = formatProvince(fields.provincia || item?.provincia || null);
+  const parroquiaOrCiudad =
+    fields.parroquia || fields.ciudad || item?.parroquia || item?.ciudad || null;
+  const sector = fields.sector || item?.sector || null;
+  const baseCalles = fields.calles || item?.calles || null;
+  const houseNumber = fields.house_number || item?.house_number || null;
+  const cantonFallback =
+    !parroquiaOrCiudad ? fields.canton || item?.canton || null : null;
   let calles = fields.calles || null;
-  if (calles && fields.house_number) {
-    calles = `${calles} ${fields.house_number}`.trim();
+  if (!calles && baseCalles) {
+    calles = baseCalles;
+  }
+  if (calles && houseNumber) {
+    calles = `${calles} ${houseNumber}`.trim();
+  }
+  let locality = parroquiaOrCiudad || cantonFallback;
+  const postcode = fields.postcode || item?.postcode || null;
+  if (postcode) {
+    locality = locality ? `${locality} ${postcode}`.trim() : postcode;
   }
   const fallback = [
-    fields.postcode || null,
     calles,
-    fields.sector || null,
-    parroquiaOrCiudad,
-    shouldIncludeCanton ? fields.canton || null : null,
+    locality,
     provincia,
+    sector,
   ].filter((value) => value);
   if (fallback.length > 0) return fallback.join(", ");
-  return String(item?.label || "");
+  const rawLabel = String(item?.label || "").trim();
+  if (!rawLabel) return "";
+  const country =
+    String(fields.country || item?.country || "").trim() || "Ecuador";
+  const countryRe = new RegExp(`,\\s*${country}\\s*$`, "i");
+  return rawLabel.replace(countryRe, "").trim();
 }
 
 function formatProvince(value) {
