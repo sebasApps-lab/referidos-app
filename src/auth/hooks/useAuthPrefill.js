@@ -201,7 +201,6 @@ export default function useAuthPrefill({
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
       const prefillGenero = u.genero || "";
       const prefillCategoria = prefill.categoriaNegocio || "";
-      const prefillTipo = neg?.tipo || null;
 
       if (missingOwner) {
         setStep(AUTH_STEPS.OWNER_DATA);
@@ -231,50 +230,115 @@ export default function useAuthPrefill({
       });
       setNombreNegocio(prefill.nombreNegocio);
       setCategoriaNegocio(prefillCategoria);
-      setIsSucursalPrincipal(prefillTipo === "principal");
       setSectorNegocio(prefill.sectorNegocio);
       setCalle1(prefill.calle1);
       setCalle2(prefill.calle2);
 
-      const direccionId =
-        neg?.direccion_id || neg?.direccionId || neg?.direccionID || null;
+      const requestId = ++direccionRequestRef.current;
+      const loadSucursal = async () => {
+        let negocioId = neg?.id || null;
+        if (!negocioId && u?.id) {
+          const { data: negRow } = await supabase
+            .from("negocios")
+            .select("id")
+            .eq("usuarioid", u.id)
+            .maybeSingle();
+          negocioId = negRow?.id || null;
+        }
+        if (!negocioId) return;
 
-      if (direccionId) {
-        const requestId = ++direccionRequestRef.current;
-        supabase
+        const { data, error } = await supabase
+          .from("sucursales")
+          .select("id, direccion_id, status, tipo, fechacreacion")
+          .eq("negocioid", negocioId)
+          .order("fechacreacion", { ascending: false });
+
+        if (requestId !== direccionRequestRef.current) return;
+        if (error || !data) return;
+
+        const rows = Array.isArray(data) ? data : [];
+        const draft = rows.find(
+          (row) => String(row.status || "draft").toLowerCase() === "draft"
+        );
+        const principal = rows.find(
+          (row) => String(row.tipo || "").toLowerCase() === "principal"
+        );
+        const picked = draft || principal || rows[0] || null;
+        if (picked?.tipo) {
+          setIsSucursalPrincipal(picked.tipo === "principal");
+        }
+        if (picked?.direccion_id) {
+          const { data: dirData, error: dirErr } = await supabase
+            .from("direcciones")
+            .select("calles, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
+            .eq("id", picked.direccion_id)
+            .maybeSingle();
+
+          if (requestId !== direccionRequestRef.current) return;
+          if (dirErr || !dirData) return;
+          setCalle1(dirData.calles || "");
+          setCalle2("");
+          setSectorNegocio(dirData.sector || "");
+          setDireccionPayload?.({
+            place_id: dirData.place_id || "",
+            label: dirData.label || "",
+            display_label: dirData.label || "",
+            provider: dirData.provider || "",
+            lat: dirData.lat ?? null,
+            lng: dirData.lng ?? null,
+            provincia_id: dirData.provincia_id || "",
+            canton_id: dirData.canton_id || "",
+            parroquia_id: dirData.parroquia_id || "",
+            parroquia: dirData.parroquia || "",
+            ciudad: dirData.ciudad || "",
+            sector: dirData.sector || "",
+            calles: dirData.calles || "",
+            house_number: "",
+            postcode: "",
+            provincia: "",
+            canton: "",
+            country: "",
+          });
+          return;
+        }
+
+        const { data: fallbackDir, error: fallbackErr } = await supabase
           .from("direcciones")
           .select("calles, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
-          .eq("id", direccionId)
-          .maybeSingle()
-          .then(({ data, error }) => {
-            if (requestId !== direccionRequestRef.current) return;
-            if (error || !data) return;
-            setCalle1(data.calles || "");
-            setCalle2("");
-            setSectorNegocio(data.sector || "");
-            setDireccionPayload?.({
-              place_id: data.place_id || "",
-              label: data.label || "",
-              display_label: data.label || "",
-              provider: data.provider || "",
-              lat: data.lat ?? null,
-              lng: data.lng ?? null,
-              provincia_id: data.provincia_id || "",
-              canton_id: data.canton_id || "",
-              parroquia_id: data.parroquia_id || "",
-              parroquia: data.parroquia || "",
-              ciudad: data.ciudad || "",
-              sector: data.sector || "",
-              calles: data.calles || "",
-              house_number: "",
-              postcode: "",
-              provincia: "",
-              canton: "",
-              country: "",
-            });
-          })
-          .catch(() => {});
-      }
+          .eq("owner_id", u.id)
+          .eq("is_user_provided", true)
+          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+        if (requestId !== direccionRequestRef.current) return;
+        if (fallbackErr || !fallbackDir) return;
+        setCalle1(fallbackDir.calles || "");
+        setCalle2("");
+        setSectorNegocio(fallbackDir.sector || "");
+        setDireccionPayload?.({
+          place_id: fallbackDir.place_id || "",
+          label: fallbackDir.label || "",
+          display_label: fallbackDir.label || "",
+          provider: fallbackDir.provider || "",
+          lat: fallbackDir.lat ?? null,
+          lng: fallbackDir.lng ?? null,
+          provincia_id: fallbackDir.provincia_id || "",
+          canton_id: fallbackDir.canton_id || "",
+          parroquia_id: fallbackDir.parroquia_id || "",
+          parroquia: fallbackDir.parroquia || "",
+          ciudad: fallbackDir.ciudad || "",
+          sector: fallbackDir.sector || "",
+          calles: fallbackDir.calles || "",
+          house_number: "",
+          postcode: "",
+          provincia: "",
+          canton: "",
+          country: "",
+        });
+      };
+
+      loadSucursal().catch(() => {});
     }
   }, [
     onboarding,

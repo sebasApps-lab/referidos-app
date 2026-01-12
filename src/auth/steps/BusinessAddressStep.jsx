@@ -187,6 +187,20 @@ export default function BusinessAddressStep({
     closeZoom: CLOSE_ZOOM,
   });
 
+  const hasSavedAddress =
+    Boolean(direccionPayload?.place_id) &&
+    Boolean(direccionPayload?.label) &&
+    direccionPayload?.lat != null &&
+    direccionPayload?.lng != null;
+
+  useEffect(() => {
+    if (hasSavedAddress && stage !== "summary") {
+      setStage("summary");
+    } else if (!hasSavedAddress && stage === "summary") {
+      setStage("map");
+    }
+  }, [hasSavedAddress, stage]);
+
   useEffect(() => {
     let active = true;
     if (coordsSource === "gps" || coords) {
@@ -981,16 +995,14 @@ function formatDisplayParts(item) {
   if (calles && houseNumber) {
     calles = `${calles} ${houseNumber}`.trim();
   }
-  let locality = parroquiaOrCiudad || cantonFallback;
+  const locality = parroquiaOrCiudad || cantonFallback;
   const postcode = fields.postcode || item?.postcode || null;
-  if (postcode) {
-    locality = locality ? `${locality} ${postcode}`.trim() : postcode;
-  }
+  const sectorWithPostcode = [postcode, sector].filter((value) => value).join(" ").trim() || null;
   const fallback = [
     calles,
     locality,
     provincia,
-    sector,
+    sectorWithPostcode,
   ].filter((value) => value);
   if (fallback.length > 0) return fallback.join(", ");
   const rawLabel = String(item?.label || "").trim();

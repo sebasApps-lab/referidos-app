@@ -499,11 +499,6 @@ export default function useAuthActions({
         businessStatus.nombre === prefillNombre &&
         businessStatus.categoria === prefillCategoria;
 
-      if (unchanged) {
-        goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
-        return;
-      }
-
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId || !session?.access_token) {
@@ -545,16 +540,16 @@ export default function useAuthActions({
         return;
       }
 
-      const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
       const negocioPayload = {
         usuarioid: userRow.id,
         nombre: businessStatus.nombre || existingNeg?.nombre || "Nombre Local",
         categoria: businessStatus.categoria || existingNeg?.categoria || null,
-        tipo: tipoValue,
       };
 
       //Crear/actualizar negocio
-      if (existingNeg) {
+      let negocioId = existingNeg?.id || null;
+
+      if (existingNeg && !unchanged) {
         const { data: updatedNeg, error } = await supabase
           .from("negocios")
           .update(negocioPayload)
@@ -566,7 +561,8 @@ export default function useAuthActions({
           setEmailError("No se pudo actualizar el negocio");
           return;
         }
-      } else {
+        negocioId = updatedNeg.id;
+      } else if (!existingNeg) {
         const { data: createdNeg, error } = await supabase
           .from("negocios")
           .insert(negocioPayload)
@@ -577,6 +573,7 @@ export default function useAuthActions({
           setEmailError("No se pudo crear el negocio");
           return;
         }
+        negocioId = createdNeg.id;
       }
 
       //Actualizar perfil de usuario a completo con datos del dueno
@@ -594,6 +591,32 @@ export default function useAuthActions({
       if (!updatedUser) {
         setEmailError("No se pudo actualizar el perfil");
         return;
+      }
+
+      if (negocioId) {
+        const { data: sucRows, error: sucErr } = await supabase
+          .from("sucursales")
+          .select("id, status")
+          .eq("negocioid", negocioId);
+        if (sucErr) {
+          setEmailError(sucErr.message || "No se pudo leer sucursales");
+          return;
+        }
+        const hasDraft = (sucRows || []).some(
+          (row) => String(row.status || "draft").toLowerCase() === "draft"
+        );
+        if (!hasDraft) {
+          const { error: insErr } = await supabase
+            .from("sucursales")
+            .insert({
+              negocioid: negocioId,
+              status: "draft",
+            });
+          if (insErr) {
+            setEmailError(insErr.message || "No se pudo crear la sucursal");
+            return;
+          }
+        }
       }
 
       await bootstrapAuth({ force: true });

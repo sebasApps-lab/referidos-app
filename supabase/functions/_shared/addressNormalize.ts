@@ -256,15 +256,17 @@ function buildDisplayParts(
     calles = `${calles} ${fields.house_number}`.trim();
   }
 
-  let locality = parroquiaOrCiudad || cantonFallback;
-  if (options.includePostcode && fields.postcode) {
-    locality = locality ? `${locality} ${fields.postcode}`.trim() : fields.postcode;
-  }
+  const locality = parroquiaOrCiudad || cantonFallback;
+
+  const sectorWithPostcode = [
+    fields.postcode || null,
+    fields.sector || null,
+  ].filter((value) => value).join(" ").trim() || null;
 
   parts[0] = calles;
   parts[1] = locality;
   parts[2] = fields.provincia || null;
-  parts[3] = fields.sector || null;
+  parts[3] = sectorWithPostcode;
 
   return parts;
 }
