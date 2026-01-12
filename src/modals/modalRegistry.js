@@ -12,7 +12,8 @@ import ModalFingerprintPrompt from "../components/modals/ModalFingerprintPrompt"
 import ModalNotifications from "../components/modals/ModalNotifications";
 import ModalConfirmarCambios from "../components/modals/ModalConfirmarCambios";
 import ModalLocationPermission from "../components/modals/ModalLocationPermission";
-import ModalGpsDisabled from "../components/modals/ModalGpsDisabled";
+import ModalLocationDenied from "../components/modals/ModalLocationDenied";
+import ModalLocationUnavailable from "../components/modals/ModalLocationUnavailable";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -27,5 +28,6 @@ export const modalRegistry = {
   Notifications: ModalNotifications,
   ConfirmarCambios: ModalConfirmarCambios,
   LocationPermission: ModalLocationPermission,
-  GpsDisabled: ModalGpsDisabled,
+  LocationDenied: ModalLocationDenied,
+  LocationUnavailable: ModalLocationUnavailable,
 };

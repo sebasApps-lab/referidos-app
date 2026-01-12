@@ -49,6 +49,9 @@ export default function BusinessAddressStep({
   const [localError, setLocalError] = useState("");
   const [mapStatus, setMapStatus] = useState("loading");
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [permissionState, setPermissionState] = useState("prompt");
+  const [geoAttempted, setGeoAttempted] = useState(false);
+  const [geoErrorCode, setGeoErrorCode] = useState(null);
   const { openModal, closeModal, activeModal } = useModal();
   const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
   const [animateZoom, setAnimateZoom] = useState(false);
@@ -177,6 +180,7 @@ export default function BusinessAddressStep({
   const requestLocationRef = useRef(null);
   const didAutoLocateRef = useRef(false);
   const didPromptLocationRef = useRef(false);
+  const didDeniedLocationRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -192,8 +196,14 @@ export default function BusinessAddressStep({
     });
   }, [openModal]);
 
-  const openGpsModal = useCallback(() => {
-    openModal("GpsDisabled", {
+  const openLocationDeniedModal = useCallback(() => {
+    openModal("LocationDenied", {
+      onRetry: () => requestLocationRef.current?.(),
+    });
+  }, [openModal]);
+
+  const openLocationUnavailableModal = useCallback(() => {
+    openModal("LocationUnavailable", {
       onRetry: () => requestLocationRef.current?.(),
     });
   }, [openModal]);
@@ -204,8 +214,14 @@ export default function BusinessAddressStep({
     }
   }, [activeModal, closeModal]);
 
-  const closeGpsModal = useCallback(() => {
-    if (activeModal === "GpsDisabled") {
+  const closeLocationDeniedModal = useCallback(() => {
+    if (activeModal === "LocationDenied") {
+      closeModal();
+    }
+  }, [activeModal, closeModal]);
+
+  const closeLocationUnavailableModal = useCallback(() => {
+    if (activeModal === "LocationUnavailable") {
       closeModal();
     }
   }, [activeModal, closeModal]);
@@ -216,6 +232,8 @@ export default function BusinessAddressStep({
     }
     if (isRequestingLocation) return;
     setIsRequestingLocation(true);
+    setGeoAttempted(true);
+    setGeoErrorCode(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const nextCenter = {
@@ -236,14 +254,21 @@ export default function BusinessAddressStep({
       },
       (error) => {
         setIsRequestingLocation(false);
-        if (error?.code === 2 || error?.code === 3) {
-          openGpsModal();
+        const code = error?.code ?? null;
+        setGeoErrorCode(code);
+        if (code === 1) {
+          setPermissionState("denied");
+          openLocationDeniedModal();
+          return;
+        }
+        if (code === 2) {
+          openLocationUnavailableModal();
           return;
         }
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
-  }, [closeModal, isRequestingLocation, openGpsModal, openLocationModal]);
+  }, [isRequestingLocation, openLocationDeniedModal, openLocationUnavailableModal]);
 
   useEffect(() => {
     requestLocationRef.current = requestLocation;
@@ -265,28 +290,11 @@ export default function BusinessAddressStep({
           name: "geolocation",
         });
         if (!active) return;
-        if (status.state === "granted") {
-          closeLocationModal();
-          if (!didAutoLocateRef.current) {
-            const hasCoords =
-              coords ||
-              (direccionPayload?.lat != null &&
-                direccionPayload?.lng != null);
-            if (!hasCoords) {
-              didAutoLocateRef.current = true;
-              requestLocationRef.current?.();
-            }
-          }
-        } else {
-          if (!didPromptLocationRef.current) {
-            didPromptLocationRef.current = true;
-            openLocationModal();
-          }
-        }
-        status.onchange = () => {
-          if (!active) return;
-          if (status.state === "granted") {
+        const handlePermissionState = (state) => {
+          setPermissionState(state);
+          if (state === "granted") {
             closeLocationModal();
+            closeLocationDeniedModal();
             if (!didAutoLocateRef.current) {
               const hasCoords =
                 coords ||
@@ -297,10 +305,27 @@ export default function BusinessAddressStep({
                 requestLocationRef.current?.();
               }
             }
-          } else if (!didPromptLocationRef.current) {
+            return;
+          }
+          if (state === "denied") {
+            closeLocationModal();
+            if (!didDeniedLocationRef.current) {
+              didDeniedLocationRef.current = true;
+              openLocationDeniedModal();
+            }
+            return;
+          }
+          closeLocationDeniedModal();
+          if (!didPromptLocationRef.current) {
             didPromptLocationRef.current = true;
             openLocationModal();
           }
+        };
+
+        handlePermissionState(status.state);
+        status.onchange = () => {
+          if (!active) return;
+          handlePermissionState(status.state);
         };
       } catch (error) {
         return;
@@ -313,7 +338,9 @@ export default function BusinessAddressStep({
     };
   }, [
     closeLocationModal,
+    closeLocationDeniedModal,
     openLocationModal,
+    openLocationDeniedModal,
     stage,
     coords,
     direccionPayload?.lat,
@@ -323,9 +350,15 @@ export default function BusinessAddressStep({
   useEffect(() => {
     if (stage !== "map") {
       closeLocationModal();
-      closeGpsModal();
+      closeLocationDeniedModal();
+      closeLocationUnavailableModal();
     }
-  }, [closeGpsModal, closeLocationModal, stage]);
+  }, [
+    closeLocationDeniedModal,
+    closeLocationModal,
+    closeLocationUnavailableModal,
+    stage,
+  ]);
 
   const startConfirmZoom = () => {
     if (animateZoom) return;

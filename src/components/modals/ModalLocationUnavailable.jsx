@@ -1,7 +1,7 @@
 import React from "react";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalGpsDisabled({ onRetry }) {
+export default function ModalLocationUnavailable({ onRetry }) {
   const { closeModal } = useModal();
 
   return (
@@ -10,10 +10,10 @@ export default function ModalGpsDisabled({ onRetry }) {
         <GpsOffIcon className="h-6 w-6" />
       </div>
       <div className="text-base font-semibold text-[#2F1A55]">
-        GPS desactivado
+        No pudimos obtener tu ubicacion
       </div>
       <p className="mt-2 text-sm text-slate-500">
-        Activa el GPS de tu dispositivo para continuar.
+        Intenta mover el mapa manualmente o buscar la direccion del negocio.
       </p>
       <div className="mt-6 flex items-center justify-center">
         <button
@@ -24,7 +24,7 @@ export default function ModalGpsDisabled({ onRetry }) {
           }}
           className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
         >
-          Entendido
+          Entiendo
         </button>
       </div>
     </div>
