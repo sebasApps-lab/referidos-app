@@ -94,8 +94,13 @@ serve(async (req) => {
 
   const language = String(payload.language ?? "es").trim().toLowerCase();
   const queryKey = buildReverseKey(lat, lng, language);
+  const queryLike = buildReverseQueryLike(lat, lng);
+  const languageLike = buildReverseLanguageLike(language);
 
-  const cached = await getCachedResult(queryKey, false);
+  const cached = await getCachedResult(queryKey, false, {
+    queryLike,
+    languageLike,
+  });
   if (cached?.results?.length) {
     return json(
       {
@@ -169,7 +174,10 @@ serve(async (req) => {
     }
   }
 
-  const stale = await getCachedResult(queryKey, true);
+  const stale = await getCachedResult(queryKey, true, {
+    queryLike,
+    languageLike,
+  });
   if (stale?.results?.length) {
     return json(
       {
@@ -207,8 +215,8 @@ async function getAuthUser(req: Request, corsHeaders: Record<string, string>) {
 }
 
 function buildReverseKey(lat: number, lng: number, language: string) {
-  const latKey = truncateCoord(lat, 4);
-  const lngKey = truncateCoord(lng, 4);
+  const latKey = lat.toFixed(6);
+  const lngKey = lng.toFixed(6);
   return `reverse|${latKey}|${lngKey}|${language}`;
 }
 
@@ -218,18 +226,41 @@ function truncateCoord(value: number, decimals: number) {
   return truncated.toFixed(decimals);
 }
 
-async function getCachedResult(queryKey: string, allowExpired: boolean) {
-  const nowIso = new Date().toISOString();
-  const baseQuery = supabaseAdmin
-    .from("address_search_cache")
-    .select("provider, results, expires_at, created_at")
-    .eq("query_key", queryKey)
-    .order("created_at", { ascending: false })
-    .limit(1);
+function buildReverseQueryLike(lat: number, lng: number) {
+  const latKey = truncateCoord(lat, 4);
+  const lngKey = truncateCoord(lng, 4);
+  return `${latKey}%,${lngKey}%`;
+}
 
-  const { data } = allowExpired
-    ? await baseQuery.maybeSingle()
-    : await baseQuery.gt("expires_at", nowIso).maybeSingle();
+function buildReverseLanguageLike(language: string) {
+  return `reverse|%|%|${language}`;
+}
+
+async function getCachedResult(
+  queryKey: string,
+  allowExpired: boolean,
+  fuzzy?: { queryLike: string; languageLike: string },
+) {
+  const nowIso = new Date().toISOString();
+  const baseQuery = () => {
+    const query = supabaseAdmin
+      .from("address_search_cache")
+      .select("provider, results, expires_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    return allowExpired ? query : query.gt("expires_at", nowIso);
+  };
+
+  const { data } = await baseQuery().eq("query_key", queryKey).maybeSingle();
+  if (!data && fuzzy) {
+    const { data: fuzzyData } = await baseQuery()
+      .like("query", fuzzy.queryLike)
+      .like("query_key", fuzzy.languageLike)
+      .maybeSingle();
+    if (fuzzyData) {
+      return fuzzyData as { provider: string; results: NormalizedResult[] };
+    }
+  }
 
   if (!data) return null;
   return data as { provider: string; results: NormalizedResult[] };

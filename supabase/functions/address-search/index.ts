@@ -104,7 +104,10 @@ serve(async (req) => {
   const language = String(payload.language ?? "es").trim().toLowerCase();
 
   const queryKey = buildQueryKey(rawQuery, { limit, country, language });
-  const cached = await getCachedResult(queryKey, false);
+  const cached = await getCachedResult(queryKey, false, {
+    normalizedQuery: normalizeQuery(rawQuery),
+    keySuffix: `|${limit}|${country}|${language}`,
+  });
   if (cached) {
     return json(
       {
@@ -185,7 +188,10 @@ serve(async (req) => {
     }
   }
 
-  const stale = await getCachedResult(queryKey, true);
+  const stale = await getCachedResult(queryKey, true, {
+    normalizedQuery: normalizeQuery(rawQuery),
+    keySuffix: `|${limit}|${country}|${language}`,
+  });
   if (stale) {
     return json(
       {
@@ -250,29 +256,51 @@ function buildQueryKey(
   query: string,
   options: { limit: number; country: string; language: string },
 ) {
-  const normalized = normalizeQuery(query);
-  return `${normalized}|${options.limit}|${options.country}|${options.language}`;
+  const raw = String(query || "").trim().toLowerCase();
+  return `${raw}|${options.limit}|${options.country}|${options.language}`;
 }
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Number(value) || min));
 }
 
-async function getCachedResult(queryKey: string, allowExpired: boolean) {
+async function getCachedResult(
+  queryKey: string,
+  allowExpired: boolean,
+  fuzzy?: { normalizedQuery: string; keySuffix: string },
+) {
   const nowIso = new Date().toISOString();
-  const baseQuery = supabaseAdmin
-    .from("address_search_cache")
-    .select("provider, results, expires_at, created_at")
+  const baseQuery = () => {
+    const query = supabaseAdmin
+      .from("address_search_cache")
+      .select("provider, results, query, query_key, expires_at, created_at")
+      .order("created_at", { ascending: false });
+    return allowExpired ? query : query.gt("expires_at", nowIso);
+  };
+
+  const { data } = await baseQuery()
     .eq("query_key", queryKey)
-    .order("created_at", { ascending: false })
-    .limit(1);
+    .limit(1)
+    .maybeSingle();
 
-  const { data } = allowExpired
-    ? await baseQuery.maybeSingle()
-    : await baseQuery.gt("expires_at", nowIso).maybeSingle();
+  if (data) {
+    return data as { provider: string; results: NormalizedResult[] };
+  }
 
-  if (!data) return null;
-  return data as { provider: string; results: NormalizedResult[] };
+  if (fuzzy?.normalizedQuery) {
+    const { data: rows } = await baseQuery()
+      .like("query_key", `%${fuzzy.keySuffix}`)
+      .limit(30);
+    const normalizedTarget = normalizeQuery(fuzzy.normalizedQuery);
+    for (const row of rows ?? []) {
+      const normalizedRow = normalizeQuery(row.query || "");
+      if (normalizedRow === normalizedTarget) {
+        return row as { provider: string; results: NormalizedResult[] };
+      }
+    }
+  }
+
+  return null;
 }
 
 async function storeCache({
