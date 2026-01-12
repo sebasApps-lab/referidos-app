@@ -567,6 +567,10 @@ export default function BusinessAddressStep({
   const payloadParroquia = direccionPayload?.parroquia || parroquiaNombre || "";
   const payloadCiudad =
     direccionPayload?.ciudad || payloadCanton || payloadParroquia || "";
+  const summaryCiudad = direccionPayload?.ciudad || "";
+  const summaryCalle = direccionPayload?.calles
+    ? `${direccionPayload.calles}${direccionPayload?.house_number ? ` ${direccionPayload.house_number}` : ""}`.trim()
+    : "";
 
   const isManualFallback = mapStatus === "error";
   const hasTerritorySelection = Boolean(
@@ -1006,16 +1010,26 @@ export default function BusinessAddressStep({
               <ErrorBanner message={localError || reverseError || error} className="mb-3" />
             )}
 
-            <div className="flex-1 space-y-6 mt-3">
-              <div className="space-y-2 text-sm text-gray-700">
+            <div className="flex-1 mt-3">
+              <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-3 shadow-[0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
                 {payloadProvincia && (
                   <div>
                     <span className="text-gray-500">Provincia:</span> {payloadProvincia}
                   </div>
                 )}
-                {direccionPayload?.ciudad && (
+                {summaryCiudad && (
                   <div>
-                    <span className="text-gray-500">Ciudad:</span> {direccionPayload.ciudad}
+                    <span className="text-gray-500">Ciudad:</span> {summaryCiudad}
+                  </div>
+                )}
+                {!summaryCiudad && payloadCanton && (
+                  <div>
+                    <span className="text-gray-500">Canton:</span> {payloadCanton}
+                  </div>
+                )}
+                {payloadParroquia && (
+                  <div>
+                    <span className="text-gray-500">Ciudad:</span> {payloadParroquia}
                   </div>
                 )}
                 {direccionPayload?.sector && (
@@ -1023,14 +1037,9 @@ export default function BusinessAddressStep({
                     <span className="text-gray-500">Sector:</span> {direccionPayload.sector}
                   </div>
                 )}
-                {direccionPayload?.calles && (
+                {summaryCalle && (
                   <div>
-                    <span className="text-gray-500">Calle:</span> {direccionPayload.calles}
-                  </div>
-                )}
-                {direccionPayload?.house_number && (
-                  <div>
-                    <span className="text-gray-500">Numero:</span> {direccionPayload.house_number}
+                    <span className="text-gray-500">Calle:</span> {summaryCalle}
                   </div>
                 )}
                 {direccionPayload?.postcode && (
@@ -1038,39 +1047,18 @@ export default function BusinessAddressStep({
                     <span className="text-gray-500">Codigo postal:</span> {direccionPayload.postcode}
                   </div>
                 )}
-                {payloadCanton && (
-                  <div>
-                    <span className="text-gray-500">Canton:</span> {payloadCanton}
-                  </div>
-                )}
-                {payloadParroquia && (
-                  <div>
-                    <span className="text-gray-500">Parroquia:</span> {payloadParroquia}
-                  </div>
-                )}
-                {direccionPayload?.country && (
-                  <div>
-                    <span className="text-gray-500">Pais:</span> {direccionPayload.country}
-                  </div>
-                )}
+                <label className="flex items-center gap-2 pt-6 pb-4 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isSucursalPrincipal)}
+                    onChange={(event) =>
+                      onChangeSucursalPrincipal?.(event.target.checked)
+                    }
+                    className="h-4 w-4 accent-[#5E30A5]"
+                  />
+                  Este es mi sucursal principal
+                </label>
               </div>
-              {displayCoords ? (
-                <div className="text-xs text-gray-500 ml-1">
-                  {`Lat: ${displayCoords.lat.toFixed(6)} | Lng: ${displayCoords.lng.toFixed(6)}`}
-                </div>
-              ) : null}
-
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={Boolean(isSucursalPrincipal)}
-                  onChange={(event) =>
-                    onChangeSucursalPrincipal?.(event.target.checked)
-                  }
-                  className="h-4 w-4 accent-[#5E30A5]"
-                />
-                Este es mi sucursal principal
-              </label>
             </div>
 
             <div className="mt-auto pt-4">
