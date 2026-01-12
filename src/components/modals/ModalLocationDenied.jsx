@@ -1,7 +1,7 @@
 import React from "react";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalLocationDenied({ onRetry }) {
+export default function ModalLocationDenied() {
   const { closeModal } = useModal();
 
   return (
@@ -19,10 +19,7 @@ export default function ModalLocationDenied({ onRetry }) {
       <div className="mt-6 flex items-center justify-center">
         <button
           type="button"
-          onClick={() => {
-            onRetry?.();
-            closeModal();
-          }}
+          onClick={closeModal}
           className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
         >
           Entiendo

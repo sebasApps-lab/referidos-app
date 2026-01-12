@@ -2,16 +2,15 @@
 import ErrorBanner from "../blocks/ErrorBanner";
 import { searchAddresses } from "../../services/addressSearchClient";
 import { reverseGeocode } from "../../services/addressReverseClient";
-import { saveGpsFallbackLocation } from "../../services/gpsFallbackClient";
 import {
   fetchProvincias,
   fetchCantonesByProvincia,
   fetchParroquiasByCanton,
 } from "../../services/territoryClient";
 import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
-import { useModal } from "../../modals/useModal";
 import AddressStepSearch from "../../search/auth/AddressStepSearch";
 import { toTitleCaseEs } from "../../utils/textCase";
+import useLocationStep from "../hooks/useLocationStep";
 
 const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
 const FALLBACK_ZOOM = 11;
@@ -48,11 +47,6 @@ export default function BusinessAddressStep({
   const [coordsSource, setCoordsSource] = useState(null);
   const [localError, setLocalError] = useState("");
   const [mapStatus, setMapStatus] = useState("loading");
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [permissionState, setPermissionState] = useState("prompt");
-  const [geoAttempted, setGeoAttempted] = useState(false);
-  const [geoErrorCode, setGeoErrorCode] = useState(null);
-  const { openModal, closeModal, activeModal } = useModal();
   const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
   const [animateZoom, setAnimateZoom] = useState(false);
   const [showZoomHint, setShowZoomHint] = useState(false);
@@ -171,16 +165,6 @@ export default function BusinessAddressStep({
     },
     [buildDireccionPayload, onChangeDireccionPayload]
   );
-  const updateDireccionPayloadRef = useRef(updateDireccionPayload);
-
-  useEffect(() => {
-    updateDireccionPayloadRef.current = updateDireccionPayload;
-  }, [updateDireccionPayload]);
-
-  const requestLocationRef = useRef(null);
-  const didAutoLocateRef = useRef(false);
-  const didPromptLocationRef = useRef(false);
-  const didDeniedLocationRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -189,176 +173,18 @@ export default function BusinessAddressStep({
       }
     };
   }, []);
-
-  const openLocationModal = useCallback(() => {
-    openModal("LocationPermission", {
-      onConfirm: () => requestLocationRef.current?.(),
-    });
-  }, [openModal]);
-
-  const openLocationDeniedModal = useCallback(() => {
-    openModal("LocationDenied", {
-      onRetry: () => requestLocationRef.current?.(),
-    });
-  }, [openModal]);
-
-  const openLocationUnavailableModal = useCallback(() => {
-    openModal("LocationUnavailable", {
-      onRetry: () => requestLocationRef.current?.(),
-    });
-  }, [openModal]);
-
-  const closeLocationModal = useCallback(() => {
-    if (activeModal === "LocationPermission") {
-      closeModal();
-    }
-  }, [activeModal, closeModal]);
-
-  const closeLocationDeniedModal = useCallback(() => {
-    if (activeModal === "LocationDenied") {
-      closeModal();
-    }
-  }, [activeModal, closeModal]);
-
-  const closeLocationUnavailableModal = useCallback(() => {
-    if (activeModal === "LocationUnavailable") {
-      closeModal();
-    }
-  }, [activeModal, closeModal]);
-
-  const requestLocation = useCallback(() => {
-    if (!navigator?.geolocation) {
-      return;
-    }
-    if (isRequestingLocation) return;
-    setIsRequestingLocation(true);
-    setGeoAttempted(true);
-    setGeoErrorCode(null);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextCenter = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        programmaticMoveRef.current = true;
-        setCoords(nextCenter);
-        setCoordsSource("gps");
-        programmaticZoomRef.current = true;
-        setMapZoom(CLOSE_ZOOM);
-        updateDireccionPayloadRef.current?.({
-          lat: nextCenter.lat,
-          lng: nextCenter.lng,
-        });
-        saveGpsFallbackLocation(nextCenter).catch(() => {});
-        setIsRequestingLocation(false);
-      },
-      (error) => {
-        setIsRequestingLocation(false);
-        const code = error?.code ?? null;
-        setGeoErrorCode(code);
-        if (code === 1) {
-          setPermissionState("denied");
-          openLocationDeniedModal();
-          return;
-        }
-        if (code === 2) {
-          openLocationUnavailableModal();
-          return;
-        }
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  }, [isRequestingLocation, openLocationDeniedModal, openLocationUnavailableModal]);
-
-  useEffect(() => {
-    requestLocationRef.current = requestLocation;
-  }, [requestLocation]);
-
-  useEffect(() => {
-    let active = true;
-    if (!navigator?.geolocation) {
-      return undefined;
-    }
-
-    const checkPermission = async () => {
-      if (stage !== "map") return;
-      if (!navigator.permissions?.query) {
-        return;
-      }
-      try {
-        const status = await navigator.permissions.query({
-          name: "geolocation",
-        });
-        if (!active) return;
-        const handlePermissionState = (state) => {
-          setPermissionState(state);
-          if (state === "granted") {
-            closeLocationModal();
-            closeLocationDeniedModal();
-            if (!didAutoLocateRef.current) {
-              const hasCoords =
-                coords ||
-                (direccionPayload?.lat != null &&
-                  direccionPayload?.lng != null);
-              if (!hasCoords) {
-                didAutoLocateRef.current = true;
-                requestLocationRef.current?.();
-              }
-            }
-            return;
-          }
-          if (state === "denied") {
-            closeLocationModal();
-            if (!didDeniedLocationRef.current) {
-              didDeniedLocationRef.current = true;
-              openLocationDeniedModal();
-            }
-            return;
-          }
-          closeLocationDeniedModal();
-          if (!didPromptLocationRef.current) {
-            didPromptLocationRef.current = true;
-            openLocationModal();
-          }
-        };
-
-        handlePermissionState(status.state);
-        status.onchange = () => {
-          if (!active) return;
-          handlePermissionState(status.state);
-        };
-      } catch (error) {
-        return;
-      }
-    };
-
-    checkPermission();
-    return () => {
-      active = false;
-    };
-  }, [
-    closeLocationModal,
-    closeLocationDeniedModal,
-    openLocationModal,
-    openLocationDeniedModal,
+  const { requestLocation } = useLocationStep({
     stage,
     coords,
-    direccionPayload?.lat,
-    direccionPayload?.lng,
-  ]);
-
-  useEffect(() => {
-    if (stage !== "map") {
-      closeLocationModal();
-      closeLocationDeniedModal();
-      closeLocationUnavailableModal();
-    }
-  }, [
-    closeLocationDeniedModal,
-    closeLocationModal,
-    closeLocationUnavailableModal,
-    stage,
-  ]);
+    direccionPayload,
+    setCoords,
+    setCoordsSource,
+    setMapZoom,
+    updateDireccionPayload,
+    programmaticMoveRef,
+    programmaticZoomRef,
+    closeZoom: CLOSE_ZOOM,
+  });
 
   const startConfirmZoom = () => {
     if (animateZoom) return;
@@ -964,7 +790,7 @@ export default function BusinessAddressStep({
                     />
                     <button
                       type="button"
-                      onClick={() => requestLocationRef.current?.()}
+                      onClick={requestLocation}
                       className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-white/95 shadow-lg flex items-center justify-center text-gray-700 z-[1000]"
                       aria-label="Reintentar ubicaci?"
                     >

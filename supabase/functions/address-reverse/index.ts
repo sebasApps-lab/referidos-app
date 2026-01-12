@@ -207,9 +207,15 @@ async function getAuthUser(req: Request, corsHeaders: Record<string, string>) {
 }
 
 function buildReverseKey(lat: number, lng: number, language: string) {
-  const latKey = lat.toFixed(6);
-  const lngKey = lng.toFixed(6);
+  const latKey = truncateCoord(lat, 4);
+  const lngKey = truncateCoord(lng, 4);
   return `reverse|${latKey}|${lngKey}|${language}`;
+}
+
+function truncateCoord(value: number, decimals: number) {
+  const factor = 10 ** decimals;
+  const truncated = Math.trunc(value * factor) / factor;
+  return truncated.toFixed(decimals);
 }
 
 async function getCachedResult(queryKey: string, allowExpired: boolean) {
