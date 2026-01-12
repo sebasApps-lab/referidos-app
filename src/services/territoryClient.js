@@ -1,5 +1,6 @@
 // src/services/territoryClient.js
 import { supabase } from "../lib/supabaseClient";
+import { toTitleCaseEs } from "../utils/textCase";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -27,7 +28,10 @@ export async function fetchProvincias() {
     return { ok: false, error: error.message || "No se pudo cargar provincias" };
   }
 
-  const rows = Array.isArray(data) ? data : [];
+  const rows = (Array.isArray(data) ? data : []).map((row) => ({
+    ...row,
+    nombre: toTitleCaseEs(row.nombre),
+  }));
   cache.provincias = { ts: Date.now(), data: rows };
   return { ok: true, data: rows, cached: false };
 }
@@ -52,7 +56,10 @@ export async function fetchCantonesByProvincia(provinciaId) {
     return { ok: false, error: error.message || "No se pudo cargar cantones" };
   }
 
-  const rows = Array.isArray(data) ? data : [];
+  const rows = (Array.isArray(data) ? data : []).map((row) => ({
+    ...row,
+    nombre: toTitleCaseEs(row.nombre),
+  }));
   cache.cantonesByProvincia.set(provinciaId, { ts: Date.now(), data: rows });
   return { ok: true, data: rows, cached: false };
 }
@@ -77,7 +84,10 @@ export async function fetchParroquiasByCanton(cantonId) {
     return { ok: false, error: error.message || "No se pudo cargar parroquias" };
   }
 
-  const rows = Array.isArray(data) ? data : [];
+  const rows = (Array.isArray(data) ? data : []).map((row) => ({
+    ...row,
+    nombre: toTitleCaseEs(row.nombre),
+  }));
   cache.parroquiasByCanton.set(cantonId, { ts: Date.now(), data: rows });
   return { ok: true, data: rows, cached: false };
 }

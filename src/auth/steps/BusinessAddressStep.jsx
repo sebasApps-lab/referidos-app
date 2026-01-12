@@ -11,6 +11,7 @@ import {
 import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
 import { useModal } from "../../modals/useModal";
 import AddressStepSearch from "../../search/auth/AddressStepSearch";
+import { toTitleCaseEs } from "../../utils/textCase";
 
 const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
 const FALLBACK_ZOOM = 11;
@@ -1011,7 +1012,7 @@ export default function BusinessAddressStep({
             )}
 
             <div className="flex-1 mt-3">
-              <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-3 shadow-[0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
+              <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-3 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.08),0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
                 {payloadProvincia && (
                   <div>
                     <span className="text-gray-500">Provincia:</span> {payloadProvincia}
@@ -1047,7 +1048,7 @@ export default function BusinessAddressStep({
                     <span className="text-gray-500">Codigo postal:</span> {direccionPayload.postcode}
                   </div>
                 )}
-                <label className="flex items-center gap-2 pt-6 pb-4 text-sm text-gray-700">
+                <label className="flex items-center gap-2 pt-10 pb-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
                     checked={Boolean(isSucursalPrincipal)}
@@ -1104,8 +1105,7 @@ function formatDisplayParts(item) {
 function formatProvince(value) {
   const text = String(value || "").trim();
   if (!text) return null;
-  const lower = text.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
+  return toTitleCaseEs(text);
 }
 
 

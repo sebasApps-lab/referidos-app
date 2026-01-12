@@ -19,6 +19,7 @@ import {
   normalizeBusinessName,
 } from "../utils/businessDataUtils";
 import { runValidateRegistration } from "../../services/registrationClient";
+import { toTitleCaseEs } from "../../utils/textCase";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
@@ -674,7 +675,7 @@ export default function useAuthActions({
   const handleBusinessAddress = useCallback(async () => {
     setEmailError("");
     const placeId = String(direccionPayload?.place_id || "").trim();
-    const label = String(direccionPayload?.label || "").trim();
+    const label = toTitleCaseEs(String(direccionPayload?.label || "").trim());
     const provider = String(direccionPayload?.provider || "").trim();
     const provinciaId = String(direccionPayload?.provincia_id || "").trim();
     const cantonId = String(direccionPayload?.canton_id || "").trim();
@@ -686,10 +687,12 @@ export default function useAuthActions({
       return;
     }
 
-    const calles = String(direccionPayload?.calles || "").trim();
-    const ciudad = String(direccionPayload?.ciudad || "").trim();
-    const sector = String(direccionPayload?.sector || "").trim();
-    const parroquiaText = String(direccionPayload?.parroquia || "").trim();
+    const calles = toTitleCaseEs(String(direccionPayload?.calles || "").trim());
+    const ciudad = toTitleCaseEs(String(direccionPayload?.ciudad || "").trim());
+    const sector = toTitleCaseEs(String(direccionPayload?.sector || "").trim());
+    const parroquiaText = toTitleCaseEs(
+      String(direccionPayload?.parroquia || "").trim()
+    );
 
     if (latValue == null || lngValue == null) {
       setEmailError("Selecciona una dirección válida");
