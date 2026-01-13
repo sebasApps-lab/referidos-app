@@ -23,6 +23,7 @@ export default function useAuthPrefill({
   setCalle1,
   setCalle2,
   setDireccionPayload,
+  setIsAddressPrefillReady,
 }) {
   const choiceOpenedRef = useRef(false);
   const direccionRequestRef = useRef(0);
@@ -30,6 +31,7 @@ export default function useAuthPrefill({
   useEffect(() => {
     if (typeof usuario === "undefined") {
       choiceOpenedRef.current = false;
+      setIsAddressPrefillReady?.(false);
       setOwnerPrefill?.({
         nombre: "",
         apellido: "",
@@ -70,6 +72,7 @@ export default function useAuthPrefill({
     setCategoriaNegocio,
     setDireccionPayload,
     setGenero,
+    setIsAddressPrefillReady,
     setIsSucursalPrincipal,
     setOwnerPrefill,
     usuario,
@@ -81,6 +84,7 @@ export default function useAuthPrefill({
     const onboardingOk = onboarding?.ok === true;
 
     if (!usuario) {
+      setIsAddressPrefillReady?.(false);
       setOwnerPrefill?.({
         nombre: "",
         apellido: "",
@@ -124,6 +128,7 @@ export default function useAuthPrefill({
 
     //1) Perfil existe pero SIN rol
     if (!usuario.role) {
+      setIsAddressPrefillReady?.(false);
       setOwnerPrefill?.({
         nombre: "",
         apellido: "",
@@ -171,19 +176,25 @@ export default function useAuthPrefill({
     const allowAccess = !!boot.allowAccess;
 
     if (allowAccess) {
+      setIsAddressPrefillReady?.(true);
       return;
     }
 
     //Si no hay allowAccess: decidir siguientes pasos segÇ§n rol
-    if (u.role === "admin") return;
+    if (u.role === "admin") {
+      setIsAddressPrefillReady?.(true);
+      return;
+    }
 
     if (u.role === "cliente") {
+      setIsAddressPrefillReady?.(true);
       setStep(AUTH_STEPS.EMAIL_LOGIN);
       setEmailError(boot.reasons?.join(", ") || "Completa tu registro");
       return;
     }
 
     if (u.role === "negocio") {
+      setIsAddressPrefillReady?.(false);
       const prefill = mapNegocioPrefill({ usuario: u, onboarding: boot });
       const missingOwner =
         !u.nombre || !u.apellido || !u.fecha_nacimiento || !u.genero;
@@ -235,6 +246,11 @@ export default function useAuthPrefill({
       setCalle2(prefill.calle2);
 
       const requestId = ++direccionRequestRef.current;
+      const finalizeDireccion = () => {
+        if (requestId === direccionRequestRef.current) {
+          setIsAddressPrefillReady?.(true);
+        }
+      };
       const loadSucursal = async () => {
         let negocioId = neg?.id || null;
         if (!negocioId && u?.id) {
@@ -245,7 +261,10 @@ export default function useAuthPrefill({
             .maybeSingle();
           negocioId = negRow?.id || null;
         }
-        if (!negocioId) return;
+        if (!negocioId) {
+          finalizeDireccion();
+          return;
+        }
 
         const { data, error } = await supabase
           .from("sucursales")
@@ -254,7 +273,10 @@ export default function useAuthPrefill({
           .order("fechacreacion", { ascending: false });
 
         if (requestId !== direccionRequestRef.current) return;
-        if (error || !data) return;
+        if (error || !data) {
+          finalizeDireccion();
+          return;
+        }
 
         const rows = Array.isArray(data) ? data : [];
         const draft = rows.find(
@@ -275,7 +297,10 @@ export default function useAuthPrefill({
             .maybeSingle();
 
           if (requestId !== direccionRequestRef.current) return;
-          if (dirErr || !dirData) return;
+          if (dirErr || !dirData) {
+            finalizeDireccion();
+            return;
+          }
           setCalle1(dirData.calles || "");
           setCalle2("");
           setSectorNegocio(dirData.sector || "");
@@ -299,6 +324,7 @@ export default function useAuthPrefill({
             canton: "",
             country: "",
           });
+          finalizeDireccion();
           return;
         }
 
@@ -312,7 +338,10 @@ export default function useAuthPrefill({
           .maybeSingle();
 
         if (requestId !== direccionRequestRef.current) return;
-        if (fallbackErr || !fallbackDir) return;
+        if (fallbackErr || !fallbackDir) {
+          finalizeDireccion();
+          return;
+        }
         setCalle1(fallbackDir.calles || "");
         setCalle2("");
         setSectorNegocio(fallbackDir.sector || "");
@@ -336,9 +365,10 @@ export default function useAuthPrefill({
           canton: "",
           country: "",
         });
+        finalizeDireccion();
       };
 
-      loadSucursal().catch(() => {});
+      loadSucursal().catch(() => finalizeDireccion());
     }
   }, [
     onboarding,
@@ -353,6 +383,7 @@ export default function useAuthPrefill({
     setNombreDueno,
     setFechaNacimiento,
     setGenero,
+    setIsAddressPrefillReady,
     setNombreNegocio,
     setOwnerPrefill,
     setIsSucursalPrincipal,

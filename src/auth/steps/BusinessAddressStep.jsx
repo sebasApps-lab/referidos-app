@@ -23,6 +23,7 @@ export default function BusinessAddressStep({
   innerRef,
   searchModeOpen,
   onSearchModeChange,
+  isAddressPrefillReady,
   isSucursalPrincipal,
   onChangeSucursalPrincipal,
   direccionPayload,
@@ -31,7 +32,7 @@ export default function BusinessAddressStep({
   error,
   onSubmit,
 }) {
-  const [stage, setStage] = useState("map");
+  const [stage, setStage] = useState("pending");
   const [searchValue, setSearchValue] = useState("");
   const isSearchModeOpen = Boolean(searchModeOpen);
   const setIsSearchModeOpen = useCallback((next) => {
@@ -187,6 +188,7 @@ export default function BusinessAddressStep({
     closeZoom: CLOSE_ZOOM,
   });
 
+  const isPrefillReady = Boolean(isAddressPrefillReady);
   const hasSavedAddress =
     Boolean(direccionPayload?.place_id) &&
     Boolean(direccionPayload?.label) &&
@@ -194,15 +196,24 @@ export default function BusinessAddressStep({
     direccionPayload?.lng != null;
 
   useEffect(() => {
+    if (!isPrefillReady) {
+      if (stage !== "pending") {
+        setStage("pending");
+      }
+      return;
+    }
     if (hasSavedAddress && stage !== "summary") {
       setStage("summary");
-    } else if (!hasSavedAddress && stage === "summary") {
+    } else if (!hasSavedAddress && stage !== "map") {
       setStage("map");
     }
-  }, [hasSavedAddress, stage]);
+  }, [hasSavedAddress, isPrefillReady, stage]);
 
   useEffect(() => {
     let active = true;
+    if (stage !== "map") {
+      return undefined;
+    }
     if (coordsSource === "gps" || coords) {
       return undefined;
     }
@@ -476,7 +487,7 @@ export default function BusinessAddressStep({
   const hasTerritorySelection = Boolean(
     provinciaId && cantonId && parroquiaId
   );
-  const shouldRenderMap = true;
+  const shouldRenderMap = stage === "map" && isPrefillReady;
   const canSelectCanton = Boolean(provinciaId);
   const canSelectParroquia = Boolean(cantonId);
   const canSearch =
@@ -714,7 +725,11 @@ export default function BusinessAddressStep({
       className="h-full"
     >
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
-        {stage === "map" ? (
+        {!isPrefillReady || stage === "pending" ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
+            Cargando direccion...
+          </div>
+        ) : stage === "map" ? (
           <AddressStepSearch
             open={searchModeActive}
             onBack={() => setIsSearchModeOpen(false)}

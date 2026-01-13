@@ -13,6 +13,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [oauthProvider, setOauthProvider] = useState(null);
   const [welcomeLoading, setWelcomeLoading] = useState(false);
   const [isAddressSearchModeOpen, setIsAddressSearchModeOpen] = useState(false);
+  const [isAddressPrefillReady, setIsAddressPrefillReady] = useState(false);
 
   const cardRef = useRef(null);
   const cardInnerRef = useRef(null);
@@ -155,6 +156,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     oauthProvider,
     welcomeLoading,
     isAddressSearchModeOpen,
+    isAddressPrefillReady,
     cardRef,
     cardInnerRef,
     sliderRef,
@@ -193,6 +195,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setOauthProvider,
     setWelcomeLoading,
     setIsAddressSearchModeOpen,
+    setIsAddressPrefillReady,
     setEmail,
     setPassword,
     setPasswordConfirm,

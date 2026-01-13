@@ -115,6 +115,7 @@ export default function AuthFlow() {
     flow.setOauthProvider(null);
     flow.setWelcomeLoading(false);
     flow.setIsAddressSearchModeOpen(false);
+    flow.setIsAddressPrefillReady(false);
     flow.setShowPassword(false);
     flow.setShowPasswordConfirm(false);
     flow.setStep(AUTH_STEPS.WELCOME);
@@ -143,6 +144,7 @@ export default function AuthFlow() {
     flow.setWelcomeError,
     flow.setWelcomeLoading,
     flow.setIsAddressSearchModeOpen,
+    flow.setIsAddressPrefillReady,
     flow.setDireccionPayload,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
@@ -195,6 +197,7 @@ export default function AuthFlow() {
     setCalle1: flow.setCalle1,
     setCalle2: flow.setCalle2,
     setDireccionPayload: flow.setDireccionPayload,
+    setIsAddressPrefillReady: flow.setIsAddressPrefillReady,
   });
 
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
@@ -470,6 +473,7 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   searchModeOpen={flow.isAddressSearchModeOpen}
                   onSearchModeChange={flow.setIsAddressSearchModeOpen}
+                  isAddressPrefillReady={flow.isAddressPrefillReady}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
                   direccionPayload={flow.direccionPayload}
