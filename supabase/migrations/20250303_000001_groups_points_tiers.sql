@@ -249,7 +249,7 @@ language sql
 volatile
 as $$
   select substr(
-    upper(translate(encode(gen_random_bytes(6), 'base64'), '+/=', 'ABC')),
+    upper(translate(encode(extensions.gen_random_bytes(6), 'base64'), '+/=', 'ABC')),
     1,
     6
   );
@@ -713,7 +713,7 @@ comment on function public.redeem_valid_qr is 'Canje de QR por negocio con escan
 -- Direcciones: status + draft unico por usuario
 -- ----------------------------
 alter table public.direcciones
-  add column if not exists status text not null default 'draft';
+  add column if not exists status text not null default 'active';
 
 do $$
 begin
@@ -727,9 +727,69 @@ begin
   end if;
 end$$;
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'direcciones_status_user_provided_check'
+  ) then
+    alter table public.direcciones
+      add constraint direcciones_status_user_provided_check
+      check (is_user_provided or status = 'active');
+  end if;
+end$$;
+
+update public.direcciones
+set status = 'active'
+where is_user_provided = false;
+
+update public.direcciones
+set status = 'draft'
+where is_user_provided = true
+  and status is null;
+
+with ranked as (
+  select d.id,
+         row_number() over (
+           partition by d.owner_id
+           order by d.created_at desc nulls last, d.id
+         ) as rn
+  from public.direcciones d
+  where d.is_user_provided = true
+    and d.status = 'draft'
+)
+update public.direcciones d
+set status = 'active'
+from ranked r
+where d.id = r.id
+  and r.rn > 1;
+
 create unique index if not exists direcciones_one_draft_per_owner
   on public.direcciones(owner_id)
-  where status = 'draft';
+  where status = 'draft' and is_user_provided = true;
+
+create or replace function public.set_direcciones_status()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status is null then
+    if new.is_user_provided then
+      new.status := 'draft';
+    else
+      new.status := 'active';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_direcciones_status on public.direcciones;
+create trigger trg_direcciones_status
+before insert on public.direcciones
+for each row execute function public.set_direcciones_status();
 
 -- ----------------------------
 -- RLS: grupos, miembros, grupo_canjeos, referrals
