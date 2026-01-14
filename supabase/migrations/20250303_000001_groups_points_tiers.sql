@@ -255,7 +255,7 @@ as $$
   );
 $$;
 
-create or replace function public.set_public_id(prefix text)
+create or replace function public.set_public_id()
 returns trigger
 language plpgsql
 security definer
@@ -264,7 +264,9 @@ as $$
 declare
   candidate text;
   exists_id boolean;
+  prefix text;
 begin
+  prefix := coalesce(TG_ARGV[0], '');
   if new.public_id is not null then
     return new;
   end if;
