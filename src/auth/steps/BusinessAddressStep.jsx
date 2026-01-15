@@ -141,8 +141,6 @@ export default function BusinessAddressStep({
       provider: "",
       lat: null,
       lng: null,
-      provincia_id: "",
-      canton_id: "",
       parroquia_id: "",
       parroquia: "",
       ciudad: "",
