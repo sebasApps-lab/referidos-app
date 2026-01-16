@@ -16,6 +16,7 @@ const parseTime = (value) => {
 
 export default function ModalTimePicker({
   title = "Selecciona la hora",
+  helperText,
   initialTime = "10:00",
   onConfirm,
 }) {
@@ -27,6 +28,9 @@ export default function ModalTimePicker({
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
       <div className="text-base font-semibold text-[#2F1A55]">{title}</div>
+      {helperText && (
+        <p className="mt-2 text-xs text-gray-500">{helperText}</p>
+      )}
       <div className="mt-4 flex items-center justify-center gap-3">
         <select
           value={hour}

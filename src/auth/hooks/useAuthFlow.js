@@ -58,7 +58,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   });
   const [nombreNegocio, setNombreNegocio] = useState("");
   const [categoriaNegocio, setCategoriaNegocio] = useState("");
-  const [isSucursalPrincipal, setIsSucursalPrincipal] = useState(false);
+  const [isSucursalPrincipal, setIsSucursalPrincipal] = useState(true);
   const [sectorNegocio, setSectorNegocio] = useState("");
   const [calle1, setCalle1] = useState("");
   const [calle2, setCalle2] = useState("");

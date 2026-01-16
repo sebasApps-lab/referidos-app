@@ -38,6 +38,8 @@ const WEEK_DAYS = [
   { key: "sabado", label: "Sabado" },
   { key: "domingo", label: "Domingo" },
 ];
+const WEEKDAY_KEYS = ["lunes", "martes", "miercoles", "jueves", "viernes"];
+const WEEKEND_KEYS = ["sabado", "domingo"];
 
 
 
@@ -76,6 +78,7 @@ export default function BusinessAddressStep({
   const [mapZoom, setMapZoom] = useState(FALLBACK_ZOOM);
   const [animateZoom, setAnimateZoom] = useState(false);
   const [showZoomHint, setShowZoomHint] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState(null);
   const [territory, setTerritory] = useState({
     provincias: [],
     cantonesByProvincia: {},
@@ -102,6 +105,8 @@ export default function BusinessAddressStep({
   const programmaticZoomRef = useRef(false);
   const zoomSequenceRef = useRef(null);
   const { openModal } = useModal();
+  const weekdaysRef = useRef(null);
+  const weekendRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -500,12 +505,21 @@ export default function BusinessAddressStep({
   const provinciaNombre = territory.provinciaById[provinciaId]?.nombre || "";
   const cantonNombre = territory.cantonById[cantonId]?.nombre || "";
   const parroquiaNombre = territory.parroquiaById[parroquiaId]?.nombre || "";
-  const payloadProvincia = direccionPayload?.provincia || provinciaNombre || "";
-  const payloadCanton = direccionPayload?.canton || cantonNombre || "";
-  const payloadParroquia = direccionPayload?.parroquia || parroquiaNombre || "";
+  const payloadProvincia = toTitleCaseEs(
+    direccionPayload?.provincia || provinciaNombre || ""
+  );
+  const payloadCanton = toTitleCaseEs(
+    direccionPayload?.canton || cantonNombre || ""
+  );
+  const payloadParroquia = toTitleCaseEs(
+    direccionPayload?.parroquia || parroquiaNombre || ""
+  );
   const referenciaValue = String(direccionPayload?.referencia || "");
   const currentHorarios =
     horarios && typeof horarios === "object" ? horarios : DEFAULT_HORARIOS;
+  const hasAnyHorario = WEEK_DAYS.some(
+    (day) => (currentHorarios?.semanal?.[day.key] || []).length > 0
+  );
 
   const updateHorarios = useCallback(
     (nextValue) => {
@@ -554,6 +568,119 @@ export default function BusinessAddressStep({
     [currentHorarios, updateHorarios]
   );
 
+  const getEntry = useCallback(
+    (dayKey) => currentHorarios?.semanal?.[dayKey]?.[0] || null,
+    [currentHorarios]
+  );
+
+  const getGroupInfo = useCallback(
+    (keys) => {
+      const entries = keys.map((key) => getEntry(key));
+      const activeEntries = entries.filter(Boolean);
+      const anySelected = activeEntries.length > 0;
+      const allSelected = activeEntries.length === keys.length;
+      let sameHours = false;
+      if (allSelected && activeEntries.length > 0) {
+        const base = activeEntries[0];
+        sameHours = activeEntries.every(
+          (entry) => entry.abre === base.abre && entry.cierra === base.cierra
+        );
+      }
+      if (!anySelected) {
+        return {
+          anySelected: false,
+          allSelected: false,
+          partial: false,
+          timeLabel: "--:-- - --:--",
+          showPersonalizado: false,
+          baseEntry: { abre: "10:00", cierra: "18:00" },
+        };
+      }
+      if (allSelected && sameHours) {
+        return {
+          anySelected: true,
+          allSelected: true,
+          partial: false,
+          timeLabel: `${activeEntries[0].abre} - ${activeEntries[0].cierra}`,
+          showPersonalizado: false,
+          baseEntry: activeEntries[0],
+        };
+      }
+      return {
+        anySelected: true,
+        allSelected: false,
+        partial: true,
+        timeLabel: "Personalizado",
+        showPersonalizado: true,
+        baseEntry: activeEntries[0] || { abre: "10:00", cierra: "18:00" },
+      };
+    },
+    [getEntry]
+  );
+
+  const toggleGroupSelection = useCallback(
+    (groupKey) => {
+      const keys = groupKey === "weekdays" ? WEEKDAY_KEYS : WEEKEND_KEYS;
+      const info = getGroupInfo(keys);
+      const next = {
+        ...currentHorarios,
+        semanal: { ...currentHorarios.semanal },
+      };
+      if (info.allSelected) {
+        keys.forEach((key) => {
+          next.semanal[key] = [];
+        });
+      } else {
+        const base = info.baseEntry || { abre: "10:00", cierra: "18:00" };
+        keys.forEach((key) => {
+          next.semanal[key] = [{ ...base }];
+        });
+      }
+      updateHorarios(next);
+    },
+    [currentHorarios, getGroupInfo, updateHorarios]
+  );
+
+  const updateGroupTime = useCallback(
+    (groupKey, field, value) => {
+      const keys = groupKey === "weekdays" ? WEEKDAY_KEYS : WEEKEND_KEYS;
+      const info = getGroupInfo(keys);
+      const base = info.baseEntry || { abre: "10:00", cierra: "18:00" };
+      const next = {
+        ...currentHorarios,
+        semanal: { ...currentHorarios.semanal },
+      };
+      keys.forEach((key) => {
+        next.semanal[key] = [
+          {
+            ...base,
+            [field]: value,
+          },
+        ];
+      });
+      updateHorarios(next);
+    },
+    [currentHorarios, getGroupInfo, updateHorarios]
+  );
+
+  const openGroupPicker = useCallback(
+    (groupKey, field, _currentLabel, showPersonalizado) => {
+      const keys = groupKey === "weekdays" ? WEEKDAY_KEYS : WEEKEND_KEYS;
+      const info = getGroupInfo(keys);
+      openModal("TimePicker", {
+        title: "Selecciona la hora",
+        initialTime: info.baseEntry?.[field] || "10:00",
+        helperText: showPersonalizado
+          ? groupKey === "weekdays"
+            ? "Modificaras el horario de todos los dias de Lunes a Viernes."
+            : "Modificaras el horario de todos los dias de Fin de Semana."
+          : undefined,
+        onConfirm: (value) => updateGroupTime(groupKey, field, value),
+      });
+    },
+    [getGroupInfo, openModal, updateGroupTime]
+  );
+
   const openTimePicker = useCallback(
     (dayKey, field, currentValue) => {
       openModal("TimePicker", {
@@ -564,11 +691,14 @@ export default function BusinessAddressStep({
     },
     [openModal, updateDayTime]
   );
-  const payloadCiudad =
-    direccionPayload?.ciudad || payloadCanton || payloadParroquia || "";
-  const summaryCiudad = direccionPayload?.ciudad || "";
+  const payloadCiudad = toTitleCaseEs(
+    direccionPayload?.ciudad || payloadCanton || payloadParroquia || ""
+  );
+  const summaryCiudad = toTitleCaseEs(direccionPayload?.ciudad || "");
   const summaryCalle = direccionPayload?.calles
-    ? `${direccionPayload.calles}${direccionPayload?.house_number ? ` ${direccionPayload.house_number}` : ""}`.trim()
+    ? `${toTitleCaseEs(direccionPayload.calles)}${
+        direccionPayload?.house_number ? ` ${direccionPayload.house_number}` : ""
+      }`.trim()
     : "";
 
   const isManualFallback = mapStatus === "error";
@@ -599,6 +729,20 @@ export default function BusinessAddressStep({
   const canConfirm = isOffFallback;
 
 
+
+  useEffect(() => {
+    if (!expandedGroup) return;
+    const handleOutside = (event) => {
+      const target = event.target;
+      const insideWeekdays = weekdaysRef.current?.contains(target);
+      const insideWeekend = weekendRef.current?.contains(target);
+      if (!insideWeekdays && !insideWeekend) {
+        setExpandedGroup(null);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [expandedGroup]);
 
   const clearSearchState = () => {
     setSearchValue("");
@@ -771,6 +915,9 @@ export default function BusinessAddressStep({
       )}
     </div>
   );
+
+  const weekdayInfo = getGroupInfo(WEEKDAY_KEYS);
+  const weekendInfo = getGroupInfo(WEEKEND_KEYS);
 
   const searchResultsList = (
     <div className="-mx-3 flex-1 overflow-y-auto rounded-lg bg-white">
@@ -1012,41 +1159,48 @@ export default function BusinessAddressStep({
               <ErrorBanner message={localError || reverseError || error} className="mb-3" />
             )}
 
-            <div className="flex-1 mt-3">
-              <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-3 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.08),0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
+            <div className="flex-1 -mt-1">
+              <div className="-mx-3 rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-2 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.08),0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
                 {payloadProvincia && (
-                  <div>
-                    <span className="text-gray-500">Provincia:</span> {payloadProvincia}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Provincia:</span>
+                    <span className="truncate">{payloadProvincia}</span>
                   </div>
                 )}
                 {summaryCiudad && (
-                  <div>
-                    <span className="text-gray-500">Ciudad:</span> {summaryCiudad}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Ciudad:</span>
+                    <span className="truncate">{summaryCiudad}</span>
                   </div>
                 )}
                 {!summaryCiudad && payloadCanton && (
-                  <div>
-                    <span className="text-gray-500">Canton:</span> {payloadCanton}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Canton:</span>
+                    <span className="truncate">{payloadCanton}</span>
                   </div>
                 )}
                 {payloadParroquia && (
-                  <div>
-                    <span className="text-gray-500">Ciudad:</span> {payloadParroquia}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Ciudad:</span>
+                    <span className="truncate">{payloadParroquia}</span>
                   </div>
                 )}
                 {direccionPayload?.sector && (
-                  <div>
-                    <span className="text-gray-500">Sector:</span> {direccionPayload.sector}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Sector:</span>
+                    <span className="truncate">{direccionPayload.sector}</span>
                   </div>
                 )}
                 {summaryCalle && (
-                  <div>
-                    <span className="text-gray-500">Calle:</span> {summaryCalle}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Calle:</span>
+                    <span className="truncate">{summaryCalle}</span>
                   </div>
                 )}
                 {direccionPayload?.postcode && (
-                  <div>
-                    <span className="text-gray-500">Codigo postal:</span> {direccionPayload.postcode}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 shrink-0">Codigo postal:</span>
+                    <span className="truncate">{direccionPayload.postcode}</span>
                   </div>
                 )}
                 <div className="space-y-1 pt-1">
@@ -1066,52 +1220,396 @@ export default function BusinessAddressStep({
                 </div>
               </div>
             </div>
-            <div className="mt-4 space-y-2">
-              {WEEK_DAYS.map((day) => {
-                const entry = currentHorarios?.semanal?.[day.key]?.[0] || null;
-                const isActive = Boolean(entry);
-                const openTime = entry?.abre || "--:--";
-                const closeTime = entry?.cierra || "--:--";
-                return (
-                  <div
-                    key={day.key}
-                    className="flex items-center gap-3 text-sm text-gray-700"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleToggleDay(day.key)}
-                      className={`h-5 w-5 rounded-full border flex items-center justify-center ${
-                        isActive
-                          ? "bg-[#4ADE80] border-[#4ADE80]"
-                          : "bg-gray-100 border-gray-200"
-                      }`}
-                      aria-label={`Activar ${day.label}`}
-                    >
-                      {isActive && <CheckIcon className="h-3 w-3 text-white" />}
-                    </button>
-                    <span className="w-20">{day.label}</span>
-                    <button
-                      type="button"
-                      onClick={() => openTimePicker(day.key, "abre", openTime)}
-                      className="ml-auto text-gray-700"
-                    >
-                      {openTime}
-                    </button>
-                    <span className="text-gray-300">-</span>
+            <div className="mt-1 space-y-2 h-[240px] flex flex-col">
+              <div className="text-sm font-semibold text-gray-900">Horario</div>
+              <div className="space-y-3 overflow-y-auto pr-1">
+                <div ref={weekdaysRef} className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-gray-700">
+                    {(() => {
+                      const isPrimaryActive =
+                        expandedGroup === "weekdays"
+                          ? Boolean(getEntry(WEEKDAY_KEYS[0]))
+                          : weekdayInfo.anySelected;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            expandedGroup === "weekdays"
+                              ? handleToggleDay(WEEKDAY_KEYS[0])
+                              : toggleGroupSelection("weekdays")
+                          }
+                          className={`h-5 w-5 rounded-full border flex items-center justify-center ${
+                            isPrimaryActive
+                              ? "bg-[#4ADE80] border-[#4ADE80]"
+                              : "bg-gray-100 border-gray-200"
+                          }`}
+                          aria-label="Activar Lunes a Viernes"
+                        >
+                          {(expandedGroup === "weekdays" &&
+                            Boolean(getEntry(WEEKDAY_KEYS[0]))) ||
+                          (expandedGroup !== "weekdays" &&
+                            weekdayInfo.allSelected) ? (
+                            <CheckIcon className="h-3 w-3 text-white" />
+                          ) : null}
+                          {expandedGroup !== "weekdays" &&
+                            weekdayInfo.partial && (
+                              <MinusIcon className="h-3 w-3 text-white" />
+                            )}
+                        </button>
+                      );
+                    })()}
+                    <span className="font-medium">
+                      {expandedGroup === "weekdays" ? "Lunes" : "Lunes a Viernes"}
+                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                      {expandedGroup === "weekdays" ? (
+                        (() => {
+                          const entry = getEntry(WEEKDAY_KEYS[0]);
+                          const openTime = entry?.abre || "--:--";
+                          const closeTime = entry?.cierra || "--:--";
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTimePicker(WEEKDAY_KEYS[0], "abre", openTime)
+                                }
+                                className="text-gray-700"
+                              >
+                                {openTime}
+                              </button>
+                              <span className="text-gray-300">-</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTimePicker(WEEKDAY_KEYS[0], "cierra", closeTime)
+                                }
+                                className="text-gray-700"
+                              >
+                                {closeTime}
+                              </button>
+                            </>
+                          );
+                        })()
+                      ) : weekdayInfo.showPersonalizado ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openGroupPicker(
+                              "weekdays",
+                              "abre",
+                              weekdayInfo.timeLabel,
+                              true
+                            )
+                          }
+                          className="text-gray-700"
+                        >
+                          Personalizado
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openGroupPicker(
+                                "weekdays",
+                                "abre",
+                                weekdayInfo.timeLabel,
+                                false
+                              )
+                            }
+                            className="text-gray-700"
+                          >
+                            {weekdayInfo.anySelected
+                              ? weekdayInfo.baseEntry?.abre || "--:--"
+                              : "--:--"}
+                          </button>
+                          <span className="text-gray-300">-</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openGroupPicker(
+                                "weekdays",
+                                "cierra",
+                                weekdayInfo.timeLabel,
+                                false
+                              )
+                            }
+                            className="text-gray-700"
+                          >
+                            {weekdayInfo.anySelected
+                              ? weekdayInfo.baseEntry?.cierra || "--:--"
+                              : "--:--"}
+                          </button>
+                        </>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() =>
-                        openTimePicker(day.key, "cierra", closeTime)
+                        setExpandedGroup(
+                          expandedGroup === "weekdays" ? null : "weekdays"
+                        )
                       }
-                      className="text-gray-700"
+                      aria-label="Expandir Lunes a Viernes"
                     >
-                      {closeTime}
+                      <ChevronIcon
+                        className={`h-4 w-4 text-gray-400 transition ${
+                          expandedGroup === "weekdays" ? "rotate-180" : ""
+                        }`}
+                      />
                     </button>
                   </div>
-                );
-              })}
+                  {expandedGroup === "weekdays" && (
+                    <div className="space-y-3">
+                      {WEEKDAY_KEYS.slice(1).map((dayKey) => {
+                        const day = WEEK_DAYS.find((item) => item.key === dayKey);
+                        const entry = getEntry(dayKey);
+                        const isActive = Boolean(entry);
+                        const openTime = entry?.abre || "--:--";
+                        const closeTime = entry?.cierra || "--:--";
+                        return (
+                          <div
+                            key={dayKey}
+                            className="flex items-center gap-3 text-sm text-gray-700"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToggleDay(dayKey)}
+                              className={`h-5 w-5 rounded-full border flex items-center justify-center ${
+                                isActive
+                                  ? "bg-[#4ADE80] border-[#4ADE80]"
+                                  : "bg-gray-100 border-gray-200"
+                              }`}
+                              aria-label={`Activar ${day?.label || dayKey}`}
+                            >
+                              {isActive && (
+                                <CheckIcon className="h-3 w-3 text-white" />
+                              )}
+                            </button>
+                            <span className="w-20">{day?.label || dayKey}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTimePicker(dayKey, "abre", openTime)
+                              }
+                              className="ml-auto text-gray-700"
+                            >
+                              {openTime}
+                            </button>
+                            <span className="text-gray-300">-</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTimePicker(dayKey, "cierra", closeTime)
+                              }
+                              className="text-gray-700"
+                            >
+                              {closeTime}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200/80 to-transparent" />
+
+                <div ref={weekendRef} className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-gray-700">
+                    {(() => {
+                      const isPrimaryActive =
+                        expandedGroup === "weekend"
+                          ? Boolean(getEntry(WEEKEND_KEYS[0]))
+                          : weekendInfo.anySelected;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            expandedGroup === "weekend"
+                              ? handleToggleDay(WEEKEND_KEYS[0])
+                              : toggleGroupSelection("weekend")
+                          }
+                          className={`h-5 w-5 rounded-full border flex items-center justify-center ${
+                            isPrimaryActive
+                              ? "bg-[#4ADE80] border-[#4ADE80]"
+                              : "bg-gray-100 border-gray-200"
+                          }`}
+                          aria-label="Activar Fin de Semana"
+                        >
+                          {(expandedGroup === "weekend" &&
+                            Boolean(getEntry(WEEKEND_KEYS[0]))) ||
+                          (expandedGroup !== "weekend" &&
+                            weekendInfo.allSelected) ? (
+                            <CheckIcon className="h-3 w-3 text-white" />
+                          ) : null}
+                          {expandedGroup !== "weekend" &&
+                            weekendInfo.partial && (
+                              <MinusIcon className="h-3 w-3 text-white" />
+                            )}
+                        </button>
+                      );
+                    })()}
+                    <span className="font-medium">
+                      {expandedGroup === "weekend" ? "Sabado" : "Fin de Semana"}
+                    </span>
+                    <div className="ml-auto flex items-center gap-2">
+                      {expandedGroup === "weekend" ? (
+                        (() => {
+                          const entry = getEntry(WEEKEND_KEYS[0]);
+                          const openTime = entry?.abre || "--:--";
+                          const closeTime = entry?.cierra || "--:--";
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTimePicker(WEEKEND_KEYS[0], "abre", openTime)
+                                }
+                                className="text-gray-700"
+                              >
+                                {openTime}
+                              </button>
+                              <span className="text-gray-300">-</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openTimePicker(WEEKEND_KEYS[0], "cierra", closeTime)
+                                }
+                                className="text-gray-700"
+                              >
+                                {closeTime}
+                              </button>
+                            </>
+                          );
+                        })()
+                      ) : weekendInfo.showPersonalizado ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openGroupPicker(
+                              "weekend",
+                              "abre",
+                              weekendInfo.timeLabel,
+                              true
+                            )
+                          }
+                          className="text-gray-700"
+                        >
+                          Personalizado
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openGroupPicker(
+                                "weekend",
+                                "abre",
+                                weekendInfo.timeLabel,
+                                false
+                              )
+                            }
+                            className="text-gray-700"
+                          >
+                            {weekendInfo.anySelected
+                              ? weekendInfo.baseEntry?.abre || "--:--"
+                              : "--:--"}
+                          </button>
+                          <span className="text-gray-300">-</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openGroupPicker(
+                                "weekend",
+                                "cierra",
+                                weekendInfo.timeLabel,
+                                false
+                              )
+                            }
+                            className="text-gray-700"
+                          >
+                            {weekendInfo.anySelected
+                              ? weekendInfo.baseEntry?.cierra || "--:--"
+                              : "--:--"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedGroup(
+                          expandedGroup === "weekend" ? null : "weekend"
+                        )
+                      }
+                      aria-label="Expandir Fin de Semana"
+                    >
+                      <ChevronIcon
+                        className={`h-4 w-4 text-gray-400 transition ${
+                          expandedGroup === "weekend" ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {expandedGroup === "weekend" && (
+                    <div className="space-y-3">
+                      {WEEKEND_KEYS.slice(1).map((dayKey) => {
+                        const day = WEEK_DAYS.find((item) => item.key === dayKey);
+                        const entry = getEntry(dayKey);
+                        const isActive = Boolean(entry);
+                        const openTime = entry?.abre || "--:--";
+                        const closeTime = entry?.cierra || "--:--";
+                        return (
+                          <div
+                            key={dayKey}
+                            className="flex items-center gap-3 text-sm text-gray-700"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToggleDay(dayKey)}
+                              className={`h-5 w-5 rounded-full border flex items-center justify-center ${
+                                isActive
+                                  ? "bg-[#4ADE80] border-[#4ADE80]"
+                                  : "bg-gray-100 border-gray-200"
+                              }`}
+                              aria-label={`Activar ${day?.label || dayKey}`}
+                            >
+                              {isActive && (
+                                <CheckIcon className="h-3 w-3 text-white" />
+                              )}
+                            </button>
+                            <span className="w-20">{day?.label || dayKey}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTimePicker(dayKey, "abre", openTime)
+                              }
+                              className="ml-auto text-gray-700"
+                            >
+                              {openTime}
+                            </button>
+                            <span className="text-gray-300">-</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openTimePicker(dayKey, "cierra", closeTime)
+                              }
+                              className="text-gray-700"
+                            >
+                              {closeTime}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200/80 to-transparent" />
+              </div>
             </div>
-            <label className="flex items-center gap-2 pt-6 pb-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 pt-2 pb-1 text-sm text-gray-700">
               <input
                 type="checkbox"
                 checked={Boolean(isSucursalPrincipal)}
@@ -1126,7 +1624,8 @@ export default function BusinessAddressStep({
             <div className="mt-auto pt-4">
               <button
                 onClick={onSubmit}
-                className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow"
+                disabled={!hasAnyHorario}
+                className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Entrar
               </button>
@@ -1353,6 +1852,38 @@ function CheckIcon({ className = "" }) {
       strokeLinejoin="round"
     >
       <path d="M6 12l4 4 8-8" />
+    </svg>
+  );
+}
+
+function MinusIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 12h12" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }

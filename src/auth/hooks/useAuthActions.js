@@ -635,84 +635,6 @@ export default function useAuthActions({
         negocioId = createdNeg.id;
       }
 
-      //Actualizar perfil de usuario a completo con datos del dueno
-      const { data: updatedUser, error: updErr } = await supabase
-        .from("usuarios")
-        .update({
-          nombre: nombreDueno || userRow.nombre,
-          apellido: apellidoDueno || userRow.apellido,
-          telefono,
-        })
-        .eq("id_auth", userId)
-        .select("id")
-        .maybeSingle();
-      if (updErr) throw updErr;
-      if (!updatedUser) {
-        setEmailError("No se pudo actualizar el perfil");
-        return;
-      }
-
-      if (negocioId) {
-        const { data: sucRows, error: sucErr } = await supabase
-          .from("sucursales")
-          .select("id, status, direccion_id, horarios")
-          .eq("negocioid", negocioId);
-        if (sucErr) {
-          setEmailError(sucErr.message || "No se pudo leer sucursales");
-          return;
-        }
-        const allSucursales = Array.isArray(sucRows) ? sucRows : [];
-        const draftSucursal = allSucursales.find(
-          (row) => String(row.status || "draft").toLowerCase() === "draft"
-        );
-        const usedDireccionIds = new Set(
-          allSucursales
-            .map((row) => row.direccion_id)
-            .filter((id) => Boolean(id))
-        );
-        let freeDireccionId = null;
-
-        const { data: direcciones, error: dirErr } = await supabase
-          .from("direcciones")
-          .select("id")
-          .eq("owner_id", userRow.id)
-          .order("updated_at", { ascending: false })
-          .order("created_at", { ascending: false });
-
-        if (dirErr) {
-          setEmailError(dirErr.message || "No se pudo leer direcciones");
-          return;
-        }
-
-        freeDireccionId =
-          (direcciones || []).find((dir) => !usedDireccionIds.has(dir.id))
-            ?.id || null;
-
-        if (!draftSucursal) {
-          const { error: insErr } = await supabase
-            .from("sucursales")
-            .insert({
-              negocioid: negocioId,
-              direccion_id: freeDireccionId || null,
-              horarios: DEFAULT_SUCURSAL_HORARIOS,
-              status: "draft",
-            });
-          if (insErr) {
-            setEmailError(insErr.message || "No se pudo crear la sucursal");
-            return;
-          }
-        } else if (!draftSucursal.direccion_id && freeDireccionId) {
-          const { error: updErr } = await supabase
-            .from("sucursales")
-            .update({ direccion_id: freeDireccionId })
-            .eq("id", draftSucursal.id);
-          if (updErr) {
-            setEmailError(updErr.message || "No se pudo asociar la direccion");
-            return;
-          }
-        }
-      }
-
       await bootstrapAuth({ force: true });
       goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
     } catch (err) {
@@ -866,6 +788,7 @@ export default function useAuthActions({
       (row) => String(row.status || "draft").toLowerCase() === "draft"
     );
     const targetSucursal = draftSucursal || allSucursales[0] || null;
+    let ensuredSucursal = targetSucursal;
 
     const direccionData = {
       owner_id: userRow.id,
@@ -885,7 +808,7 @@ export default function useAuthActions({
       is_user_provided: true,
     };
 
-    let direccionId = targetSucursal?.direccion_id || null;
+    let direccionId = ensuredSucursal?.direccion_id || null;
 
 
     if (direccionId) {
@@ -914,16 +837,81 @@ export default function useAuthActions({
         }
       }
     } else {
-      const { data: newDir, error: dirErr } = await supabase
-        .from("direcciones")
-        .insert(direccionData)
-        .select("id")
-        .maybeSingle();
-      if (dirErr || !newDir?.id) {
-        setEmailError(dirErr?.message || "No se pudo guardar la dirección");
+      const linkedDireccionIds = allSucursales
+        .map((row) => row.direccion_id)
+        .filter(Boolean);
+      if (ensuredSucursal?.direccion_id) {
+        linkedDireccionIds.push(ensuredSucursal.direccion_id);
+      }
+
+      let existingFreeDir = null;
+      let existingFreeErr = null;
+      if (linkedDireccionIds.length > 0) {
+        const { data, error } = await supabase
+          .from("direcciones")
+          .select(
+            "id, owner_id, calles, referencia, ciudad, sector, lat, lng, place_id, label, provider, provincia_id, canton_id, parroquia_id, parroquia, is_user_provided, created_at"
+          )
+          .eq("owner_id", userRow.id)
+          .eq("is_user_provided", true)
+          .not("id", "in", `(${linkedDireccionIds.join(",")})`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        existingFreeDir = data || null;
+        existingFreeErr = error || null;
+      } else {
+        const { data, error } = await supabase
+          .from("direcciones")
+          .select(
+            "id, owner_id, calles, referencia, ciudad, sector, lat, lng, place_id, label, provider, provincia_id, canton_id, parroquia_id, parroquia, is_user_provided, created_at"
+          )
+          .eq("owner_id", userRow.id)
+          .eq("is_user_provided", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        existingFreeDir = data || null;
+        existingFreeErr = error || null;
+      }
+
+      if (existingFreeErr) {
+        setEmailError(
+          existingFreeErr.message || "No se pudo leer la direccion"
+        );
         return;
       }
-      direccionId = newDir.id;
+
+      if (existingFreeDir?.id) {
+        const needsUpdate = !areDireccionesEqual(
+          existingFreeDir,
+          direccionData
+        );
+        if (needsUpdate) {
+          const { error: dirErr } = await supabase
+            .from("direcciones")
+            .update(direccionData)
+            .eq("id", existingFreeDir.id);
+          if (dirErr) {
+            setEmailError(
+              dirErr.message || "No se pudo actualizar la direccion"
+            );
+            return;
+          }
+        }
+        direccionId = existingFreeDir.id;
+      } else {
+        const { data: newDir, error: dirErr } = await supabase
+          .from("direcciones")
+          .insert(direccionData)
+          .select("id")
+          .maybeSingle();
+        if (dirErr || !newDir?.id) {
+          setEmailError(dirErr?.message || "No se pudo guardar la direcci?n");
+          return;
+        }
+        direccionId = newDir.id;
+      }
     }
 
     const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
@@ -934,7 +922,7 @@ export default function useAuthActions({
         ? horarios
         : DEFAULT_SUCURSAL_HORARIOS;
 
-    if (targetSucursal) {
+    if (ensuredSucursal) {
       const { error: updErr } = await supabase
         .from("sucursales")
         .update({
@@ -943,14 +931,14 @@ export default function useAuthActions({
           status: statusValue,
           horarios: horariosValue,
         })
-        .eq("id", targetSucursal.id);
+        .eq("id", ensuredSucursal.id);
 
       if (updErr) {
         setEmailError(updErr.message || "No se pudo actualizar la sucursal");
         return;
       }
     } else {
-      const { error: insErr } = await supabase
+      const { data: createdSucursal, error: insErr } = await supabase
         .from("sucursales")
         .insert({
           negocioid: negocioRow.id,
@@ -958,12 +946,15 @@ export default function useAuthActions({
           tipo: tipoValue,
           horarios: horariosValue,
           status: "draft",
-        });
+        })
+        .select("id")
+        .maybeSingle();
 
-      if (insErr) {
+      if (insErr || !createdSucursal?.id) {
         setEmailError(insErr.message || "No se pudo crear la sucursal");
         return;
       }
+      ensuredSucursal = createdSucursal;
     }
 
     const result = await runValidateRegistration();
