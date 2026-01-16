@@ -12,10 +12,32 @@ import LeafletMapPicker from "../../components/maps/LeafletMapPicker";
 import AddressStepSearch from "../../search/auth/AddressStepSearch";
 import { toTitleCaseEs } from "../../utils/textCase";
 import useLocationStep from "../hooks/useLocationStep";
+import { useModal } from "../../modals/useModal";
 
 const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
 const FALLBACK_ZOOM = 11;
 const CLOSE_ZOOM = 16;
+const DEFAULT_HORARIOS = {
+  semanal: {
+    lunes: [{ abre: "10:00", cierra: "18:00" }],
+    martes: [{ abre: "10:00", cierra: "18:00" }],
+    miercoles: [{ abre: "10:00", cierra: "18:00" }],
+    jueves: [{ abre: "10:00", cierra: "18:00" }],
+    viernes: [{ abre: "10:00", cierra: "18:00" }],
+    sabado: [],
+    domingo: [],
+  },
+  excepciones: [],
+};
+const WEEK_DAYS = [
+  { key: "lunes", label: "Lunes" },
+  { key: "martes", label: "Martes" },
+  { key: "miercoles", label: "Miercoles" },
+  { key: "jueves", label: "Jueves" },
+  { key: "viernes", label: "Viernes" },
+  { key: "sabado", label: "Sabado" },
+  { key: "domingo", label: "Domingo" },
+];
 
 
 
@@ -26,6 +48,8 @@ export default function BusinessAddressStep({
   isAddressPrefillReady,
   isSucursalPrincipal,
   onChangeSucursalPrincipal,
+  horarios,
+  onChangeHorarios,
   direccionPayload,
   onChangeDireccionPayload,
   subtitle,
@@ -77,6 +101,7 @@ export default function BusinessAddressStep({
   const programmaticMoveRef = useRef(false);
   const programmaticZoomRef = useRef(false);
   const zoomSequenceRef = useRef(null);
+  const { openModal } = useModal();
 
   useEffect(() => {
     let active = true;
@@ -479,6 +504,66 @@ export default function BusinessAddressStep({
   const payloadCanton = direccionPayload?.canton || cantonNombre || "";
   const payloadParroquia = direccionPayload?.parroquia || parroquiaNombre || "";
   const referenciaValue = String(direccionPayload?.referencia || "");
+  const currentHorarios =
+    horarios && typeof horarios === "object" ? horarios : DEFAULT_HORARIOS;
+
+  const updateHorarios = useCallback(
+    (nextValue) => {
+      onChangeHorarios?.(nextValue);
+    },
+    [onChangeHorarios]
+  );
+
+  const handleToggleDay = useCallback(
+    (dayKey) => {
+      const next = {
+        ...currentHorarios,
+        semanal: { ...currentHorarios.semanal },
+      };
+      const entries = Array.isArray(next.semanal?.[dayKey])
+        ? next.semanal[dayKey]
+        : [];
+      if (entries.length > 0) {
+        next.semanal[dayKey] = [];
+      } else {
+        next.semanal[dayKey] = [{ abre: "10:00", cierra: "18:00" }];
+      }
+      updateHorarios(next);
+    },
+    [currentHorarios, updateHorarios]
+  );
+
+  const updateDayTime = useCallback(
+    (dayKey, field, value) => {
+      const next = {
+        ...currentHorarios,
+        semanal: { ...currentHorarios.semanal },
+      };
+      const existing = Array.isArray(next.semanal?.[dayKey])
+        ? next.semanal[dayKey][0]
+        : null;
+      const base = existing || { abre: "10:00", cierra: "18:00" };
+      next.semanal[dayKey] = [
+        {
+          ...base,
+          [field]: value,
+        },
+      ];
+      updateHorarios(next);
+    },
+    [currentHorarios, updateHorarios]
+  );
+
+  const openTimePicker = useCallback(
+    (dayKey, field, currentValue) => {
+      openModal("TimePicker", {
+        title: "Selecciona la hora",
+        initialTime: currentValue || "10:00",
+        onConfirm: (value) => updateDayTime(dayKey, field, value),
+      });
+    },
+    [openModal, updateDayTime]
+  );
   const payloadCiudad =
     direccionPayload?.ciudad || payloadCanton || payloadParroquia || "";
   const summaryCiudad = direccionPayload?.ciudad || "";
@@ -979,19 +1064,64 @@ export default function BusinessAddressStep({
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
                   />
                 </div>
-                <label className="flex items-center gap-2 pt-10 pb-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(isSucursalPrincipal)}
-                    onChange={(event) =>
-                      onChangeSucursalPrincipal?.(event.target.checked)
-                    }
-                    className="h-4 w-4 accent-[#5E30A5]"
-                  />
-                  Este es mi sucursal principal
-                </label>
               </div>
             </div>
+            <div className="mt-4 space-y-2">
+              {WEEK_DAYS.map((day) => {
+                const entry = currentHorarios?.semanal?.[day.key]?.[0] || null;
+                const isActive = Boolean(entry);
+                const openTime = entry?.abre || "--:--";
+                const closeTime = entry?.cierra || "--:--";
+                return (
+                  <div
+                    key={day.key}
+                    className="flex items-center gap-3 text-sm text-gray-700"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDay(day.key)}
+                      className={`h-5 w-5 rounded-full border flex items-center justify-center ${
+                        isActive
+                          ? "bg-[#4ADE80] border-[#4ADE80]"
+                          : "bg-gray-100 border-gray-200"
+                      }`}
+                      aria-label={`Activar ${day.label}`}
+                    >
+                      {isActive && <CheckIcon className="h-3 w-3 text-white" />}
+                    </button>
+                    <span className="w-20">{day.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => openTimePicker(day.key, "abre", openTime)}
+                      className="ml-auto text-gray-700"
+                    >
+                      {openTime}
+                    </button>
+                    <span className="text-gray-300">-</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openTimePicker(day.key, "cierra", closeTime)
+                      }
+                      className="text-gray-700"
+                    >
+                      {closeTime}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <label className="flex items-center gap-2 pt-6 pb-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={Boolean(isSucursalPrincipal)}
+                onChange={(event) =>
+                  onChangeSucursalPrincipal?.(event.target.checked)
+                }
+                className="h-4 w-4 accent-[#5E30A5]"
+              />
+              Este es mi sucursal principal
+            </label>
 
             <div className="mt-auto pt-4">
               <button
@@ -1208,6 +1338,22 @@ function SearchableSelect({
         )}
       </div>
     </div>
+  );
+}
+
+function CheckIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 12l4 4 8-8" />
+    </svg>
   );
 }
 

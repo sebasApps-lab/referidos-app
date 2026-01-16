@@ -88,6 +88,18 @@ export default function AuthFlow() {
     flow.setSectorNegocio("");
     flow.setCalle1("");
     flow.setCalle2("");
+    flow.setHorarios({
+      semanal: {
+        lunes: [{ abre: "10:00", cierra: "18:00" }],
+        martes: [{ abre: "10:00", cierra: "18:00" }],
+        miercoles: [{ abre: "10:00", cierra: "18:00" }],
+        jueves: [{ abre: "10:00", cierra: "18:00" }],
+        viernes: [{ abre: "10:00", cierra: "18:00" }],
+        sabado: [],
+        domingo: [],
+      },
+      excepciones: [],
+    });
     flow.setDireccionPayload({
       place_id: "",
       label: "",
@@ -146,6 +158,7 @@ export default function AuthFlow() {
     flow.setWelcomeLoading,
     flow.setIsAddressSearchModeOpen,
     flow.setIsAddressPrefillReady,
+    flow.setHorarios,
     flow.setDireccionPayload,
     flow.setShowPassword,
     flow.setShowPasswordConfirm,
@@ -166,6 +179,7 @@ export default function AuthFlow() {
     nombreNegocio: flow.nombreNegocio,
     categoriaNegocio: flow.categoriaNegocio,
     isSucursalPrincipal: flow.isSucursalPrincipal,
+    horarios: flow.horarios,
     direccionPayload: flow.direccionPayload,
     setEmailError: flow.setEmailError,
     setWelcomeError: flow.setWelcomeError,
@@ -194,6 +208,7 @@ export default function AuthFlow() {
     setNombreNegocio: flow.setNombreNegocio,
     setCategoriaNegocio: flow.setCategoriaNegocio,
     setIsSucursalPrincipal: flow.setIsSucursalPrincipal,
+    setHorarios: flow.setHorarios,
     setSectorNegocio: flow.setSectorNegocio,
     setCalle1: flow.setCalle1,
     setCalle2: flow.setCalle2,
@@ -477,6 +492,8 @@ export default function AuthFlow() {
                   isAddressPrefillReady={flow.isAddressPrefillReady}
                   isSucursalPrincipal={flow.isSucursalPrincipal}
                   onChangeSucursalPrincipal={flow.setIsSucursalPrincipal}
+                  horarios={flow.horarios}
+                  onChangeHorarios={flow.setHorarios}
                   direccionPayload={flow.direccionPayload}
                   onChangeDireccionPayload={flow.setDireccionPayload}
                   subtitle={addressSubtitle}

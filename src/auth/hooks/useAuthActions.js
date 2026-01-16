@@ -99,6 +99,7 @@ export default function useAuthActions({
   nombreNegocio,
   categoriaNegocio,
   isSucursalPrincipal,
+  horarios,
   direccionPayload,
   step,
   setEmailError,
@@ -928,6 +929,10 @@ export default function useAuthActions({
     const tipoValue = isSucursalPrincipal ? "principal" : "sucursal";
     const statusValue =
       String(targetSucursal?.status || "").trim() || "draft";
+    const horariosValue =
+      horarios && typeof horarios === "object"
+        ? horarios
+        : DEFAULT_SUCURSAL_HORARIOS;
 
     if (targetSucursal) {
       const { error: updErr } = await supabase
@@ -936,6 +941,7 @@ export default function useAuthActions({
           direccion_id: direccionId,
           tipo: tipoValue,
           status: statusValue,
+          horarios: horariosValue,
         })
         .eq("id", targetSucursal.id);
 
@@ -950,7 +956,7 @@ export default function useAuthActions({
           negocioid: negocioRow.id,
           direccion_id: direccionId,
           tipo: tipoValue,
-          horarios: DEFAULT_SUCURSAL_HORARIOS,
+          horarios: horariosValue,
           status: "draft",
         });
 
@@ -965,7 +971,7 @@ export default function useAuthActions({
       setEmailError(result?.message || result?.error || "Aún falta completar datos");
     }
     await bootstrapAuth({ force: true });
-  }, [bootstrapAuth, direccionPayload, isSucursalPrincipal, setEmailError]);
+  }, [bootstrapAuth, direccionPayload, horarios, isSucursalPrincipal, setEmailError]);
 
   const handleButtonBack = useCallback(() => {
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {

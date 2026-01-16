@@ -2,6 +2,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { AUTH_STEPS } from "../constants/authSteps";
 
 export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
+  const DEFAULT_HORARIOS = {
+    semanal: {
+      lunes: [{ abre: "10:00", cierra: "18:00" }],
+      martes: [{ abre: "10:00", cierra: "18:00" }],
+      miercoles: [{ abre: "10:00", cierra: "18:00" }],
+      jueves: [{ abre: "10:00", cierra: "18:00" }],
+      viernes: [{ abre: "10:00", cierra: "18:00" }],
+      sabado: [],
+      domingo: [],
+    },
+    excepciones: [],
+  };
   const [cardHeight, setCardHeight] = useState(null);
   const [sliderHeight, setSliderHeight] = useState(null);
   const [animating, setAnimating] = useState(false);
@@ -50,6 +62,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const [sectorNegocio, setSectorNegocio] = useState("");
   const [calle1, setCalle1] = useState("");
   const [calle2, setCalle2] = useState("");
+  const [horarios, setHorarios] = useState(DEFAULT_HORARIOS);
   const [direccionPayload, setDireccionPayload] = useState({
     place_id: "",
     label: "",
@@ -183,6 +196,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     sectorNegocio,
     calle1,
     calle2,
+    horarios,
     direccionPayload,
     containerStyle,
     setCardHeight,
@@ -217,6 +231,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     setSectorNegocio,
     setCalle1,
     setCalle2,
+    setHorarios,
     setDireccionPayload,
     goToStep,
   };

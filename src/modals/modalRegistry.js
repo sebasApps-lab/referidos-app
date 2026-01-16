@@ -14,6 +14,7 @@ import ModalConfirmarCambios from "../components/modals/ModalConfirmarCambios";
 import ModalLocationPermission from "../components/modals/ModalLocationPermission";
 import ModalLocationDenied from "../components/modals/ModalLocationDenied";
 import ModalLocationUnavailable from "../components/modals/ModalLocationUnavailable";
+import ModalTimePicker from "../components/modals/ModalTimePicker";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -30,4 +31,5 @@ export const modalRegistry = {
   LocationPermission: ModalLocationPermission,
   LocationDenied: ModalLocationDenied,
   LocationUnavailable: ModalLocationUnavailable,
+  TimePicker: ModalTimePicker,
 };
