@@ -104,6 +104,7 @@ export default function AuthFlow() {
       calles: "",
       house_number: "",
       postcode: "",
+      referencia: "",
       provincia: "",
       canton: "",
       country: "",

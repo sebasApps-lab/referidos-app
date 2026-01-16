@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { Link } from "react-router-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
 import {
   formatBirthdateInput,
@@ -45,7 +44,7 @@ export default function OwnerDataStep({
       style={{ boxSizing: "border-box", position: "relative", zIndex: 1 }}
       className="px-2 h-full"
     >
-      <div className="flex h-full flex-col" ref={innerRef}>
+      <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
           {subtitle || "Eres quien administrara el negocio en la app."}
         </p>
@@ -130,14 +129,8 @@ export default function OwnerDataStep({
               disabled={primaryDisabled}
               className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60"
             >
-              Confirmar
+              Continuar
             </button>
-          </div>
-
-          <div className="text-center mt-3">
-            <Link to="/" onClick={onGoWelcome} className="text-sm text-gray-700">
-              YA TENGO UNA CUENTA.
-            </Link>
           </div>
         </div>
       </div>

@@ -806,6 +806,7 @@ export default function useAuthActions({
     const calles = toTitleCaseEs(String(direccionPayload?.calles || "").trim());
     const ciudad = toTitleCaseEs(String(direccionPayload?.ciudad || "").trim());
     const sector = toTitleCaseEs(String(direccionPayload?.sector || "").trim());
+    const referencia = String(direccionPayload?.referencia || "").trim();
     const parroquiaText = toTitleCaseEs(
       String(direccionPayload?.parroquia || "").trim()
     );
@@ -868,7 +869,7 @@ export default function useAuthActions({
     const direccionData = {
       owner_id: userRow.id,
       calles: calles || null,
-      referencia: null,
+      referencia: referencia || null,
       ciudad: ciudad || null,
       sector: sector || null,
       lat: Number(latValue),

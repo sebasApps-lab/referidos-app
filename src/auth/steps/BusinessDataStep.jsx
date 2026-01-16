@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { normalizeBusinessName } from "../utils/businessDataUtils";
 
@@ -105,16 +104,10 @@ export default function BusinessDataStep({
         <div className="mt-auto pt-4">
           <button
             onClick={onSubmit}
-            className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow"
+            className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow"
           >
             Continuar
           </button>
-        </div>
-
-        <div className="text-center mt-3">
-          <Link to="/" onClick={onGoWelcome} className="text-sm text-gray-700">
-            YA TENGO UNA CUENTA.
-          </Link>
         </div>
       </div>
     </section>

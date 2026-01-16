@@ -292,7 +292,7 @@ export default function useAuthPrefill({
         if (picked?.direccion_id) {
           const { data: dirData, error: dirErr } = await supabase
             .from("direcciones")
-            .select("calles, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
+            .select("calles, referencia, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
             .eq("id", picked.direccion_id)
             .maybeSingle();
 
@@ -320,6 +320,7 @@ export default function useAuthPrefill({
             calles: dirData.calles || "",
             house_number: "",
             postcode: "",
+            referencia: dirData.referencia || "",
             provincia: "",
             canton: "",
             country: "",
@@ -330,7 +331,7 @@ export default function useAuthPrefill({
 
         const { data: fallbackDir, error: fallbackErr } = await supabase
           .from("direcciones")
-          .select("calles, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
+          .select("calles, referencia, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
           .eq("owner_id", u.id)
           .eq("is_user_provided", true)
           .order("updated_at", { ascending: false })
@@ -361,6 +362,7 @@ export default function useAuthPrefill({
           calles: fallbackDir.calles || "",
           house_number: "",
           postcode: "",
+          referencia: fallbackDir.referencia || "",
           provincia: "",
           canton: "",
           country: "",

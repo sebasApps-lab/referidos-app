@@ -148,6 +148,7 @@ export default function BusinessAddressStep({
       calles: "",
       house_number: "",
       postcode: "",
+      referencia: "",
       provincia: "",
       canton: "",
       country: "",
@@ -315,6 +316,7 @@ export default function BusinessAddressStep({
       calles: fields.calles ?? data.calles ?? "",
       house_number: fields.house_number ?? data.house_number ?? "",
       postcode: fields.postcode ?? data.postcode ?? "",
+      referencia: "",
       provincia_id: data.provincia_id || provinciaId,
       canton_id: data.canton_id || cantonId,
       provincia: fields.provincia ?? data.provincia ?? "",
@@ -339,6 +341,7 @@ export default function BusinessAddressStep({
       calles: "",
       house_number: "",
       postcode: "",
+      referencia: "",
       provincia: "",
       canton: "",
       country: "",
@@ -386,6 +389,7 @@ export default function BusinessAddressStep({
       calles: fields.calles ?? item.calles ?? item.street ?? "",
       house_number: fields.house_number ?? item.house_number ?? "",
       postcode: fields.postcode ?? item.postcode ?? "",
+      referencia: "",
       provincia: fields.provincia ?? item.provincia ?? "",
       canton: fields.canton ?? item.canton ?? "",
       country: fields.country ?? item.country ?? "",
@@ -474,6 +478,7 @@ export default function BusinessAddressStep({
   const payloadProvincia = direccionPayload?.provincia || provinciaNombre || "";
   const payloadCanton = direccionPayload?.canton || cantonNombre || "";
   const payloadParroquia = direccionPayload?.parroquia || parroquiaNombre || "";
+  const referenciaValue = String(direccionPayload?.referencia || "");
   const payloadCiudad =
     direccionPayload?.ciudad || payloadCanton || payloadParroquia || "";
   const summaryCiudad = direccionPayload?.ciudad || "";
@@ -607,6 +612,7 @@ export default function BusinessAddressStep({
       calles: "",
       house_number: "",
       postcode: "",
+      referencia: "",
       provincia: "",
       canton: "",
       country: "",
@@ -958,6 +964,21 @@ export default function BusinessAddressStep({
                     <span className="text-gray-500">Codigo postal:</span> {direccionPayload.postcode}
                   </div>
                 )}
+                <div className="space-y-1 pt-1">
+                  <label className="block text-gray-500">
+                    Referencia (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={200}
+                    value={referenciaValue}
+                    onChange={(event) =>
+                      updateDireccionPayload({ referencia: event.target.value })
+                    }
+                    placeholder="Ej: Edificio azul, junto a la panaderia"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+                  />
+                </div>
                 <label className="flex items-center gap-2 pt-10 pb-2 text-sm text-gray-700">
                   <input
                     type="checkbox"

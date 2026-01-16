@@ -66,6 +66,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
     calles: "",
     house_number: "",
     postcode: "",
+    referencia: "",
     provincia: "",
     canton: "",
     country: "",

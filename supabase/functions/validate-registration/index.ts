@@ -95,13 +95,11 @@ serve(async (req) => {
     return json({ ok: true, valid: true }, 200, corsHeaders);
   }
 
-  if (!hasValue(usuario.role)) {
+  if (!hasValue(usuario.role) || role !== "negocio") {
     return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
   }
 
-  if (role !== "negocio") {
-    return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
-  }
+  let canActivate = true;
 
   if (
     !hasValue(usuario.nombre) ||
@@ -109,7 +107,7 @@ serve(async (req) => {
     !hasValue(usuario.fecha_nacimiento) ||
     !hasValue(usuario.genero)
   ) {
-    return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
+    canActivate = false;
   }
 
   const { data: negocio, error: negocioErr } = await supabaseAdmin
@@ -119,90 +117,166 @@ serve(async (req) => {
     .maybeSingle<NegocioRow>();
 
   if (negocioErr || !negocio) {
-    return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
+    canActivate = false;
   }
 
-  if (!hasValue(negocio.nombre) || !hasValue(negocio.categoria)) {
-    return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
-  }
-
-  const { data: sucursales, error: sucErr } = await supabaseAdmin
-    .from("sucursales")
-    .select("id, status, direccion_id, horarios, tipo, fechacreacion")
-    .eq("negocioid", negocio.id);
-
-  if (sucErr) {
-    return json(
-      { ok: false, message: "No se pudo leer sucursales" },
-      500,
-      corsHeaders,
-    );
-  }
-
-  const sucursalRows: SucursalRow[] = sucursales || [];
-  if (sucursalRows.length === 0) {
-    return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
-  }
-
-  const direccionIds = Array.from(
-    new Set(
-      sucursalRows
-        .map((s) => s.direccion_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
-
-  const direccionMap = new Map<
-    string,
-    {
-      id: string;
-      calles: string | null;
-      referencia: string | null;
-      ciudad: string | null;
-      sector: string | null;
-      provincia_id: string | null;
-      canton_id: string | null;
-      parroquia_id: string | null;
-      parroquia: string | null;
-      lat: number | null;
-      lng: number | null;
-    }
-  >();
-  if (direccionIds.length > 0) {
-    const { data: direcciones, error: dirErr } = await supabaseAdmin
-      .from("direcciones")
-      .select("id, calles, referencia, ciudad, sector, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
-      .in("id", direccionIds);
-    if (dirErr) {
-      return json(
-        { ok: false, message: "No se pudo leer direcciones" },
-        500,
-        corsHeaders,
-      );
-    }
-    (direcciones || []).forEach((dir) => {
-      direccionMap.set(dir.id, {
-        id: dir.id,
-        calles: dir.calles ?? null,
-        referencia: dir.referencia ?? null,
-        ciudad: dir.ciudad ?? null,
-        sector: dir.sector ?? null,
-        provincia_id: dir.provincia_id ?? null,
-        canton_id: dir.canton_id ?? null,
-        parroquia_id: dir.parroquia_id ?? null,
-        parroquia: dir.parroquia ?? null,
-        lat: dir.lat ?? null,
-        lng: dir.lng ?? null,
-      });
-    });
+  if (negocio && (!hasValue(negocio.nombre) || !hasValue(negocio.categoria))) {
+    canActivate = false;
   }
 
   const normalizeStatus = (value: string | null) =>
     (value || "draft").toLowerCase();
 
-  const hasDireccion = (direccionId: string | null) => {
-    if (!direccionId) return false;
-    const dir = direccionMap.get(direccionId);
+  const sortByDate = <T extends { created_at?: string | null; updated_at?: string | null }>(
+    rows: T[],
+  ) =>
+    rows.sort((a, b) => {
+      const aTime = a.updated_at || a.created_at;
+      const bTime = b.updated_at || b.created_at;
+      const aValue = aTime ? Date.parse(aTime) : 0;
+      const bValue = bTime ? Date.parse(bTime) : 0;
+      return bValue - aValue;
+    });
+
+  const { data: direcciones, error: dirErr } = await supabaseAdmin
+    .from("direcciones")
+    .select(
+      "id, owner_id, status, is_user_provided, created_at, updated_at, calles, referencia, ciudad, sector, provincia_id, canton_id, parroquia_id, parroquia, lat, lng",
+    )
+    .eq("owner_id", usuario.id)
+    .eq("is_user_provided", true);
+
+  if (dirErr) {
+    return json(
+      { ok: false, message: "No se pudo leer direcciones" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  const userDirs = Array.isArray(direcciones) ? direcciones : [];
+  const drafts = userDirs.filter(
+    (dir) => normalizeStatus(dir.status ?? null) === "draft",
+  );
+  const actives = userDirs.filter(
+    (dir) => normalizeStatus(dir.status ?? null) === "active",
+  );
+
+  let keptDireccion = null as typeof userDirs[number] | null;
+  if (drafts.length > 0) {
+    keptDireccion = sortByDate(drafts)[0] || null;
+  } else if (actives.length > 0) {
+    keptDireccion = sortByDate(actives)[0] || null;
+  }
+
+  const keptDireccionId = keptDireccion?.id ?? null;
+  const direccionDeleteIds = userDirs
+    .filter((dir) => dir.id && dir.id !== keptDireccionId)
+    .map((dir) => dir.id);
+
+  if (direccionDeleteIds.length > 0) {
+    const { error: delDirErr } = await supabaseAdmin
+      .from("direcciones")
+      .delete()
+      .in("id", direccionDeleteIds);
+    if (delDirErr) {
+      return json(
+        { ok: false, message: "No se pudo limpiar direcciones" },
+        500,
+        corsHeaders,
+      );
+    }
+  }
+
+  if (!keptDireccion) {
+    canActivate = false;
+  }
+
+  let sucursalRows: SucursalRow[] = [];
+  let chosenSucursal: SucursalRow | null = null;
+
+  if (negocio?.id) {
+    const { data: sucursales, error: sucErr } = await supabaseAdmin
+      .from("sucursales")
+      .select(
+        "id, status, direccion_id, horarios, tipo, fechacreacion",
+      )
+      .eq("negocioid", negocio.id);
+
+    if (sucErr) {
+      return json(
+        { ok: false, message: "No se pudo leer sucursales" },
+        500,
+        corsHeaders,
+      );
+    }
+
+    sucursalRows = Array.isArray(sucursales) ? sucursales : [];
+    if (sucursalRows.length === 0) {
+      canActivate = false;
+    } else {
+      const activeRows = sucursalRows.filter(
+        (row) => normalizeStatus(row.status ?? null) === "active",
+      );
+      const draftRows = sucursalRows.filter(
+        (row) => normalizeStatus(row.status ?? null) === "draft",
+      );
+
+      const sortByFecha = (rows: SucursalRow[]) =>
+        rows.sort((a, b) => {
+          const aTime = a.fechacreacion ? Date.parse(a.fechacreacion) : 0;
+          const bTime = b.fechacreacion ? Date.parse(b.fechacreacion) : 0;
+          return bTime - aTime;
+        });
+
+      if (activeRows.length > 0) {
+        chosenSucursal = sortByFecha(activeRows)[0] || null;
+      } else if (draftRows.length > 0) {
+        chosenSucursal = sortByFecha(draftRows)[0] || null;
+      } else {
+        chosenSucursal = sortByFecha(sucursalRows)[0] || null;
+      }
+
+      const sucursalDeleteIds = sucursalRows
+        .filter((row) => row.id && row.id !== chosenSucursal?.id)
+        .map((row) => row.id);
+
+      if (sucursalDeleteIds.length > 0) {
+        const { error: pruneErr } = await supabaseAdmin
+          .from("sucursales")
+          .delete()
+          .in("id", sucursalDeleteIds);
+        if (pruneErr) {
+          return json(
+            { ok: false, message: "No se pudo limpiar sucursales" },
+            500,
+            corsHeaders,
+          );
+        }
+      }
+    }
+  } else {
+    canActivate = false;
+  }
+
+  if (keptDireccion && chosenSucursal) {
+    if (chosenSucursal.direccion_id !== keptDireccion.id) {
+      const { error: linkErr } = await supabaseAdmin
+        .from("sucursales")
+        .update({ direccion_id: keptDireccion.id })
+        .eq("id", chosenSucursal.id);
+      if (linkErr) {
+        return json(
+          { ok: false, message: "No se pudo asociar direccion" },
+          500,
+          corsHeaders,
+        );
+      }
+      chosenSucursal = { ...chosenSucursal, direccion_id: keptDireccion.id };
+    }
+  }
+
+  const hasDireccion = (dir: typeof keptDireccion | null) => {
     if (!dir) return false;
     const hasUbicacion =
       hasValue(dir.ciudad) ||
@@ -226,74 +300,58 @@ serve(async (req) => {
     return true;
   };
 
-  const isSucursalValida = (sucursal: SucursalRow) =>
-    hasDireccion(sucursal.direccion_id) &&
-    hasHorarios(sucursal.horarios) &&
-    hasValue(sucursal.tipo);
-
-  const sortByFecha = (rows: SucursalRow[]) =>
-    rows.sort((a, b) => {
-      const aTime = a.fechacreacion ? Date.parse(a.fechacreacion) : 0;
-      const bTime = b.fechacreacion ? Date.parse(b.fechacreacion) : 0;
-      return bTime - aTime;
-    });
-
-  const activeRows = sucursalRows.filter(
-    (s) => normalizeStatus(s.status) === "active",
-  );
-  const draftRows = sucursalRows.filter(
-    (s) => normalizeStatus(s.status) === "draft",
-  );
-
-  let chosen: SucursalRow | null = null;
-
-  const validActive = sortByFecha(activeRows.filter(isSucursalValida))[0];
-  if (validActive) {
-    chosen = validActive;
+  if (!chosenSucursal) {
+    canActivate = false;
   } else {
-    const validDraft = sortByFecha(draftRows.filter(isSucursalValida))[0];
-    if (validDraft) {
-      const { error: promoteErr } = await supabaseAdmin
-        .from("sucursales")
-        .update({ status: "active" })
-        .eq("id", validDraft.id);
-      if (promoteErr) {
-        return json(
-          { ok: false, message: "No se pudo activar sucursal" },
-          500,
-          corsHeaders,
-        );
-      }
-      chosen = { ...validDraft, status: "active" };
+    if (!hasDireccion(keptDireccion)) {
+      canActivate = false;
+    }
+    if (!hasHorarios(chosenSucursal.horarios)) {
+      canActivate = false;
+    }
+    if (!hasValue(chosenSucursal.tipo)) {
+      canActivate = false;
     }
   }
 
-  if (!chosen) {
-    const { error: cleanupErr } = await supabaseAdmin
-      .from("sucursales")
-      .delete()
-      .eq("negocioid", negocio.id);
-    if (cleanupErr) {
-      return json(
-        { ok: false, message: "No se pudo limpiar sucursales" },
-        500,
-        corsHeaders,
-      );
+  if (!canActivate) {
+    if (keptDireccion && normalizeStatus(keptDireccion.status ?? null) !== "draft") {
+      await supabaseAdmin
+        .from("direcciones")
+        .update({ status: "draft" })
+        .eq("id", keptDireccion.id)
+        .eq("is_user_provided", true);
     }
     return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
   }
 
-  const { error: pruneErr } = await supabaseAdmin
-    .from("sucursales")
-    .delete()
-    .eq("negocioid", negocio.id)
-    .neq("id", chosen.id);
-  if (pruneErr) {
-    return json(
-      { ok: false, message: "No se pudo limpiar sucursales" },
-      500,
-      corsHeaders,
-    );
+  if (chosenSucursal && normalizeStatus(chosenSucursal.status ?? null) !== "active") {
+    const { error: promoteErr } = await supabaseAdmin
+      .from("sucursales")
+      .update({ status: "active" })
+      .eq("id", chosenSucursal.id);
+    if (promoteErr) {
+      return json(
+        { ok: false, message: "No se pudo activar sucursal" },
+        500,
+        corsHeaders,
+      );
+    }
+  }
+
+  if (keptDireccion && normalizeStatus(keptDireccion.status ?? null) !== "active") {
+    const { error: dirStatusErr } = await supabaseAdmin
+      .from("direcciones")
+      .update({ status: "active" })
+      .eq("id", keptDireccion.id)
+      .eq("is_user_provided", true);
+    if (dirStatusErr) {
+      return json(
+        { ok: false, message: "No se pudo activar direccion" },
+        500,
+        corsHeaders,
+      );
+    }
   }
 
   const { error: statusErr } = await supabaseAdmin
