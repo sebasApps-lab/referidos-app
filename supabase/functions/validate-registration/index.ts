@@ -303,6 +303,9 @@ serve(async (req) => {
   if (!chosenSucursal) {
     canActivate = false;
   } else {
+    if (!hasValue(chosenSucursal.direccion_id)) {
+      canActivate = false;
+    }
     if (!hasDireccion(keptDireccion)) {
       canActivate = false;
     }
@@ -321,6 +324,12 @@ serve(async (req) => {
         .update({ status: "draft" })
         .eq("id", keptDireccion.id)
         .eq("is_user_provided", true);
+    }
+    if (chosenSucursal && normalizeStatus(chosenSucursal.status ?? null) !== "draft") {
+      await supabaseAdmin
+        .from("sucursales")
+        .update({ status: "draft" })
+        .eq("id", chosenSucursal.id);
     }
     return json({ ok: true, valid: false, message: "no cumple" }, 200, corsHeaders);
   }

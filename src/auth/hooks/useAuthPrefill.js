@@ -19,6 +19,7 @@ export default function useAuthPrefill({
   setNombreNegocio,
   setCategoriaNegocio,
   setIsSucursalPrincipal,
+  setHorarios,
   setSectorNegocio,
   setCalle1,
   setCalle2,
@@ -268,7 +269,7 @@ export default function useAuthPrefill({
 
         const { data, error } = await supabase
           .from("sucursales")
-          .select("id, direccion_id, status, tipo, fechacreacion")
+          .select("id, direccion_id, status, tipo, horarios, fechacreacion")
           .eq("negocioid", negocioId)
           .order("fechacreacion", { ascending: false });
 
@@ -289,6 +290,9 @@ export default function useAuthPrefill({
         if (picked?.tipo) {
           setIsSucursalPrincipal(picked.tipo === "principal");
         }
+        if (picked?.horarios) {
+          setHorarios?.(picked.horarios);
+        }
         if (picked?.direccion_id) {
           const { data: dirData, error: dirErr } = await supabase
             .from("direcciones")
@@ -304,27 +308,42 @@ export default function useAuthPrefill({
           setCalle1(dirData.calles || "");
           setCalle2("");
           setSectorNegocio(dirData.sector || "");
-          setDireccionPayload?.({
-            place_id: dirData.place_id || "",
-            label: dirData.label || "",
-            display_label: dirData.label || "",
-            provider: dirData.provider || "",
-            lat: dirData.lat ?? null,
-            lng: dirData.lng ?? null,
-            provincia_id: dirData.provincia_id || "",
-            canton_id: dirData.canton_id || "",
-            parroquia_id: dirData.parroquia_id || "",
-            parroquia: dirData.parroquia || "",
-            ciudad: dirData.ciudad || "",
-            sector: dirData.sector || "",
-            calles: dirData.calles || "",
-            house_number: "",
-            postcode: "",
-            referencia: dirData.referencia || "",
-            provincia: "",
-            canton: "",
-            country: "",
-          });
+          const hasUbicacion =
+            Boolean(dirData.ciudad) ||
+            Boolean(dirData.parroquia_id) ||
+            Boolean(dirData.parroquia);
+          const hasDireccionFields =
+            Boolean(dirData.calles) &&
+            hasUbicacion &&
+            Boolean(dirData.sector) &&
+            Boolean(dirData.provincia_id) &&
+            Boolean(dirData.canton_id) &&
+            dirData.lat != null &&
+            dirData.lng != null;
+
+          if (hasDireccionFields) {
+            setDireccionPayload?.({
+              place_id: dirData.place_id || "",
+              label: dirData.label || "",
+              display_label: dirData.label || "",
+              provider: dirData.provider || "",
+              lat: dirData.lat ?? null,
+              lng: dirData.lng ?? null,
+              provincia_id: dirData.provincia_id || "",
+              canton_id: dirData.canton_id || "",
+              parroquia_id: dirData.parroquia_id || "",
+              parroquia: dirData.parroquia || "",
+              ciudad: dirData.ciudad || "",
+              sector: dirData.sector || "",
+              calles: dirData.calles || "",
+              house_number: "",
+              postcode: "",
+              referencia: dirData.referencia || "",
+              provincia: "",
+              canton: "",
+              country: "",
+            });
+          }
           finalizeDireccion();
           return;
         }
@@ -346,27 +365,42 @@ export default function useAuthPrefill({
         setCalle1(fallbackDir.calles || "");
         setCalle2("");
         setSectorNegocio(fallbackDir.sector || "");
-        setDireccionPayload?.({
-          place_id: fallbackDir.place_id || "",
-          label: fallbackDir.label || "",
-          display_label: fallbackDir.label || "",
-          provider: fallbackDir.provider || "",
-          lat: fallbackDir.lat ?? null,
-          lng: fallbackDir.lng ?? null,
-          provincia_id: fallbackDir.provincia_id || "",
-          canton_id: fallbackDir.canton_id || "",
-          parroquia_id: fallbackDir.parroquia_id || "",
-          parroquia: fallbackDir.parroquia || "",
-          ciudad: fallbackDir.ciudad || "",
-          sector: fallbackDir.sector || "",
-          calles: fallbackDir.calles || "",
-          house_number: "",
-          postcode: "",
-          referencia: fallbackDir.referencia || "",
-          provincia: "",
-          canton: "",
-          country: "",
-        });
+        const hasUbicacion =
+          Boolean(fallbackDir.ciudad) ||
+          Boolean(fallbackDir.parroquia_id) ||
+          Boolean(fallbackDir.parroquia);
+        const hasDireccionFields =
+          Boolean(fallbackDir.calles) &&
+          hasUbicacion &&
+          Boolean(fallbackDir.sector) &&
+          Boolean(fallbackDir.provincia_id) &&
+          Boolean(fallbackDir.canton_id) &&
+          fallbackDir.lat != null &&
+          fallbackDir.lng != null;
+
+        if (hasDireccionFields) {
+          setDireccionPayload?.({
+            place_id: fallbackDir.place_id || "",
+            label: fallbackDir.label || "",
+            display_label: fallbackDir.label || "",
+            provider: fallbackDir.provider || "",
+            lat: fallbackDir.lat ?? null,
+            lng: fallbackDir.lng ?? null,
+            provincia_id: fallbackDir.provincia_id || "",
+            canton_id: fallbackDir.canton_id || "",
+            parroquia_id: fallbackDir.parroquia_id || "",
+            parroquia: fallbackDir.parroquia || "",
+            ciudad: fallbackDir.ciudad || "",
+            sector: fallbackDir.sector || "",
+            calles: fallbackDir.calles || "",
+            house_number: "",
+            postcode: "",
+            referencia: fallbackDir.referencia || "",
+            provincia: "",
+            canton: "",
+            country: "",
+          });
+        }
         finalizeDireccion();
       };
 
@@ -389,8 +423,10 @@ export default function useAuthPrefill({
     setNombreNegocio,
     setOwnerPrefill,
     setIsSucursalPrincipal,
+    setHorarios,
     setSectorNegocio,
     setTelefono,
     usuario,
+    setHorarios,
   ]);
 }

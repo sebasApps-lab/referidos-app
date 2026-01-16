@@ -298,33 +298,59 @@ serve (async (req) => {
 
                 if (!principal.direccion_id || !principal.tipo || !hasHorarios(principal.horarios)) {
                     reasons.push("missing_sucursales_fields");
-                } else {
+                }
+
+                let addressRow: DireccionProfile | null = null;
+                if (principal.direccion_id) {
                     const { data: dirData, error: dirErr } = await supabaseAdmin
                         .from("direcciones")
-                        .select("id, calles, sector, referencia, ciudad, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
+                        .select("id, calles, sector, referencia, ciudad, provincia_id, canton_id, parroquia_id, parroquia, lat, lng, owner_id, is_user_provided")
                         .eq("id", principal.direccion_id)
-                        .maybeSingle<DireccionProfile>();
+                        .eq("is_user_provided", true)
+                        .maybeSingle<DireccionProfile & { owner_id?: string; is_user_provided?: boolean }>();
 
                     if (dirErr) {
                         reasons.push("business_address_query_error");
-                    } else if (!dirData) {
-                        reasons.push("missing_address_row");
+                    } else if (dirData?.owner_id === profile.id) {
+                        addressRow = dirData as DireccionProfile;
+                    }
+                }
+
+                if (!addressRow) {
+                    const { data: fallbackDir, error: fallbackErr } = await supabaseAdmin
+                        .from("direcciones")
+                        .select("id, calles, sector, referencia, ciudad, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
+                        .eq("owner_id", profile.id)
+                        .eq("is_user_provided", true)
+                        .order("updated_at", { ascending: false })
+                        .order("created_at", { ascending: false })
+                        .limit(1)
+                        .maybeSingle<DireccionProfile>();
+
+                    if (fallbackErr) {
+                        reasons.push("business_address_query_error");
                     } else {
-                        const hasUbicacion =
-                            Boolean(dirData.ciudad) ||
-                            Boolean(dirData.parroquia_id) ||
-                            Boolean(dirData.parroquia);
-                        const missingFields =
-                            !dirData.calles ||
-                            !hasUbicacion ||
-                            !dirData.sector ||
-                            !dirData.provincia_id ||
-                            !dirData.canton_id ||
-                            dirData.lat === null ||
-                            dirData.lng === null;
-                        if (missingFields) {
-                            reasons.push("missing_address_fields");
-                        }
+                        addressRow = fallbackDir;
+                    }
+                }
+
+                if (!addressRow) {
+                    reasons.push("missing_address_row");
+                } else {
+                    const hasUbicacion =
+                        Boolean(addressRow.ciudad) ||
+                        Boolean(addressRow.parroquia_id) ||
+                        Boolean(addressRow.parroquia);
+                    const missingFields =
+                        !addressRow.calles ||
+                        !hasUbicacion ||
+                        !addressRow.sector ||
+                        !addressRow.provincia_id ||
+                        !addressRow.canton_id ||
+                        addressRow.lat === null ||
+                        addressRow.lng === null;
+                    if (missingFields) {
+                        reasons.push("missing_address_fields");
                     }
                 }
             }
