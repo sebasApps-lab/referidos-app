@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import AuthView from "./AuthView";
@@ -13,6 +13,7 @@ import OwnerDataStep from "./steps/OwnerDataStep";
 import BusinessDataStep from "./steps/BusinessDataStep";
 import BusinessCategoryStep from "./steps/BusinessCategoryStep";
 import BusinessAddressStep from "./steps/BusinessAddressStep";
+import AccountVerifyStep from "./steps/AccountVerifyStep";
 import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
@@ -45,6 +46,10 @@ const STEP_COPY = {
     header: "¿Dónde estás ubicado?",
     subtitle: "Ayúdanos a conectar tu negocio con personas cerca de ti.",
   },
+  [AUTH_STEPS.ACCOUNT_VERIFY]: {
+    header: "Verifica tu cuenta",
+    subtitle: "",
+  },
 };
 
 export default function AuthFlow() {
@@ -52,6 +57,12 @@ export default function AuthFlow() {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout);
+  const justCompletedRegistration = useAppStore(
+    (s) => s.justCompletedRegistration
+  );
+  const setJustCompletedRegistration = useAppStore(
+    (s) => s.setJustCompletedRegistration
+  );
   const initialStep = useMemo(
     () =>
       location.pathname === "/auth"
@@ -216,6 +227,34 @@ export default function AuthFlow() {
     setIsAddressPrefillReady: flow.setIsAddressPrefillReady,
   });
 
+
+  const shouldShowAccountVerify = Boolean(
+    justCompletedRegistration &&
+      onboarding?.allowAccess &&
+      onboarding?.email_confirmed === false &&
+      !onboarding?.phone
+  );
+
+  useEffect(() => {
+    if (shouldShowAccountVerify && flow.step !== AUTH_STEPS.ACCOUNT_VERIFY) {
+      flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY);
+      return;
+    }
+    if (
+      justCompletedRegistration &&
+      onboarding?.allowAccess &&
+      !shouldShowAccountVerify
+    ) {
+      setJustCompletedRegistration(false);
+    }
+  }, [
+    flow,
+    justCompletedRegistration,
+    onboarding?.allowAccess,
+    setJustCompletedRegistration,
+    shouldShowAccountVerify,
+  ]);
+
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
   const hasMinLength = flow.password.length >= 8;
   const hasNumber = /\d/.test(flow.password);
@@ -242,6 +281,7 @@ export default function AuthFlow() {
     AUTH_STEPS.BUSINESS_DATA,
     AUTH_STEPS.BUSINESS_CATEGORY,
     AUTH_STEPS.BUSINESS_ADDRESS,
+    AUTH_STEPS.ACCOUNT_VERIFY,
   ].includes(flow.step);
   const containerClassName = isWelcome
     ? "justify-center pb-28"
@@ -499,6 +539,17 @@ export default function AuthFlow() {
                   subtitle={addressSubtitle}
                   error={flow.emailError}
                   onSubmit={actions.handleBusinessAddress}
+                />
+              )}
+
+              {flow.step === AUTH_STEPS.ACCOUNT_VERIFY && (
+                <AccountVerifyStep
+                  innerRef={flow.regPage2Ref}
+                  email={usuario?.email || flow.email}
+                  emailConfirmed={Boolean(onboarding?.email_confirmed)}
+                  phone={onboarding?.phone || usuario?.telefono || ""}
+                  onSkip={() => setJustCompletedRegistration(false)}
+                  onComplete={() => setJustCompletedRegistration(false)}
                 />
               )}
             </div>

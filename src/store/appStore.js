@@ -68,6 +68,7 @@ export const useAppStore = create(
         pin: false,
         password: false,
       },
+      justCompletedRegistration: false,
       loading: false,
       error: null,
       setUser: (usuario) => set({ usuario }),
@@ -82,6 +83,8 @@ export const useAppStore = create(
         set({ scannerPermissionPrompted: value }),
       setScannerManualFallbackShown: (value) =>
         set({ scannerManualFallbackShown: value }),
+      setJustCompletedRegistration: (value) =>
+        set({ justCompletedRegistration: value }),
 
       //-----------------------
       // AUTH
@@ -146,6 +149,7 @@ export const useAppStore = create(
             negocios: [],
             scannerPermissionPrompted: false,
             scannerManualFallbackShown: false,
+            justCompletedRegistration: false,
           });
         }
       },

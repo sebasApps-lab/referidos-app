@@ -114,6 +114,9 @@ export default function useAuthActions({
 }) {
   const login = useAppStore((s) => s.login);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
+  const setJustCompletedRegistration = useAppStore(
+    (s) => s.setJustCompletedRegistration
+  );
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
@@ -960,9 +963,18 @@ export default function useAuthActions({
     const result = await runValidateRegistration();
     if (!result?.ok || !result?.valid) {
       setEmailError(result?.message || result?.error || "Aún falta completar datos");
+    } else {
+      setJustCompletedRegistration?.(true);
     }
     await bootstrapAuth({ force: true });
-  }, [bootstrapAuth, direccionPayload, horarios, isSucursalPrincipal, setEmailError]);
+  }, [
+    bootstrapAuth,
+    direccionPayload,
+    horarios,
+    isSucursalPrincipal,
+    setEmailError,
+    setJustCompletedRegistration,
+  ]);
 
   const handleButtonBack = useCallback(() => {
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {

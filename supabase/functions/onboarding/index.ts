@@ -56,6 +56,8 @@ type OnboardingResult = {
     reasons: string[]; //motivos por los cuales no se da acceso
     usuario: Record<string, unknown> | null;
     negocio: Record<string, unknown> | null;
+    email_confirmed?: boolean;
+    phone?: string | null;
     provider: string | null;
 };
 
@@ -67,6 +69,7 @@ type UsuarioProfile = {
     nombre: string | null;
     apellido: string | null;
     telefono: string | null;
+    emailConfirmado: boolean | null;
     fecha_nacimiento: string | null;
     genero: string | null;
     account_status: AccountStatus | null;
@@ -396,6 +399,8 @@ serve (async (req) => {
             reasons,
             usuario: updatedProfile,
             negocio: negocioRow,
+            email_confirmed: Boolean(profile.emailConfirmado),
+            phone: profile.telefono ?? null,
             provider,
         } satisfies OnboardingResult,
         200,

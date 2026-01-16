@@ -17,4 +17,5 @@ export const AUTH_FORM_STEPS = {
   BUSINESS: "business-data",
   BUSINESS_CATEGORY: "business-category",
   BUSINESS_ADDRESS: "business-address",
+  ACCOUNT_VERIFY: "account-verify",
 };
