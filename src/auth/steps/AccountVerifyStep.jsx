@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
 import { validarCedula } from "../../utils/validators";
+import EmailVerificationBlock from "../blocks/EmailVerificationBlock";
 
 const COUNTRY_CODES = [
   { code: "+593", label: "Ecuador" },
@@ -48,16 +48,24 @@ function ChevronIcon({ className = "" }) {
 export default function AccountVerifyStep({
   innerRef,
   phone,
-  onSkip,
-  onComplete,
+  ruc,
+  emailConfirmed,
 }) {
-  const [saving, setSaving] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState(() => {
+    if (phone && ruc && emailConfirmed === false) return "email";
+    return "contact";
+  });
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [savingRuc, setSavingRuc] = useState(false);
   const [editingPhone, setEditingPhone] = useState(!phone);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean(phone));
-  const [rucValue, setRucValue] = useState("");
-  const [rucConfirmed, setRucConfirmed] = useState(false);
-  const { openModal } = useModal();
+  const [phoneMessage, setPhoneMessage] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [rucValue, setRucValue] = useState(String(ruc || ""));
+  const [rucConfirmed, setRucConfirmed] = useState(Boolean(ruc));
+  const [rucMessage, setRucMessage] = useState("");
+  const [rucError, setRucError] = useState("");
 
   const initialPhone = String(phone || "");
   const parsed = useMemo(() => {
@@ -89,6 +97,8 @@ export default function AccountVerifyStep({
     rucSuffix === "001" &&
     validarCedula(rucCore);
 
+  const canContinue = phoneConfirmed && rucConfirmed;
+
   const handleDigitsChange = (value) => {
     let next = String(value || "").replace(/\D/g, "");
     if (isEcuador) {
@@ -99,21 +109,20 @@ export default function AccountVerifyStep({
     }
     setDigits(next);
     setPhoneConfirmed(false);
+    setPhoneMessage("");
+    setPhoneError("");
   };
 
-  const handleSave = async () => {
-    if (!phoneConfirmed || !rucConfirmed) return;
-
-    if (!editingPhone || (phone && normalizedPhone === phone)) {
-      onComplete?.();
-      return;
-    }
-
-    setSaving(true);
+  const handleSavePhone = async () => {
+    if (!phoneValid || savingPhone) return;
+    setSavingPhone(true);
+    setPhoneMessage("");
+    setPhoneError("");
     try {
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId) {
+        setPhoneError("No se pudo obtener sesion.");
         return;
       }
       const { error: updErr } = await supabase
@@ -121,25 +130,117 @@ export default function AccountVerifyStep({
         .update({ telefono: normalizedPhone })
         .eq("id_auth", userId);
       if (updErr) {
+        setPhoneError(updErr.message || "No se pudo guardar el telefono.");
         return;
       }
-      onComplete?.();
+      setPhoneConfirmed(true);
+      setEditingPhone(false);
+      setPhoneMessage("Telefono guardado.");
     } finally {
-      setSaving(false);
+      setSavingPhone(false);
     }
   };
+
+  const handleSaveRuc = async () => {
+    if (!rucValid || savingRuc) return;
+    setSavingRuc(true);
+    setRucMessage("");
+    setRucError("");
+    try {
+      const session = (await supabase.auth.getSession())?.data?.session;
+      const userId = session?.user?.id;
+      if (!userId) {
+        setRucError("No se pudo obtener sesion.");
+        return;
+      }
+      const { data: usuarioRow, error: usuarioErr } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("id_auth", userId)
+        .maybeSingle();
+      if (usuarioErr || !usuarioRow?.id) {
+        setRucError("No se pudo obtener el usuario.");
+        return;
+      }
+      const { data: negocioRow, error: negocioErr } = await supabase
+        .from("negocios")
+        .select("id")
+        .eq("usuarioid", usuarioRow.id)
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (negocioErr || !negocioRow?.id) {
+        setRucError("No se pudo obtener el negocio.");
+        return;
+      }
+      const { data: existing, error: existingErr } = await supabase
+        .from("verificacion_negocio")
+        .select("id")
+        .eq("negocio_id", negocioRow.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingErr) {
+        setRucError(existingErr.message || "No se pudo validar el RUC.");
+        return;
+      }
+      const payload = {
+        negocio_id: negocioRow.id,
+        ruc: normalizedRuc,
+        estado: "pending",
+        fuente: "manual",
+      };
+      if (existing?.id) {
+        const { error: updErr } = await supabase
+          .from("verificacion_negocio")
+          .update(payload)
+          .eq("id", existing.id);
+        if (updErr) {
+          setRucError(updErr.message || "No se pudo guardar el RUC.");
+          return;
+        }
+      } else {
+        const { error: insErr } = await supabase
+          .from("verificacion_negocio")
+          .insert(payload);
+        if (insErr) {
+          setRucError(insErr.message || "No se pudo guardar el RUC.");
+          return;
+        }
+      }
+      setRucConfirmed(true);
+      setRucMessage("RUC guardado.");
+    } finally {
+      setSavingRuc(false);
+    }
+  };
+
+  if (currentScreen === "email") {
+    return (
+      <div className="flex h-full flex-col pb-4" ref={innerRef}>
+        <div className="flex-1">
+          <EmailVerificationBlock email={""} />
+        </div>
+        <button
+          type="button"
+          onClick={() => (window.location.href = "/app")}
+          className="mt-4 w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold"
+        >
+          Finalizar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col pb-4" ref={innerRef}>
       <div className="space-y-6">
-        <p className="text-sm text-gray-600 text-center">
-          Esto es opcional, pero te ayudara a sacarle mas provecho a la app.
-        </p>
-
-        <div className="space-y-2 mt-2 text-sm text-gray-700">
-          <div className="text-sm font-semibold text-gray-900">RUC</div>
+        <div className="space-y-2 text-sm text-gray-700">
+          <div className="text-sm font-semibold text-gray-900">
+            Verifica tu RUC
+          </div>
           <div className="text-xs text-gray-500">
-            Ingresa el RUC del negocio para completar el registro.
+            Ingresalo para completar la verificacion del negocio.
           </div>
           <div className="relative">
             <input
@@ -150,20 +251,25 @@ export default function AccountVerifyStep({
                 const next = event.target.value.replace(/\D/g, "").slice(0, 13);
                 setRucValue(next);
                 setRucConfirmed(false);
+                setRucMessage("");
+                setRucError("");
               }}
               placeholder="0000000000001"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
             />
-            {rucValid && (
-              <button
-                type="button"
-                onClick={() => setRucConfirmed(true)}
-                className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
-              >
-                OK
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSaveRuc}
+              disabled={!rucValid || savingRuc}
+              className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200 disabled:text-gray-300"
+            >
+              OK
+            </button>
           </div>
+          {rucMessage && (
+            <p className="text-xs text-green-600">{rucMessage}</p>
+          )}
+          {rucError && <p className="text-xs text-red-500">{rucError}</p>}
         </div>
 
         <div className="space-y-2 mt-10">
@@ -184,7 +290,9 @@ export default function AccountVerifyStep({
             </div>
           ) : (
             <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">Telefono</label>
+              <label className="block text-xs text-gray-500 ml-1">
+                Telefono
+              </label>
               <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-visible">
                 <button
                   type="button"
@@ -199,32 +307,33 @@ export default function AccountVerifyStep({
                   inputMode="numeric"
                   value={normalizedDigits}
                   onChange={(event) => handleDigitsChange(event.target.value)}
-                  placeholder="Ej: 987654321"
-                  className="flex-1 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none"
+                  placeholder="Numero celular"
+                  className="flex-1 px-3 py-2 text-sm text-gray-700 focus:outline-none"
                 />
-                {normalizedDigits.length > 0 && phoneValid && (
-                  <button
-                    type="button"
-                    onClick={() => setPhoneConfirmed(true)}
-                    className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
-                  >
-                    OK
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleSavePhone}
+                  disabled={!phoneValid || savingPhone}
+                  className="px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200 disabled:text-gray-300"
+                >
+                  OK
+                </button>
                 {dropdownOpen && (
-                  <div className="absolute left-0 top-full z-[60] mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg">
-                    {COUNTRY_CODES.map((item) => (
+                  <div className="absolute left-0 top-full mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-20">
+                    {COUNTRY_CODES.map((option) => (
                       <button
-                        key={item.code}
+                        key={option.code}
                         type="button"
                         onClick={() => {
-                          setCountryCode(item.code);
+                          setCountryCode(option.code);
                           setDropdownOpen(false);
                           setPhoneConfirmed(false);
+                          setPhoneMessage("");
+                          setPhoneError("");
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
                       >
-                        {item.code} {item.label}
+                        {option.code} {option.label}
                       </button>
                     ))}
                   </div>
@@ -232,33 +341,21 @@ export default function AccountVerifyStep({
               </div>
             </div>
           )}
+          {phoneMessage && (
+            <p className="text-xs text-green-600">{phoneMessage}</p>
+          )}
+          {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
         </div>
       </div>
 
-      <div className="mt-auto pt-6 space-y-3">
-        <div className="text-xs text-gray-500 text-center">
-          Si prefieres, tambien puedes continuar sin verificar.
-          Podras publicar 1 promocion por una semana, aunque las cuentas
-          verificadas aparecen con mas visibilidad para los usuarios.
-        </div>
+      <div className="mt-auto">
         <button
           type="button"
-          onClick={handleSave}
-          disabled={!phoneConfirmed || !rucConfirmed || saving}
-          className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
+          onClick={() => setCurrentScreen("email")}
+          disabled={!canContinue}
+          className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold disabled:opacity-50"
         >
-          {saving ? "Guardando..." : "Listo"}
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            openModal("AccountVerifySkip", {
-              onConfirm: () => onSkip?.(),
-            })
-          }
-          className="w-full text-sm font-semibold text-gray-500"
-        >
-          Saltar
+          Continuar
         </button>
       </div>
     </div>

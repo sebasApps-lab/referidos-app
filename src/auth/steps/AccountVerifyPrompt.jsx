@@ -26,8 +26,10 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
       }
       if (nextStatus === "in_progress") {
         onVerify?.();
+      } else if (onSkip) {
+        onSkip();
       } else {
-        onSkip?.();
+        window.location.href = "/app";
       }
     } finally {
       setSaving(false);

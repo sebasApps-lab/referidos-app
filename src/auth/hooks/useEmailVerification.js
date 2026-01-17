@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function useEmailVerification({ initialEmail = "" } = {}) {
@@ -8,6 +8,21 @@ export default function useEmailVerification({ initialEmail = "" } = {}) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (initialEmail) return;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const authEmail = data?.user?.email || "";
+      if (active && authEmail) {
+        setEmailValue(authEmail);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [initialEmail]);
 
   const handleSendEmail = useCallback(async () => {
     setError("");

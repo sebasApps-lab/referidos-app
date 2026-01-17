@@ -545,6 +545,8 @@ export default function AuthFlow() {
                 <AccountVerifyStep
                   innerRef={flow.regPage2Ref}
                   phone={onboarding?.phone || usuario?.telefono || ""}
+                  ruc={onboarding?.ruc || ""}
+                  emailConfirmed={Boolean(onboarding?.email_confirmed)}
                 />
               )}
             </div>

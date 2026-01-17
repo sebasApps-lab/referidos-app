@@ -34,9 +34,6 @@ export default function AppGate({ publicElement = null }) {
   const bootstrapError = useAppStore((s) => s.bootstrapError);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
   const logout = useAppStore((s) => s.logout);
-  const justCompletedRegistration = useAppStore(
-    (s) => s.justCompletedRegistration
-  );
   const resetRequestedRef = useRef(false);
   const validateAttemptedRef = useRef(false);
   const [validatePending, setValidatePending] = useState(false);
@@ -188,12 +185,11 @@ export default function AppGate({ publicElement = null }) {
   }
 
   if (publicElement) {
+    const verificationStatus =
+      onboarding?.verification_status || onboarding?.usuario?.verification_status;
     const shouldHoldAuth =
       location.pathname === "/auth" &&
-      justCompletedRegistration &&
-      onboarding?.allowAccess &&
-      onboarding?.email_confirmed === false &&
-      !onboarding?.phone;
+      (verificationStatus === "unverified" || verificationStatus === "in_progress");
     if (shouldHoldAuth) {
       return publicElement;
     }
