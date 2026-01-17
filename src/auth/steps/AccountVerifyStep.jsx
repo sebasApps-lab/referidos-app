@@ -56,6 +56,10 @@ export default function AccountVerifyStep({
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingPhone, setEditingPhone] = useState(!phone);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailValue, setEmailValue] = useState(email || "");
+  const [showSentMessage, setShowSentMessage] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const initialPhone = String(phone || "");
@@ -93,7 +97,8 @@ export default function AccountVerifyStep({
   const handleSendEmail = async () => {
     setError("");
     setMessage("");
-    if (!email) {
+    setShowSentMessage(false);
+    if (!emailValue) {
       setError("Ingresa un email valido");
       return;
     }
@@ -101,10 +106,12 @@ export default function AccountVerifyStep({
     try {
       const { error: resendError } = await supabase.auth.resend({
         type: "signup",
-        email,
+        email: emailValue,
       });
       if (resendError) throw resendError;
       setMessage("Te enviamos un correo de verificacion.");
+      setShowSentMessage(true);
+      setTimeout(() => setShowSentMessage(false), 5000);
     } catch (err) {
       setError(err?.message || "No se pudo enviar el codigo");
     } finally {
@@ -147,25 +154,50 @@ export default function AccountVerifyStep({
 
   return (
     <div className="flex h-full flex-col pb-4" ref={innerRef}>
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <p className="text-sm text-gray-600 text-center">
+          Esto es opcional, pero te ayudara a sacarle mas provecho a la app.
+        </p>
         {!emailConfirmed ? (
-          <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-4">
-            <div className="text-center space-y-1">
-              <div className="text-xs text-gray-500 uppercase tracking-[0.2em]">
-                Verificacion de Email
-              </div>
-              <div className="text-lg font-semibold text-[#2F1A55]">
-                Verifica que tu email sea correcto
-              </div>
-              <div className="text-xs text-gray-500">
-                Te enviaremos un codigo a este correo.
-              </div>
+          <div className="space-y-4 text-sm text-gray-700 mt-2">
+            <div className="space-y-1">
             </div>
             <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">Email</label>
-              <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                {email || "Sin correo"}
-              </div>
+              <label className="block text-xs text-gray-500 ml-1">
+                Verifica tu correo electronico.
+              </label>
+              {!editingEmail ? (
+                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                  <span>{emailValue || "Sin correo"}</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingEmail(true)}
+                    className="text-gray-400 hover:text-gray-600"
+                    aria-label="Editar email"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={emailValue}
+                    onChange={(event) => setEmailValue(event.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+                    placeholder="tu@email.com"
+                  />
+                  {emailValue && emailValue.includes("@") && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingEmail(false)}
+                      className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             {error && (
               <div className="text-center text-xs text-red-500">{error}</div>
@@ -175,11 +207,16 @@ export default function AccountVerifyStep({
                 {message}
               </div>
             )}
+            <div className="text-center text-xs text-gray-500">
+              {showSentMessage
+                ? "Te enviaremos un codigo a este correo."
+                : "Revisa tu bandeja de entrada o spam. Y sigue las instrucciones del correo."}
+            </div>
             <button
               type="button"
               onClick={handleSendEmail}
               disabled={sending}
-              className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-sm font-semibold text-white shadow disabled:opacity-60"
+              className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
             >
               {sending ? "Enviando..." : "Enviar codigo"}
             </button>
@@ -192,7 +229,7 @@ export default function AccountVerifyStep({
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 mt-4">
           <div className="text-sm font-semibold text-gray-900">
             Informacion de contacto
           </div>
@@ -209,17 +246,17 @@ export default function AccountVerifyStep({
               </button>
             </div>
           ) : (
-            <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">Telefono</label>
-              <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-hidden">
+          <div className="space-y-1">
+            <label className="block text-xs text-gray-500 ml-1">Telefono</label>
+              <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-visible">
                 <button
-                  type="button"
-                  onClick={() => setDropdownOpen((prev) => !prev)}
-                  className="flex items-center gap-1 px-3 text-sm text-gray-700 border-r border-gray-200"
-                >
-                  {countryCode}
-                  <ChevronIcon className="h-4 w-4 text-gray-400" />
-                </button>
+                type="button"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-1 px-3 text-sm text-gray-400 border-r border-gray-200"
+              >
+                {countryCode}
+                <ChevronIcon className="h-4 w-4 text-gray-400" />
+              </button>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -229,7 +266,7 @@ export default function AccountVerifyStep({
                   className="flex-1 px-3 py-2 text-sm text-gray-700 focus:outline-none"
                 />
                 {dropdownOpen && (
-                  <div className="absolute left-0 top-full z-20 mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <div className="absolute left-0 top-full z-[60] mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg">
                     {COUNTRY_CODES.map((item) => (
                       <button
                         key={item.code}
@@ -249,9 +286,15 @@ export default function AccountVerifyStep({
             </div>
           )}
         </div>
+
       </div>
 
       <div className="mt-auto pt-6 space-y-3">
+        <div className="text-xs text-gray-500 text-center">
+          Si prefieres, tambien puedes continuar sin verificar.
+          Podras publicar 1 promocion por una semana, aunque las cuentas
+          verificadas aparecen con mas visibilidad para los usuarios.
+        </div>
         <button
           type="button"
           onClick={handleSave}
@@ -262,12 +305,46 @@ export default function AccountVerifyStep({
         </button>
         <button
           type="button"
-          onClick={onSkip}
-          className="w-full text-sm text-gray-500"
+          onClick={() => setShowSkipModal(true)}
+          className="w-full text-sm font-semibold text-gray-500"
         >
           Saltar
         </button>
       </div>
+
+      {showSkipModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-gray-700 shadow-2xl">
+            <div className="text-center text-sm font-semibold text-gray-900">
+              Al verificar tu cuenta podras:
+            </div>
+            <div className="mt-3 space-y-1 text-sm text-gray-600">
+              <div>Publicar hasta 2 promociones adicionales</div>
+              <div>Obtener mayor visibilidad en la app</div>
+              <div>Mostrar tu perfil como cuenta verificada</div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSkipModal(false)}
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-600"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSkipModal(false);
+                  onSkip?.();
+                }}
+                className="flex-1 rounded-lg bg-[#5E30A5] py-2 text-sm font-semibold text-white"
+              >
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

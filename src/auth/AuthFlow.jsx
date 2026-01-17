@@ -47,8 +47,9 @@ const STEP_COPY = {
     subtitle: "Ayúdanos a conectar tu negocio con personas cerca de ti.",
   },
   [AUTH_STEPS.ACCOUNT_VERIFY]: {
-    header: "Verifica tu cuenta",
-    subtitle: "",
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudara a sacarle mas provecho a la app.",
   },
 };
 
