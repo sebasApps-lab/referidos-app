@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
-import { validarCedula } from "../../utils/validators";
 
 const COUNTRY_CODES = [
   { code: "+593", label: "Ecuador" },
@@ -47,16 +46,22 @@ function ChevronIcon({ className = "" }) {
 
 export default function AccountVerifyStep({
   innerRef,
+  email,
+  emailConfirmed,
   phone,
   onSkip,
   onComplete,
 }) {
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingPhone, setEditingPhone] = useState(!phone);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailValue, setEmailValue] = useState(email || "");
+  const [emailSent, setEmailSent] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean(phone));
-  const [rucValue, setRucValue] = useState("");
-  const [rucConfirmed, setRucConfirmed] = useState(false);
   const { openModal } = useModal();
 
   const initialPhone = String(phone || "");
@@ -77,17 +82,8 @@ export default function AccountVerifyStep({
   const normalizedDigits = digits.replace(/\D/g, "");
   const isEcuador = countryCode === "+593";
   const normalizedPhone = `${countryCode}${normalizedDigits}`;
-  const phoneValid = isEcuador
-    ? normalizedDigits.length === 9
-    : normalizedDigits.length >= 6;
-
-  const normalizedRuc = rucValue.replace(/\D/g, "").slice(0, 13);
-  const rucCore = normalizedRuc.slice(0, 10);
-  const rucSuffix = normalizedRuc.slice(10);
-  const rucValid =
-    normalizedRuc.length === 13 &&
-    rucSuffix === "001" &&
-    validarCedula(rucCore);
+  const hasPhone = Boolean(phone) || normalizedDigits.length > 0;
+  const phoneValid = isEcuador ? normalizedDigits.length === 9 : normalizedDigits.length >= 6;
 
   const handleDigitsChange = (value) => {
     let next = String(value || "").replace(/\D/g, "");
@@ -98,11 +94,36 @@ export default function AccountVerifyStep({
       next = next.slice(0, 9);
     }
     setDigits(next);
-    setPhoneConfirmed(false);
+  };
+
+  const handleSendEmail = async () => {
+    setError("");
+    setMessage("");
+    if (!emailValue) {
+      setError("Ingresa un email valido");
+      return;
+    }
+    setSending(true);
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: emailValue,
+      });
+      if (resendError) throw resendError;
+      setMessage("Te enviamos un correo de verificacion.");
+      setEmailSent(true);
+    } catch (err) {
+      setError(err?.message || "No se pudo enviar el codigo");
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSave = async () => {
-    if (!phoneConfirmed || !rucConfirmed) return;
+    setError("");
+    setMessage("");
+    if (!emailSent) return;
+    if (!phoneConfirmed) return;
 
     if (!editingPhone || (phone && normalizedPhone === phone)) {
       onComplete?.();
@@ -114,6 +135,7 @@ export default function AccountVerifyStep({
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId) {
+        setError("No hay sesion activa");
         return;
       }
       const { error: updErr } = await supabase
@@ -121,6 +143,7 @@ export default function AccountVerifyStep({
         .update({ telefono: normalizedPhone })
         .eq("id_auth", userId);
       if (updErr) {
+        setError(updErr.message || "No se pudo guardar el telefono");
         return;
       }
       onComplete?.();
@@ -135,36 +158,81 @@ export default function AccountVerifyStep({
         <p className="text-sm text-gray-600 text-center">
           Esto es opcional, pero te ayudara a sacarle mas provecho a la app.
         </p>
-
-        <div className="space-y-2 mt-2 text-sm text-gray-700">
-          <div className="text-sm font-semibold text-gray-900">RUC</div>
-          <div className="text-xs text-gray-500">
-            Ingresa el RUC del negocio para completar el registro.
-          </div>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={normalizedRuc}
-              onChange={(event) => {
-                const next = event.target.value.replace(/\D/g, "").slice(0, 13);
-                setRucValue(next);
-                setRucConfirmed(false);
-              }}
-              placeholder="0000000000001"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
-            />
-            {rucValid && (
-              <button
-                type="button"
-                onClick={() => setRucConfirmed(true)}
-                className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
-              >
-                OK
-              </button>
+        {!emailConfirmed ? (
+          <div className="space-y-4 text-sm text-gray-700 mt-2">
+            {!emailSent ? (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Verifica tu correo electronico.
+                  </label>
+                  {!editingEmail ? (
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                      <span>{emailValue || "Sin correo"}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmail(true)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Editar email"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={emailValue}
+                        onChange={(event) => setEmailValue(event.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+                        placeholder="tu@email.com"
+                      />
+                      {emailValue && emailValue.includes("@") && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingEmail(false)}
+                          className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
+                        >
+                          OK
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {error && (
+                  <div className="text-center text-xs text-red-500">{error}</div>
+                )}
+                <div className="text-center text-xs text-gray-500">
+                  Te enviaremos un codigo a este correo.
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={sending}
+                  className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
+                >
+                  {sending ? "Enviando..." : "Enviar correo"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-center text-xs text-emerald-500">
+                  {message}
+                </div>
+                <div className="text-center text-xs text-gray-500">
+                  Revisa tu bandeja de entrada o spam. Y sigue las instrucciones
+                  del correo.
+                </div>
+              </>
             )}
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700">
+            <div className="text-center text-sm font-semibold text-emerald-600">
+              Correo verificado
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2 mt-10">
           <div className="text-sm font-semibold text-gray-900">
@@ -183,17 +251,17 @@ export default function AccountVerifyStep({
               </button>
             </div>
           ) : (
-            <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">Telefono</label>
+          <div className="space-y-1">
+            <label className="block text-xs text-gray-500 ml-1">Telefono</label>
               <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-visible">
                 <button
-                  type="button"
-                  onClick={() => setDropdownOpen((prev) => !prev)}
-                  className="flex items-center gap-1 px-3 text-sm text-gray-400 border-r border-gray-200"
-                >
-                  {countryCode}
-                  <ChevronIcon className="h-4 w-4 text-gray-400" />
-                </button>
+                type="button"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-1 px-3 text-sm text-gray-400 border-r border-gray-200"
+              >
+                {countryCode}
+                <ChevronIcon className="h-4 w-4 text-gray-400" />
+              </button>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -202,15 +270,17 @@ export default function AccountVerifyStep({
                   placeholder="Ej: 987654321"
                   className="flex-1 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none"
                 />
-                {normalizedDigits.length > 0 && phoneValid && (
-                  <button
-                    type="button"
-                    onClick={() => setPhoneConfirmed(true)}
-                    className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
-                  >
-                    OK
-                  </button>
-                )}
+                {normalizedDigits.length > 0 &&
+                  ((isEcuador && normalizedDigits.length === 9) ||
+                    (!isEcuador && normalizedDigits.length >= 6)) && (
+                    <button
+                      type="button"
+                      onClick={() => setPhoneConfirmed(true)}
+                      className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
+                    >
+                      OK
+                    </button>
+                  )}
                 {dropdownOpen && (
                   <div className="absolute left-0 top-full z-[60] mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg">
                     {COUNTRY_CODES.map((item) => (
@@ -233,6 +303,7 @@ export default function AccountVerifyStep({
             </div>
           )}
         </div>
+
       </div>
 
       <div className="mt-auto pt-6 space-y-3">
@@ -244,7 +315,7 @@ export default function AccountVerifyStep({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!phoneConfirmed || !rucConfirmed || saving}
+          disabled={!emailSent || !phoneConfirmed || saving}
           className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {saving ? "Guardando..." : "Listo"}
@@ -261,6 +332,7 @@ export default function AccountVerifyStep({
           Saltar
         </button>
       </div>
+
     </div>
   );
 }

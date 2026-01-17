@@ -14,6 +14,7 @@ import BusinessDataStep from "./steps/BusinessDataStep";
 import BusinessCategoryStep from "./steps/BusinessCategoryStep";
 import BusinessAddressStep from "./steps/BusinessAddressStep";
 import AccountVerifyStep from "./steps/AccountVerifyStep";
+import AccountVerifyPrompt from "./steps/AccountVerifyPrompt";
 import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
@@ -34,17 +35,17 @@ const STEP_COPY = {
   },
   [AUTH_STEPS.BUSINESS_DATA]: {
     header: "Ahora tu negocio",
-    subtitle: "Así te verán tus clientes",
+    subtitle: "Asi te veran tus clientes",
   },
   [AUTH_STEPS.BUSINESS_CATEGORY]: {
-    header: "Cuentanos a qué se dedica tu negocio",
-    headerFallback: "¿Cómo definirías tu negocio?",
-    subtitle: "No te preocupes, puedes cambiarlo después",
-    helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
+    header: "Cuentanos a que se dedica tu negocio",
+    headerFallback: "Como definirias tu negocio?",
+    subtitle: "No te preocupes, puedes cambiarlo despues",
+    helperLabel: "Asi podremos mostrar tus promos a las personas correctas.",
   },
   [AUTH_STEPS.BUSINESS_ADDRESS]: {
-    header: "¿Dónde estás ubicado?",
-    subtitle: "Ayúdanos a conectar tu negocio con personas cerca de ti.",
+    header: "Donde estas ubicado?",
+    subtitle: "Ayudanos a conectar tu negocio con personas cerca de ti.",
   },
   [AUTH_STEPS.ACCOUNT_VERIFY]: {
     header: "Desbloquea tus beneficios",
@@ -58,12 +59,6 @@ export default function AuthFlow() {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout);
-  const justCompletedRegistration = useAppStore(
-    (s) => s.justCompletedRegistration
-  );
-  const setJustCompletedRegistration = useAppStore(
-    (s) => s.setJustCompletedRegistration
-  );
   const initialStep = useMemo(
     () =>
       location.pathname === "/auth"
@@ -229,33 +224,28 @@ export default function AuthFlow() {
   });
 
 
-  const shouldShowAccountVerify = Boolean(
-    justCompletedRegistration &&
-      onboarding?.allowAccess &&
-      onboarding?.email_confirmed === false &&
-      !onboarding?.phone
-  );
-
+  const verificationStatus =
+    onboarding?.verification_status || onboarding?.usuario?.verification_status;
   useEffect(() => {
-    if (shouldShowAccountVerify && flow.step !== AUTH_STEPS.ACCOUNT_VERIFY) {
-      flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY);
+    if (!onboarding?.allowAccess) return;
+    if (verificationStatus === "unverified") {
+      if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_PROMPT) {
+        flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);
+      }
       return;
     }
-    if (
-      justCompletedRegistration &&
-      onboarding?.allowAccess &&
-      !shouldShowAccountVerify
-    ) {
-      setJustCompletedRegistration(false);
+    if (verificationStatus === "in_progress") {
+      const target = AUTH_STEPS.ACCOUNT_VERIFY;
+      if (flow.step !== target) {
+        flow.setStep(target);
+      }
+      return;
     }
   }, [
     flow,
-    justCompletedRegistration,
     onboarding?.allowAccess,
-    setJustCompletedRegistration,
-    shouldShowAccountVerify,
+    verificationStatus,
   ]);
-
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
   const hasMinLength = flow.password.length >= 8;
   const hasNumber = /\d/.test(flow.password);
@@ -283,6 +273,7 @@ export default function AuthFlow() {
     AUTH_STEPS.BUSINESS_CATEGORY,
     AUTH_STEPS.BUSINESS_ADDRESS,
     AUTH_STEPS.ACCOUNT_VERIFY,
+    AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
   ].includes(flow.step);
   const containerClassName = isWelcome
     ? "justify-center pb-28"
@@ -543,14 +534,17 @@ export default function AuthFlow() {
                 />
               )}
 
+              {flow.step === AUTH_STEPS.ACCOUNT_VERIFY_PROMPT && (
+                <AccountVerifyPrompt
+                  innerRef={flow.regPage2Ref}
+                  onVerify={() => flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY)}
+                />
+              )}
+
               {flow.step === AUTH_STEPS.ACCOUNT_VERIFY && (
                 <AccountVerifyStep
                   innerRef={flow.regPage2Ref}
-                  email={usuario?.email || flow.email}
-                  emailConfirmed={Boolean(onboarding?.email_confirmed)}
                   phone={onboarding?.phone || usuario?.telefono || ""}
-                  onSkip={() => setJustCompletedRegistration(false)}
-                  onComplete={() => setJustCompletedRegistration(false)}
                 />
               )}
             </div>
@@ -589,3 +583,4 @@ export default function AuthFlow() {
     </AuthView>
   );
 }
+
