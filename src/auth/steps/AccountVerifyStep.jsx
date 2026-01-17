@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
 
 const COUNTRY_CODES = [
@@ -58,9 +59,10 @@ export default function AccountVerifyStep({
   const [editingPhone, setEditingPhone] = useState(!phone);
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailValue, setEmailValue] = useState(email || "");
-  const [showSentMessage, setShowSentMessage] = useState(false);
-  const [showSkipModal, setShowSkipModal] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean(phone));
+  const { openModal } = useModal();
 
   const initialPhone = String(phone || "");
   const parsed = useMemo(() => {
@@ -81,7 +83,7 @@ export default function AccountVerifyStep({
   const isEcuador = countryCode === "+593";
   const normalizedPhone = `${countryCode}${normalizedDigits}`;
   const hasPhone = Boolean(phone) || normalizedDigits.length > 0;
-  const phoneValid = isEcuador ? normalizedDigits.length === 9 : normalizedDigits.length > 0;
+  const phoneValid = isEcuador ? normalizedDigits.length === 9 : normalizedDigits.length >= 6;
 
   const handleDigitsChange = (value) => {
     let next = String(value || "").replace(/\D/g, "");
@@ -97,7 +99,6 @@ export default function AccountVerifyStep({
   const handleSendEmail = async () => {
     setError("");
     setMessage("");
-    setShowSentMessage(false);
     if (!emailValue) {
       setError("Ingresa un email valido");
       return;
@@ -110,8 +111,7 @@ export default function AccountVerifyStep({
       });
       if (resendError) throw resendError;
       setMessage("Te enviamos un correo de verificacion.");
-      setShowSentMessage(true);
-      setTimeout(() => setShowSentMessage(false), 5000);
+      setEmailSent(true);
     } catch (err) {
       setError(err?.message || "No se pudo enviar el codigo");
     } finally {
@@ -122,8 +122,8 @@ export default function AccountVerifyStep({
   const handleSave = async () => {
     setError("");
     setMessage("");
-    if (!emailConfirmed) return;
-    if (!hasPhone || !phoneValid) return;
+    if (!emailSent) return;
+    if (!phoneConfirmed) return;
 
     if (!editingPhone || (phone && normalizedPhone === phone)) {
       onComplete?.();
@@ -160,66 +160,71 @@ export default function AccountVerifyStep({
         </p>
         {!emailConfirmed ? (
           <div className="space-y-4 text-sm text-gray-700 mt-2">
-            <div className="space-y-1">
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">
-                Verifica tu correo electronico.
-              </label>
-              {!editingEmail ? (
-                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                  <span>{emailValue || "Sin correo"}</span>
-                  <button
-                    type="button"
-                    onClick={() => setEditingEmail(true)}
-                    className="text-gray-400 hover:text-gray-600"
-                    aria-label="Editar email"
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={emailValue}
-                    onChange={(event) => setEmailValue(event.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
-                    placeholder="tu@email.com"
-                  />
-                  {emailValue && emailValue.includes("@") && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingEmail(false)}
-                      className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
-                    >
-                      OK
-                    </button>
+            {!emailSent ? (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs text-gray-500 ml-1">
+                    Verifica tu correo electronico.
+                  </label>
+                  {!editingEmail ? (
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                      <span>{emailValue || "Sin correo"}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmail(true)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Editar email"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={emailValue}
+                        onChange={(event) => setEmailValue(event.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+                        placeholder="tu@email.com"
+                      />
+                      {emailValue && emailValue.includes("@") && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingEmail(false)}
+                          className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
+                        >
+                          OK
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-            {error && (
-              <div className="text-center text-xs text-red-500">{error}</div>
+                {error && (
+                  <div className="text-center text-xs text-red-500">{error}</div>
+                )}
+                <div className="text-center text-xs text-gray-500">
+                  Te enviaremos un codigo a este correo.
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={sending}
+                  className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
+                >
+                  {sending ? "Enviando..." : "Enviar correo"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-center text-xs text-emerald-500">
+                  {message}
+                </div>
+                <div className="text-center text-xs text-gray-500">
+                  Revisa tu bandeja de entrada o spam. Y sigue las instrucciones
+                  del correo.
+                </div>
+              </>
             )}
-            {message && (
-              <div className="text-center text-xs text-emerald-500">
-                {message}
-              </div>
-            )}
-            <div className="text-center text-xs text-gray-500">
-              {showSentMessage
-                ? "Te enviaremos un codigo a este correo."
-                : "Revisa tu bandeja de entrada o spam. Y sigue las instrucciones del correo."}
-            </div>
-            <button
-              type="button"
-              onClick={handleSendEmail}
-              disabled={sending}
-              className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
-            >
-              {sending ? "Enviando..." : "Enviar codigo"}
-            </button>
           </div>
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700">
@@ -229,11 +234,11 @@ export default function AccountVerifyStep({
           </div>
         )}
 
-        <div className="space-y-2 mt-4">
+        <div className="space-y-2 mt-10">
           <div className="text-sm font-semibold text-gray-900">
             Informacion de contacto
           </div>
-          {!editingPhone && phone ? (
+          {!editingPhone && phoneConfirmed && phone ? (
             <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700">
               <span>{phone}</span>
               <button
@@ -263,8 +268,19 @@ export default function AccountVerifyStep({
                   value={normalizedDigits}
                   onChange={(event) => handleDigitsChange(event.target.value)}
                   placeholder="Ej: 987654321"
-                  className="flex-1 px-3 py-2 text-sm text-gray-700 focus:outline-none"
+                  className="flex-1 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none"
                 />
+                {normalizedDigits.length > 0 &&
+                  ((isEcuador && normalizedDigits.length === 9) ||
+                    (!isEcuador && normalizedDigits.length >= 6)) && (
+                    <button
+                      type="button"
+                      onClick={() => setPhoneConfirmed(true)}
+                      className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200"
+                    >
+                      OK
+                    </button>
+                  )}
                 {dropdownOpen && (
                   <div className="absolute left-0 top-full z-[60] mt-2 w-40 rounded-lg border border-gray-200 bg-white shadow-lg">
                     {COUNTRY_CODES.map((item) => (
@@ -274,6 +290,7 @@ export default function AccountVerifyStep({
                         onClick={() => {
                           setCountryCode(item.code);
                           setDropdownOpen(false);
+                          setPhoneConfirmed(false);
                         }}
                         className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                       >
@@ -298,53 +315,24 @@ export default function AccountVerifyStep({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!emailConfirmed || !hasPhone || !phoneValid || saving}
+          disabled={!emailSent || !phoneConfirmed || saving}
           className="w-full bg-[#5E30A5] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {saving ? "Guardando..." : "Verificar"}
+          {saving ? "Guardando..." : "Listo"}
         </button>
         <button
           type="button"
-          onClick={() => setShowSkipModal(true)}
+          onClick={() =>
+            openModal("AccountVerifySkip", {
+              onConfirm: () => onSkip?.(),
+            })
+          }
           className="w-full text-sm font-semibold text-gray-500"
         >
           Saltar
         </button>
       </div>
 
-      {showSkipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-6 backdrop-blur-[2px]">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-gray-700 shadow-2xl">
-            <div className="text-center text-sm font-semibold text-gray-900">
-              Al verificar tu cuenta podras:
-            </div>
-            <div className="mt-3 space-y-1 text-sm text-gray-600">
-              <div>Publicar hasta 2 promociones adicionales</div>
-              <div>Obtener mayor visibilidad en la app</div>
-              <div>Mostrar tu perfil como cuenta verificada</div>
-            </div>
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowSkipModal(false)}
-                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-600"
-              >
-                Volver
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSkipModal(false);
-                  onSkip?.();
-                }}
-                className="flex-1 rounded-lg bg-[#5E30A5] py-2 text-sm font-semibold text-white"
-              >
-                Ahora no
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
