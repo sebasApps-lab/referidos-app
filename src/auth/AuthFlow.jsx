@@ -52,6 +52,11 @@ const STEP_COPY = {
     subtitle:
       "Esto es opcional, pero te ayudara a sacarle mas provecho a la app.",
   },
+  [AUTH_STEPS.ACCOUNT_VERIFY_PROMPT]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudara a sacarle mas provecho a la app.",
+  },
 };
 
 export default function AuthFlow() {

@@ -1,49 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { validarCedula } from "../../utils/validators";
+import ContactPhoneBlock from "../blocks/ContactPhoneBlock";
 import EmailVerificationBlock from "../blocks/EmailVerificationBlock";
-
-const COUNTRY_CODES = [
-  { code: "+593", label: "Ecuador" },
-  { code: "+57", label: "Colombia" },
-  { code: "+51", label: "Peru" },
-  { code: "+1", label: "USA/Canada" },
-  { code: "+34", label: "Espana" },
-  { code: "+52", label: "Mexico" },
-];
-
-function PencilIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ className = "" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
 
 export default function AccountVerifyStep({
   innerRef,
@@ -55,39 +14,12 @@ export default function AccountVerifyStep({
     if (phone && ruc && emailConfirmed === false) return "email";
     return "contact";
   });
-  const [savingPhone, setSavingPhone] = useState(false);
   const [savingRuc, setSavingRuc] = useState(false);
-  const [editingPhone, setEditingPhone] = useState(!phone);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean(phone));
-  const [phoneMessage, setPhoneMessage] = useState("");
-  const [phoneError, setPhoneError] = useState("");
   const [rucValue, setRucValue] = useState(String(ruc || ""));
   const [rucConfirmed, setRucConfirmed] = useState(Boolean(ruc));
   const [rucMessage, setRucMessage] = useState("");
   const [rucError, setRucError] = useState("");
-
-  const initialPhone = String(phone || "");
-  const parsed = useMemo(() => {
-    if (!initialPhone) {
-      return { code: "+593", digits: "" };
-    }
-    const match = COUNTRY_CODES.find((c) => initialPhone.startsWith(c.code));
-    if (match) {
-      return { code: match.code, digits: initialPhone.slice(match.code.length) };
-    }
-    return { code: "+593", digits: initialPhone.replace(/\D/g, "") };
-  }, [initialPhone]);
-
-  const [countryCode, setCountryCode] = useState(parsed.code);
-  const [digits, setDigits] = useState(parsed.digits);
-
-  const normalizedDigits = digits.replace(/\D/g, "");
-  const isEcuador = countryCode === "+593";
-  const normalizedPhone = `${countryCode}${normalizedDigits}`;
-  const phoneValid = isEcuador
-    ? normalizedDigits.length === 9
-    : normalizedDigits.length >= 6;
 
   const normalizedRuc = rucValue.replace(/\D/g, "").slice(0, 13);
   const rucCore = normalizedRuc.slice(0, 10);
@@ -99,46 +31,23 @@ export default function AccountVerifyStep({
 
   const canContinue = phoneConfirmed && rucConfirmed;
 
-  const handleDigitsChange = (value) => {
-    let next = String(value || "").replace(/\D/g, "");
-    if (isEcuador) {
-      if (next.startsWith("0")) {
-        next = next.replace(/^0+/, "");
-      }
-      next = next.slice(0, 9);
+  const handleSavePhone = async (normalizedPhone) => {
+    const session = (await supabase.auth.getSession())?.data?.session;
+    const userId = session?.user?.id;
+    if (!userId) {
+      return { ok: false, error: "No se pudo obtener sesion." };
     }
-    setDigits(next);
-    setPhoneConfirmed(false);
-    setPhoneMessage("");
-    setPhoneError("");
-  };
-
-  const handleSavePhone = async () => {
-    if (!phoneValid || savingPhone) return;
-    setSavingPhone(true);
-    setPhoneMessage("");
-    setPhoneError("");
-    try {
-      const session = (await supabase.auth.getSession())?.data?.session;
-      const userId = session?.user?.id;
-      if (!userId) {
-        setPhoneError("No se pudo obtener sesion.");
-        return;
-      }
-      const { error: updErr } = await supabase
-        .from("usuarios")
-        .update({ telefono: normalizedPhone })
-        .eq("id_auth", userId);
-      if (updErr) {
-        setPhoneError(updErr.message || "No se pudo guardar el telefono.");
-        return;
-      }
-      setPhoneConfirmed(true);
-      setEditingPhone(false);
-      setPhoneMessage("Telefono guardado.");
-    } finally {
-      setSavingPhone(false);
+    const { error: updErr } = await supabase
+      .from("usuarios")
+      .update({ telefono: normalizedPhone })
+      .eq("id_auth", userId);
+    if (updErr) {
+      return {
+        ok: false,
+        error: updErr.message || "No se pudo guardar el telefono.",
+      };
     }
+    return { ok: true, message: "Telefono guardado." };
   };
 
   const handleSaveRuc = async () => {
@@ -218,7 +127,25 @@ export default function AccountVerifyStep({
   if (currentScreen === "email") {
     return (
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
-        <div className="flex-1">
+        <div className="flex-1 space-y-4">
+          <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5 text-[#5E30A5]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3l7 3v6c0 5-3.5 9-7 12-3.5-3-7-7-7-12V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+            Lleva tu cuenta al siguiente nivel
+          </div>
+          <p className="text-sm text-gray-600">
+            Es opcional, pero te permitira aprovechar mucho mas la app.
+          </p>
           <EmailVerificationBlock email={""} />
         </div>
         <button
@@ -235,6 +162,26 @@ export default function AccountVerifyStep({
   return (
     <div className="flex h-full flex-col pb-4" ref={innerRef}>
       <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5 text-[#5E30A5]"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3l7 3v6c0 5-3.5 9-7 12-3.5-3-7-7-7-12V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+            Lleva tu cuenta al siguiente nivel
+          </div>
+          <p className="text-sm text-gray-600">
+            Es opcional, pero te permitira aprovechar mucho mas la app.
+          </p>
+        </div>
         <div className="space-y-2 text-sm text-gray-700">
           <div className="text-sm font-semibold text-gray-900">
             Verifica tu RUC
@@ -272,80 +219,11 @@ export default function AccountVerifyStep({
           {rucError && <p className="text-xs text-red-500">{rucError}</p>}
         </div>
 
-        <div className="space-y-2 mt-10">
-          <div className="text-sm font-semibold text-gray-900">
-            Informacion de contacto
-          </div>
-          {!editingPhone && phoneConfirmed && phone ? (
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700">
-              <span>{phone}</span>
-              <button
-                type="button"
-                onClick={() => setEditingPhone(true)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Editar telefono"
-              >
-                <PencilIcon className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <label className="block text-xs text-gray-500 ml-1">
-                Telefono
-              </label>
-              <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-visible">
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen((prev) => !prev)}
-                  className="flex items-center gap-1 px-3 text-sm text-gray-400 border-r border-gray-200"
-                >
-                  {countryCode}
-                  <ChevronIcon className="h-4 w-4 text-gray-400" />
-                </button>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={normalizedDigits}
-                  onChange={(event) => handleDigitsChange(event.target.value)}
-                  placeholder="Numero celular"
-                  className="flex-1 px-3 py-2 text-sm text-gray-700 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleSavePhone}
-                  disabled={!phoneValid || savingPhone}
-                  className="px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200 disabled:text-gray-300"
-                >
-                  OK
-                </button>
-                {dropdownOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-20">
-                    {COUNTRY_CODES.map((option) => (
-                      <button
-                        key={option.code}
-                        type="button"
-                        onClick={() => {
-                          setCountryCode(option.code);
-                          setDropdownOpen(false);
-                          setPhoneConfirmed(false);
-                          setPhoneMessage("");
-                          setPhoneError("");
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
-                      >
-                        {option.code} {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          {phoneMessage && (
-            <p className="text-xs text-green-600">{phoneMessage}</p>
-          )}
-          {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
-        </div>
+        <ContactPhoneBlock
+          phone={phone}
+          onSave={handleSavePhone}
+          onStatusChange={({ confirmed }) => setPhoneConfirmed(confirmed)}
+        />
       </div>
 
       <div className="mt-auto">

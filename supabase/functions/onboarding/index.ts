@@ -1,14 +1,14 @@
-﻿// supabase/functions/onboarding/index.ts
+// supabase/functions/onboarding/index.ts
 //
 // Health-check de onboarding que se ejecuta al entrar a la app (bootstrap inicial).
-// Valida el usuario autenticado (token Bearer), sincroniza datos tÃ©cnicos crÃ­ticos
+// Valida el usuario autenticado (token Bearer), sincroniza datos técnicos críticos
 // del perfil con Auth (ej. email), y verifica la consistencia y completitud del perfil
-// segÃºn el rol del usuario.
+// según el rol del usuario.
 //
-// Esta funciÃ³n NO implementa un flujo de registro.
-// Su responsabilidad es Ãºnicamente:
+// Esta función NO implementa un flujo de registro.
+// Su responsabilidad es únicamente:
 // - Determinar si el usuario puede acceder a la app (`allowAccess`)
-// - Reportar razones tÃ©cnicas o de negocio por las que no puede acceder (`reasons[]`)
+// - Reportar razones técnicas o de negocio por las que no puede acceder (`reasons[]`)
 //
 // El acceso final depende de:
 // - `account_status` (solo `active` permite acceso)
@@ -17,13 +17,13 @@
 // Notas importantes:
 // - No se crean perfiles nuevos si no existen.
 // - No se modifican estados de cuenta (`account_status`).
-// - No se toman decisiones temporales (ej. expiraciÃ³n por tiempo).
+// - No se toman decisiones temporales (ej. expiración por tiempo).
 // - No se persiste estado derivado de onboarding.
 // - El frontend solo OBSERVA la respuesta; no es fuente de verdad.
 //
 // Limitaciones conocidas:
-// - Supabase Edge no expone si el usuario tiene contraseÃ±a.
-//   El provider de Auth se usa como mejor seÃ±al disponible.
+// - Supabase Edge no expone si el usuario tiene contraseña.
+//   El provider de Auth se usa como mejor señal disponible.
 
 
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
@@ -37,7 +37,7 @@ if(!supabaseUrl || !publishableKey || !secretKey) {
     throw new Error("Missing Supabase env vars: SUPABASE_URL, PUBLISHABLE_KEY, SECRET_KEY");
 }
 
-//Cliente pÃºblico: valida el token del usuario.
+//Cliente público: valida el token del usuario.
 const supabasePublic = createClient(supabaseUrl, publishableKey);
 //Cliente service-role: lectura/escritura controlada.
 const supabaseAdmin = createClient(supabaseUrl, secretKey);
@@ -68,7 +68,8 @@ type UsuarioProfile = {
     role: string | null;
     nombre: string | null;
     apellido: string | null;
-    telefono: string | null;\n    verification_status: string | null;
+    telefono: string | null;
+    verification_status: string | null;
     emailConfirmado: boolean | null;
     fecha_nacimiento: string | null;
     genero: string | null;
@@ -198,7 +199,7 @@ serve (async (req) => {
         );
     }
 
-    //Si no hay perfil, no creamos aquÃ­ (solo reportamos).
+    //Si no hay perfil, no creamos aquí (solo reportamos).
     if (!profile) {
         return json(
             {
@@ -226,7 +227,7 @@ serve (async (req) => {
         reasons.push(`account_status:${accountStatus}`);
     }
     
-    //4) Sincronizar email Auth â†’ perfil (no bloquea acceso)
+    //4) Sincronizar email Auth → perfil (no bloquea acceso)
     if (authEmail && profile.email !== authEmail) {
         patch.email = authEmail;
     }
@@ -360,7 +361,7 @@ serve (async (req) => {
         }
     }
 
-    //6) Aplicar parches tÃ©cnicos (email/nombre)
+    //6) Aplicar parches técnicos (email/nombre)
     let updatedProfile = profile;
     if (Object.keys(patch).length > 0) {
         const { data: upd, error: updErr } = await supabaseAdmin
@@ -388,7 +389,19 @@ serve (async (req) => {
         updatedProfile = upd ?? profile;
     }
 
-        let rucValue: string | null = null;\n    if (negocioRow?.id) {\n        const { data: verifRow } = await supabaseAdmin\n            .from('verificacion_negocio')\n            .select('ruc')\n            .eq('negocio_id', negocioRow.id)\n            .order('created_at', { ascending: false })\n            .limit(1)\n            .maybeSingle();\n        rucValue = verifRow?.ruc ?? null;\n    }\n\n//7) Resultado FINAL
+        let rucValue: string | null = null;
+    if (negocioRow?.id) {
+        const { data: verifRow } = await supabaseAdmin
+            .from('verificacion_negocio')
+            .select('ruc')
+            .eq('negocio_id', negocioRow.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        rucValue = verifRow?.ruc ?? null;
+    }
+
+//7) Resultado FINAL
     const allowAccess =
         accountStatus === "active" && reasons.length === 0;
 

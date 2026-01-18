@@ -8,6 +8,8 @@ export const AUTH_STEPS = {
   BUSINESS_DATA: "business-data",
   BUSINESS_CATEGORY: "business-category",
   BUSINESS_ADDRESS: "business-address",
+  ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
+  ACCOUNT_VERIFY: "account-verify",
   PENDING: "pending",
   ERROR: "error",
 };
@@ -18,4 +20,5 @@ export const AUTH_FORM_STEPS = {
   BUSINESS_CATEGORY: "business-category",
   BUSINESS_ADDRESS: "business-address",
   ACCOUNT_VERIFY: "account-verify",
+  ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
 };
