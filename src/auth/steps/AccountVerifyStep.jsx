@@ -82,40 +82,13 @@ export default function AccountVerifyStep({
         setRucError("No se pudo obtener el negocio.");
         return;
       }
-      const { data: existing, error: existingErr } = await supabase
-        .from("verificacion_negocio")
-        .select("id")
-        .eq("negocio_id", negocioRow.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existingErr) {
-        setRucError(existingErr.message || "No se pudo validar el RUC.");
+      const { error: updErr } = await supabase
+        .from("negocios")
+        .update({ ruc: normalizedRuc })
+        .eq("id", negocioRow.id);
+      if (updErr) {
+        setRucError(updErr.message || "No se pudo guardar el RUC.");
         return;
-      }
-      const payload = {
-        negocio_id: negocioRow.id,
-        ruc: normalizedRuc,
-        estado: "pending",
-        fuente: "manual",
-      };
-      if (existing?.id) {
-        const { error: updErr } = await supabase
-          .from("verificacion_negocio")
-          .update(payload)
-          .eq("id", existing.id);
-        if (updErr) {
-          setRucError(updErr.message || "No se pudo guardar el RUC.");
-          return;
-        }
-      } else {
-        const { error: insErr } = await supabase
-          .from("verificacion_negocio")
-          .insert(payload);
-        if (insErr) {
-          setRucError(insErr.message || "No se pudo guardar el RUC.");
-          return;
-        }
       }
       setRucConfirmed(true);
       setRucMessage("RUC guardado.");

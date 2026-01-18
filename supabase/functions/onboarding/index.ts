@@ -390,17 +390,9 @@ serve (async (req) => {
     }
 
         let rucValue: string | null = null;
-    if (negocioRow?.id) {
-        const { data: verifRow } = await supabaseAdmin
-            .from('verificacion_negocio')
-            .select('ruc')
-            .eq('negocio_id', negocioRow.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-        rucValue = verifRow?.ruc ?? null;
+    if (negocioRow?.ruc) {
+        rucValue = negocioRow.ruc;
     }
-
 //7) Resultado FINAL
     const allowAccess =
         accountStatus === "active" && reasons.length === 0;
