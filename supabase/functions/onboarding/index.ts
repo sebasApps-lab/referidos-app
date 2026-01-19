@@ -72,7 +72,7 @@ type UsuarioProfile = {
     apellido: string | null;
     telefono: string | null;
     verification_status: string | null;
-    emailConfirmado: boolean | null;
+    email_verificado: boolean | null;
     fecha_nacimiento: string | null;
     genero: string | null;
     account_status: AccountStatus | null;
@@ -406,7 +406,7 @@ serve (async (req) => {
             reasons,
             usuario: updatedProfile,
             negocio: negocioRow,
-            email_confirmed: Boolean(profile.emailConfirmado),
+            email_confirmed: Boolean(profile.email_verificado),
             phone: profile.telefono ?? null,
             ruc: rucValue,
             verification_status: profile.verification_status ?? null,

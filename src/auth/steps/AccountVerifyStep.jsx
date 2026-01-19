@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { useAppStore } from "../../store/appStore";
 import { validarCedula } from "../../utils/validators";
 import ContactPhoneBlock from "../blocks/ContactPhoneBlock";
 import EmailVerificationBlock from "../blocks/EmailVerificationBlock";
@@ -22,6 +23,11 @@ export default function AccountVerifyStep({
   const [rucConfirmed, setRucConfirmed] = useState(Boolean(ruc));
   const [rucMessage, setRucMessage] = useState("");
   const [rucError, setRucError] = useState("");
+  const [passwordReady, setPasswordReady] = useState(false);
+  const [passwordSave, setPasswordSave] = useState(null);
+  const [emailActions, setEmailActions] = useState(null);
+  const [finalizeError, setFinalizeError] = useState("");
+  const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
 
   const normalizedRuc = rucValue.replace(/\D/g, "").slice(0, 13);
   const rucCore = normalizedRuc.slice(0, 10);
@@ -38,6 +44,80 @@ export default function AccountVerifyStep({
     setRucValue(String(ruc));
     setRucConfirmed(true);
   }, [ruc, rucValue]);
+
+  const handleFinalize = async () => {
+    setFinalizeError("");
+    const session = (await supabase.auth.getSession())?.data?.session;
+    const userId = session?.user?.id;
+    if (!userId) {
+      setFinalizeError("No se pudo obtener sesion.");
+      return;
+    }
+    const { data: usuarioRow, error: usuarioErr } = await supabase
+      .from("usuarios")
+      .select("email_verificado")
+      .eq("id_auth", userId)
+      .maybeSingle();
+    if (usuarioErr) {
+      setFinalizeError("No se pudo verificar el correo.");
+      return;
+    }
+    if (!usuarioRow?.email_verificado) {
+      setFinalizeError("Tu correo aun no ha sido confirmado.");
+      return;
+    }
+    const { error: updErr } = await supabase
+      .from("usuarios")
+      .update({ verification_status: "verified" })
+      .eq("id_auth", userId);
+    if (updErr) {
+      setFinalizeError("No se pudo actualizar el estado.");
+      return;
+    }
+    await bootstrapAuth({ force: true });
+  };
+
+  useEffect(() => {
+    if (currentScreen !== "email") return;
+    let channel;
+    let active = true;
+    (async () => {
+      const session = (await supabase.auth.getSession())?.data?.session;
+      const userId = session?.user?.id;
+      if (!userId || !active) return;
+      const { data: usuarioRow } = await supabase
+        .from("usuarios")
+        .select("id,email_verificado")
+        .eq("id_auth", userId)
+        .maybeSingle();
+      if (!usuarioRow || !active) return;
+      if (usuarioRow.email_verificado) {
+        await handleFinalize();
+        return;
+      }
+      channel = supabase
+        .channel(`email-verificado-${usuarioRow.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "usuarios",
+            filter: `id=eq.${usuarioRow.id}`,
+          },
+          async (payload) => {
+            if (payload?.new?.email_verificado) {
+              await handleFinalize();
+            }
+          }
+        )
+        .subscribe();
+    })();
+    return () => {
+      active = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [currentScreen]);
 
   const handleSavePhone = async (normalizedPhone) => {
     const session = (await supabase.auth.getSession())?.data?.session;
@@ -127,14 +207,55 @@ export default function AccountVerifyStep({
             Lleva tu cuenta al siguiente nivel
           </div>
           <p className="text-sm text-gray-600">
-            Es opcional, pero te permitira aprovechar mucho mas la app.
+            Te enviaremos un enlace a este correo. Puedes cambiarlo si deseas.
           </p>
-          <EmailVerificationBlock email={""} />
-          {showPasswordSetup && <PasswordSetupBlock provider={provider} />}
+          <EmailVerificationBlock
+            email=""
+            showActions={false}
+            onStateChange={setEmailActions}
+          />
+          {showPasswordSetup && (
+            <PasswordSetupBlock
+              provider={provider}
+              onValidityChange={setPasswordReady}
+              onSaveChange={setPasswordSave}
+            />
+          )}
+          {!emailActions?.emailSent && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setFinalizeError("");
+                  if (showPasswordSetup && passwordSave?.save) {
+                    const result = await passwordSave.save();
+                    if (result?.ok === false) {
+                      return;
+                    }
+                  }
+                  await emailActions?.handleSendEmail?.();
+                }}
+                disabled={
+                  !emailActions?.handleSendEmail ||
+                  emailActions?.sending ||
+                  (showPasswordSetup && !passwordReady) ||
+                  (showPasswordSetup && passwordSave?.saving)
+                }
+                className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
+              >
+                {emailActions?.sending ? "Enviando..." : "Enviar correo"}
+              </button>
+            </div>
+          )}
+          {finalizeError && (
+            <div className="text-center text-xs text-red-500">
+              {finalizeError}
+            </div>
+          )}
         </div>
         <button
           type="button"
-          onClick={() => (window.location.href = "/app")}
+          onClick={handleFinalize}
           className="mt-4 w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold"
         >
           Finalizar

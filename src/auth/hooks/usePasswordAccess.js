@@ -86,7 +86,7 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
     document.activeElement?.blur();
   };
 
-  const handlePasswordSave = async () => {
+  const handlePasswordSave = useCallback(async () => {
     setPasswordAttempted(true);
     setError("");
     setMessage("");
@@ -99,17 +99,18 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
       });
       if (updErr) {
         setError(updErr.message || "No se pudo guardar la contrasena.");
-        return;
+        return { ok: false };
       }
       setPasswordEnabled(true);
       setShowPasswordForm(false);
       setPasswordMode("add");
       setPasswordAttempted(false);
       setMessage("Contrasena guardada.");
+      return { ok: true };
     } finally {
       setSaving(false);
     }
-  };
+  }, [canSavePassword, currentPassword, passwordMode, passwordValue]);
 
   const openAddPassword = () => {
     setPasswordMode("add");

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import useEmailVerification from "../hooks/useEmailVerification";
 
 function PencilIcon({ className = "" }) {
@@ -17,7 +18,11 @@ function PencilIcon({ className = "" }) {
   );
 }
 
-export default function EmailVerificationBlock({ email = "" }) {
+export default function EmailVerificationBlock({
+  email = "",
+  showActions = true,
+  onStateChange,
+}) {
   const {
     emailValue,
     setEmailValue,
@@ -30,13 +35,35 @@ export default function EmailVerificationBlock({ email = "" }) {
     handleSendEmail,
   } = useEmailVerification({ initialEmail: email });
 
+  useEffect(() => {
+    if (!onStateChange) return;
+    onStateChange({
+      emailValue,
+      editingEmail,
+      emailSent,
+      sending,
+      error,
+      message,
+      handleSendEmail,
+    });
+  }, [
+    onStateChange,
+    emailValue,
+    editingEmail,
+    emailSent,
+    sending,
+    error,
+    message,
+    handleSendEmail,
+  ]);
+
   return (
     <div className="space-y-4 text-sm text-gray-700">
       {!emailSent ? (
         <>
           <div className="space-y-1">
             <label className="block text-xs text-gray-500 ml-1">
-              Verifica tu correo electronico.
+              Correo electrónico
             </label>
             {!editingEmail ? (
               <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -74,17 +101,21 @@ export default function EmailVerificationBlock({ email = "" }) {
           {error && (
             <div className="text-center text-xs text-red-500">{error}</div>
           )}
-          <div className="text-center text-xs text-gray-500">
-            Te enviaremos un codigo a este correo.
-          </div>
-          <button
-            type="button"
-            onClick={handleSendEmail}
-            disabled={sending}
-            className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
-          >
-            {sending ? "Enviando..." : "Enviar correo"}
-          </button>
+          {showActions && (
+            <>
+              <div className="text-center text-xs text-gray-500">
+                Te enviaremos un codigo a este correo.
+              </div>
+              <button
+                type="button"
+                onClick={handleSendEmail}
+                disabled={sending}
+                className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
+              >
+                {sending ? "Enviando..." : "Enviar correo"}
+              </button>
+            </>
+          )}
         </>
       ) : (
         <>

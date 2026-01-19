@@ -1,17 +1,17 @@
-import PasswordAccessCard from "../../profile/shared/blocks/PasswordAccessCard";
+import { Check, Eye, EyeOff, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import usePasswordAccess from "../hooks/usePasswordAccess";
 
-export default function PasswordSetupBlock({ provider }) {
+export default function PasswordSetupBlock({
+  provider,
+  onValidityChange,
+  onSaveChange,
+}) {
   const {
-    passwordActive,
-    showPasswordForm,
-    passwordMode,
-    currentPassword,
     passwordValue,
     passwordConfirm,
     showPassword,
     showPasswordConfirm,
-    showCurrentPassword,
     hasMinLength,
     hasNumberAndSymbol,
     passwordsMatch,
@@ -20,68 +20,174 @@ export default function PasswordSetupBlock({ provider }) {
     showConfirmErrors,
     showConfirmRule,
     canSavePassword,
-    showCurrentPasswordError,
-    onPasswordCancel,
-    onPasswordSave,
-    onOpenAdd,
-    onOpenChange,
-    onRemovePassword,
     onToggleShowPassword,
     onToggleShowPasswordConfirm,
-    onToggleShowCurrentPassword,
-    onChangeCurrentPassword,
     onChangePasswordValue,
     onChangePasswordConfirm,
     onFocusField,
     onBlurField,
-    passwordFormRef,
-    currentPasswordRef,
     passwordInputRef,
     confirmInputRef,
+    onPasswordSave,
     saving,
     error,
     message,
   } = usePasswordAccess({ provider });
 
+  const lastValidityRef = useRef(null);
+  const lastSaveRef = useRef({
+    save: null,
+    saving: null,
+    error: null,
+    message: null,
+  });
+
+  useEffect(() => {
+    if (!onValidityChange) return;
+    if (lastValidityRef.current === canSavePassword) return;
+    lastValidityRef.current = canSavePassword;
+    onValidityChange(canSavePassword);
+  }, [canSavePassword, onValidityChange]);
+
+  useEffect(() => {
+    if (!onSaveChange) return;
+    const prev = lastSaveRef.current;
+    if (
+      prev.save === onPasswordSave &&
+      prev.saving === saving &&
+      prev.error === error &&
+      prev.message === message
+    ) {
+      return;
+    }
+    lastSaveRef.current = {
+      save: onPasswordSave,
+      saving,
+      error,
+      message,
+    };
+    onSaveChange({
+      save: onPasswordSave,
+      saving,
+      error,
+      message,
+    });
+  }, [onPasswordSave, onSaveChange, saving, error, message]);
+
   return (
-    <div className="space-y-3">
-      <PasswordAccessCard
-        passwordActive={passwordActive}
-        showPasswordForm={showPasswordForm}
-        passwordMode={passwordMode}
-        currentPassword={currentPassword}
-        passwordValue={passwordValue}
-        passwordConfirm={passwordConfirm}
-        showPassword={showPassword}
-        showPasswordConfirm={showPasswordConfirm}
-        showCurrentPassword={showCurrentPassword}
-        hasMinLength={hasMinLength}
-        hasNumberAndSymbol={hasNumberAndSymbol}
-        passwordsMatch={passwordsMatch}
-        showPasswordRules={showPasswordRules}
-        showPasswordErrors={showPasswordErrors}
-        showConfirmErrors={showConfirmErrors}
-        showConfirmRule={showConfirmRule}
-        canSavePassword={canSavePassword}
-        showCurrentPasswordError={showCurrentPasswordError}
-        onPasswordCancel={onPasswordCancel}
-        onPasswordSave={onPasswordSave}
-        onOpenAdd={onOpenAdd}
-        onOpenChange={onOpenChange}
-        onRemovePassword={onRemovePassword}
-        onToggleShowPassword={onToggleShowPassword}
-        onToggleShowPasswordConfirm={onToggleShowPasswordConfirm}
-        onToggleShowCurrentPassword={onToggleShowCurrentPassword}
-        onChangeCurrentPassword={onChangeCurrentPassword}
-        onChangePasswordValue={onChangePasswordValue}
-        onChangePasswordConfirm={onChangePasswordConfirm}
-        onFocusField={onFocusField}
-        onBlurField={onBlurField}
-        passwordFormRef={passwordFormRef}
-        currentPasswordRef={currentPasswordRef}
-        passwordInputRef={passwordInputRef}
-        confirmInputRef={confirmInputRef}
-      />
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">
+        Antes de confirmar el correo debes elegir una contraseña.
+      </p>
+
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <label className="block text-xs text-gray-500 ml-1">
+            Contraseña
+          </label>
+          <div className="relative">
+            <input
+              ref={passwordInputRef}
+              type={showPassword ? "text" : "password"}
+              value={passwordValue}
+              onChange={onChangePasswordValue}
+              onFocus={() => onFocusField("new")}
+              onBlur={onBlurField}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+            />
+            {passwordValue.length > 0 ? (
+              <button
+                type="button"
+                onClick={onToggleShowPassword}
+                className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-gray-400 hover:text-gray-600"
+                aria-label={
+                  showPassword ? "Ocultar contrasena" : "Mostrar contrasena"
+                }
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {showPasswordRules ? (
+          <div className="space-y-2 text-xs pl-1 -mt-2">
+            {[
+              {
+                key: "length",
+                ok: hasMinLength,
+                label: "Al menos 8 caracteres",
+              },
+              {
+                key: "symbols",
+                ok: hasNumberAndSymbol,
+                label: "Incluye un simbolo y un numero",
+              },
+            ].map((item) => {
+              if (showPasswordErrors && item.ok) return null;
+              const color = item.ok
+                ? "text-emerald-600"
+                : showPasswordErrors
+                  ? "text-red-500"
+                  : "text-slate-400";
+              const Icon = item.ok ? Check : X;
+              return (
+                <div key={item.key} className={`flex items-center gap-2 ${color}`}>
+                  <Icon size={12} />
+                  {item.label}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        <div className="space-y-1">
+          <label className="block text-xs text-gray-500 ml-1">
+            Verificar contraseña
+          </label>
+          <div className="relative">
+            <input
+              ref={confirmInputRef}
+              type={showPasswordConfirm ? "text" : "password"}
+              value={passwordConfirm}
+              onChange={onChangePasswordConfirm}
+              onFocus={() => onFocusField("confirm")}
+              onBlur={onBlurField}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+            />
+            {passwordConfirm.length > 0 ? (
+              <button
+                type="button"
+                onClick={onToggleShowPasswordConfirm}
+                className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-gray-400 hover:text-gray-600"
+                aria-label={
+                  showPasswordConfirm
+                    ? "Ocultar contrasena"
+                    : "Mostrar contrasena"
+                }
+              >
+                {showPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {showConfirmRule ? (
+          <div className="text-xs pl-1">
+            {passwordsMatch ? (
+              <div className="flex items-center gap-2 text-emerald-600">
+                <Check size={12} />
+                Las contrasenas coinciden
+              </div>
+            ) : showConfirmErrors ? (
+              <div className="flex items-center gap-2 text-red-500">
+                <X size={12} />
+                Las contrasenas deben coincidir
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
       {saving && (
         <div className="text-xs text-slate-500">Guardando contrasena...</div>
       )}

@@ -13,7 +13,7 @@ const USERS = [
     telefono: "0991112233",
     role: "cliente",
     account_status: "active",
-    emailConfirmado: true,
+    email_verificado: true,
     fechaCreacion: "2025-02-11",
     reportes: 1,
   },
@@ -24,7 +24,7 @@ const USERS = [
     telefono: "0982223344",
     role: "negocio",
     account_status: "active",
-    emailConfirmado: true,
+    email_verificado: true,
     fechaCreacion: "2025-02-08",
     reportes: 0,
   },
@@ -35,7 +35,7 @@ const USERS = [
     telefono: "0975556677",
     role: "cliente",
     account_status: "pending",
-    emailConfirmado: false,
+    email_verificado: false,
     fechaCreacion: "2025-02-14",
     reportes: 2,
   },
@@ -46,7 +46,7 @@ const USERS = [
     telefono: "022334455",
     role: "soporte",
     account_status: "active",
-    emailConfirmado: true,
+    email_verificado: true,
     fechaCreacion: "2025-01-30",
     reportes: 0,
   },
@@ -57,7 +57,7 @@ const USERS = [
     telefono: "0969911122",
     role: "negocio",
     account_status: "blocked",
-    emailConfirmado: true,
+    email_verificado: true,
     fechaCreacion: "2025-02-01",
     reportes: 5,
   },
@@ -90,8 +90,8 @@ export default function UsuariosTable({ defaultRole = "todos" }) {
         statusFilter === "todos" || user.account_status === statusFilter;
       const matchesEmail =
         emailFilter === "todos" ||
-        (emailFilter === "confirmado" && user.emailConfirmado) ||
-        (emailFilter === "pendiente" && !user.emailConfirmado);
+        (emailFilter === "confirmado" && user.email_verificado) ||
+        (emailFilter === "pendiente" && !user.email_verificado);
 
       return matchesQuery && matchesRole && matchesStatus && matchesEmail;
     });
@@ -214,10 +214,10 @@ export default function UsuariosTable({ defaultRole = "todos" }) {
               <div className="inline-flex items-center gap-1 text-xs text-slate-500">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    user.emailConfirmado ? "bg-emerald-400" : "bg-amber-400"
+                    user.email_verificado ? "bg-emerald-400" : "bg-amber-400"
                   }`}
                 />
-                {user.emailConfirmado ? "Confirmado" : "Pendiente"}
+                {user.email_verificado ? "Confirmado" : "Pendiente"}
               </div>
             </td>
             <td className="px-4 py-3 text-right">
