@@ -58,6 +58,8 @@ type OnboardingResult = {
     negocio: Record<string, unknown> | null;
     email_confirmed?: boolean;
     phone?: string | null;
+    ruc?: string | null;
+    verification_status?: string | null;
     provider: string | null;
 };
 
@@ -389,7 +391,7 @@ serve (async (req) => {
         updatedProfile = upd ?? profile;
     }
 
-        let rucValue: string | null = null;
+    let rucValue: string | null = null;
     if (negocioRow?.ruc) {
         rucValue = negocioRow.ruc;
     }
@@ -406,6 +408,8 @@ serve (async (req) => {
             negocio: negocioRow,
             email_confirmed: Boolean(profile.emailConfirmado),
             phone: profile.telefono ?? null,
+            ruc: rucValue,
+            verification_status: profile.verification_status ?? null,
             provider,
         } satisfies OnboardingResult,
         200,

@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { validarCedula } from "../../utils/validators";
 import ContactPhoneBlock from "../blocks/ContactPhoneBlock";
 import EmailVerificationBlock from "../blocks/EmailVerificationBlock";
+import PasswordSetupBlock from "../blocks/PasswordSetupBlock";
 
 export default function AccountVerifyStep({
   innerRef,
   phone,
   ruc,
   emailConfirmed,
+  provider,
 }) {
   const [currentScreen, setCurrentScreen] = useState(() => {
     if (phone && ruc && emailConfirmed === false) return "email";
@@ -30,6 +32,12 @@ export default function AccountVerifyStep({
     validarCedula(rucCore);
 
   const canContinue = phoneConfirmed && rucConfirmed;
+
+  useEffect(() => {
+    if (!ruc || rucValue) return;
+    setRucValue(String(ruc));
+    setRucConfirmed(true);
+  }, [ruc, rucValue]);
 
   const handleSavePhone = async (normalizedPhone) => {
     const session = (await supabase.auth.getSession())?.data?.session;
@@ -98,6 +106,8 @@ export default function AccountVerifyStep({
   };
 
   if (currentScreen === "email") {
+    const showPasswordSetup =
+      provider && provider !== "email" && provider !== "password";
     return (
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
         <div className="flex-1 space-y-4">
@@ -120,6 +130,7 @@ export default function AccountVerifyStep({
             Es opcional, pero te permitira aprovechar mucho mas la app.
           </p>
           <EmailVerificationBlock email={""} />
+          {showPasswordSetup && <PasswordSetupBlock provider={provider} />}
         </div>
         <button
           type="button"
