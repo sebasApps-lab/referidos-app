@@ -41,14 +41,14 @@ export default function ModalFingerprintPrompt({
   }, []);
 
   const handleComplete = useCallback(
-    (nextStatus, nextMessage, closeDelay, shouldConfirm) => {
+    (nextStatus, nextMessage, closeDelay, shouldConfirm, payload) => {
       setStatus(nextStatus);
       setMessage(nextMessage);
       cleanupTimeout();
       timeoutRef.current = setTimeout(() => {
         closeModal();
         if (shouldConfirm && onConfirm) {
-          onConfirm();
+          onConfirm(payload);
         }
         if (!shouldConfirm && onError) {
           onError(nextMessage);
@@ -96,8 +96,14 @@ export default function ModalFingerprintPrompt({
         attestation: "none",
       };
 
-      await navigator.credentials.create({ publicKey });
-      handleComplete("success", "Huella verificada correctamente.", 1100, true);
+      const credential = await navigator.credentials.create({ publicKey });
+      handleComplete(
+        "success",
+        "Huella verificada correctamente.",
+        1100,
+        true,
+        credential?.id ?? null,
+      );
     } catch (error) {
       const messageText =
         error?.name === "NotAllowedError"

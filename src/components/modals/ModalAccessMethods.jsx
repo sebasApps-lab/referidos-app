@@ -4,6 +4,15 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import usePinSetup from "../../hooks/usePinSetup";
 import { useModal } from "../../modals/useModal";
+import {
+  generatePinSalt,
+  getSecureStorageMode,
+  hashPin,
+  saveBiometricToken,
+  loadDeviceSecret,
+  saveDeviceSecret,
+  savePinHash,
+} from "../../services/secureStorageService";
 
 export default function ModalAccessMethods({
   initialView = "select",
@@ -19,13 +28,56 @@ export default function ModalAccessMethods({
   );
   const [pinEnabled, setPinEnabled] = useState(initialPinEnabled);
   const [error, setError] = useState(errorMessage);
+  const [skipPrompt, setSkipPrompt] = useState(false);
+  const [webauthnAvailable, setWebauthnAvailable] = useState(true);
+  const skipKey = usuario?.id || usuario?.id_auth
+    ? `access_methods_prompt_skip_${usuario.id || usuario.id_auth}`
+    : null;
   const prevViewRef = useRef(view);
 
-  const savePin = useCallback(async () => {
+  useEffect(() => {
+    if (!skipKey) return;
+    const stored = window.localStorage.getItem(skipKey);
+    setSkipPrompt(stored === "1");
+  }, [skipKey]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const status = await getSecureStorageMode();
+      if (!active) return;
+      setWebauthnAvailable(status.mode !== "blocked");
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const savePin = useCallback(async (pinValue) => {
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
       return { ok: false, error: "No se pudo obtener sesion." };
+    }
+    if (!webauthnAvailable) {
+      return { ok: false, error: "No disponible en este dispositivo." };
+    }
+    const existingSecret = await loadDeviceSecret(userId);
+    if (!existingSecret) {
+      const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+      const token = btoa(String.fromCharCode(...bytes));
+      await saveDeviceSecret(userId, { token, createdAt: new Date().toISOString() });
+    }
+    const salt = generatePinSalt();
+    const hash = await hashPin(pinValue, salt);
+    const saved = await savePinHash(userId, {
+      salt,
+      hash,
+      iterations: 160000,
+      algo: "PBKDF2-SHA256",
+    });
+    if (!saved.ok) {
+      return { ok: false, error: "No se pudo guardar el PIN." };
     }
     const { error: updErr } = await supabase
       .from("usuarios")
@@ -35,7 +87,7 @@ export default function ModalAccessMethods({
       return { ok: false, error: updErr.message || "No se pudo guardar el PIN." };
     }
     return { ok: true };
-  }, []);
+  }, [webauthnAvailable]);
 
   const pinSetup = usePinSetup({ onSavePin: savePin });
 
@@ -48,22 +100,38 @@ export default function ModalAccessMethods({
 
   const handleFingerprint = async () => {
     setError("");
+    if (!webauthnAvailable) {
+      setError("No disponible en este dispositivo.");
+      return;
+    }
     const { data } = await supabase.auth.getUser();
     const authUser = data?.user;
     openModal("FingerprintPrompt", {
       userId: authUser?.id ?? null,
       email: authUser?.email ?? null,
       displayName: usuario?.nombre || usuario?.alias || "Usuario",
-      onConfirm: async () => {
+      onConfirm: async (credentialId) => {
         const session = (await supabase.auth.getSession())?.data?.session;
         const userId = session?.user?.id;
-        if (!userId) {
-          openModal("AccessMethods", {
-            initialView: "select",
-            initialPinEnabled: pinEnabled,
-            errorMessage: "No se pudo obtener sesion.",
+      if (!userId) {
+        openModal("AccessMethods", {
+          initialView: "select",
+          initialPinEnabled: pinEnabled,
+          errorMessage: "No se pudo obtener sesion.",
+        });
+        return;
+      }
+      const existingSecret = await loadDeviceSecret(userId);
+      if (!existingSecret) {
+        const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+        const token = btoa(String.fromCharCode(...bytes));
+        await saveDeviceSecret(userId, { token, createdAt: new Date().toISOString() });
+      }
+      if (credentialId) {
+        await saveBiometricToken(userId, {
+          credentialId,
+            createdAt: new Date().toISOString(),
           });
-          return;
         }
         const { error: updErr } = await supabase
           .from("usuarios")
@@ -145,7 +213,7 @@ export default function ModalAccessMethods({
                 value={char}
                 onChange={(event) => pinSetup.updatePinSlot(event.target.value)}
                 onKeyDown={pinSetup.handlePinKeyDown}
-                onPointerDown={pinSetup.handlePinPointerDown}
+                onFocus={() => pinSetup.handlePinFocus(index)}
                 ref={pinSetup.registerPinRef(index)}
                 maxLength={1}
                 type={pinSetup.pinReveal[index] ? "text" : "password"}
@@ -263,6 +331,7 @@ export default function ModalAccessMethods({
         <button
           type="button"
           onClick={handleFingerprint}
+          disabled={!webauthnAvailable}
           className={`${cardBase} ${fingerprintEnabled ? cardActive : cardInactive}`}
         >
           <Fingerprint className="mb-2 h-5 w-5 text-[#5E30A5]" />
@@ -274,11 +343,34 @@ export default function ModalAccessMethods({
             setError("");
             setView("pin");
           }}
+          disabled={!webauthnAvailable}
           className={`${cardBase} ${pinEnabled ? cardActive : cardInactive}`}
         >
           <Lock className="mb-2 h-5 w-5 text-[#5E30A5]" />
           PIN
         </button>
+      </div>
+      <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
+        <input
+          type="checkbox"
+          checked={skipPrompt}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setSkipPrompt(next);
+            if (skipKey) {
+              if (next) {
+                window.localStorage.setItem(skipKey, "1");
+              } else {
+                window.localStorage.removeItem(skipKey);
+              }
+            }
+          }}
+          className="h-4 w-4 rounded border-gray-300 text-[#5E30A5] focus:ring-[#5E30A5]/30"
+        />
+        <span>No volver a mostrar</span>
+      </div>
+      <div className="mt-2 text-[11px] text-gray-500 text-center">
+        No uses biometria en dispositivos compartidos
       </div>
       {error && (
         <div className="mt-3 text-center text-xs text-red-500">{error}</div>

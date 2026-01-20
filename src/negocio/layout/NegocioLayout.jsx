@@ -7,6 +7,11 @@ import { getAvatarSrc } from "../services/negocioUI";
 import { NegocioHeaderProvider, useNegocioHeader } from "./NegocioHeaderContext";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  getSecureStorageMode,
+  loadBiometricToken,
+  loadPinHash,
+} from "../../services/secureStorageService";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -113,13 +118,28 @@ function NegocioLayoutInner({ children }) {
 
   useEffect(() => {
     if (bootstrap || !usuario) return;
-    if (usuario.has_pin || usuario.has_biometrics) return;
     if (typeof window === "undefined") return;
     let active = true;
     (async () => {
+      const storageMode = await getSecureStorageMode();
+      if (!active || storageMode.mode === "blocked") return;
       const { data } = await supabase.auth.getSession();
       const token = data?.session?.access_token;
       if (!active || !token) return;
+      const userId = data?.session?.user?.id ?? null;
+      if (!userId) return;
+      const skipKey = `access_methods_prompt_skip_${usuario.id || usuario.id_auth || "user"}`;
+      const localPin = await loadPinHash(userId);
+      const localBio = await loadBiometricToken(userId);
+      if (!active) return;
+      const updates = {};
+      if (usuario.has_pin && !localPin) updates.has_pin = false;
+      if (usuario.has_biometrics && !localBio) updates.has_biometrics = false;
+      if (Object.keys(updates).length) {
+        await supabase.from("usuarios").update(updates).eq("id_auth", userId);
+      }
+      if (window.localStorage.getItem(skipKey) === "1") return;
+      if (localPin || localBio) return;
       const key = `access_methods_prompt_token_${usuario.id || usuario.id_auth || "user"}`;
       const lastToken = window.sessionStorage.getItem(key);
       if (lastToken === token) return;

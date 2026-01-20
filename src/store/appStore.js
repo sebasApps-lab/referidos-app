@@ -17,6 +17,7 @@ import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
 import { supabase } from "../lib/supabaseClient";
+import { clearUserSecurityMaterial } from "../services/secureStorageService";
 
 let promosRefreshTimer = null;
 let promosVisibilityHandler = null;
@@ -135,11 +136,21 @@ export const useAppStore = create(
       },
 
       logout: async () => {
+        let userId = null;
+        try {
+          const { data } = await supabase.auth.getSession();
+          userId = data?.session?.user?.id ?? null;
+        } catch (e) {
+          userId = null;
+        }
         try{
           await signOut();
         } catch (e) {
           //opcional: log o toast
         } finally {
+          if (userId) {
+            await clearUserSecurityMaterial(userId);
+          }
           set({
             bootstrap: false,
             bootstrapError: false,

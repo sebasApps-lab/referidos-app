@@ -9,6 +9,7 @@ export default function usePinSetup({ onSavePin } = {}) {
   const [error, setError] = useState("");
   const pinInputRefs = useRef([]);
   const pinRevealTimersRef = useRef([]);
+  const focusLockRef = useRef(null);
 
   const sanitizedPin = useMemo(
     () => pinValue.replace(/[^0-9]/g, "").slice(0, 4),
@@ -30,6 +31,7 @@ export default function usePinSetup({ onSavePin } = {}) {
   };
 
   const focusPinInput = useCallback((index) => {
+    focusLockRef.current = index;
     window.requestAnimationFrame(() => {
       pinInputRefs.current[index]?.focus();
     });
@@ -87,11 +89,14 @@ export default function usePinSetup({ onSavePin } = {}) {
     }
   };
 
-  const handlePinPointerDown = (event) => {
-    event.preventDefault();
+  const handlePinFocus = (index) => {
+    if (focusLockRef.current === index) {
+      focusLockRef.current = null;
+      return;
+    }
     const firstEmpty = getFirstEmptyPinIndex();
-    const targetIndex = firstEmpty === -1 ? pinSlots.length - 1 : firstEmpty;
-    pinInputRefs.current[targetIndex]?.focus();
+    if (firstEmpty === -1 || index === firstEmpty) return;
+    focusPinInput(firstEmpty);
   };
 
   const registerPinRef = (index) => (el) => {
@@ -157,7 +162,7 @@ export default function usePinSetup({ onSavePin } = {}) {
     setError,
     updatePinSlot,
     handlePinKeyDown,
-    handlePinPointerDown,
+    handlePinFocus,
     registerPinRef,
     resetPinForm,
     handlePinNext,
