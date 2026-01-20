@@ -25,7 +25,6 @@ export default function AccountVerifyStep({
   const [editingRuc, setEditingRuc] = useState(!ruc);
   const [rucError, setRucError] = useState("");
   const [emailValue, setEmailValue] = useState("");
-  const [passwordReady, setPasswordReady] = useState(false);
   const [passwordSave, setPasswordSave] = useState(null);
   const [finalizeError, setFinalizeError] = useState("");
   const [skipError, setSkipError] = useState("");
@@ -232,7 +231,6 @@ export default function AccountVerifyStep({
           {showPasswordSetup && (
             <PasswordSetupBlock
               provider={passwordProvider}
-              onValidityChange={setPasswordReady}
               onSaveChange={setPasswordSave}
             />
           )}

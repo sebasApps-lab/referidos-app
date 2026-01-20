@@ -13,7 +13,14 @@ const toBuffer = (value, fallback) => {
   return encoder.encode(value || fallback);
 };
 
-export default function ModalFingerprintPrompt({ onConfirm, userId, email, displayName }) {
+export default function ModalFingerprintPrompt({
+  onConfirm,
+  onError,
+  onCancel,
+  userId,
+  email,
+  displayName,
+}) {
   const { closeModal } = useModal();
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("Selecciona continuar para escanear tu huella.");
@@ -39,13 +46,16 @@ export default function ModalFingerprintPrompt({ onConfirm, userId, email, displ
       setMessage(nextMessage);
       cleanupTimeout();
       timeoutRef.current = setTimeout(() => {
+        closeModal();
         if (shouldConfirm && onConfirm) {
           onConfirm();
         }
-        closeModal();
+        if (!shouldConfirm && onError) {
+          onError(nextMessage);
+        }
       }, closeDelay);
     },
-    [closeModal, onConfirm]
+    [closeModal, onConfirm, onError]
   );
 
   const handleConfirm = useCallback(async () => {
@@ -155,7 +165,10 @@ export default function ModalFingerprintPrompt({ onConfirm, userId, email, displ
           {status !== "reading" ? (
             <button
               type="button"
-              onClick={closeModal}
+              onClick={() => {
+                closeModal();
+                onCancel?.();
+              }}
               className="text-sm font-semibold text-slate-600"
             >
               Cancelar

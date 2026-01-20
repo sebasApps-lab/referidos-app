@@ -6,6 +6,7 @@ import { useAppStore } from "../../store/appStore";
 import { getAvatarSrc } from "../services/clienteUI";
 import { ClienteHeaderProvider, useClienteHeader } from "./ClienteHeaderContext";
 import { useModal } from "../../modals/useModal";
+import { supabase } from "../../lib/supabaseClient";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -113,10 +114,20 @@ function ClienteLayoutInner({ children }) {
     if (bootstrap || !usuario) return;
     if (usuario.has_pin || usuario.has_biometrics) return;
     if (typeof window === "undefined") return;
-    const key = `access_methods_prompt_shown_${usuario.id || usuario.id_auth || "user"}`;
-    if (window.sessionStorage.getItem(key)) return;
-    window.sessionStorage.setItem(key, "1");
-    openModal("AccessMethods");
+    let active = true;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!active || !token) return;
+      const key = `access_methods_prompt_token_${usuario.id || usuario.id_auth || "user"}`;
+      const lastToken = window.sessionStorage.getItem(key);
+      if (lastToken === token) return;
+      window.sessionStorage.setItem(key, token);
+      openModal("AccessMethods");
+    })();
+    return () => {
+      active = false;
+    };
   }, [bootstrap, usuario, openModal]);
 
   if (bootstrap || typeof usuario === "undefined") return null;

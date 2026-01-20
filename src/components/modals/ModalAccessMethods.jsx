@@ -1,8 +1,258 @@
-import { Fingerprint, Lock } from "lucide-react";
+import { ArrowLeft, Fingerprint, Lock } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
+import { useAppStore } from "../../store/appStore";
+import usePinSetup from "../../hooks/usePinSetup";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalAccessMethods() {
-  const { closeModal } = useModal();
+export default function ModalAccessMethods({
+  initialView = "select",
+  initialFingerprintEnabled = false,
+  initialPinEnabled = false,
+  errorMessage = "",
+}) {
+  const { closeModal, openModal } = useModal();
+  const usuario = useAppStore((s) => s.usuario);
+  const [view, setView] = useState(initialView);
+  const [fingerprintEnabled, setFingerprintEnabled] = useState(
+    initialFingerprintEnabled,
+  );
+  const [pinEnabled, setPinEnabled] = useState(initialPinEnabled);
+  const [error, setError] = useState(errorMessage);
+  const prevViewRef = useRef(view);
+
+  const savePin = useCallback(async () => {
+    const session = (await supabase.auth.getSession())?.data?.session;
+    const userId = session?.user?.id;
+    if (!userId) {
+      return { ok: false, error: "No se pudo obtener sesion." };
+    }
+    const { error: updErr } = await supabase
+      .from("usuarios")
+      .update({ has_pin: true })
+      .eq("id_auth", userId);
+    if (updErr) {
+      return { ok: false, error: updErr.message || "No se pudo guardar el PIN." };
+    }
+    return { ok: true };
+  }, []);
+
+  const pinSetup = usePinSetup({ onSavePin: savePin });
+
+  useEffect(() => {
+    if (prevViewRef.current !== view && view === "pin") {
+      pinSetup.focusPinInput(0);
+    }
+    prevViewRef.current = view;
+  }, [pinSetup, view]);
+
+  const handleFingerprint = async () => {
+    setError("");
+    const { data } = await supabase.auth.getUser();
+    const authUser = data?.user;
+    openModal("FingerprintPrompt", {
+      userId: authUser?.id ?? null,
+      email: authUser?.email ?? null,
+      displayName: usuario?.nombre || usuario?.alias || "Usuario",
+      onConfirm: async () => {
+        const session = (await supabase.auth.getSession())?.data?.session;
+        const userId = session?.user?.id;
+        if (!userId) {
+          openModal("AccessMethods", {
+            initialView: "select",
+            initialPinEnabled: pinEnabled,
+            errorMessage: "No se pudo obtener sesion.",
+          });
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from("usuarios")
+          .update({ has_biometrics: true })
+          .eq("id_auth", userId);
+        if (updErr) {
+          openModal("AccessMethods", {
+            initialView: "select",
+            initialPinEnabled: pinEnabled,
+            errorMessage: "No se pudo anadir huella.",
+          });
+          return;
+        }
+        openModal("AccessMethods", {
+          initialView: "select",
+          initialPinEnabled: pinEnabled,
+          initialFingerprintEnabled: true,
+        });
+      },
+      onError: (message) => {
+        openModal("AccessMethods", {
+          initialView: "select",
+          initialPinEnabled: pinEnabled,
+          errorMessage: message || "No se pudo anadir huella.",
+        });
+      },
+      onCancel: () => {
+        openModal("AccessMethods", {
+          initialView: "select",
+          initialPinEnabled: pinEnabled,
+          initialFingerprintEnabled: fingerprintEnabled,
+        });
+      },
+    });
+  };
+
+  const handlePinConfirm = async () => {
+    const result = await pinSetup.handlePinConfirm();
+    if (!result?.ok) return;
+    setPinEnabled(true);
+    pinSetup.resetPinForm();
+    setView("select");
+  };
+
+  const cardBase =
+    "flex h-20 flex-col items-center justify-center rounded-xl border text-xs font-semibold";
+  const cardActive = "border-[#5E30A5] bg-[#F4EDFF] text-[#2F1A55]";
+  const cardInactive = "border-gray-200 bg-white text-gray-700";
+
+  if (view === "pin") {
+    return (
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-gray-700 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              pinSetup.resetPinForm();
+              setView("select");
+              setError("");
+            }}
+            className="h-8 w-8 rounded-full border border-gray-200 text-gray-600 flex items-center justify-center"
+            aria-label="Volver"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div className="text-sm font-semibold text-gray-900">PIN</div>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          <p className="text-xs text-gray-500 text-center">
+            {pinSetup.pinStep === "confirm"
+              ? "Ingresar el PIN de nuevo."
+              : "Ingresa un PIN."}
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            {pinSetup.pinSlots.map((char, index) => (
+              <input
+                key={`pin-modal-${index}`}
+                value={char}
+                onChange={(event) => pinSetup.updatePinSlot(event.target.value)}
+                onKeyDown={pinSetup.handlePinKeyDown}
+                onPointerDown={pinSetup.handlePinPointerDown}
+                ref={pinSetup.registerPinRef(index)}
+                maxLength={1}
+                type={pinSetup.pinReveal[index] ? "text" : "password"}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
+              />
+            ))}
+          </div>
+          {pinSetup.pinStep === "confirm" ? (
+            <div className="text-xs pl-1 text-center">
+              {(() => {
+                const color = pinSetup.pinComplete
+                  ? pinSetup.pinMatches
+                    ? "text-emerald-600"
+                    : "text-red-500"
+                  : "text-slate-400";
+                return (
+                  <span className={`inline-flex items-center gap-2 ${color}`}>
+                    {pinSetup.pinComplete ? (
+                      pinSetup.pinMatches ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3 w-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-3 w-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M18 6L6 18" />
+                          <path d="M6 6l12 12" />
+                        </svg>
+                      )
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M18 6L6 18" />
+                        <path d="M6 6l12 12" />
+                      </svg>
+                    )}
+                    El PIN debe coincidir
+                  </span>
+                );
+              })()}
+            </div>
+          ) : null}
+          <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
+            <button
+              type="button"
+              onClick={pinSetup.resetPinForm}
+              className="text-[#2F1A55]"
+            >
+              Cancelar
+            </button>
+            {pinSetup.pinStep === "confirm" ? (
+              <button
+                type="button"
+                onClick={handlePinConfirm}
+                disabled={!pinSetup.pinComplete || !pinSetup.pinMatches || pinSetup.saving}
+                className={
+                  pinSetup.pinComplete && pinSetup.pinMatches
+                    ? "text-[#5E30A5]"
+                    : "text-slate-400"
+                }
+              >
+                {pinSetup.saving ? "Guardando..." : "Confirmar"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={pinSetup.handlePinNext}
+                disabled={!pinSetup.pinComplete}
+                className={pinSetup.pinComplete ? "text-[#5E30A5]" : "text-slate-400"}
+              >
+                Siguiente
+              </button>
+            )}
+          </div>
+          {pinSetup.error && (
+            <div className="text-center text-xs text-red-500">
+              {pinSetup.error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-gray-700 shadow-2xl">
@@ -12,26 +262,44 @@ export default function ModalAccessMethods() {
       <div className="mt-5 grid grid-cols-2 gap-4">
         <button
           type="button"
-          className="flex aspect-square flex-col items-center justify-center rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700"
+          onClick={handleFingerprint}
+          className={`${cardBase} ${fingerprintEnabled ? cardActive : cardInactive}`}
         >
-          <Fingerprint className="mb-2 h-6 w-6 text-[#5E30A5]" />
+          <Fingerprint className="mb-2 h-5 w-5 text-[#5E30A5]" />
           Huella
         </button>
         <button
           type="button"
-          className="flex aspect-square flex-col items-center justify-center rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700"
+          onClick={() => {
+            setError("");
+            setView("pin");
+          }}
+          className={`${cardBase} ${pinEnabled ? cardActive : cardInactive}`}
         >
-          <Lock className="mb-2 h-6 w-6 text-[#5E30A5]" />
-          Pin
+          <Lock className="mb-2 h-5 w-5 text-[#5E30A5]" />
+          PIN
         </button>
       </div>
-      <button
-        type="button"
-        onClick={closeModal}
-        className="mt-5 w-full text-sm font-semibold text-gray-500"
-      >
-        Ahora no
-      </button>
+      {error && (
+        <div className="mt-3 text-center text-xs text-red-500">{error}</div>
+      )}
+      {fingerprintEnabled ? (
+        <button
+          type="button"
+          onClick={closeModal}
+          className="mt-5 w-full rounded-lg bg-[#5E30A5] py-2.5 text-sm font-semibold text-white"
+        >
+          Listo
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={closeModal}
+          className="mt-5 w-full text-sm font-semibold text-gray-500"
+        >
+          Ahora no
+        </button>
+      )}
     </div>
   );
 }
