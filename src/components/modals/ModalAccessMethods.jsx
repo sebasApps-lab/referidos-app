@@ -367,15 +367,15 @@ export default function ModalAccessMethods({
           }}
           className="h-4 w-4 rounded border-gray-300 text-[#5E30A5] focus:ring-[#5E30A5]/30"
         />
-        <span>No volver a mostrar</span>
+        <span>No volver a mostrar este mensaje.</span>
       </div>
-      <div className="mt-2 text-[11px] text-gray-500 text-center">
+      <div className="mt-1 text-[11px] text-gray-500 text-center">
         No uses biometria en dispositivos compartidos
       </div>
       {error && (
         <div className="mt-3 text-center text-xs text-red-500">{error}</div>
       )}
-      {fingerprintEnabled ? (
+      {fingerprintEnabled || pinEnabled ? (
         <button
           type="button"
           onClick={closeModal}

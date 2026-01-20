@@ -23,9 +23,155 @@ let promosRefreshTimer = null;
 let promosVisibilityHandler = null;
 let promosAutoRefreshActive = false;
 
+const SECURITY_LEVELS = {
+  NONE: "none",
+  UNLOCK_LOCAL: "unlock_local",
+  REAUTH_SENSITIVE: "reauth_sensitive",
+};
+
+const SECURITY_LEVEL_ORDER = {
+  [SECURITY_LEVELS.NONE]: 0,
+  [SECURITY_LEVELS.UNLOCK_LOCAL]: 1,
+  [SECURITY_LEVELS.REAUTH_SENSITIVE]: 2,
+};
+
+const UNLOCK_LOCAL_TTL_MS = 10 * 60 * 1000;
+const REAUTH_SENSITIVE_TTL_MS = 5 * 60 * 1000;
+
+const defaultSecurityState = {
+  unlockLevel: SECURITY_LEVELS.NONE,
+  unlockedAt: null,
+  unlockMethod: null,
+  unlockExpiresAt: null,
+  pendingAction: null,
+  pendingLevel: null,
+  pendingMethod: null,
+  rules: {},
+};
+
 export const useAppStore = create(
   persist(
     (set, get) => {
+      const updateSecurity = (partial) =>
+        set((state) => ({
+          security: {
+            ...state.security,
+            ...partial,
+          },
+        }));
+
+      const resolveUnlockLevel = () => {
+        const security = get().security;
+        if (
+          security?.unlockExpiresAt &&
+          Date.now() > security.unlockExpiresAt
+        ) {
+          updateSecurity({
+            unlockLevel: SECURITY_LEVELS.NONE,
+            unlockedAt: null,
+            unlockMethod: null,
+            unlockExpiresAt: null,
+            pendingAction: null,
+            pendingLevel: null,
+            pendingMethod: null,
+          });
+          return SECURITY_LEVELS.NONE;
+        }
+        return security?.unlockLevel || SECURITY_LEVELS.NONE;
+      };
+
+      const securityActions = {
+        require: (action) => {
+          const security = get().security;
+          const requiredLevel =
+            security?.rules?.[action] ?? SECURITY_LEVELS.NONE;
+          const currentLevel = resolveUnlockLevel();
+          if (
+            SECURITY_LEVEL_ORDER[currentLevel] >=
+            SECURITY_LEVEL_ORDER[requiredLevel]
+          ) {
+            updateSecurity({
+              pendingAction: null,
+              pendingLevel: null,
+              pendingMethod: null,
+            });
+            return { ok: true, requiredLevel, currentLevel };
+          }
+          const pendingMethod =
+            requiredLevel === SECURITY_LEVELS.REAUTH_SENSITIVE
+              ? "password"
+              : "local";
+          updateSecurity({
+            pendingAction: action,
+            pendingLevel: requiredLevel,
+            pendingMethod,
+          });
+          return {
+            ok: false,
+            requiredLevel,
+            currentLevel,
+            pendingMethod,
+          };
+        },
+        unlockWithBiometrics: (ttlMs = UNLOCK_LOCAL_TTL_MS) => {
+          const now = Date.now();
+          updateSecurity({
+            unlockLevel: SECURITY_LEVELS.UNLOCK_LOCAL,
+            unlockedAt: now,
+            unlockMethod: "biometrics",
+            unlockExpiresAt: now + ttlMs,
+            pendingAction: null,
+            pendingLevel: null,
+            pendingMethod: null,
+          });
+          return { ok: true };
+        },
+        unlockWithPin: (ttlMs = UNLOCK_LOCAL_TTL_MS) => {
+          const now = Date.now();
+          updateSecurity({
+            unlockLevel: SECURITY_LEVELS.UNLOCK_LOCAL,
+            unlockedAt: now,
+            unlockMethod: "pin",
+            unlockExpiresAt: now + ttlMs,
+            pendingAction: null,
+            pendingLevel: null,
+            pendingMethod: null,
+          });
+          return { ok: true };
+        },
+        unlockWithPassword: (ttlMs = REAUTH_SENSITIVE_TTL_MS) => {
+          const now = Date.now();
+          updateSecurity({
+            unlockLevel: SECURITY_LEVELS.REAUTH_SENSITIVE,
+            unlockedAt: now,
+            unlockMethod: "password",
+            unlockExpiresAt: now + ttlMs,
+            pendingAction: null,
+            pendingLevel: null,
+            pendingMethod: null,
+          });
+          return { ok: true };
+        },
+        reset: () => {
+          updateSecurity({
+            ...defaultSecurityState,
+          });
+        },
+        setRule: (action, level) => {
+          updateSecurity({
+            rules: {
+              ...(get().security?.rules || {}),
+              [action]: level,
+            },
+          });
+        },
+        setRules: (rules = {}) => {
+          updateSecurity({
+            rules: { ...rules },
+          });
+        },
+      };
+
       const schedulePromosRefresh = () => {
         if (!promosAutoRefreshActive) return;
         if (promosRefreshTimer) {
@@ -72,6 +218,10 @@ export const useAppStore = create(
       justCompletedRegistration: false,
       loading: false,
       error: null,
+      security: {
+        ...defaultSecurityState,
+        ...securityActions,
+      },
       setUser: (usuario) => set({ usuario }),
       setAccessMethods: (methods) =>
         set((state) => ({
@@ -161,6 +311,10 @@ export const useAppStore = create(
             scannerPermissionPrompted: false,
             scannerManualFallbackShown: false,
             justCompletedRegistration: false,
+            security: {
+              ...defaultSecurityState,
+              ...securityActions,
+            },
           });
         }
       },
