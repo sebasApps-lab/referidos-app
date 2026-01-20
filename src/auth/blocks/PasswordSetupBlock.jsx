@@ -1,5 +1,5 @@
 import { Check, Eye, EyeOff, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import usePasswordAccess from "../hooks/usePasswordAccess";
 
 export default function PasswordSetupBlock({
@@ -43,6 +43,8 @@ export default function PasswordSetupBlock({
     error: null,
     message: null,
   });
+  const [showMatchMessage, setShowMatchMessage] = useState(false);
+  const matchTimerRef = useRef(null);
 
   useEffect(() => {
     if (!onValidityChange) return;
@@ -77,8 +79,34 @@ export default function PasswordSetupBlock({
     });
   }, [onPasswordSave, onSaveChange, saving, error, message, passwordSaved]);
 
+  useEffect(() => {
+    if (!passwordsMatch || !showConfirmRule) {
+      setShowMatchMessage(false);
+      if (matchTimerRef.current) {
+        clearTimeout(matchTimerRef.current);
+        matchTimerRef.current = null;
+      }
+      return;
+    }
+    setShowMatchMessage(true);
+    if (matchTimerRef.current) {
+      clearTimeout(matchTimerRef.current);
+    }
+    matchTimerRef.current = setTimeout(() => {
+      setShowMatchMessage(false);
+      matchTimerRef.current = null;
+    }, 3000);
+    return () => {
+      if (matchTimerRef.current) {
+        clearTimeout(matchTimerRef.current);
+        matchTimerRef.current = null;
+      }
+    };
+  }, [passwordsMatch, showConfirmRule]);
+
   const showClear =
     passwordValue.length >= 2 || passwordConfirm.length >= 2;
+  const showSavedMessage = passwordSaved && message;
 
   return (
     <div className="space-y-4">
@@ -86,7 +114,13 @@ export default function PasswordSetupBlock({
         Asegura tu cuenta al agregar una contraseña.
       </p>
 
-      <div className="space-y-4">
+      {showSavedMessage ? (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-600">
+          <span>{message}</span>
+          <Check size={16} />
+        </div>
+      ) : (
+        <div className="space-y-4">
         <div className="space-y-1">
           <label className="block text-xs text-gray-500 ml-1">Contraseña</label>
           <div className="relative">
@@ -177,7 +211,7 @@ export default function PasswordSetupBlock({
         </div>
         {showConfirmRule ? (
           <div className="text-xs pl-1">
-            {passwordsMatch ? (
+            {showMatchMessage ? (
               <div className="flex items-center gap-2 text-emerald-600">
                 <Check size={12} />
                 Las contrasenas coinciden
@@ -191,6 +225,7 @@ export default function PasswordSetupBlock({
           </div>
         ) : null}
       </div>
+      )}
 
       {showPasswordForm ? (
         <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
@@ -225,7 +260,9 @@ export default function PasswordSetupBlock({
         <div className="text-xs text-slate-500">Guardando contrasena...</div>
       )}
       {error && <div className="text-xs text-red-500">{error}</div>}
-      {message && <div className="text-xs text-emerald-600">{message}</div>}
+      {!showSavedMessage && message && (
+        <div className="text-xs text-emerald-600">{message}</div>
+      )}
     </div>
   );
 }

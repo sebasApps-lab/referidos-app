@@ -21,6 +21,7 @@ function PencilIcon({ className = "" }) {
 export default function EmailVerificationBlock({
   email = "",
   showActions = true,
+  emailConfirmed = false,
   onStateChange,
 }) {
   const {
@@ -57,13 +58,37 @@ export default function EmailVerificationBlock({
     handleSendEmail,
   ]);
 
+  if (emailConfirmed) {
+    return (
+      <div className="space-y-3 text-sm text-gray-700">
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-600">
+          <span>Correo confirmado</span>
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div className="text-center text-xs text-gray-500">
+          Tu correo ya fue confirmado con exito. Al finalizar, tu cuenta queda verificada.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 text-sm text-gray-700">
       {!emailSent ? (
         <>
           <div className="space-y-1">
             <label className="block text-xs text-gray-500 ml-1">
-              Correo electrónico
+              Correo electrИnico
             </label>
             {!editingEmail ? (
               <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -104,7 +129,7 @@ export default function EmailVerificationBlock({
           {showActions && (
             <>
               <div className="text-center text-xs text-gray-500">
-                Te enviaremos un codigo a este correo.
+                Te enviaremos un enlace a este correo. Puedes cambiarlo si deseas.
               </div>
               <button
                 type="button"

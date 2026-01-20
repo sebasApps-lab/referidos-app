@@ -553,6 +553,7 @@ export default function AuthFlow() {
                   ruc={onboarding?.ruc || ""}
                   emailConfirmed={Boolean(onboarding?.email_confirmed)}
                   provider={onboarding?.provider || "email"}
+                  providers={onboarding?.providers || []}
                 />
               )}
             </div>

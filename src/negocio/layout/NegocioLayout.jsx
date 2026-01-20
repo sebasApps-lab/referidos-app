@@ -5,6 +5,7 @@ import MenuLateral from "../../components/menus/MenuLateral";
 import { useAppStore } from "../../store/appStore";
 import { getAvatarSrc } from "../services/negocioUI";
 import { NegocioHeaderProvider, useNegocioHeader } from "./NegocioHeaderContext";
+import { useModal } from "../../modals/useModal";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -12,6 +13,7 @@ function NegocioLayoutInner({ children }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
+  const { openModal } = useModal();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(FALLBACK_HEADER_HEIGHT);
@@ -107,6 +109,16 @@ function NegocioLayoutInner({ children }) {
       window.removeEventListener("scroll", updateHeaderElevation);
     };
   }, [updateHeaderElevation]);
+
+  useEffect(() => {
+    if (bootstrap || !usuario) return;
+    if (usuario.has_pin || usuario.has_biometrics) return;
+    if (typeof window === "undefined") return;
+    const key = `access_methods_prompt_shown_${usuario.id || usuario.id_auth || "user"}`;
+    if (window.sessionStorage.getItem(key)) return;
+    window.sessionStorage.setItem(key, "1");
+    openModal("AccessMethods");
+  }, [bootstrap, usuario, openModal]);
 
   if (bootstrap || typeof usuario === "undefined") return null;
 

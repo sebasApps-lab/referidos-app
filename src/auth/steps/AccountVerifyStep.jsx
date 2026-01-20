@@ -12,6 +12,7 @@ export default function AccountVerifyStep({
   ruc,
   emailConfirmed,
   provider,
+  providers,
 }) {
   const [currentScreen, setCurrentScreen] = useState(() => {
     if (phone && ruc && emailConfirmed === false) return "email";
@@ -26,10 +27,20 @@ export default function AccountVerifyStep({
   const [emailValue, setEmailValue] = useState("");
   const [passwordReady, setPasswordReady] = useState(false);
   const [passwordSave, setPasswordSave] = useState(null);
-  const [emailActions, setEmailActions] = useState(null);
   const [finalizeError, setFinalizeError] = useState("");
   const [skipError, setSkipError] = useState("");
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
+  const providerList =
+    Array.isArray(providers) && providers.length
+      ? providers
+      : provider
+        ? [provider]
+        : [];
+  const isOauthPrimary =
+    provider && provider !== "email" && provider !== "password";
+  const hasEmailProvider =
+    providerList.includes("email") || providerList.includes("password");
+  const passwordProvider = isOauthPrimary ? "oauth" : provider;
 
   const normalizedRuc = rucValue.replace(/\D/g, "").slice(0, 13);
   const rucCore = normalizedRuc.slice(0, 10);
@@ -74,17 +85,18 @@ export default function AccountVerifyStep({
       setFinalizeError("No se pudo obtener sesion.");
       return;
     }
-    const { data: usuarioRow, error: usuarioErr } = await supabase
-      .from("usuarios")
-      .select("email_verificado")
-      .eq("id_auth", userId)
-      .maybeSingle();
-    if (usuarioErr) {
-      setFinalizeError("No se pudo verificar el correo.");
-      return;
-    }
-    if (!usuarioRow?.email_verificado) {
-      setFinalizeError("Tu correo aun no ha sido confirmado.");
+    if (!isOauthPrimary) {
+      const { data, error: authErr } = await supabase.auth.getUser();
+      if (authErr) {
+        setFinalizeError("No se pudo verificar el correo.");
+        return;
+      }
+      if (!data?.user?.email_confirmed_at) {
+        setFinalizeError("Tu correo aun no ha sido confirmado.");
+        return;
+      }
+    } else if (!hasEmailProvider && !passwordSave?.saved) {
+      setFinalizeError("Agrega una contrasena para continuar.");
       return;
     }
     const { error: updErr } = await supabase
@@ -117,48 +129,6 @@ export default function AccountVerifyStep({
     await bootstrapAuth({ force: true });
     window.location.href = "/app";
   };
-
-  useEffect(() => {
-    if (currentScreen !== "email") return;
-    let channel;
-    let active = true;
-    (async () => {
-      const session = (await supabase.auth.getSession())?.data?.session;
-      const userId = session?.user?.id;
-      if (!userId || !active) return;
-      const { data: usuarioRow } = await supabase
-        .from("usuarios")
-        .select("id,email_verificado")
-        .eq("id_auth", userId)
-        .maybeSingle();
-      if (!usuarioRow || !active) return;
-      if (usuarioRow.email_verificado) {
-        await handleFinalize();
-        return;
-      }
-      channel = supabase
-        .channel(`email-verificado-${usuarioRow.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "usuarios",
-            filter: `id=eq.${usuarioRow.id}`,
-          },
-          async (payload) => {
-            if (payload?.new?.email_verificado) {
-              await handleFinalize();
-            }
-          }
-        )
-        .subscribe();
-    })();
-    return () => {
-      active = false;
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [currentScreen]);
 
   const handleSavePhone = async (normalizedPhone) => {
     const session = (await supabase.auth.getSession())?.data?.session;
@@ -226,66 +196,45 @@ export default function AccountVerifyStep({
   };
 
   if (currentScreen === "email") {
-    const showPasswordSetup =
-      provider && provider !== "email" && provider !== "password";
-    const showEmailBlock = !showPasswordSetup;
+    const showPasswordSetup = isOauthPrimary && !hasEmailProvider;
+    const showPasswordSaved = isOauthPrimary && hasEmailProvider;
+    const showEmailBlock = !isOauthPrimary;
     const passwordSaved = showPasswordSetup ? Boolean(passwordSave?.saved) : true;
     return (
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
         <div className="flex-1 space-y-4">
-          <div
-            className={`text-lg font-semibold text-gray-900 ${
-              showPasswordSetup ? "text-center" : ""
-            }`}
-          >
-            {showPasswordSetup
-              ? "Paso 2 de 2"
-              : "Lleva tu cuenta al siguiente nivel"}
+          <div className="text-lg font-semibold text-gray-900 text-center">
+            Paso 2 de 2
           </div>
-          {showEmailBlock ? (
-            <p className="text-sm text-gray-600">
-              Te enviaremos un enlace a este correo. Puedes cambiarlo si deseas.
-            </p>
-          ) : null}
           {showEmailBlock ? (
             <EmailVerificationBlock
               email={emailValue}
-              showActions={false}
-              onStateChange={setEmailActions}
+              showActions={true}
+              emailConfirmed={emailConfirmed}
             />
+          ) : null}
+          {showPasswordSaved ? (
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-600">
+              <span>Contrasena guardada</span>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
           ) : null}
           {showPasswordSetup && (
             <PasswordSetupBlock
-              provider={provider}
+              provider={passwordProvider}
               onValidityChange={setPasswordReady}
               onSaveChange={setPasswordSave}
             />
-          )}
-          {showEmailBlock && !emailActions?.emailSent && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  setFinalizeError("");
-                  if (showPasswordSetup && passwordSave?.save) {
-                    const result = await passwordSave.save();
-                    if (result?.ok === false) {
-                      return;
-                    }
-                  }
-                  await emailActions?.handleSendEmail?.();
-                }}
-                disabled={
-                  !emailActions?.handleSendEmail ||
-                  emailActions?.sending ||
-                  (showPasswordSetup && !passwordReady) ||
-                  (showPasswordSetup && passwordSave?.saving)
-                }
-                className="w-full text-sm font-semibold text-[#5E30A5] disabled:opacity-60"
-              >
-                {emailActions?.sending ? "Enviando..." : "Enviar correo"}
-              </button>
-            </div>
           )}
           {finalizeError && (
             <div className="text-center text-xs text-red-500">
@@ -322,9 +271,7 @@ export default function AccountVerifyStep({
       <div className="space-y-6">
         <div className="space-y-2">
           <div className="text-lg font-semibold text-gray-900 text-center">
-            {provider && provider !== "email" && provider !== "password"
-              ? "Paso 1 de 2"
-              : "Lleva tu cuenta al siguiente nivel"}
+            Paso 1 de 2
           </div>
           <p className="text-sm text-gray-600">
             Con la siguiente informacion aseguras tu cuenta y tus beneficios.
@@ -398,10 +345,8 @@ export default function AccountVerifyStep({
 
         <ContactPhoneBlock
           phone={phone}
-          email={
-            provider === "email" || provider === "password" ? emailValue : ""
-          }
-          showEmail={provider === "email" || provider === "password"}
+          email={emailValue}
+          showEmail={false}
           onEmailChange={setEmailValue}
           onSave={handleSavePhone}
           onStatusChange={({ confirmed }) => setPhoneConfirmed(confirmed)}

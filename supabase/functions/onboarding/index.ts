@@ -61,6 +61,7 @@ type OnboardingResult = {
     ruc?: string | null;
     verification_status?: string | null;
     provider: string | null;
+    providers?: string[];
 };
 
 type UsuarioProfile = {
@@ -175,6 +176,11 @@ serve (async (req) => {
 
     const authEmail = user.email ?? "";
     const provider = user.app_metadata?.provider ?? "email";
+    const providerList = Array.isArray(user.app_metadata?.providers)
+      ? user.app_metadata.providers
+      : provider
+        ? [provider]
+        : [];
     const baseName = authEmail ? authEmail.split("@")[0] : null;
 
     //2) Obtener perfil de public.usuarios
@@ -199,6 +205,15 @@ serve (async (req) => {
             500,
             corsHeaders
         );
+    }
+
+    let emailConfirmed = false;
+    const { data: authUser, error: authUserErr } =
+        await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (!authUserErr && authUser?.user) {
+        emailConfirmed = Boolean(authUser.user.email_confirmed_at);
+    } else {
+        emailConfirmed = Boolean(user.email_confirmed_at);
     }
 
     //Si no hay perfil, no creamos aquí (solo reportamos).
@@ -406,11 +421,12 @@ serve (async (req) => {
             reasons,
             usuario: updatedProfile,
             negocio: negocioRow,
-            email_confirmed: Boolean(profile.email_verificado),
+            email_confirmed: emailConfirmed,
             phone: profile.telefono ?? null,
             ruc: rucValue,
             verification_status: profile.verification_status ?? null,
             provider,
+            providers: providerList,
         } satisfies OnboardingResult,
         200,
         corsHeaders
