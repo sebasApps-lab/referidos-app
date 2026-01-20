@@ -350,7 +350,7 @@ export default function ModalAccessMethods({
           PIN
         </button>
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
+      <div className="mt-6 flex items-center gap-2 text-xs text-gray-600">
         <input
           type="checkbox"
           checked={skipPrompt}
@@ -369,7 +369,7 @@ export default function ModalAccessMethods({
         />
         <span>No volver a mostrar este mensaje.</span>
       </div>
-      <div className="mt-1 text-[11px] text-gray-500 text-center">
+      <div className="mt-3 text-[11px] text-gray-500 text-center">
         No uses biometria en dispositivos compartidos
       </div>
       {error && (
@@ -379,7 +379,7 @@ export default function ModalAccessMethods({
         <button
           type="button"
           onClick={closeModal}
-          className="mt-5 w-full rounded-lg bg-[#5E30A5] py-2.5 text-sm font-semibold text-white"
+          className="mt-2 w-full rounded-lg bg-[#5E30A5] py-2.5 text-sm font-semibold text-white"
         >
           Listo
         </button>
@@ -387,7 +387,7 @@ export default function ModalAccessMethods({
         <button
           type="button"
           onClick={closeModal}
-          className="mt-5 w-full text-sm font-semibold text-gray-500"
+          className="mt-2 w-full text-sm font-semibold text-gray-500"
         >
           Ahora no
         </button>
