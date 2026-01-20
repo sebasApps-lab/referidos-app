@@ -229,6 +229,7 @@ export default function AccountVerifyStep({
     const showPasswordSetup =
       provider && provider !== "email" && provider !== "password";
     const showEmailBlock = !showPasswordSetup;
+    const passwordSaved = showPasswordSetup ? Boolean(passwordSave?.saved) : true;
     return (
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
         <div className="flex-1 space-y-4">
@@ -299,7 +300,8 @@ export default function AccountVerifyStep({
           <button
             type="button"
             onClick={handleFinalize}
-            className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold"
+            disabled={!passwordSaved}
+            className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold disabled:opacity-50"
           >
             Finalizar
           </button>

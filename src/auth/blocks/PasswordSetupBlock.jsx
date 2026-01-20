@@ -30,6 +30,7 @@ export default function PasswordSetupBlock({
     passwordInputRef,
     confirmInputRef,
     onPasswordSave,
+    passwordSaved,
     saving,
     error,
     message,
@@ -72,8 +73,9 @@ export default function PasswordSetupBlock({
       saving,
       error,
       message,
+      saved: passwordSaved,
     });
-  }, [onPasswordSave, onSaveChange, saving, error, message]);
+  }, [onPasswordSave, onSaveChange, saving, error, message, passwordSaved]);
 
   const showClear =
     passwordValue.length >= 2 || passwordConfirm.length >= 2;

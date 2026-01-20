@@ -94,11 +94,16 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
     if (passwordMode === "change" && !currentPassword.trim()) return;
     setSaving(true);
     try {
-      const { error: updErr } = await supabase.auth.updateUser({
-        password: passwordValue,
-      });
-      if (updErr) {
-        setError(updErr.message || "No se pudo guardar la contrasena.");
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "set-password",
+        {
+          body: { password: passwordValue },
+        },
+      );
+      if (fnErr || data?.ok === false) {
+        setError(
+          fnErr?.message || data?.message || "No se pudo guardar la contrasena.",
+        );
         return { ok: false };
       }
       setPasswordEnabled(true);
@@ -134,6 +139,8 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
     setPasswordEnabled(false);
     setShowPasswordForm(false);
   };
+
+  const passwordSaved = passwordEnabled === true;
 
   return {
     passwordActive,
@@ -172,6 +179,7 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
     currentPasswordRef,
     passwordInputRef,
     confirmInputRef,
+    passwordSaved,
     saving,
     error,
     message,
