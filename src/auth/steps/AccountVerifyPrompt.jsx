@@ -41,21 +41,9 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
 
   return (
     <section className="h-full">
-      <div className="pb-4 flex h-full flex-col" ref={innerRef}>
+      <div className="pb-1 flex h-full flex-col" ref={innerRef}>
         <div className="flex-1 flex flex-col gap-4 text-gray-700">
-          <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 mt-3">
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5 text-[#5E30A5]"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 3l7 3v6c0 5-3.5 9-7 12-3.5-3-7-7-7-12V6l7-3z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
+          <div className="text-lg font-semibold text-gray-900 mt-3">
             Lleva tu cuenta al siguiente nivel
           </div>
           <p className="text-sm text-gray-600">
@@ -65,7 +53,7 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
           <div className="-mx-2 mt-6 relative rounded-[28px] border border-[#E9E2F7] bg-white px-6 pb-8 pt-9">
             <div className="absolute -top-3 left-4 right-4">
               <span className="bg-white px-2 text-[16px] font-semibold text-gray-500">
-                Al verificar tu cuenta podr€đs:
+                Al verificar tu cuenta podrás:
               </span>
             </div>
             <ul className="space-y-8 text-[13px] text-gray-600">
@@ -76,27 +64,15 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
           </div>
 
           <div className="flex-1 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-sm text-gray-700 text-center">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4 text-[#5E30A5]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </svg>
-              Te tomara menos de 3 minutos
+            <div className="text-sm text-gray-700 text-center">
+              Te tomará menos de 3 minutos
             </div>
           </div>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
 
-        <div className="mt-auto space-y-4">
+        <div className="mt-auto space-y-3 pt-4">
           <div className="text-xs text-gray-500 text-center mb-3">
             Puedes hacerlo mas tarde.
             Las cuentas verificadas obtienen mayor visibilidad.
