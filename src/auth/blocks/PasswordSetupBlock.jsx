@@ -8,6 +8,7 @@ export default function PasswordSetupBlock({
   onSaveChange,
 }) {
   const {
+    showPasswordForm,
     passwordValue,
     passwordConfirm,
     showPassword,
@@ -74,17 +75,18 @@ export default function PasswordSetupBlock({
     });
   }, [onPasswordSave, onSaveChange, saving, error, message]);
 
+  const showClear =
+    passwordValue.length >= 2 || passwordConfirm.length >= 2;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Antes de confirmar el correo debes elegir una contraseña.
+        Asegura tu cuenta al agregar una contraseña.
       </p>
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="block text-xs text-gray-500 ml-1">
-            Contraseña
-          </label>
+          <label className="block text-xs text-gray-500 ml-1">Contraseña</label>
           <div className="relative">
             <input
               ref={passwordInputRef}
@@ -143,7 +145,7 @@ export default function PasswordSetupBlock({
 
         <div className="space-y-1">
           <label className="block text-xs text-gray-500 ml-1">
-            Verificar contraseña
+            Confirmar contraseña
           </label>
           <div className="relative">
             <input
@@ -187,6 +189,35 @@ export default function PasswordSetupBlock({
           </div>
         ) : null}
       </div>
+
+      {showPasswordForm ? (
+        <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
+          {showClear ? (
+            <button
+              type="button"
+              onClick={() => {
+                onChangePasswordValue({ target: { value: "" } });
+                onChangePasswordConfirm({ target: { value: "" } });
+                passwordInputRef.current?.blur();
+                confirmInputRef.current?.blur();
+              }}
+              className="text-[#2F1A55]"
+            >
+              Limpiar
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={onPasswordSave}
+            disabled={!canSavePassword}
+            className={canSavePassword ? "text-[#5E30A5]" : "text-slate-400"}
+          >
+            Guardar
+          </button>
+        </div>
+      ) : null}
 
       {saving && (
         <div className="text-xs text-slate-500">Guardando contrasena...</div>

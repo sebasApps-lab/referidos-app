@@ -35,6 +35,9 @@ function ChevronIcon({ className = "" }) {
 
 export default function ContactPhoneBlock({
   phone = "",
+  email = "",
+  showEmail = true,
+  onEmailChange,
   onSave,
   onStatusChange,
 }) {
@@ -43,6 +46,8 @@ export default function ContactPhoneBlock({
     onSave,
     onStatusChange,
   });
+
+  const showEmailInput = showEmail && !email;
 
   return (
     <div className="space-y-2 mt-10">
@@ -53,42 +58,43 @@ export default function ContactPhoneBlock({
         <label className="block text-xs text-gray-500 ml-1">
           Telefono
         </label>
-        {!phoneState.editingPhone &&
-        phoneState.phoneConfirmed &&
-        phone ? (
-          <div className="flex items-stretch rounded-lg border border-gray-200 bg-white text-sm text-gray-700 overflow-hidden">
-            <span className="px-3 py-2 text-gray-400">
-              {phoneState.countryCode}
-            </span>
-            <span className="w-px bg-gray-200" />
-            <span className="flex-1 px-3 py-2">
+        {!phoneState.editingPhone && phoneState.phoneConfirmed ? (
+          <div className="flex items-center text-sm text-gray-700 gap-2 pl-1">
+            <span>
               {phoneState.countryCode === "+593"
-                ? phone
-                    .replace(phoneState.countryCode, "")
-                    .replace(/\D/g, "")
-                    .replace(/^(\d{2})(\d{3})(\d{0,4}).*$/, (_, a, b, c) =>
-                      [a, b, c].filter(Boolean).join(" ")
-                    )
-                : phone.replace(phoneState.countryCode, "").trim()}
+                ? `0${phoneState.normalizedDigits}`.replace(
+                    /^(\d{3})(\d{3})(\d{0,4}).*$/,
+                    (_, a, b, c) => [a, b, c].filter(Boolean).join(" ")
+                  )
+                : phoneState.normalizedDigits
+                  ? `${phoneState.countryCode} ${phoneState.normalizedDigits}`
+                  : ""}
             </span>
-            <span className="w-px bg-gray-200" />
             <button
               type="button"
               onClick={() => phoneState.setEditingPhone(true)}
-              className="px-3 flex items-center text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600"
               aria-label="Editar telefono"
             >
               <PencilIcon className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <div className="relative flex items-stretch rounded-lg border border-gray-200 bg-white overflow-visible">
+          <div
+            className={`relative flex items-stretch rounded-lg border bg-white overflow-visible ${
+              phoneState.phoneError ? "border-red-300" : "border-gray-200"
+            }`}
+          >
             <button
               type="button"
               onClick={() =>
                 phoneState.setDropdownOpen((prev) => !prev)
               }
-              className="flex items-center gap-1 px-3 text-sm text-gray-400 border-r border-gray-200"
+              className={`flex items-center gap-1 px-3 text-sm border-r ${
+                phoneState.phoneError
+                  ? "text-red-400 border-red-300"
+                  : "text-gray-400 border-gray-200"
+              }`}
             >
               {phoneState.countryCode}
               <ChevronIcon className="h-4 w-4 text-gray-400" />
@@ -101,14 +107,20 @@ export default function ContactPhoneBlock({
                 phoneState.handleDigitsChange(event.target.value)
               }
               placeholder="Ej: 987654321"
-              className="flex-1 px-3 py-2 pr-12 text-sm text-gray-700 focus:outline-none"
+              className={`flex-1 px-3 py-2 pr-12 text-sm focus:outline-none ${
+                phoneState.phoneError ? "text-red-500" : "text-gray-700"
+              }`}
             />
             {phoneState.phoneValid && (
               <button
                 type="button"
                 onClick={phoneState.handleConfirmPhone}
                 disabled={phoneState.savingPhone}
-                className="absolute right-0 top-0 h-full px-3 text-xs font-semibold text-[#5E30A5] border-l border-gray-200 disabled:opacity-60"
+                className={`absolute right-0 top-0 h-full px-3 text-xs font-semibold border-l disabled:opacity-60 ${
+                  phoneState.phoneError
+                    ? "text-red-500 border-red-300"
+                    : "text-[#5E30A5] border-gray-200"
+                }`}
               >
                 OK
               </button>
@@ -131,7 +143,28 @@ export default function ContactPhoneBlock({
             )}
           </div>
         )}
+        {phoneState.phoneError && (
+          <p className="text-xs text-red-500">{phoneState.phoneError}</p>
+        )}
       </div>
+      {showEmail ? (
+        <div className="space-y-1">
+          <label className="block text-xs text-gray-500 ml-1">
+            Correo electronico
+          </label>
+          {showEmailInput ? (
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => onEmailChange?.(event.target.value)}
+              placeholder="tu@email.com"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30"
+            />
+          ) : (
+            <div className="text-sm text-gray-700">{email}</div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
