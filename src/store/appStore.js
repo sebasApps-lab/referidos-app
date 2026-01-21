@@ -17,7 +17,8 @@ import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
 import { supabase } from "../lib/supabaseClient";
-import { clearUserSecurityMaterial } from "../services/secureStorageService";
+import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secureStorageService";
+import { useModalStore } from "../modals/modalStore";
 
 let promosRefreshTimer = null;
 let promosVisibilityHandler = null;
@@ -37,6 +38,24 @@ const SECURITY_LEVEL_ORDER = {
 
 const UNLOCK_LOCAL_TTL_MS = 10 * 60 * 1000;
 const REAUTH_SENSITIVE_TTL_MS = 5 * 60 * 1000;
+
+const createRandomBuffer = (size) => {
+  const data = new Uint8Array(size);
+  window.crypto.getRandomValues(data);
+  return data;
+};
+
+const bufferFromBase64Url = (value) => {
+  if (!value) return null;
+  const base = value.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base.length % 4 ? "=".repeat(4 - (base.length % 4)) : "";
+  const binary = window.atob(base + pad);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
 
 const defaultSecurityState = {
   unlockLevel: SECURITY_LEVELS.NONE,
@@ -112,6 +131,65 @@ export const useAppStore = create(
             currentLevel,
             pendingMethod,
           };
+        },
+        requestLocalVerification: ({
+          onVerified,
+          userId,
+          email,
+          displayName,
+        } = {}) => {
+          const { accessMethods, usuario } = get();
+          const modalApi = useModalStore.getState();
+          const hasFingerprint =
+            Boolean(accessMethods?.fingerprint) ||
+            Boolean(usuario?.has_biometrics);
+          const hasPin =
+            Boolean(accessMethods?.pin) ||
+            Boolean(usuario?.has_pin);
+          const resolvedUserId = userId ?? usuario?.id_auth ?? usuario?.id ?? null;
+          const resolvedEmail = email ?? usuario?.email ?? null;
+          const resolvedName = displayName ?? usuario?.nombre ?? usuario?.alias ?? "Usuario";
+
+          if (hasFingerprint) {
+            (async () => {
+              try {
+                if (!window.PublicKeyCredential || !window.crypto?.getRandomValues) return;
+                const available =
+                  await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.();
+                if (available === false) return;
+                if (!resolvedUserId) return;
+                const token = await loadBiometricToken(resolvedUserId);
+                const credentialId = token?.credentialId;
+                if (!credentialId) return;
+                const credentialBuffer = bufferFromBase64Url(credentialId);
+                if (!credentialBuffer) return;
+                const publicKey = {
+                  challenge: createRandomBuffer(32),
+                  allowCredentials: [
+                    { type: "public-key", id: credentialBuffer },
+                  ],
+                  userVerification: "required",
+                  timeout: 45000,
+                };
+                await navigator.credentials.get({ publicKey });
+                onVerified?.();
+              } catch {
+                // no-op
+              }
+            })();
+            return { ok: false, method: "fingerprint" };
+          }
+
+          if (hasPin) {
+            modalApi.openModal("PinVerify", {
+              userId: resolvedUserId,
+              onConfirm: onVerified,
+            });
+            return { ok: false, method: "pin" };
+          }
+
+          onVerified?.();
+          return { ok: true, method: "none" };
         },
         unlockWithBiometrics: (ttlMs = UNLOCK_LOCAL_TTL_MS) => {
           const now = Date.now();

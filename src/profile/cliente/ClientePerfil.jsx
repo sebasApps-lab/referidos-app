@@ -85,6 +85,16 @@ import NotificationsPreferencesCard, {
 import VerificationCard from "../shared/blocks/VerificationCard";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  deleteBiometricToken,
+  deletePinHash,
+  generatePinSalt,
+  hashPin,
+  loadDeviceSecret,
+  saveBiometricToken,
+  saveDeviceSecret,
+  savePinHash,
+} from "../../services/secureStorageService";
 
 const DEVICE_ICON = {
   Movil: Smartphone,
@@ -98,6 +108,9 @@ export default function ClientePerfil() {
   const setUser = useAppStore((s) => s.setUser);
   const logout = useAppStore((s) => s.logout);
   const accessMethods = useAppStore((s) => s.accessMethods);
+  const requestLocalVerification = useAppStore(
+    (s) => s.security.requestLocalVerification
+  );
   const { openModal } = useModal();
   const { setHeaderOptions } = useClienteHeader();
   const { profileTab, setProfileTab } = useClienteUI({
@@ -416,7 +429,7 @@ export default function ClientePerfil() {
       document.activeElement?.blur();
     };
 
-    const handlePasswordSave = () => {
+    const handlePasswordSave = async () => {
       setPasswordAttempted(true);
       if (!canSavePassword) return;
       if (passwordMode === "change" && !currentPassword.trim()) return;
@@ -424,24 +437,42 @@ export default function ClientePerfil() {
       setShowPasswordForm(false);
       setPasswordMode("add");
       setPasswordAttempted(false);
+      const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
+      if (userId) {
+        await supabase.from("usuarios").update({ has_password: true }).eq("id_auth", userId);
+      }
     };
 
     const openAddPassword = () => {
-      setPasswordMode("add");
-      setCurrentPassword("");
-      setPasswordValue("");
-      setPasswordConfirm("");
-      setPasswordAttempted(false);
-      setShowPasswordForm(true);
+      requestLocalVerification({
+        onVerified: () => {
+          setPasswordMode("add");
+          setCurrentPassword("");
+          setPasswordValue("");
+          setPasswordConfirm("");
+          setPasswordAttempted(false);
+          setShowPasswordForm(true);
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
+      });
     };
 
     const openChangePassword = () => {
-      setPasswordMode("change");
-      setCurrentPassword("");
-      setPasswordValue("");
-      setPasswordConfirm("");
-      setPasswordAttempted(false);
-      setShowPasswordForm(true);
+      requestLocalVerification({
+        onVerified: () => {
+          setPasswordMode("change");
+          setCurrentPassword("");
+          setPasswordValue("");
+          setPasswordConfirm("");
+          setPasswordAttempted(false);
+          setShowPasswordForm(true);
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
+      });
     };
 
     const sanitizedPin = pinValue.replace(/[^0-9]/g, "").slice(0, 4);
@@ -547,19 +578,28 @@ export default function ClientePerfil() {
       focusPinInput(0);
     };
 
-    const handlePinConfirm = () => {
+    const handlePinConfirm = async () => {
       if (!pinComplete || !pinMatches) return;
+      const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
+      if (!userId) return;
+      const existingSecret = await loadDeviceSecret(userId);
+      if (!existingSecret) {
+        const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+        const token = btoa(String.fromCharCode(...bytes));
+        await saveDeviceSecret(userId, { token, createdAt: new Date().toISOString() });
+      }
+      const salt = generatePinSalt();
+      const hash = await hashPin(pinValue, salt);
+      const saved = await savePinHash(userId, {
+        salt,
+        hash,
+        iterations: 160000,
+        algo: "PBKDF2-SHA256",
+      });
+      if (!saved.ok) return;
+      await supabase.from("usuarios").update({ has_pin: true }).eq("id_auth", userId);
       setPinEnabled(true);
       resetPinForm();
-    };
-
-    const openFingerprintGate = (onSuccess) => {
-      openModal("FingerprintPrompt", {
-        onConfirm: () => onSuccess?.(),
-        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
-        email: accessUser?.email ?? null,
-        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
-      });
     };
 
     const handleRemoveFingerprint = () => {
@@ -568,15 +608,29 @@ export default function ClientePerfil() {
         setDismissedMethodsWarning(false);
         return;
       }
-      openModal("ConfirmAction", {
-        title: "Quitar huella",
-        message: "Seguro que deseas quitar la huella?",
-        confirmLabel: "Confirmar",
-        cancelLabel: "Cancelar",
-        onConfirm: () =>
-          openFingerprintGate(() => {
-            setFingerprintEnabled(false);
-          }),
+      requestLocalVerification({
+        onVerified: () => {
+          openModal("ConfirmAction", {
+            title: "Quitar huella",
+            message: "Seguro que deseas quitar la huella?",
+            confirmLabel: "Confirmar",
+            cancelLabel: "Cancelar",
+            onConfirm: async () => {
+              const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
+              if (userId) {
+                await supabase
+                  .from("usuarios")
+                  .update({ has_biometrics: false })
+                  .eq("id_auth", userId);
+                await deleteBiometricToken(userId);
+              }
+              setFingerprintEnabled(false);
+            },
+          });
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
 
@@ -586,15 +640,29 @@ export default function ClientePerfil() {
         setDismissedMethodsWarning(false);
         return;
       }
-      openModal("ConfirmAction", {
-        title: "Quitar PIN",
-        message: "Seguro que deseas quitar el PIN?",
-        confirmLabel: "Confirmar",
-        cancelLabel: "Cancelar",
-        onConfirm: () =>
-          openFingerprintGate(() => {
-            setPinEnabled(false);
-          }),
+      requestLocalVerification({
+        onVerified: () => {
+          openModal("ConfirmAction", {
+            title: "Quitar PIN",
+            message: "Seguro que deseas quitar el PIN?",
+            confirmLabel: "Confirmar",
+            cancelLabel: "Cancelar",
+            onConfirm: async () => {
+              const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
+              if (userId) {
+                await supabase
+                  .from("usuarios")
+                  .update({ has_pin: false })
+                  .eq("id_auth", userId);
+                await deletePinHash(userId);
+              }
+              setPinEnabled(false);
+            },
+          });
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
 
@@ -614,15 +682,49 @@ export default function ClientePerfil() {
         resetPinForm();
         return;
       }
-      openFingerprintGate(() => {
-        openPinForm();
-        focusPinInput(0);
+      requestLocalVerification({
+        onVerified: () => {
+          openPinForm();
+          focusPinInput(0);
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
 
     const handleAddFingerprint = () => {
-      openFingerprintGate(() => {
-        setFingerprintEnabled(true);
+      requestLocalVerification({
+        onVerified: () => {
+          openModal("FingerprintPrompt", {
+            onConfirm: async (credentialId) => {
+              const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
+              if (!userId) return;
+              const existingSecret = await loadDeviceSecret(userId);
+              if (!existingSecret) {
+                const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+                const token = btoa(String.fromCharCode(...bytes));
+                await saveDeviceSecret(userId, { token, createdAt: new Date().toISOString() });
+              }
+              if (!credentialId) return;
+              await saveBiometricToken(userId, {
+                credentialId,
+                createdAt: new Date().toISOString(),
+              });
+              await supabase
+                .from("usuarios")
+                .update({ has_biometrics: true })
+                .eq("id_auth", userId);
+              setFingerprintEnabled(true);
+            },
+            userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+            email: accessUser?.email ?? null,
+            displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
+          });
+        },
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
 

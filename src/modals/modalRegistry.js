@@ -18,6 +18,7 @@ import ModalTimePicker from "../components/modals/ModalTimePicker";
 import ModalAccountVerifySkip from "../components/modals/ModalAccountVerifySkip";
 import ModalAccessMethods from "../components/modals/ModalAccessMethods";
 import ModalConfirmAction from "../components/modals/ModalConfirmAction";
+import ModalPinVerify from "../components/modals/ModalPinVerify";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -38,4 +39,5 @@ export const modalRegistry = {
   AccountVerifySkip: ModalAccountVerifySkip,
   AccessMethods: ModalAccessMethods,
   ConfirmAction: ModalConfirmAction,
+  PinVerify: ModalPinVerify,
 };
