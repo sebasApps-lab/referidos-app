@@ -22,6 +22,8 @@ export default function ModalAccessMethods({
 }) {
   const { closeModal, openModal } = useModal();
   const usuario = useAppStore((s) => s.usuario);
+  const setAccessMethods = useAppStore((s) => s.setAccessMethods);
+  const setUser = useAppStore((s) => s.setUser);
   const [view, setView] = useState(initialView);
   const [fingerprintEnabled, setFingerprintEnabled] = useState(
     initialFingerprintEnabled,
@@ -86,8 +88,12 @@ export default function ModalAccessMethods({
     if (updErr) {
       return { ok: false, error: updErr.message || "No se pudo guardar el PIN." };
     }
+    setAccessMethods({ pin: true });
+    if (usuario) {
+      setUser({ ...usuario, has_pin: true });
+    }
     return { ok: true };
-  }, [webauthnAvailable]);
+  }, [webauthnAvailable, setAccessMethods, setUser, usuario]);
 
   const pinSetup = usePinSetup({ onSavePin: savePin });
 
@@ -144,6 +150,10 @@ export default function ModalAccessMethods({
             errorMessage: "No se pudo anadir huella.",
           });
           return;
+        }
+        setAccessMethods({ fingerprint: true });
+        if (usuario) {
+          setUser({ ...usuario, has_biometrics: true });
         }
         openModal("AccessMethods", {
           initialView: "select",

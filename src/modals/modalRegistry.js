@@ -19,6 +19,9 @@ import ModalAccountVerifySkip from "../components/modals/ModalAccountVerifySkip"
 import ModalAccessMethods from "../components/modals/ModalAccessMethods";
 import ModalConfirmAction from "../components/modals/ModalConfirmAction";
 import ModalPinVerify from "../components/modals/ModalPinVerify";
+import ModalEmailVerification from "../components/modals/ModalEmailVerification";
+import ModalEmailReauth from "../components/modals/ModalEmailReauth";
+import ModalPasswordReauth from "../components/modals/ModalPasswordReauth";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -40,4 +43,7 @@ export const modalRegistry = {
   AccessMethods: ModalAccessMethods,
   ConfirmAction: ModalConfirmAction,
   PinVerify: ModalPinVerify,
+  EmailVerification: ModalEmailVerification,
+  EmailReauth: ModalEmailReauth,
+  PasswordReauth: ModalPasswordReauth,
 };

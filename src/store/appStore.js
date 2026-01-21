@@ -134,12 +134,19 @@ export const useAppStore = create(
         },
         requestLocalVerification: ({
           onVerified,
+          onBlocked,
+          requireVerifiedEmail = false,
           userId,
           email,
           displayName,
         } = {}) => {
           const { accessMethods, usuario } = get();
+          const onboarding = get().onboarding;
           const modalApi = useModalStore.getState();
+          if (requireVerifiedEmail && !onboarding?.email_confirmed) {
+            onBlocked?.();
+            return { ok: false, reason: "email_unverified" };
+          }
           const hasFingerprint =
             Boolean(accessMethods?.fingerprint) ||
             Boolean(usuario?.has_biometrics);
@@ -190,6 +197,24 @@ export const useAppStore = create(
 
           onVerified?.();
           return { ok: true, method: "none" };
+        },
+        requestPasswordVerification: ({
+          onVerified,
+          onBlocked,
+          requireVerifiedEmail = false,
+          email,
+        } = {}) => {
+          const onboarding = get().onboarding;
+          const modalApi = useModalStore.getState();
+          if (requireVerifiedEmail && !onboarding?.email_confirmed) {
+            onBlocked?.();
+            return { ok: false, reason: "email_unverified" };
+          }
+          modalApi.openModal("PasswordReauth", {
+            email,
+            onConfirm: onVerified,
+          });
+          return { ok: false, method: "password" };
         },
         unlockWithBiometrics: (ttlMs = UNLOCK_LOCAL_TTL_MS) => {
           const now = Date.now();
@@ -294,6 +319,7 @@ export const useAppStore = create(
         password: false,
       },
       justCompletedRegistration: false,
+      emailVerifiedSessionAt: null,
       loading: false,
       error: null,
       security: {
@@ -314,6 +340,8 @@ export const useAppStore = create(
         set({ scannerManualFallbackShown: value }),
       setJustCompletedRegistration: (value) =>
         set({ justCompletedRegistration: value }),
+      setEmailVerifiedSessionAt: (value) =>
+        set({ emailVerifiedSessionAt: value }),
 
       //-----------------------
       // AUTH
@@ -389,6 +417,7 @@ export const useAppStore = create(
             scannerPermissionPrompted: false,
             scannerManualFallbackShown: false,
             justCompletedRegistration: false,
+            emailVerifiedSessionAt: null,
             security: {
               ...defaultSecurityState,
               ...securityActions,
@@ -436,11 +465,16 @@ export const useAppStore = create(
           }
 
           const nextUser = check?.usuario ?? null;
+          const emailConfirmed = Boolean(check?.email_confirmed);
+          const currentVerifiedAt = get().emailVerifiedSessionAt;
+          const nextVerifiedAt =
+            emailConfirmed && !currentVerifiedAt ? Date.now() : currentVerifiedAt;
           set({
             bootstrap: false,
             bootstrapError: false,
             usuario: nextUser,
             onboarding: check,
+            emailVerifiedSessionAt: nextVerifiedAt,
           });
 
           return { ok: true, usuario: nextUser };

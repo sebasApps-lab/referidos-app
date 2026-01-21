@@ -19,6 +19,8 @@ function NegocioLayoutInner({ children }) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
+  const setAccessMethods = useAppStore((s) => s.setAccessMethods);
+  const setUser = useAppStore((s) => s.setUser);
   const { openModal } = useModal();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,11 +134,17 @@ function NegocioLayoutInner({ children }) {
       const localPin = await loadPinHash(userId);
       const localBio = await loadBiometricToken(userId);
       if (!active) return;
+      const nextPin = Boolean(localPin);
+      const nextBio = Boolean(localBio);
+      setAccessMethods({ pin: nextPin, fingerprint: nextBio });
       const updates = {};
-      if (usuario.has_pin && !localPin) updates.has_pin = false;
-      if (usuario.has_biometrics && !localBio) updates.has_biometrics = false;
+      if (usuario.has_pin !== nextPin) updates.has_pin = nextPin;
+      if (usuario.has_biometrics !== nextBio) updates.has_biometrics = nextBio;
       if (Object.keys(updates).length) {
         await supabase.from("usuarios").update(updates).eq("id_auth", userId);
+        if (active) {
+          setUser({ ...usuario, ...updates });
+        }
       }
       if (window.localStorage.getItem(skipKey) === "1") return;
       if (localPin || localBio) return;

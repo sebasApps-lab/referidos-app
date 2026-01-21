@@ -127,6 +127,9 @@ export default function NegocioPerfil() {
   const requestLocalVerification = useAppStore(
     (s) => s.security.requestLocalVerification
   );
+  const requestPasswordVerification = useAppStore(
+    (s) => s.security.requestPasswordVerification
+  );
   const { openModal } = useModal();
   const { setHeaderOptions } = useNegocioHeader();
   const { profileTab, setProfileTab } = useNegocioUI({
@@ -332,6 +335,11 @@ export default function NegocioPerfil() {
   const AccessPanel = useCallback(function AccessPanel({ usuario: accessUser }) {
     const { openModal } = useModal();
     const setAccessMethods = useAppStore((s) => s.setAccessMethods);
+    const onboarding = useAppStore((s) => s.onboarding);
+    const emailVerifiedSessionAt = useAppStore((s) => s.emailVerifiedSessionAt);
+    const setEmailVerifiedSessionAt = useAppStore(
+      (s) => s.setEmailVerifiedSessionAt
+    );
     const [fingerprintEnabled, setFingerprintEnabled] = useState(false);
     const [pinEnabled, setPinEnabled] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -354,6 +362,8 @@ export default function NegocioPerfil() {
     const [removalBlocked, setRemovalBlocked] = useState(false);
     const [dismissedMethodsWarning, setDismissedMethodsWarning] = useState(false);
     const [dismissedInfo, setDismissedInfo] = useState(accessInfoDismissed);
+    const [emailWarningOpen, setEmailWarningOpen] = useState(false);
+    const [emailWarningPulse, setEmailWarningPulse] = useState(false);
     const passwordFormRef = useRef(null);
     const currentPasswordRef = useRef(null);
     const passwordInputRef = useRef(null);
@@ -362,6 +372,10 @@ export default function NegocioPerfil() {
     const pinRevealTimersRef = useRef([]);
     const prevUserIdRef = useRef(null);
     const provider = (authProvider || accessUser?.provider || "").toLowerCase();
+    const emailConfirmed = Boolean(onboarding?.email_confirmed);
+    const emailRecentlyVerified =
+      Boolean(emailVerifiedSessionAt) &&
+      Date.now() - emailVerifiedSessionAt < 2 * 60 * 60 * 1000;
     const hasPassword =
       Boolean(accessUser?.has_password) ||
       provider === "email" ||
@@ -373,6 +387,30 @@ export default function NegocioPerfil() {
       (pinEnabled ? 1 : 0);
     const showMethodsWarning =
       (methodsCount === 0 || removalBlocked) && !dismissedMethodsWarning;
+    const showEmailWarning = !emailConfirmed && emailWarningOpen;
+    const emailWarningClass = emailWarningPulse
+      ? "animate-[pulse_1.6s_ease-in-out_1]"
+      : "";
+
+    useEffect(() => {
+      if (!emailConfirmed) {
+        setEmailWarningOpen(true);
+      }
+    }, [emailConfirmed]);
+
+    useEffect(() => {
+      if (!emailWarningPulse) return undefined;
+      const timer = setTimeout(() => setEmailWarningPulse(false), 1600);
+      return () => clearTimeout(timer);
+    }, [emailWarningPulse]);
+
+    const triggerEmailWarning = useCallback(() => {
+      if (emailWarningOpen) {
+        setEmailWarningPulse(true);
+        return;
+      }
+      setEmailWarningOpen(true);
+    }, [emailWarningOpen]);
 
     useEffect(() => {
       let active = true;
@@ -425,10 +463,10 @@ export default function NegocioPerfil() {
         prevUserIdRef.current = currentId;
         accessInfoDismissed = false;
         setDismissedInfo(false);
-        setFingerprintEnabled(Boolean(accessUser?.has_biometrics));
-        setPinEnabled(Boolean(accessUser?.has_pin));
       }
-    }, [accessUser?.id_auth]);
+      setFingerprintEnabled(Boolean(accessUser?.has_biometrics));
+      setPinEnabled(Boolean(accessUser?.has_pin));
+    }, [accessUser?.id_auth, accessUser?.has_biometrics, accessUser?.has_pin]);
 
     useEffect(() => {
       if (methodsCount > 1 && removalBlocked) {
@@ -474,8 +512,7 @@ export default function NegocioPerfil() {
     const showConfirmRule =
       hasMinLength && hasNumberAndSymbol && passwordConfirm.length > 0;
     const canSavePassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
-    const showCurrentPasswordError =
-      passwordMode === "change" && passwordAttempted && !currentPassword.trim();
+    const showCurrentPasswordError = false;
 
     const handlePasswordCancel = () => {
       setPasswordValue("");
@@ -491,7 +528,6 @@ export default function NegocioPerfil() {
     const handlePasswordSave = async () => {
       setPasswordAttempted(true);
       if (!canSavePassword) return;
-      if (passwordMode === "change" && !currentPassword.trim()) return;
       setPasswordEnabled(true);
       setShowPasswordForm(false);
       setPasswordMode("add");
@@ -500,37 +536,55 @@ export default function NegocioPerfil() {
       if (userId) {
         await supabase.from("usuarios").update({ has_password: true }).eq("id_auth", userId);
       }
+      if (accessUser) {
+        setUser({ ...accessUser, has_password: true });
+      }
     };
 
     const openAddPassword = () => {
-      requestLocalVerification({
+      if (!emailConfirmed) {
+        triggerEmailWarning();
+        openModal("EmailVerification", {
+          email: accessUser?.email ?? null,
+        });
+        return;
+      }
+      if (!emailRecentlyVerified) {
+        openModal("EmailReauth", {
+          email: accessUser?.email ?? null,
+          onConfirm: () => {
+            setEmailVerifiedSessionAt(Date.now());
+            setPasswordMode("add");
+            setCurrentPassword("");
+            setPasswordValue("");
+            setPasswordConfirm("");
+            setPasswordAttempted(false);
+            setShowPasswordForm(true);
+          },
+        });
+        return;
+      }
+      setPasswordMode("add");
+      setCurrentPassword("");
+      setPasswordValue("");
+      setPasswordConfirm("");
+      setPasswordAttempted(false);
+      setShowPasswordForm(true);
+    };
+
+    const openChangePassword = () => {
+      requestPasswordVerification({
+        requireVerifiedEmail: true,
+        onBlocked: triggerEmailWarning,
         onVerified: () => {
-          setPasswordMode("add");
+          setPasswordMode("change");
           setCurrentPassword("");
           setPasswordValue("");
           setPasswordConfirm("");
           setPasswordAttempted(false);
           setShowPasswordForm(true);
         },
-        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
         email: accessUser?.email ?? null,
-        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
-      });
-    };
-
-    const openChangePassword = () => {
-      requestLocalVerification({
-        onVerified: () => {
-        setPasswordMode("change");
-        setCurrentPassword("");
-        setPasswordValue("");
-        setPasswordConfirm("");
-        setPasswordAttempted(false);
-        setShowPasswordForm(true);
-        },
-        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
-        email: accessUser?.email ?? null,
-        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
 
@@ -658,6 +712,9 @@ export default function NegocioPerfil() {
       if (!saved.ok) return;
       await supabase.from("usuarios").update({ has_pin: true }).eq("id_auth", userId);
       setPinEnabled(true);
+      if (accessUser) {
+        setUser({ ...accessUser, has_pin: true });
+      }
       resetPinForm();
     };
 
@@ -684,6 +741,9 @@ export default function NegocioPerfil() {
                 await deleteBiometricToken(userId);
               }
               setFingerprintEnabled(false);
+              if (accessUser) {
+                setUser({ ...accessUser, has_biometrics: false });
+              }
             },
           });
         },
@@ -716,6 +776,9 @@ export default function NegocioPerfil() {
                 await deletePinHash(userId);
               }
               setPinEnabled(false);
+              if (accessUser) {
+                setUser({ ...accessUser, has_pin: false });
+              }
             },
           });
         },
@@ -746,6 +809,8 @@ export default function NegocioPerfil() {
           openPinForm();
           focusPinInput(0);
         },
+        onBlocked: triggerEmailWarning,
+        requireVerifiedEmail: true,
         userId: accessUser?.id_auth ?? accessUser?.id ?? null,
         email: accessUser?.email ?? null,
         displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
@@ -775,12 +840,17 @@ export default function NegocioPerfil() {
                 .update({ has_biometrics: true })
                 .eq("id_auth", userId);
               setFingerprintEnabled(true);
+              if (accessUser) {
+                setUser({ ...accessUser, has_biometrics: true });
+              }
             },
             userId: accessUser?.id_auth ?? accessUser?.id ?? null,
             email: accessUser?.email ?? null,
             displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
           });
         },
+        onBlocked: triggerEmailWarning,
+        requireVerifiedEmail: true,
         userId: accessUser?.id_auth ?? accessUser?.id ?? null,
         email: accessUser?.email ?? null,
         displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
@@ -798,18 +868,56 @@ export default function NegocioPerfil() {
     return (
       <Access
         warningBlock={
-          showMethodsWarning ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-xs text-red-500">
-              <TriangleAlert size={16} className="text-red-500" />
-              Es necesario al menos un metodo de verificacion.
-              <button
-                type="button"
-                onClick={() => setDismissedMethodsWarning(true)}
-                className="ml-auto text-red-400 hover:text-red-500"
-                aria-label="Cerrar aviso"
-              >
-                <X size={14} />
-              </button>
+          showEmailWarning || showMethodsWarning ? (
+            <div className="space-y-2">
+              {showEmailWarning ? (
+                <div
+                  className={`relative left-1/2 right-1/2 w-screen -mx-[50vw] ${emailWarningClass}`}
+                >
+                  <div className="flex items-center gap-3 border border-orange-200 bg-orange-50 px-4 py-2 text-xs text-orange-600">
+                    <AlertTriangle size={14} className="shrink-0" />
+                    <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                      Antes de realizar cambios sensibles,{" "}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openModal("EmailVerification", {
+                            email: accessUser?.email ?? null,
+                          })
+                        }
+                        className="underline underline-offset-2"
+                      >
+                        verifica tu correo
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailWarningOpen(false);
+                        setEmailWarningPulse(false);
+                      }}
+                      className="text-orange-400 hover:text-orange-500"
+                      aria-label="Cerrar aviso"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {showMethodsWarning ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-xs text-red-500">
+                  <TriangleAlert size={16} className="text-red-500" />
+                  Es necesario al menos un metodo de verificacion.
+                  <button
+                    type="button"
+                    onClick={() => setDismissedMethodsWarning(true)}
+                    className="ml-auto text-red-400 hover:text-red-500"
+                    aria-label="Cerrar aviso"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null
         }

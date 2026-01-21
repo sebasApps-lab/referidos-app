@@ -61,9 +61,9 @@ export default function PasswordAccessCard({
           <span className="text-xs font-semibold text-[#2F1A55] -ml-1">
             {showPasswordForm
               ? passwordMode === "change"
-                ? "Cambiar contrasena"
-                : "Anadir una contrasena"
-              : "Contrasena"}
+                ? "Cambiar contraseña"
+                : "Añadir una contraseña"
+              : "Contraseña"}
           </span>
           {passwordActive ? (
             <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 p-1 text-emerald-600">
@@ -76,7 +76,7 @@ export default function PasswordAccessCard({
             type="button"
             onClick={onPasswordCancel}
             className="h-8 w-8 rounded-full border border-slate-900 bg-white text-slate-900 flex items-center justify-center"
-            aria-label="Cerrar contrasena"
+              aria-label="Cerrar contraseña"
           >
             <X size={14} />
           </button>
@@ -85,7 +85,7 @@ export default function PasswordAccessCard({
             <button
               type="button"
               className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
-              aria-label="Editar contrasena"
+              aria-label="Editar contraseña"
               onClick={onOpenChange}
             >
               <Pencil size={14} />
@@ -96,7 +96,7 @@ export default function PasswordAccessCard({
             type="button"
             onClick={onOpenAdd}
             className="h-8 w-8 rounded-full border border-emerald-300 text-emerald-500 flex items-center justify-center"
-            aria-label="Agregar contrasena"
+            aria-label="Agregar contraseña"
           >
             <Plus size={14} />
           </button>
@@ -104,11 +104,11 @@ export default function PasswordAccessCard({
       </div>
       {showPasswordForm ? (
         <div className="mt-6 space-y-7" ref={passwordFormRef}>
-          {passwordMode === "change" ? (
-            <div className="space-y-2 mb-4">
+          {false ? (
+                <div className="space-y-2 mb-8">
               <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
                 <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-                  Contrasena anterior
+                  Contraseña anterior
                 </span>
                 <div className="flex items-center gap-2">
                   <input
@@ -127,8 +127,8 @@ export default function PasswordAccessCard({
                       className="text-slate-400 hover:text-slate-600"
                       aria-label={
                         showCurrentPassword
-                          ? "Ocultar contrasena"
-                          : "Mostrar contrasena"
+                          ? "Ocultar contraseña"
+                          : "Mostrar contraseña"
                       }
                     >
                       {showCurrentPassword ? (
@@ -143,14 +143,14 @@ export default function PasswordAccessCard({
               {showCurrentPasswordError ? (
                 <div className="flex items-center gap-2 text-xs text-red-500 pl-1">
                   <X size={12} />
-                  La contrasena no coincide con la anterior
+                  La contraseña no coincide con la anterior
                 </div>
               ) : null}
             </div>
           ) : null}
           <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
             <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
-              {passwordMode === "change" ? "Nueva contrasena" : "Contrasena"}
+              {passwordMode === "change" ? "Nueva contraseña" : "Contraseña"}
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -168,7 +168,7 @@ export default function PasswordAccessCard({
                   onClick={onToggleShowPassword}
                   className="text-slate-400 hover:text-slate-600"
                   aria-label={
-                    showPassword ? "Ocultar contrasena" : "Mostrar contrasena"
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
                   }
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -209,8 +209,8 @@ export default function PasswordAccessCard({
           <div className="relative rounded-xl border border-[#E9E2F7] bg-white px-3 py-2">
             <span className="absolute -top-3 left-3 bg-white px-2 text-[13px] text-slate-500">
               {passwordMode === "change"
-                ? "Confirmar contrasena"
-                : "Verificar contrasena"}
+                ? "Confirmar contraseña"
+                : "Verificar contraseña"}
             </span>
             <div className="flex items-center gap-2">
               <input
@@ -229,8 +229,8 @@ export default function PasswordAccessCard({
                   className="text-slate-400 hover:text-slate-600"
                   aria-label={
                     showPasswordConfirm
-                      ? "Ocultar contrasena"
-                      : "Mostrar contrasena"
+                      ? "Ocultar contraseña"
+                      : "Mostrar contraseña"
                   }
                 >
                   {showPasswordConfirm ? (
@@ -255,7 +255,7 @@ export default function PasswordAccessCard({
                 return (
                   <div className={`flex items-center gap-2 ${color}`}>
                     <Icon size={12} />
-                    Las contrasenas deben coincidir
+                    Las contraseñas deben coincidir
                   </div>
                 );
               })()}
