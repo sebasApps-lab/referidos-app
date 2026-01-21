@@ -7,7 +7,10 @@ export default function usePinSetup({ onSavePin } = {}) {
   const [pinReveal, setPinReveal] = useState([false, false, false, false]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [pinFocused, setPinFocus] = useState(false);
+  const pinValueRef = useRef("");
   const pinInputRefs = useRef([]);
+  const hiddenInputRef = useRef(null);
   const pinRevealTimersRef = useRef([]);
   const focusLockRef = useRef(null);
 
@@ -33,8 +36,24 @@ export default function usePinSetup({ onSavePin } = {}) {
   const focusPinInput = useCallback((index) => {
     focusLockRef.current = index;
     window.requestAnimationFrame(() => {
-      pinInputRefs.current[index]?.focus();
+      const input = pinInputRefs.current[index];
+      if (!input) return;
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
     });
+  }, []);
+
+  const focusHiddenInput = useCallback(() => {
+    const input = hiddenInputRef.current;
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
   }, []);
 
   const setPinRevealIndex = useCallback((index) => {
@@ -54,6 +73,23 @@ export default function usePinSetup({ onSavePin } = {}) {
       });
     }, 400);
   }, []);
+
+  const updatePinValueDirect = useCallback(
+    (nextValue) => {
+      const nextClean = (nextValue || "").replace(/[^0-9]/g, "").slice(0, 4);
+      const prevClean = (pinValueRef.current || "")
+        .replace(/[^0-9]/g, "")
+        .slice(0, 4);
+      if (nextClean.length > prevClean.length) {
+        for (let i = prevClean.length; i < nextClean.length; i += 1) {
+          setPinRevealIndex(i);
+        }
+      }
+      pinValueRef.current = nextClean;
+      setPinValue(nextClean);
+    },
+    [setPinRevealIndex],
+  );
 
   const updatePinSlot = (nextValue) => {
     const cleaned = (nextValue || "").replace(/[^0-9]/g, "");
@@ -103,6 +139,10 @@ export default function usePinSetup({ onSavePin } = {}) {
     pinInputRefs.current[index] = el;
   };
 
+  const registerHiddenRef = (el) => {
+    hiddenInputRef.current = el;
+  };
+
   const resetPinForm = useCallback(() => {
     setPinValue("");
     setPinFirst("");
@@ -122,7 +162,11 @@ export default function usePinSetup({ onSavePin } = {}) {
     setPinValue("");
     setPinStep("confirm");
     setPinReveal([false, false, false, false]);
-    focusPinInput(0);
+    if (hiddenInputRef.current) {
+      focusHiddenInput();
+    } else {
+      focusPinInput(0);
+    }
   };
 
   const handlePinConfirm = useCallback(async () => {
@@ -144,6 +188,10 @@ export default function usePinSetup({ onSavePin } = {}) {
   }, [onSavePin, pinComplete, pinMatches, pinValue, saving]);
 
   useEffect(() => {
+    pinValueRef.current = pinValue;
+  }, [pinValue]);
+
+  useEffect(() => {
     return () => {
       pinRevealTimersRef.current.forEach((timer) => {
         if (timer) clearTimeout(timer);
@@ -152,6 +200,7 @@ export default function usePinSetup({ onSavePin } = {}) {
   }, []);
 
   return {
+    pinValue,
     pinSlots,
     pinReveal,
     pinStep,
@@ -159,14 +208,19 @@ export default function usePinSetup({ onSavePin } = {}) {
     pinMatches,
     saving,
     error,
+    pinFocused,
+    setPinFocus,
     setError,
     updatePinSlot,
+    updatePinValueDirect,
     handlePinKeyDown,
     handlePinFocus,
     registerPinRef,
+    registerHiddenRef,
     resetPinForm,
     handlePinNext,
     handlePinConfirm,
     focusPinInput,
+    focusHiddenInput,
   };
 }

@@ -93,7 +93,7 @@ export default function ModalAccessMethods({
 
   useEffect(() => {
     if (prevViewRef.current !== view && view === "pin") {
-      pinSetup.focusPinInput(0);
+      pinSetup.focusHiddenInput();
     }
     prevViewRef.current = view;
   }, [pinSetup, view]);
@@ -182,6 +182,8 @@ export default function ModalAccessMethods({
   const cardInactive = "border-gray-200 bg-white text-gray-700";
 
   if (view === "pin") {
+    const firstEmpty = pinSetup.pinSlots.findIndex((char) => !char);
+    const activeIndex = firstEmpty === -1 ? pinSetup.pinSlots.length - 1 : firstEmpty;
     return (
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-gray-700 shadow-2xl">
         <div className="flex items-center gap-3">
@@ -206,22 +208,40 @@ export default function ModalAccessMethods({
               ? "Ingresar el PIN de nuevo."
               : "Ingresa un PIN."}
           </p>
-          <div className="flex items-center justify-center gap-2">
-            {pinSetup.pinSlots.map((char, index) => (
-              <input
-                key={`pin-modal-${index}`}
-                value={char}
-                onChange={(event) => pinSetup.updatePinSlot(event.target.value)}
-                onKeyDown={pinSetup.handlePinKeyDown}
-                onFocus={() => pinSetup.handlePinFocus(index)}
-                ref={pinSetup.registerPinRef(index)}
-                maxLength={1}
-                type={pinSetup.pinReveal[index] ? "text" : "password"}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
-              />
-            ))}
+          <div className="relative flex items-center justify-center gap-2">
+            <input
+              ref={pinSetup.registerHiddenRef}
+              value={pinSetup.pinValue}
+              onChange={(event) => pinSetup.updatePinValueDirect(event.target.value)}
+              onFocus={() => pinSetup.setPinFocus(true)}
+              onBlur={() => pinSetup.setPinFocus(false)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className="absolute inset-0 h-full w-full opacity-0"
+              aria-label="PIN"
+            />
+            {pinSetup.pinSlots.map((char, index) => {
+              const displayChar = char
+                ? pinSetup.pinReveal[index]
+                  ? char
+                  : "•"
+                : "";
+              const isActive = pinSetup.pinFocused && index === activeIndex;
+              return (
+                <div
+                  key={`pin-modal-${index}`}
+                  className={`h-11 w-11 rounded-xl border bg-white text-center text-lg font-semibold text-[#5E30A5] flex items-center justify-center ${
+                    isActive
+                      ? "border-[#5E30A5] ring-2 ring-[#5E30A5]/20"
+                      : "border-[#D8CFF2]"
+                  }`}
+                >
+                  {displayChar || (isActive ? (
+                    <span className="pin-caret inline-flex h-5 w-px bg-[#5E30A5]" />
+                  ) : null)}
+                </div>
+              );
+            })}
           </div>
           {pinSetup.pinStep === "confirm" ? (
             <div className="text-xs pl-1 text-center">
