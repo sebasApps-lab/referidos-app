@@ -17,6 +17,7 @@ import ModalLocationUnavailable from "../components/modals/ModalLocationUnavaila
 import ModalTimePicker from "../components/modals/ModalTimePicker";
 import ModalAccountVerifySkip from "../components/modals/ModalAccountVerifySkip";
 import ModalAccessMethods from "../components/modals/ModalAccessMethods";
+import ModalConfirmAction from "../components/modals/ModalConfirmAction";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -36,4 +37,5 @@ export const modalRegistry = {
   TimePicker: ModalTimePicker,
   AccountVerifySkip: ModalAccountVerifySkip,
   AccessMethods: ModalAccessMethods,
+  ConfirmAction: ModalConfirmAction,
 };

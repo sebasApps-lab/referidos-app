@@ -111,6 +111,11 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
       setPasswordMode("add");
       setPasswordAttempted(false);
       setMessage("Contrasena guardada.");
+      const session = (await supabase.auth.getSession())?.data?.session;
+      const userId = session?.user?.id;
+      if (userId) {
+        await supabase.from("usuarios").update({ has_password: true }).eq("id_auth", userId);
+      }
       return { ok: true };
     } finally {
       setSaving(false);

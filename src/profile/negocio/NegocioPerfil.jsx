@@ -349,7 +349,10 @@ export default function NegocioPerfil() {
     const pinRevealTimersRef = useRef([]);
     const prevUserIdRef = useRef(null);
     const provider = (authProvider || accessUser?.provider || "").toLowerCase();
-    const hasPassword = provider === "email" || provider === "password";
+    const hasPassword =
+      Boolean(accessUser?.has_password) ||
+      provider === "email" ||
+      provider === "password";
     const passwordActive = passwordEnabled ?? hasPassword;
     const methodsCount =
       (passwordActive ? 1 : 0) +
@@ -409,6 +412,8 @@ export default function NegocioPerfil() {
         prevUserIdRef.current = currentId;
         accessInfoDismissed = false;
         setDismissedInfo(false);
+        setFingerprintEnabled(Boolean(accessUser?.has_biometrics));
+        setPinEnabled(Boolean(accessUser?.has_pin));
       }
     }, [accessUser?.id_auth]);
 
@@ -607,13 +612,13 @@ export default function NegocioPerfil() {
       resetPinForm();
     };
 
-    const handleRemovePassword = () => {
-      if (methodsCount <= 1) {
-        setRemovalBlocked(true);
-        setDismissedMethodsWarning(false);
-        return;
-      }
-      setPasswordEnabled(false);
+    const openFingerprintGate = (onSuccess) => {
+      openModal("FingerprintPrompt", {
+        onConfirm: () => onSuccess?.(),
+        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
+        email: accessUser?.email ?? null,
+        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
+      });
     };
 
     const handleRemoveFingerprint = () => {
@@ -622,7 +627,16 @@ export default function NegocioPerfil() {
         setDismissedMethodsWarning(false);
         return;
       }
-      setFingerprintEnabled(false);
+      openModal("ConfirmAction", {
+        title: "Quitar huella",
+        message: "Seguro que deseas quitar la huella?",
+        confirmLabel: "Confirmar",
+        cancelLabel: "Cancelar",
+        onConfirm: () =>
+          openFingerprintGate(() => {
+            setFingerprintEnabled(false);
+          }),
+      });
     };
 
     const handleRemovePin = () => {
@@ -631,7 +645,16 @@ export default function NegocioPerfil() {
         setDismissedMethodsWarning(false);
         return;
       }
-      setPinEnabled(false);
+      openModal("ConfirmAction", {
+        title: "Quitar PIN",
+        message: "Seguro que deseas quitar el PIN?",
+        confirmLabel: "Confirmar",
+        cancelLabel: "Cancelar",
+        onConfirm: () =>
+          openFingerprintGate(() => {
+            setPinEnabled(false);
+          }),
+      });
     };
 
     const handlePinPointerDown = (event) => {
@@ -648,18 +671,17 @@ export default function NegocioPerfil() {
     const handleTogglePinForm = () => {
       if (showPinForm) {
         resetPinForm();
-      } else {
+        return;
+      }
+      openFingerprintGate(() => {
         openPinForm();
         focusPinInput(0);
-      }
+      });
     };
 
     const handleAddFingerprint = () => {
-      openModal("FingerprintPrompt", {
-        onConfirm: () => setFingerprintEnabled(true),
-        userId: accessUser?.id_auth ?? accessUser?.id ?? null,
-        email: accessUser?.email ?? null,
-        displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
+      openFingerprintGate(() => {
+        setFingerprintEnabled(true);
       });
     };
 
@@ -714,7 +736,6 @@ export default function NegocioPerfil() {
             onPasswordSave={handlePasswordSave}
             onOpenAdd={openAddPassword}
             onOpenChange={openChangePassword}
-            onRemovePassword={handleRemovePassword}
             onToggleShowPassword={() => setShowPassword((prev) => !prev)}
             onToggleShowPasswordConfirm={() =>
               setShowPasswordConfirm((prev) => !prev)

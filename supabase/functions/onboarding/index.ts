@@ -74,6 +74,7 @@ type UsuarioProfile = {
     telefono: string | null;
     verification_status: string | null;
     email_verificado: boolean | null;
+    has_password: boolean | null;
     fecha_nacimiento: string | null;
     genero: string | null;
     account_status: AccountStatus | null;
@@ -208,12 +209,42 @@ serve (async (req) => {
     }
 
     let emailConfirmed = false;
+    let authHasPassword = false;
     const { data: authUser, error: authUserErr } =
         await supabaseAdmin.auth.admin.getUserById(user.id);
     if (!authUserErr && authUser?.user) {
         emailConfirmed = Boolean(authUser.user.email_confirmed_at);
     } else {
         emailConfirmed = Boolean(user.email_confirmed_at);
+    }
+    if (!authHasPassword) {
+        const { data: identities, error: identitiesErr } = await supabaseAdmin
+            .schema("auth")
+            .from("identities")
+            .select("provider")
+            .eq("user_id", user.id);
+        if (!identitiesErr && identities?.length) {
+            authHasPassword = identities.some(
+                (identity) =>
+                    identity.provider === "email" ||
+                    identity.provider === "password"
+            );
+        } else {
+            authHasPassword =
+                providerList.includes("email") ||
+                providerList.includes("password");
+        }
+    }
+    if (!authHasPassword) {
+        const { data: authUserRow, error: authUserRowErr } = await supabaseAdmin
+            .schema("auth")
+            .from("users")
+            .select("encrypted_password")
+            .eq("id", user.id)
+            .maybeSingle();
+        if (!authUserRowErr && authUserRow?.encrypted_password) {
+            authHasPassword = true;
+        }
     }
 
     //Si no hay perfil, no creamos aquí (solo reportamos).
@@ -247,6 +278,9 @@ serve (async (req) => {
     //4) Sincronizar email Auth → perfil (no bloquea acceso)
     if (authEmail && profile.email !== authEmail) {
         patch.email = authEmail;
+    }
+    if (profile.has_password !== authHasPassword) {
+        patch.has_password = authHasPassword;
     }
 
     const role = profile.role;

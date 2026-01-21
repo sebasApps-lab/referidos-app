@@ -4,7 +4,6 @@ import {
   Check,
   Eye,
   EyeOff,
-  Minus,
   Pencil,
   Plus,
   X,
@@ -33,7 +32,6 @@ export default function PasswordAccessCard({
   onPasswordSave,
   onOpenAdd,
   onOpenChange,
-  onRemovePassword,
   onToggleShowPassword,
   onToggleShowPasswordConfirm,
   onToggleShowCurrentPassword,
@@ -84,14 +82,6 @@ export default function PasswordAccessCard({
           </button>
         ) : passwordActive ? (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onRemovePassword}
-              className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center"
-              aria-label="Quitar contrasena"
-            >
-              <Minus size={14} />
-            </button>
             <button
               type="button"
               className="h-8 w-8 rounded-full border border-slate-400 bg-white text-slate-700 flex items-center justify-center"
