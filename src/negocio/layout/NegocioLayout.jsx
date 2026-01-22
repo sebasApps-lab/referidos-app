@@ -34,6 +34,18 @@ function NegocioLayoutInner({ children }) {
   const headerRef = useRef(null);
   const mainRef = useRef(null);
   const { mode, headerVisible, headerEntering } = useNegocioHeader();
+  const suspendViewportResize = useAppStore(
+    (state) => state.suspendViewportResize
+  );
+  const suspendViewportAfterNext = useAppStore(
+    (state) => state.suspendViewportAfterNext
+  );
+  const setSuspendViewportResize = useAppStore(
+    (state) => state.setSuspendViewportResize
+  );
+  const setSuspendViewportAfterNext = useAppStore(
+    (state) => state.setSuspendViewportAfterNext
+  );
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerVisible) {
@@ -71,6 +83,7 @@ function NegocioLayoutInner({ children }) {
 
   useEffect(() => {
     const updateViewport = () => {
+      if (suspendViewportResize) return;
       const vv = window.visualViewport;
       const height = vv?.height ?? window.innerHeight;
       const offsetTop = vv?.offsetTop ?? 0;
@@ -79,6 +92,10 @@ function NegocioLayoutInner({ children }) {
           ? prev
           : { height, offsetTop }
       );
+      if (suspendViewportAfterNext) {
+        setSuspendViewportAfterNext(false);
+        setSuspendViewportResize(true);
+      }
     };
     updateViewport();
     window.visualViewport?.addEventListener("resize", updateViewport);
@@ -89,7 +106,12 @@ function NegocioLayoutInner({ children }) {
       window.visualViewport?.removeEventListener("scroll", updateViewport);
       window.removeEventListener("resize", updateViewport);
     };
-  }, []);
+  }, [
+    setSuspendViewportAfterNext,
+    setSuspendViewportResize,
+    suspendViewportAfterNext,
+    suspendViewportResize,
+  ]);
 
   const updateHeaderElevation = useCallback(() => {
     const mainTop = mainRef.current?.scrollTop || 0;

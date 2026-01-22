@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { useClienteUI } from "../../cliente/hooks/useClienteUI";
+import usePinSetup from "../../hooks/usePinSetup";
 import {
   formatReadableDate,
   formatCompactNumber,
@@ -276,6 +277,15 @@ export default function ClientePerfil() {
   const AccessPanel = useCallback(function AccessPanel({ usuario: accessUser }) {
     const { openModal } = useModal();
     const setAccessMethods = useAppStore((s) => s.setAccessMethods);
+    const setSuspendViewportResize = useAppStore(
+      (s) => s.setSuspendViewportResize
+    );
+    const setSuspendViewportAfterNext = useAppStore(
+      (s) => s.setSuspendViewportAfterNext
+    );
+    const freezeViewportAfterNextUpdate = useAppStore(
+      (s) => s.freezeViewportAfterNextUpdate
+    );
     const onboarding = useAppStore((s) => s.onboarding);
     const emailVerifiedSessionAt = useAppStore((s) => s.emailVerifiedSessionAt);
     const setEmailVerifiedSessionAt = useAppStore(
@@ -293,10 +303,6 @@ export default function ClientePerfil() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [passwordAttempted, setPasswordAttempted] = useState(false);
     const [showPinForm, setShowPinForm] = useState(false);
-    const [pinValue, setPinValue] = useState("");
-    const [pinStep, setPinStep] = useState("create");
-    const [pinFirst, setPinFirst] = useState("");
-    const [pinReveal, setPinReveal] = useState([false, false, false, false]);
     const [focusedField, setFocusedField] = useState(null);
     const [authProvider, setAuthProvider] = useState(null);
     const [passwordEnabled, setPasswordEnabled] = useState(null);
@@ -309,8 +315,6 @@ export default function ClientePerfil() {
     const currentPasswordRef = useRef(null);
     const passwordInputRef = useRef(null);
     const confirmInputRef = useRef(null);
-    const pinInputRefs = useRef([]);
-    const pinRevealTimersRef = useRef([]);
     const prevUserIdRef = useRef(null);
     const provider = (authProvider || accessUser?.provider || "").toLowerCase();
     const emailConfirmed = Boolean(onboarding?.email_confirmed);
@@ -529,113 +533,11 @@ export default function ClientePerfil() {
       });
     };
 
-    const sanitizedPin = pinValue.replace(/[^0-9]/g, "").slice(0, 4);
-    const pinSlots = Array(4)
-      .fill("")
-      .map((_, index) => sanitizedPin[index] || "");
-    const pinComplete = pinSlots.every(Boolean);
-    const pinMatches = pinValue === pinFirst;
-
-    const getFirstEmptyPinIndex = () => pinSlots.findIndex((char) => !char);
-    const getLastFilledPinIndex = () => {
-      for (let i = pinSlots.length - 1; i >= 0; i -= 1) {
-        if (pinSlots[i]) return i;
-      }
-      return -1;
-    };
-
-    const focusPinInput = (index) => {
-      window.requestAnimationFrame(() => {
-        pinInputRefs.current[index]?.focus();
-      });
-    };
-
-    const setPinRevealIndex = useCallback((index) => {
-      setPinReveal((prev) => {
-        const next = [...prev];
-        next[index] = true;
-        return next;
-      });
-      if (pinRevealTimersRef.current[index]) {
-        clearTimeout(pinRevealTimersRef.current[index]);
-      }
-      pinRevealTimersRef.current[index] = setTimeout(() => {
-        setPinReveal((prev) => {
-          const next = [...prev];
-          next[index] = false;
-          return next;
-        });
-      }, 400);
-    }, []);
-
-    const updatePinSlot = (nextValue) => {
-      const cleaned = (nextValue || "").replace(/[^0-9]/g, "");
-      if (!cleaned) return;
-      const chars = cleaned.split("");
-      const nextSlots = [...pinSlots];
-      const firstEmpty = getFirstEmptyPinIndex();
-      let cursor = firstEmpty === -1 ? nextSlots.length - 1 : firstEmpty;
-      chars.forEach((char) => {
-        if (cursor < nextSlots.length) {
-          nextSlots[cursor] = char;
-          setPinRevealIndex(cursor);
-          cursor += 1;
-        }
-      });
-      setPinValue(nextSlots.join(""));
-      if (cursor < nextSlots.length) {
-        focusPinInput(cursor);
-      } else {
-        pinInputRefs.current[nextSlots.length - 1]?.blur();
-      }
-    };
-
-    const handlePinKeyDown = (event) => {
-      if (event.key === "Backspace" || event.key === "Delete") {
-        event.preventDefault();
-        const lastFilled = getLastFilledPinIndex();
-        if (lastFilled === -1) return;
-        const nextSlots = [...pinSlots];
-        nextSlots[lastFilled] = "";
-        setPinValue(nextSlots.join(""));
-        focusPinInput(lastFilled);
-      }
-    };
-
-    const resetPinForm = useCallback(() => {
-      setPinValue("");
-      setPinFirst("");
-      setPinStep("create");
-      setShowPinForm(false);
-      setPinReveal([false, false, false, false]);
-      pinRevealTimersRef.current.forEach((timer) => {
-        if (timer) clearTimeout(timer);
-      });
-      pinRevealTimersRef.current = [];
-      document.activeElement?.blur();
-    }, []);
-
-    const openPinForm = () => {
-      setPinValue("");
-      setPinFirst("");
-      setPinStep("create");
-      setPinReveal([false, false, false, false]);
-      setShowPinForm(true);
-    };
-
-    const handlePinNext = () => {
-      if (!pinComplete) return;
-      setPinFirst(pinValue);
-      setPinValue("");
-      setPinStep("confirm");
-      setPinReveal([false, false, false, false]);
-      focusPinInput(0);
-    };
-
-    const handlePinConfirm = async () => {
-      if (!pinComplete || !pinMatches) return;
+    const savePin = useCallback(async (nextPin) => {
       const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
-      if (!userId) return;
+      if (!userId) {
+        return { ok: false, error: "No se pudo obtener sesion." };
+      }
       const existingSecret = await loadDeviceSecret(userId);
       if (!existingSecret) {
         const bytes = window.crypto.getRandomValues(new Uint8Array(32));
@@ -643,15 +545,60 @@ export default function ClientePerfil() {
         await saveDeviceSecret(userId, { token, createdAt: new Date().toISOString() });
       }
       const salt = generatePinSalt();
-      const hash = await hashPin(pinValue, salt);
+      const hash = await hashPin(nextPin, salt);
       const saved = await savePinHash(userId, {
         salt,
         hash,
         iterations: 160000,
         algo: "PBKDF2-SHA256",
       });
-      if (!saved.ok) return;
-      await supabase.from("usuarios").update({ has_pin: true }).eq("id_auth", userId);
+      if (!saved.ok) {
+        return { ok: false, error: "No se pudo guardar el PIN." };
+      }
+      const { error: updErr } = await supabase
+        .from("usuarios")
+        .update({ has_pin: true })
+        .eq("id_auth", userId);
+      if (updErr) {
+        return { ok: false, error: updErr.message || "No se pudo guardar el PIN." };
+      }
+      return { ok: true };
+    }, [accessUser?.id_auth, accessUser?.id]);
+
+    const pinSetup = usePinSetup({ onSavePin: savePin });
+    const pinValue = pinSetup.pinValue;
+    const pinSlots = pinSetup.pinSlots;
+    const pinReveal = pinSetup.pinReveal;
+    const pinStep = pinSetup.pinStep;
+    const pinComplete = pinSetup.pinComplete;
+    const pinMatches = pinSetup.pinMatches;
+    const pinFocused = pinSetup.pinFocused;
+
+    const resetPinForm = useCallback(() => {
+      pinSetup.resetPinForm();
+      setShowPinForm(false);
+      document.activeElement?.blur();
+    }, [pinSetup]);
+
+    const openPinForm = () => {
+      pinSetup.resetPinForm();
+      setShowPinForm(true);
+      window.requestAnimationFrame(() => {
+        pinSetup.focusHiddenInput();
+      });
+    };
+
+    const handlePinNext = () => {
+      if (!pinComplete) return;
+      pinSetup.handlePinNext();
+      window.requestAnimationFrame(() => {
+        pinSetup.focusHiddenInput();
+      });
+    };
+
+    const handlePinConfirm = async () => {
+      const result = await pinSetup.handlePinConfirm();
+      if (!result?.ok) return;
       setPinEnabled(true);
       if (accessUser) {
         setUser({ ...accessUser, has_pin: true });
@@ -731,26 +678,34 @@ export default function ClientePerfil() {
 
     const handlePinPointerDown = (event) => {
       event.preventDefault();
-      const firstEmpty = getFirstEmptyPinIndex();
-      const targetIndex = firstEmpty === -1 ? pinSlots.length - 1 : firstEmpty;
-      pinInputRefs.current[targetIndex]?.focus();
+      pinSetup.focusHiddenInput();
     };
 
-    const registerPinRef = (index) => (el) => {
-      pinInputRefs.current[index] = el;
+    const registerHiddenRef = (el) => {
+      pinSetup.registerHiddenRef(el);
     };
+
+    const handlePinFocus = useCallback(() => {
+      freezeViewportAfterNextUpdate();
+      pinSetup.setPinFocus(true);
+    }, [freezeViewportAfterNextUpdate, pinSetup]);
+
+    const handlePinBlur = useCallback(() => {
+      setSuspendViewportResize(false);
+      setSuspendViewportAfterNext(false);
+      pinSetup.setPinFocus(false);
+    }, [pinSetup, setSuspendViewportAfterNext, setSuspendViewportResize]);
 
     const handleTogglePinForm = () => {
       if (showPinForm) {
         resetPinForm();
         return;
       }
-      requestLocalVerification({
-        onVerified: () => {
-          openPinForm();
-          focusPinInput(0);
-        },
-        onBlocked: triggerEmailWarning,
+        requestLocalVerification({
+          onVerified: () => {
+            openPinForm();
+          },
+          onBlocked: triggerEmailWarning,
         requireVerifiedEmail: true,
         userId: accessUser?.id_auth ?? accessUser?.id ?? null,
         email: accessUser?.email ?? null,
@@ -797,14 +752,6 @@ export default function ClientePerfil() {
         displayName: accessUser?.nombre ?? accessUser?.alias ?? "Usuario",
       });
     };
-
-    useEffect(() => {
-      return () => {
-        pinRevealTimersRef.current.forEach((timer) => {
-          if (timer) clearTimeout(timer);
-        });
-      };
-    }, []);
 
     return (
       <Access
@@ -916,25 +863,28 @@ export default function ClientePerfil() {
             onAdd={handleAddFingerprint}
             onRemove={handleRemoveFingerprint}
           />,
-          <PinAccessCard
-            key="pin"
-            showPinForm={showPinForm}
-            pinEnabled={pinEnabled}
-            pinStep={pinStep}
-            pinSlots={pinSlots}
-            pinReveal={pinReveal}
-            pinComplete={pinComplete}
-            pinMatches={pinMatches}
-            onRemovePin={handleRemovePin}
-            onTogglePinForm={handleTogglePinForm}
-            onPinPointerDown={handlePinPointerDown}
-            onUpdatePinSlot={updatePinSlot}
-            onPinKeyDown={handlePinKeyDown}
-            registerPinRef={registerPinRef}
-            onResetPinForm={resetPinForm}
-            onPinNext={handlePinNext}
-            onPinConfirm={handlePinConfirm}
-          />,
+            <PinAccessCard
+              key="pin"
+              showPinForm={showPinForm}
+              pinEnabled={pinEnabled}
+              pinStep={pinStep}
+              pinValue={pinValue}
+              pinSlots={pinSlots}
+              pinReveal={pinReveal}
+              pinComplete={pinComplete}
+              pinMatches={pinMatches}
+              pinFocused={pinFocused}
+              onRemovePin={handleRemovePin}
+              onTogglePinForm={handleTogglePinForm}
+              onPinPointerDown={handlePinPointerDown}
+              onPinValueChange={pinSetup.updatePinValueDirect}
+              onPinFocus={handlePinFocus}
+              onPinBlur={handlePinBlur}
+              registerHiddenRef={registerHiddenRef}
+              onResetPinForm={resetPinForm}
+              onPinNext={handlePinNext}
+              onPinConfirm={handlePinConfirm}
+            />,
         ]}
         infoBlock={
           !dismissedInfo ? (

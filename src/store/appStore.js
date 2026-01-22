@@ -318,6 +318,8 @@ export const useAppStore = create(
         pin: false,
         password: false,
       },
+      suspendViewportResize: false,
+      suspendViewportAfterNext: false,
       justCompletedRegistration: false,
       emailVerifiedSessionAt: null,
       loading: false,
@@ -334,6 +336,11 @@ export const useAppStore = create(
             ...methods,
           },
         })),
+      setSuspendViewportResize: (value) => set({ suspendViewportResize: value }),
+      setSuspendViewportAfterNext: (value) =>
+        set({ suspendViewportAfterNext: value }),
+      freezeViewportAfterNextUpdate: () =>
+        set({ suspendViewportAfterNext: true, suspendViewportResize: false }),
       setScannerPermissionPrompted: (value) =>
         set({ scannerPermissionPrompted: value }),
       setScannerManualFallbackShown: (value) =>

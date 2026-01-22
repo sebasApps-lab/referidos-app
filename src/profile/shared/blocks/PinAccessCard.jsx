@@ -5,20 +5,27 @@ export default function PinAccessCard({
   showPinForm,
   pinEnabled,
   pinStep,
+  pinValue,
   pinSlots,
   pinReveal,
   pinComplete,
   pinMatches,
+  pinFocused,
   onRemovePin,
   onTogglePinForm,
   onPinPointerDown,
-  onUpdatePinSlot,
-  onPinKeyDown,
-  registerPinRef,
+  onPinValueChange,
+  onPinFocus,
+  onPinBlur,
+  registerHiddenRef,
   onResetPinForm,
   onPinNext,
   onPinConfirm,
 }) {
+  const firstEmpty = pinSlots.findIndex((char) => !char);
+  const activeIndex =
+    firstEmpty === -1 ? pinSlots.length - 1 : firstEmpty;
+
   return (
     <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
       <div className="flex items-center justify-between">
@@ -68,22 +75,43 @@ export default function PinAccessCard({
           <p className="text-xs text-slate-500 text-center">
             {pinStep === "confirm" ? "Ingresar el PIN de nuevo." : "Ingresa un PIN."}
           </p>
-          <div className="flex items-center justify-center gap-2">
-            {pinSlots.map((char, index) => (
-              <input
-                key={`pin-${index}`}
-                value={char}
-                onChange={(event) => onUpdatePinSlot(event.target.value)}
-                onKeyDown={onPinKeyDown}
-                onPointerDown={onPinPointerDown}
-                ref={registerPinRef(index)}
-                maxLength={1}
-                type={pinReveal[index] ? "text" : "password"}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                className="h-11 w-11 rounded-xl border border-[#D8CFF2] bg-white text-center text-lg font-semibold text-[#5E30A5] outline-none transition focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/20"
-              />
-            ))}
+          <div
+            className="relative flex items-center justify-center gap-2"
+            onPointerDown={onPinPointerDown}
+          >
+            <input
+              ref={registerHiddenRef}
+              value={pinValue}
+              onChange={(event) => onPinValueChange(event.target.value)}
+              onFocus={onPinFocus}
+              onBlur={onPinBlur}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className="absolute inset-0 h-full w-full opacity-0"
+              aria-label="PIN"
+            />
+            {pinSlots.map((char, index) => {
+              const displayChar = char
+                ? pinReveal[index]
+                  ? char
+                  : "*"
+                : "";
+              const isActive = pinFocused && index === activeIndex;
+              return (
+                <div
+                  key={`pin-${index}`}
+                  className={`h-11 w-11 rounded-xl border bg-white text-center text-lg font-semibold text-[#5E30A5] flex items-center justify-center ${
+                    isActive
+                      ? "border-[#5E30A5] ring-2 ring-[#5E30A5]/20"
+                      : "border-[#D8CFF2]"
+                  }`}
+                >
+                  {displayChar || (isActive ? (
+                    <span className="pin-caret inline-flex h-5 w-px bg-[#5E30A5]" />
+                  ) : null)}
+                </div>
+              );
+            })}
           </div>
           {pinStep === "confirm" ? (
             <div className="text-xs pl-1 text-center">
