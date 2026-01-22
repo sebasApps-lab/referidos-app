@@ -577,8 +577,10 @@ export default function ClientePerfil() {
     const resetPinForm = useCallback(() => {
       pinSetup.resetPinForm();
       setShowPinForm(false);
+      setSuspendViewportResize(false);
+      setSuspendViewportAfterNext(false);
       document.activeElement?.blur();
-    }, [pinSetup]);
+    }, [pinSetup, setSuspendViewportAfterNext, setSuspendViewportResize]);
 
     const openPinForm = () => {
       pinSetup.resetPinForm();
@@ -590,6 +592,8 @@ export default function ClientePerfil() {
 
     const handlePinNext = () => {
       if (!pinComplete) return;
+      setSuspendViewportAfterNext(false);
+      setSuspendViewportResize(true);
       pinSetup.handlePinNext();
       window.requestAnimationFrame(() => {
         pinSetup.focusHiddenInput();
@@ -686,15 +690,35 @@ export default function ClientePerfil() {
     };
 
     const handlePinFocus = useCallback(() => {
-      freezeViewportAfterNextUpdate();
+      const vv = window.visualViewport;
+      const height = vv?.height ?? window.innerHeight;
+      const keyboardOpen = height < window.innerHeight - 40;
+      if (keyboardOpen) {
+        setSuspendViewportAfterNext(false);
+        setSuspendViewportResize(true);
+      } else {
+        freezeViewportAfterNextUpdate();
+      }
       pinSetup.setPinFocus(true);
-    }, [freezeViewportAfterNextUpdate, pinSetup]);
+    }, [
+      freezeViewportAfterNextUpdate,
+      pinSetup,
+      setSuspendViewportAfterNext,
+      setSuspendViewportResize,
+    ]);
 
     const handlePinBlur = useCallback(() => {
-      setSuspendViewportResize(false);
-      setSuspendViewportAfterNext(false);
+      if (!showPinForm) {
+        setSuspendViewportResize(false);
+        setSuspendViewportAfterNext(false);
+      }
       pinSetup.setPinFocus(false);
-    }, [pinSetup, setSuspendViewportAfterNext, setSuspendViewportResize]);
+    }, [
+      pinSetup,
+      setSuspendViewportAfterNext,
+      setSuspendViewportResize,
+      showPinForm,
+    ]);
 
     const handleTogglePinForm = () => {
       if (showPinForm) {
