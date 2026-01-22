@@ -76,6 +76,7 @@ import SessionsList from "../shared/blocks/SessionsList";
 import ThemeSelector from "../shared/blocks/ThemeSelector";
 import TwoFACard from "../shared/blocks/TwoFACard";
 import SupportHelpOptions from "../shared/blocks/SupportHelpOptions";
+import FaqContent from "../shared/blocks/FaqContent";
 import SupportFeedbackForm from "../shared/blocks/SupportFeedbackForm";
 import NotificationsPreferencesCard, {
   DEFAULT_NOTIFICATION_PREFS,
@@ -163,6 +164,7 @@ export default function NegocioPerfil() {
   const [twoFASms] = useState(false);
   const [twoFABackup, setTwoFABackup] = useState(true);
   const [twoFADismissed, setTwoFADismissed] = useState(false);
+  const [helpView, setHelpView] = useState("menu");
 
   const handleCloseAllOwners = useCallback(() => {
     setOwnerSessions((prev) => prev.filter((session) => session.current));
@@ -1151,22 +1153,40 @@ export default function NegocioPerfil() {
     );
   }, []);
 
-  const HelpPanel = useCallback(function HelpPanel() {
-    return (
-      <Help
-        blocks={[
-          <SupportHelpOptions
-            key="support-help"
-            options={[
-              "Preguntas frecuentes",
-              "Recibir soporte por correo",
-              "Chatear con un asesor",
-            ]}
-          />,
-        ]}
-      />
-    );
+  const handleHelpSelect = useCallback((option) => {
+    if (option === "Preguntas frecuentes") {
+      setHelpView("faq");
+    }
   }, []);
+
+  const HelpPanel = useCallback(
+    function HelpPanel() {
+      return (
+        <Help
+          blocks={[
+            helpView === "faq" ? (
+              <FaqContent
+                key="faq"
+                audience="negocio"
+                onBack={() => setHelpView("menu")}
+              />
+            ) : (
+              <SupportHelpOptions
+                key="support-help"
+                options={[
+                  "Preguntas frecuentes",
+                  "Recibir soporte por correo",
+                  "Chatear con un asesor",
+                ]}
+                onSelect={handleHelpSelect}
+              />
+            ),
+          ]}
+        />
+      );
+    },
+    [handleHelpSelect, helpView]
+  );
 
   const FeedbackPanel = useCallback(function FeedbackPanel() {
     const [message, setMessage] = useState("");
