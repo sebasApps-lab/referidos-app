@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import usePinSetup from "../../hooks/usePinSetup";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useNegocioUI } from "../../negocio/hooks/useNegocioUI";
 import {
   formatReadableDate,
@@ -58,6 +58,8 @@ import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import Help from "../shared/sections/Help";
+import SupportChat from "../shared/sections/SupportChat";
+import SupportEmail from "../shared/sections/SupportEmail";
 import Feedback from "../shared/sections/Feedback";
 import AccountStatusCard from "../shared/blocks/AccountStatusCard";
 import BenefitsCard from "../shared/blocks/BenefitsCard";
@@ -136,6 +138,7 @@ export default function NegocioPerfil() {
   );
   const { openModal } = useModal();
   const { setHeaderOptions } = useNegocioHeader();
+  const navigate = useNavigate();
   const isActive = useCacheStore(
     (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_PERFIL
   );
@@ -1156,37 +1159,56 @@ export default function NegocioPerfil() {
   const handleHelpSelect = useCallback((option) => {
     if (option === "Preguntas frecuentes") {
       setHelpView("faq");
+      return;
+    }
+    if (option === "Chatear con un asesor") {
+      setHelpView("support_chat");
+      return;
+    }
+    if (option === "Recibir soporte por correo") {
+      setHelpView("support_email");
     }
   }, []);
 
   const HelpPanel = useCallback(
     function HelpPanel() {
       return (
-        <Help
-          blocks={[
-            helpView === "faq" ? (
-              <FaqContent
-                key="faq"
-                audience="negocio"
-                onBack={() => setHelpView("menu")}
-              />
-            ) : (
-              <SupportHelpOptions
-                key="support-help"
-                options={[
-                  "Preguntas frecuentes",
-                  "Recibir soporte por correo",
-                  "Chatear con un asesor",
-                ]}
-                onSelect={handleHelpSelect}
-              />
-            ),
-          ]}
-        />
-      );
-    },
+          <Help
+            blocks={[
+              helpView === "faq" ? (
+                <FaqContent
+                  key="faq"
+                  audience="negocio"
+                  onBack={() => setHelpView("menu")}
+                />
+              ) : helpView === "support_chat" ? (
+                <SupportChat
+                  key="support-chat"
+                  role="negocio"
+                  onBack={() => setHelpView("menu")}
+                />
+              ) : helpView === "support_email" ? (
+                <SupportEmail
+                  key="support-email"
+                  onBack={() => setHelpView("menu")}
+                />
+              ) : (
+                <SupportHelpOptions
+                  key="support-help"
+                  options={[
+                    "Preguntas frecuentes",
+                    "Recibir soporte por correo",
+                    "Chatear con un asesor",
+                  ]}
+                  onSelect={handleHelpSelect}
+                />
+              ),
+            ]}
+          />
+        );
+      },
     [handleHelpSelect, helpView]
-  );
+    );
 
   const FeedbackPanel = useCallback(function FeedbackPanel() {
     const [message, setMessage] = useState("");

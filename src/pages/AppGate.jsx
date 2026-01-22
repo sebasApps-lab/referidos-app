@@ -199,6 +199,9 @@ export default function AppGate({ publicElement = null }) {
   if (usuario.role === "admin") {
     return <Navigate to="/admin/inicio" replace />;
   }
+  if (usuario.role === "soporte") {
+    return <Navigate to="/soporte/inbox" replace />;
+  }
   if (usuario.role === "negocio") {
     return <Navigate to="/negocio/inicio" replace />;
   }

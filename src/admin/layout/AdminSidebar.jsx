@@ -33,6 +33,7 @@ const NAV_GROUPS = [
     items: [
       { label: "QRs", to: "/admin/qrs", Icon: QrCode },
       { label: "Reportes", to: "/admin/reportes", Icon: AlertTriangle },
+      { label: "Soporte", to: "/admin/soporte", Icon: ShieldCheck },
     ],
   },
   {
@@ -41,6 +42,7 @@ const NAV_GROUPS = [
       { label: "Logs", to: "/admin/logs", Icon: FileText },
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
       { label: "Sistema", to: "/admin/sistema", Icon: Settings },
+      { label: "Asesores", to: "/admin/asesores", Icon: Users },
     ],
   },
 ];

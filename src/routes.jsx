@@ -5,7 +5,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 
 import RequireAuth from "./router/guards/RequireAuth";
 import RequireRole from "./router/guards/RequireRole";
-import MainLayout from "./layouts/MainLayout";
 import ClienteLayout from "./cliente/layout/ClienteLayout";
 import NegocioLayout from "./negocio/layout/NegocioLayout";
 import ClienteInicioView from "./cliente/views/ClienteInicioView";
@@ -16,6 +15,13 @@ import NegocioInicioView from "./negocio/views/NegocioInicioView";
 import NegocioEscanerView from "./negocio/views/NegocioEscanerView";
 import NegocioGestionarView from "./negocio/views/NegocioGestionarView";
 import NegocioPerfilView from "./negocio/views/NegocioPerfilView";
+import SupportLayout from "./support/agent/SupportLayout";
+import SupportInbox from "./support/agent/SupportInbox";
+import SupportTicket from "./support/agent/SupportTicket";
+import SupportIrregular from "./support/agent/SupportIrregular";
+import AdminSupportDesk from "./admin/support/AdminSupportDesk";
+import AdminSupportAgents from "./admin/support/AdminSupportAgents";
+import AdminSupportTicket from "./admin/support/AdminSupportTicket";
 
 // Lazy pages
 const AuthEntry = lazy(() => import("./pages/AuthEntry"));
@@ -170,6 +176,36 @@ export default function AppRoutes() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/admin/soporte"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportDesk />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/soporte/ticket/:threadId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportTicket />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/asesores"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportAgents />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
 
       {/* DETALLE PROMO */}
       <Route
@@ -177,9 +213,9 @@ export default function AppRoutes() {
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <MainLayout>
+              <ClienteLayout>
                 <PromoDetalle />
-              </MainLayout>
+              </ClienteLayout>
             </RequireRole>
           </RequireAuth>
         }
@@ -187,6 +223,23 @@ export default function AppRoutes() {
       
       {/* 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />
+
+      {/* SOPORTE AGENTE */}
+      <Route
+        path="/soporte"
+        element={
+          <RequireAuth>
+            <RequireRole role="soporte">
+              <SupportLayout />
+            </RequireRole>
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Navigate to="inbox" replace />} />
+        <Route path="inbox" element={<SupportInbox />} />
+        <Route path="ticket/:threadId" element={<SupportTicket />} />
+        <Route path="irregulares" element={<SupportIrregular />} />
+      </Route>
     </Routes>
   );
 }
