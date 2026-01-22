@@ -7,6 +7,7 @@ import { useClienteUI } from "../hooks/useClienteUI";
 import HistorialList from "./HistorialList";
 import HistorialEmpty from "./HistorialEmpty";
 import { buildHistorialPreview } from "./HistorialPromosPreview";
+import HistorialSkeleton from "./HistorialSkeleton";
 
 const Tabs = ({ active, onChange }) => {
   const tabs = [
@@ -180,9 +181,7 @@ export default function HistorialView() {
       <div className="relative flex-1 overflow-y-auto bg-white -mt-4">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-white" />
         <div className="w-full px-0 pt-4 pb-0 space-y-0">
-        {!useHistorialPreview && loading && (
-          <p className="text-sm text-slate-500">Cargando historial...</p>
-        )}
+        {!useHistorialPreview && loading && <HistorialSkeleton />}
         {!useHistorialPreview && error && !loading && (
           <p className="text-sm text-red-500">{error}</p>
         )}

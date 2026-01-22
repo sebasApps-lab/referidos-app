@@ -3,6 +3,8 @@ import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabaseClient";
 import LoaderOverlay from "../../components/ui/LoaderOverlay";
 import { useNegocioHeader } from "../layout/NegocioHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 import InicioHero from "./InicioHero";
 import InicioPromos from "./InicioPromos";
 import InicioBeneficios from "./InicioBeneficios";
@@ -14,6 +16,9 @@ export default function NegocioInicio() {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const { setHeaderOptions, headerEntering } = useNegocioHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_INICIO
+  );
 
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +128,7 @@ export default function NegocioInicio() {
   const headerVisible = !showSkeleton;
 
   useLayoutEffect(() => {
+    if (!isActive) return undefined;
     setHeaderOptions({
       mode: "default",
       onSearchBack: null,
@@ -131,7 +137,7 @@ export default function NegocioInicio() {
     return () => {
       setHeaderOptions({ mode: "default", onSearchBack: null, headerVisible: true });
     };
-  }, [headerVisible, setHeaderOptions]);
+  }, [headerVisible, isActive, setHeaderOptions]);
 
   if (showSkeleton) {
     return (

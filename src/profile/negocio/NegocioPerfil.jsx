@@ -44,6 +44,8 @@ import {
   SearchbarPanel,
 } from "../../layouts/header-panels";
 import { useNegocioHeader } from "../../negocio/layout/NegocioHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 import ProfileOverview from "../shared/sections/ProfileOverview";
 import PersonalData from "../shared/sections/PersonalData";
 import Access from "../shared/sections/Access";
@@ -133,6 +135,9 @@ export default function NegocioPerfil() {
   );
   const { openModal } = useModal();
   const { setHeaderOptions } = useNegocioHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_PERFIL
+  );
   const { profileTab, setProfileTab } = useNegocioUI({
     defaultProfileTab: "overview",
   });
@@ -1678,6 +1683,16 @@ export default function NegocioPerfil() {
   }, []);
 
   useEffect(() => {
+    if (!isActive) {
+      setHeaderOptions({
+        mode: "default",
+        onSearchBack: null,
+        headerVisible: true,
+        profileDockOpen: true,
+        profileTitle: "Configuracion",
+      });
+      return undefined;
+    }
     const headerTitle =
       profileView === "panel"
         ? tabLabelMap[profileTab] || "Configuracion"
@@ -1695,11 +1710,13 @@ export default function NegocioPerfil() {
         onSearchBack: null,
         headerVisible: true,
         profileDockOpen: true,
+        profileTitle: "Configuracion",
       });
     };
   }, [
     dockOpenForHeader,
     handleBack,
+    isActive,
     profileTab,
     profileView,
     setHeaderOptions,
@@ -1728,8 +1745,13 @@ export default function NegocioPerfil() {
 
 
   useEffect(() => {
+    if (!isActive) {
+      setDockTarget(null);
+      setDockOpenForHeader(false);
+      return;
+    }
     setDockTarget(document.getElementById("negocio-header-search-dock"));
-  }, []);
+  }, [isActive]);
 
   useEffect(() => {
     if (profileView !== "tabs") {
@@ -1747,7 +1769,7 @@ export default function NegocioPerfil() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      {dockTarget
+      {isActive && dockTarget
         ? createPortal(
             <HeaderPanelContainer
               open

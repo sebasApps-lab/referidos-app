@@ -6,37 +6,21 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import RequireAuth from "./router/guards/RequireAuth";
 import RequireRole from "./router/guards/RequireRole";
 import MainLayout from "./layouts/MainLayout";
+import ClienteLayout from "./cliente/layout/ClienteLayout";
+import NegocioLayout from "./negocio/layout/NegocioLayout";
+import ClienteInicioView from "./cliente/views/ClienteInicioView";
+import ClienteEscanerView from "./cliente/views/ClienteEscanerView";
+import ClienteHistorialView from "./cliente/views/ClienteHistorialView";
+import ClientePerfilView from "./cliente/views/ClientePerfilView";
+import NegocioInicioView from "./negocio/views/NegocioInicioView";
+import NegocioEscanerView from "./negocio/views/NegocioEscanerView";
+import NegocioGestionarView from "./negocio/views/NegocioGestionarView";
+import NegocioPerfilView from "./negocio/views/NegocioPerfilView";
 
 // Lazy pages
 const AuthEntry = lazy(() => import("./pages/AuthEntry"));
 const AppGate = lazy(() => import("./pages/AppGate"));
 
-const ClienteInicioView = lazy(() =>
-  import("./cliente/views/ClienteInicioView")
-);
-const ClienteEscanerView = lazy(() =>
-  import("./cliente/views/ClienteEscanerView")
-);
-const ClienteHistorialView = lazy(() =>
-  import("./cliente/views/ClienteHistorialView")
-);
-const ClientePerfilView = lazy(() =>
-  import("./cliente/views/ClientePerfilView")
-);
-const NegocioInicioView = lazy(() =>
-  import("./negocio/views/NegocioInicioView")
-);
-const NegocioEscanerView = lazy(() =>
-  import("./negocio/views/NegocioEscanerView")
-);
-const NegocioGestionarView = lazy(() =>
-  import("./negocio/views/NegocioGestionarView")
-);
-const NegocioPerfilView = lazy(() =>
-  import("./negocio/views/NegocioPerfilView")
-);
-const ClienteLayout = lazy(() => import("./cliente/layout/ClienteLayout"));
-const NegocioLayout = lazy(() => import("./negocio/layout/NegocioLayout"));
 const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
 const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
 const AdminNegocios = lazy(() => import("./pages/admin/AdminNegocios"));
