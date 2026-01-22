@@ -11,14 +11,32 @@ import MainLayout from "./layouts/MainLayout";
 const AuthEntry = lazy(() => import("./pages/AuthEntry"));
 const AppGate = lazy(() => import("./pages/AppGate"));
 
-const ClienteInicio = lazy(() => import("./pages/cliente/ClienteInicio"));
-const ClienteEscaner = lazy(() => import("./pages/cliente/ClienteEscaner"));
-const ClienteHistorial = lazy(() => import("./pages/cliente/ClienteHistorial"));
-const ClientePerfil = lazy(() => import("./pages/cliente/ClientePerfil"));
-const NegocioInicio = lazy(() => import("./pages/negocio/NegocioInicio"));
-const NegocioEscaner = lazy(() => import("./pages/negocio/NegocioEscaner"));
-const NegocioGestionar = lazy(() => import("./pages/negocio/NegocioGestionar"));
-const NegocioPerfil = lazy(() => import("./pages/negocio/NegocioPerfil"));
+const ClienteInicioView = lazy(() =>
+  import("./cliente/views/ClienteInicioView")
+);
+const ClienteEscanerView = lazy(() =>
+  import("./cliente/views/ClienteEscanerView")
+);
+const ClienteHistorialView = lazy(() =>
+  import("./cliente/views/ClienteHistorialView")
+);
+const ClientePerfilView = lazy(() =>
+  import("./cliente/views/ClientePerfilView")
+);
+const NegocioInicioView = lazy(() =>
+  import("./negocio/views/NegocioInicioView")
+);
+const NegocioEscanerView = lazy(() =>
+  import("./negocio/views/NegocioEscanerView")
+);
+const NegocioGestionarView = lazy(() =>
+  import("./negocio/views/NegocioGestionarView")
+);
+const NegocioPerfilView = lazy(() =>
+  import("./negocio/views/NegocioPerfilView")
+);
+const ClienteLayout = lazy(() => import("./cliente/layout/ClienteLayout"));
+const NegocioLayout = lazy(() => import("./negocio/layout/NegocioLayout"));
 const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
 const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
 const AdminNegocios = lazy(() => import("./pages/admin/AdminNegocios"));
@@ -43,99 +61,39 @@ export default function AppRoutes() {
 
       {/* CLIENTE */}
       <Route
-        path="/cliente/inicio"
+        path="/cliente"
         element={
           <RequireAuth>
             <RequireRole role="cliente">
-              <ClienteInicio />
+              <ClienteLayout />
             </RequireRole>
           </RequireAuth>
         }
-      />
-
-      {/* ESCANEAR CLIENTE*/}
-      <Route
-        path="/cliente/escanear"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <ClienteEscaner />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* PERFIL CLIENTE*/}
-      <Route
-        path="/cliente/perfil"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <ClientePerfil />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* HISTORIAL CLIENTE */}
-      <Route
-        path="/cliente/historial"
-        element={
-          <RequireAuth>
-            <RequireRole role="cliente">
-              <ClienteHistorial />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
+      >
+        <Route index element={<Navigate to="inicio" replace />} />
+        <Route path="inicio" element={<ClienteInicioView />} />
+        <Route path="escanear" element={<ClienteEscanerView />} />
+        <Route path="perfil" element={<ClientePerfilView />} />
+        <Route path="historial" element={<ClienteHistorialView />} />
+      </Route>
 
       {/* NEGOCIO */}
       <Route
-        path="/negocio/inicio"
+        path="/negocio"
         element={
           <RequireAuth>
             <RequireRole role="negocio">
-              <NegocioInicio />
+              <NegocioLayout />
             </RequireRole>
           </RequireAuth>
         }
-      />
-
-      {/* ESCANEAR NEGOCIO*/}
-      <Route
-        path="/negocio/escanear"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <NegocioEscaner />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* PERFIL NEGOCIO*/}
-      <Route
-        path="/negocio/perfil"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <NegocioPerfil />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
-
-      {/* GESTIONAR NEGOCIO */}
-      <Route
-        path="/negocio/gestionar"
-        element={
-          <RequireAuth>
-            <RequireRole role="negocio">
-              <NegocioGestionar />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
+      >
+        <Route index element={<Navigate to="inicio" replace />} />
+        <Route path="inicio" element={<NegocioInicioView />} />
+        <Route path="escanear" element={<NegocioEscanerView />} />
+        <Route path="perfil" element={<NegocioPerfilView />} />
+        <Route path="gestionar" element={<NegocioGestionarView />} />
+      </Route>
 
       {/* ADMIN */}
       <Route

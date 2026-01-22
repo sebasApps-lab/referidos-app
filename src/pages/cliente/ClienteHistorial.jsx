@@ -1,11 +1,11 @@
 import React from "react";
 import ClienteLayout from "../../cliente/layout/ClienteLayout";
-import HistorialView from "../../cliente/historial/HistorialView";
+import ClienteHistorialBase from "../../cliente/base/ClienteHistorialBase";
 
 export default function ClienteHistorial() {
   return (
     <ClienteLayout>
-      <HistorialView />
+      <ClienteHistorialBase />
     </ClienteLayout>
   );
 }

@@ -18,6 +18,7 @@ import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
 import { supabase } from "../lib/supabaseClient";
 import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secureStorageService";
+import { useCacheStore } from "../cache/cacheStore";
 import { useModalStore } from "../modals/modalStore";
 
 let promosRefreshTimer = null;
@@ -398,26 +399,27 @@ export const useAppStore = create(
         }
       },
 
-      logout: async () => {
-        let userId = null;
-        try {
-          const { data } = await supabase.auth.getSession();
-          userId = data?.session?.user?.id ?? null;
-        } catch (e) {
-          userId = null;
-        }
-        try{
-          await signOut();
-        } catch (e) {
-          //opcional: log o toast
-        } finally {
-          if (userId) {
-            await clearUserSecurityMaterial(userId);
+        logout: async () => {
+          let userId = null;
+          try {
+            const { data } = await supabase.auth.getSession();
+            userId = data?.session?.user?.id ?? null;
+          } catch (e) {
+            userId = null;
           }
-          set({
-            bootstrap: false,
-            bootstrapError: false,
-            usuario: null,
+          try{
+            await signOut();
+          } catch (e) {
+            //opcional: log o toast
+          } finally {
+            if (userId) {
+              await clearUserSecurityMaterial(userId);
+            }
+            useCacheStore.getState().clearAll();
+            set({
+              bootstrap: false,
+              bootstrapError: false,
+              usuario: null,
             onboarding: null,
             promos: [],
             negocios: [],

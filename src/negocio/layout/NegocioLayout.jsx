@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Outlet } from "react-router-dom";
 import NegocioHeader from "./NegocioHeader";
 import NegocioFooter from "./NegocioFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
@@ -12,6 +13,13 @@ import {
   loadBiometricToken,
   loadPinHash,
 } from "../../services/secureStorageService";
+import CacheOutlet from "../../cache/CacheOutlet";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
+import NegocioInicioBase from "../base/NegocioInicioBase";
+import NegocioEscanerBase from "../base/NegocioEscanerBase";
+import NegocioGestionarBase from "../base/NegocioGestionarBase";
+import NegocioPerfilBase from "../base/NegocioPerfilBase";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -46,6 +54,32 @@ function NegocioLayoutInner({ children }) {
   const setSuspendViewportAfterNext = useAppStore(
     (state) => state.setSuspendViewportAfterNext
   );
+  const activeCacheKey = useCacheStore(
+    (state) => state.activeKeys.negocio || null
+  );
+  const preloadScope = useCacheStore((state) => state.preloadScope);
+  const isPreloaded = useCacheStore(
+    (state) => Boolean(state.preloadedScopes.negocio)
+  );
+  const setScrollPosition = useCacheStore((state) => state.setScrollPosition);
+  const getScrollPosition = useCacheStore((state) => state.getScrollPosition);
+
+  const cacheEntries = useMemo(
+    () => [
+      { key: CACHE_KEYS.NEGOCIO_INICIO, element: <NegocioInicioBase /> },
+      { key: CACHE_KEYS.NEGOCIO_ESCANEAR, element: <NegocioEscanerBase /> },
+      { key: CACHE_KEYS.NEGOCIO_GESTIONAR, element: <NegocioGestionarBase /> },
+      { key: CACHE_KEYS.NEGOCIO_PERFIL, element: <NegocioPerfilBase /> },
+    ],
+    []
+  );
+  const useCache = children == null;
+
+  useLayoutEffect(() => {
+    if (!useCache) return;
+    if (isPreloaded) return;
+    preloadScope("negocio", cacheEntries);
+  }, [cacheEntries, isPreloaded, preloadScope, useCache]);
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerVisible) {
@@ -139,6 +173,26 @@ function NegocioLayoutInner({ children }) {
       window.removeEventListener("scroll", updateHeaderElevation);
     };
   }, [updateHeaderElevation]);
+
+  useEffect(() => {
+    const current = mainRef.current;
+    if (!current || !activeCacheKey) return undefined;
+    const handleScroll = () => {
+      setScrollPosition(activeCacheKey, current.scrollTop);
+    };
+    current.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      current.removeEventListener("scroll", handleScroll);
+    };
+  }, [activeCacheKey, setScrollPosition]);
+
+  useEffect(() => {
+    const current = mainRef.current;
+    if (!current || !activeCacheKey) return;
+    const targetTop = getScrollPosition(activeCacheKey);
+    current.scrollTop = targetTop;
+    document.activeElement?.blur();
+  }, [activeCacheKey, getScrollPosition]);
 
   useEffect(() => {
     if (bootstrap || !usuario) return;
@@ -240,7 +294,8 @@ function NegocioLayoutInner({ children }) {
             overflowY: "auto",
           }}
         >
-          {children}
+          {useCache ? <CacheOutlet scope="negocio" /> : children}
+          {useCache ? <Outlet /> : null}
           <div
             className="text-[10px] uppercase tracking-[0.3em] text-black/30"
             style={{ position: "fixed", bottom: 110, right: 16 }}

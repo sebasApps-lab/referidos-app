@@ -1,11 +1,11 @@
 import React from "react";
 import NegocioLayout from "../../negocio/layout/NegocioLayout";
-import NegocioInicioView from "../../negocio/inicio/NegocioInicio";
+import NegocioInicioBase from "../../negocio/base/NegocioInicioBase";
 
 export default function NegocioInicio() {
   return (
     <NegocioLayout>
-      <NegocioInicioView />
+      <NegocioInicioBase />
     </NegocioLayout>
   );
 }

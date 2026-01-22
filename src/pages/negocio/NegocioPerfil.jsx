@@ -1,11 +1,11 @@
 import React from "react";
 import NegocioLayout from "../../negocio/layout/NegocioLayout";
-import NegocioPerfilView from "../../profile/negocio/NegocioPerfil";
+import NegocioPerfilBase from "../../negocio/base/NegocioPerfilBase";
 
 export default function NegocioPerfil() {
   return (
     <NegocioLayout>
-      <NegocioPerfilView />
+      <NegocioPerfilBase />
     </NegocioLayout>
   );
 }

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Outlet } from "react-router-dom";
 import ClienteHeader from "./ClienteHeader";
 import ClienteFooter from "./ClienteFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
@@ -12,6 +13,13 @@ import {
   loadBiometricToken,
   loadPinHash,
 } from "../../services/secureStorageService";
+import CacheOutlet from "../../cache/CacheOutlet";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
+import ClienteInicioBase from "../base/ClienteInicioBase";
+import ClienteEscanerBase from "../base/ClienteEscanerBase";
+import ClienteHistorialBase from "../base/ClienteHistorialBase";
+import ClientePerfilBase from "../base/ClientePerfilBase";
 
 const FALLBACK_HEADER_HEIGHT = 76;
 
@@ -45,6 +53,32 @@ function ClienteLayoutInner({ children }) {
   const setSuspendViewportAfterNext = useAppStore(
     (state) => state.setSuspendViewportAfterNext
   );
+  const activeCacheKey = useCacheStore(
+    (state) => state.activeKeys.cliente || null
+  );
+  const preloadScope = useCacheStore((state) => state.preloadScope);
+  const isPreloaded = useCacheStore(
+    (state) => Boolean(state.preloadedScopes.cliente)
+  );
+  const setScrollPosition = useCacheStore((state) => state.setScrollPosition);
+  const getScrollPosition = useCacheStore((state) => state.getScrollPosition);
+
+  const cacheEntries = useMemo(
+    () => [
+      { key: CACHE_KEYS.CLIENTE_INICIO, element: <ClienteInicioBase /> },
+      { key: CACHE_KEYS.CLIENTE_ESCANEAR, element: <ClienteEscanerBase /> },
+      { key: CACHE_KEYS.CLIENTE_HISTORIAL, element: <ClienteHistorialBase /> },
+      { key: CACHE_KEYS.CLIENTE_PERFIL, element: <ClientePerfilBase /> },
+    ],
+    []
+  );
+  const useCache = children == null;
+
+  useLayoutEffect(() => {
+    if (!useCache) return;
+    if (isPreloaded) return;
+    preloadScope("cliente", cacheEntries);
+  }, [cacheEntries, isPreloaded, preloadScope, useCache]);
 
   const updateHeaderHeight = useCallback(() => {
     if (!headerVisible) {
@@ -138,6 +172,26 @@ function ClienteLayoutInner({ children }) {
       window.removeEventListener("scroll", updateHeaderElevation);
     };
   }, [updateHeaderElevation]);
+
+  useEffect(() => {
+    const current = mainRef.current;
+    if (!current || !activeCacheKey) return undefined;
+    const handleScroll = () => {
+      setScrollPosition(activeCacheKey, current.scrollTop);
+    };
+    current.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      current.removeEventListener("scroll", handleScroll);
+    };
+  }, [activeCacheKey, setScrollPosition]);
+
+  useEffect(() => {
+    const current = mainRef.current;
+    if (!current || !activeCacheKey) return;
+    const targetTop = getScrollPosition(activeCacheKey);
+    current.scrollTop = targetTop;
+    document.activeElement?.blur();
+  }, [activeCacheKey, getScrollPosition]);
 
   useEffect(() => {
     if (bootstrap || !usuario) return;
@@ -237,7 +291,8 @@ function ClienteLayoutInner({ children }) {
             overflowY: "auto",
           }}
         >
-          {children}
+          {useCache ? <CacheOutlet scope="cliente" /> : children}
+          {useCache ? <Outlet /> : null}
           <div
             className="text-[10px] uppercase tracking-[0.3em] text-black/30"
             style={{ position: "fixed", bottom: 110, right: 16 }}

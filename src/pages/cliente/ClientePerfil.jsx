@@ -1,11 +1,11 @@
 import React from "react";
 import ClienteLayout from "../../cliente/layout/ClienteLayout";
-import ClientePerfilView from "../../profile/cliente/ClientePerfil";
+import ClientePerfilBase from "../../cliente/base/ClientePerfilBase";
 
 export default function ClientePerfil() {
   return (
     <ClienteLayout>
-      <ClientePerfilView />
+      <ClientePerfilBase />
     </ClienteLayout>
   );
 }
