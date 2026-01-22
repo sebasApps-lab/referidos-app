@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import ScannerView from "../../scanner/ScannerView";
 import ScannerCameraBlock from "../../scanner/blocks/ScannerCameraBlock";
 import ScannerHeader from "../../scanner/blocks/ScannerHeader";
@@ -9,8 +9,15 @@ import ScannerProcessingHint from "../../scanner/blocks/ScannerProcessingHint";
 import ScannerResultCard from "../../scanner/blocks/ScannerResultCard";
 import { scannerCopy } from "../../scanner/constants/scannerCopy";
 import { useScannerState } from "../../scanner/hooks/useScannerState";
+import { useNegocioHeader } from "../layout/NegocioHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 
 export default function NegocioEscanerBase() {
+  const { setHeaderOptions } = useNegocioHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_ESCANEAR
+  );
   const {
     canScan,
     camGranted,
@@ -36,6 +43,26 @@ export default function NegocioEscanerBase() {
   const headerTitle = showPermisos
     ? scannerCopy.header.manualTitle
     : scannerCopy.header.negocioTitle;
+
+  useLayoutEffect(() => {
+    if (!isActive) return undefined;
+    setHeaderOptions({
+      mode: "default",
+      onSearchBack: null,
+      headerVisible: true,
+      profileDockOpen: true,
+      profileTitle: "Configuracion",
+    });
+    return () => {
+      setHeaderOptions({
+        mode: "default",
+        onSearchBack: null,
+        headerVisible: true,
+        profileDockOpen: true,
+        profileTitle: "Configuracion",
+      });
+    };
+  }, [isActive, setHeaderOptions]);
 
   return (
     <ScannerView

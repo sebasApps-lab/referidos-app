@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import NegocioHeader from "./NegocioHeader";
 import NegocioFooter from "./NegocioFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
@@ -42,6 +42,7 @@ function NegocioLayoutInner({ children }) {
   const headerRef = useRef(null);
   const mainRef = useRef(null);
   const { mode, headerVisible, headerEntering } = useNegocioHeader();
+  const location = useLocation();
   const suspendViewportResize = useAppStore(
     (state) => state.suspendViewportResize
   );
@@ -74,6 +75,9 @@ function NegocioLayoutInner({ children }) {
     []
   );
   const useCache = children == null;
+  const fallbackPath = "/negocio/inicio";
+  const hideUntilPreloaded =
+    useCache && !isPreloaded && location.pathname !== fallbackPath;
 
   useLayoutEffect(() => {
     if (!useCache) return;
@@ -236,6 +240,7 @@ function NegocioLayoutInner({ children }) {
   }, [bootstrap, usuario, openModal]);
 
   if (bootstrap || typeof usuario === "undefined") return null;
+  if (hideUntilPreloaded) return null;
 
   const viewportHeight = viewportMetrics.height;
 

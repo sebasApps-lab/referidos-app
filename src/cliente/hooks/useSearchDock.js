@@ -6,14 +6,22 @@ export function useSearchDock({
   heroSearchSelector = "[data-hero-searchbar]",
   scrollContainerId = "cliente-main-scroll",
   dockOffset = 24,
+  rootSelector = null,
+  enabled = true,
 } = {}) {
   const [docked, setDocked] = useState(false);
   const [heroVisible, setHeroVisible] = useState(true);
 
   const update = useCallback(() => {
+    if (!enabled) {
+      setDocked((prev) => (prev ? false : prev));
+      setHeroVisible((prev) => (prev ? prev : true));
+      return;
+    }
     const headerEl = document.getElementById(headerId);
-    const heroEl = document.querySelector(heroSelector);
-    const heroSearchEl = document.querySelector(heroSearchSelector);
+    const rootEl = rootSelector ? document.querySelector(rootSelector) : document;
+    const heroEl = rootEl?.querySelector?.(heroSelector);
+    const heroSearchEl = rootEl?.querySelector?.(heroSearchSelector);
     if (!headerEl || !heroEl) {
       setDocked((prev) => (prev ? false : prev));
       setHeroVisible((prev) => (prev ? prev : true));
@@ -31,6 +39,9 @@ export function useSearchDock({
   }, [dockOffset, headerId, heroSearchSelector, heroSelector]);
 
   useLayoutEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
     update();
     const scrollContainer = scrollContainerId
       ? document.getElementById(scrollContainerId)
@@ -48,7 +59,7 @@ export function useSearchDock({
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [scrollContainerId, update]);
+  }, [enabled, scrollContainerId, update]);
 
   return { docked, heroVisible };
 }

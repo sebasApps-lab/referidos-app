@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import ClienteHeader from "./ClienteHeader";
 import ClienteFooter from "./ClienteFooter";
 import MenuLateral from "../../components/menus/MenuLateral";
@@ -41,6 +41,7 @@ function ClienteLayoutInner({ children }) {
   const headerRef = useRef(null);
   const mainRef = useRef(null);
   const { mode, headerVisible, headerEntering } = useClienteHeader();
+  const location = useLocation();
   const suspendViewportResize = useAppStore(
     (state) => state.suspendViewportResize
   );
@@ -73,6 +74,9 @@ function ClienteLayoutInner({ children }) {
     []
   );
   const useCache = children == null;
+  const fallbackPath = "/cliente/inicio";
+  const hideUntilPreloaded =
+    useCache && !isPreloaded && location.pathname !== fallbackPath;
 
   useLayoutEffect(() => {
     if (!useCache) return;
@@ -235,6 +239,7 @@ function ClienteLayoutInner({ children }) {
   }, [bootstrap, usuario, openModal]);
 
   if (bootstrap || typeof usuario === "undefined") return null;
+  if (hideUntilPreloaded) return null;
 
   const viewportHeight = viewportMetrics.height;
 

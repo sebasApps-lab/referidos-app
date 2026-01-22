@@ -15,6 +15,8 @@ import { usePromoSearch } from "../../hooks/usePromoSearch";
 import { sanitizeText } from "../../utils/sanitize";
 import LoaderOverlay from "../../components/ui/LoaderOverlay";
 import { useClienteHeader } from "../layout/ClienteHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 import { useClienteUI } from "../hooks/useClienteUI";
 import { useSearchDock } from "../hooks/useSearchDock";
 import InicioHero from "./InicioHero";
@@ -52,8 +54,14 @@ export default function ClienteInicio() {
   const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
-  const { docked: searchDocked, heroVisible } = useSearchDock();
+  const { docked: searchDocked, heroVisible } = useSearchDock({
+    enabled: isActive,
+    rootSelector: `[data-cache-key="${CACHE_KEYS.CLIENTE_INICIO}"]`,
+  });
   const { setHeaderOptions, headerEntering } = useClienteHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.cliente === CACHE_KEYS.CLIENTE_INICIO
+  );
 
   const usePromosPreview = true;
 
@@ -78,7 +86,7 @@ export default function ClienteInicio() {
   const headerVisible = !(loading && promos.length === 0);
 
   useEffect(() => {
-    if (!headerVisible) {
+    if (!headerVisible || !isActive) {
       setDockTarget(null);
       return undefined;
     }
@@ -102,6 +110,7 @@ export default function ClienteInicio() {
   }, [headerVisible]);
 
   useLayoutEffect(() => {
+    if (!isActive) return undefined;
     setHeaderOptions({
       mode,
       onSearchBack: onBack,
@@ -110,7 +119,7 @@ export default function ClienteInicio() {
     return () => {
       setHeaderOptions({ mode: "default", onSearchBack: null, headerVisible: true });
     };
-  }, [headerVisible, mode, onBack, setHeaderOptions]);
+  }, [headerVisible, isActive, mode, onBack, setHeaderOptions]);
 
   useEffect(() => {
     startPromosAutoRefresh();
@@ -126,6 +135,10 @@ export default function ClienteInicio() {
         <ClienteInicioSkeleton />
       </LoaderOverlay>
     );
+  }
+
+  if (!isActive) {
+    return <div className="pb-16" />;
   }
 
   return (

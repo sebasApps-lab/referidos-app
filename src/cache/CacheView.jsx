@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCacheStore } from "./cacheStore";
 
@@ -9,14 +9,22 @@ export default function CacheView({ scope, cacheKey, fallbackTo }) {
   const preloaded = useCacheStore(
     (state) => Boolean(state.preloadedScopes[scope])
   );
+  const preloadedAtMount = useRef(preloaded);
+  const shouldRedirect =
+    !preloadedAtMount.current &&
+    Boolean(fallbackTo) &&
+    location.pathname !== fallbackTo;
 
   useLayoutEffect(() => {
-    if (!preloaded && fallbackTo && location.pathname !== fallbackTo) {
+    if (shouldRedirect) {
+      if (fallbackTo) {
+        setActive(scope, fallbackTo);
+      }
       navigate(fallbackTo, { replace: true });
       return;
     }
     setActive(scope, cacheKey);
-  }, [cacheKey, fallbackTo, location.pathname, navigate, preloaded, scope, setActive]);
+  }, [cacheKey, navigate, scope, setActive, shouldRedirect, fallbackTo]);
 
   return null;
 }

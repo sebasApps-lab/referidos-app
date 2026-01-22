@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 import { getQrHistory } from "../../services/qrService";
 import { handleError } from "../../utils/errorUtils";
 import { useClienteUI } from "../hooks/useClienteUI";
+import { useClienteHeader } from "../layout/ClienteHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 import HistorialList from "./HistorialList";
 import HistorialEmpty from "./HistorialEmpty";
 import { buildHistorialPreview } from "./HistorialPromosPreview";
@@ -45,6 +48,10 @@ const Tabs = ({ active, onChange }) => {
 export default function HistorialView() {
   const usuario = useAppStore((s) => s.usuario);
   const { historyTab, setHistoryTab } = useClienteUI();
+  const { setHeaderOptions } = useClienteHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.cliente === CACHE_KEYS.CLIENTE_HISTORIAL
+  );
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -57,6 +64,26 @@ export default function HistorialView() {
     })
   );
   const useHistorialPreview = true;
+
+  useLayoutEffect(() => {
+    if (!isActive) return undefined;
+    setHeaderOptions({
+      mode: "default",
+      onSearchBack: null,
+      headerVisible: true,
+      profileDockOpen: true,
+      profileTitle: "Configuracion",
+    });
+    return () => {
+      setHeaderOptions({
+        mode: "default",
+        onSearchBack: null,
+        headerVisible: true,
+        profileDockOpen: true,
+        profileTitle: "Configuracion",
+      });
+    };
+  }, [isActive, setHeaderOptions]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);

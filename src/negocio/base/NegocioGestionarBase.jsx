@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useLayoutEffect, useMemo, useState } from "react";
 import { BarChart3, MonitorSmartphone, ShieldCheck, Users } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { useNegocioHeader } from "../layout/NegocioHeaderContext";
+import { useCacheStore } from "../../cache/cacheStore";
+import { CACHE_KEYS } from "../../cache/cacheKeys";
 import GestionarTabs from "../gestionar/GestionarTabs";
 import GestionarPanel from "../gestionar/GestionarPanel";
 import Metricas from "../gestionar/sections/Metricas";
@@ -10,6 +13,10 @@ import Seguridad from "../gestionar/sections/Seguridad";
 
 export default function NegocioGestionarBase() {
   const onboarding = useAppStore((s) => s.onboarding);
+  const { setHeaderOptions } = useNegocioHeader();
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_GESTIONAR
+  );
   const negocioNombre = onboarding?.negocio?.nombre || "Tu negocio";
   const [activeId, setActiveId] = useState("metricas");
 
@@ -30,6 +37,26 @@ export default function NegocioGestionarBase() {
 
   const activeTab = tabs.find((tab) => tab.id === activeId) || tabs[0];
   const ActiveSection = activeTab.Component;
+
+  useLayoutEffect(() => {
+    if (!isActive) return undefined;
+    setHeaderOptions({
+      mode: "default",
+      onSearchBack: null,
+      headerVisible: true,
+      profileDockOpen: true,
+      profileTitle: "Configuracion",
+    });
+    return () => {
+      setHeaderOptions({
+        mode: "default",
+        onSearchBack: null,
+        headerVisible: true,
+        profileDockOpen: true,
+        profileTitle: "Configuracion",
+      });
+    };
+  }, [isActive, setHeaderOptions]);
 
   return (
     <div className="bg-white">
