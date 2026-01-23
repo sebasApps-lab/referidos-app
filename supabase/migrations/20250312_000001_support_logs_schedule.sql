@@ -26,7 +26,7 @@ begin
     perform cron.schedule(
       'support_cleanup_daily',
       '0 3 * * *',
-      $$select public.support_cleanup();$$
+      'select public.support_cleanup();'
     );
   end if;
 exception
