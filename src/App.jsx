@@ -6,6 +6,7 @@ import { pwaGuard } from "./router/guards/pwaGuard";
 import AppRoutes from "./routes";
 import ModalProvider from "./modals/ModalProvider";
 import useBootstrapAuth from "./hooks/useBootstrapAuth";
+import useAppLogger from "./hooks/useAppLogger";
 
 function PwaGuardWrapper({ children }) {
   const usuario = useAppStore((s) => s.usuario);
@@ -34,6 +35,7 @@ function PwaGuardWrapper({ children }) {
 export default function App() {
   //Arranca bootstrap (session + onboarding) una sola vez
   useBootstrapAuth();
+  useAppLogger();
 
   return (
     <>
