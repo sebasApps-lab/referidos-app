@@ -20,6 +20,7 @@ export default function AdminSupportAgents() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createResult, setCreateResult] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const mountedRef = useRef(true);
 
   const loadAgents = async () => {
@@ -151,63 +152,76 @@ export default function AdminSupportAgents() {
     >
       <div className="space-y-6">
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 space-y-4">
-          <div className="text-sm font-semibold text-[#2F1A55]">
-            Crear cuenta de soporte
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              value={createForm.nombre}
-              onChange={handleCreateChange("nombre")}
-              placeholder="Nombre"
-              className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
-            />
-            <input
-              value={createForm.apellido}
-              onChange={handleCreateChange("apellido")}
-              placeholder="Apellido"
-              className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
-            />
-            <input
-              value={createForm.email}
-              onChange={handleCreateChange("email")}
-              placeholder="Correo"
-              className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
-            />
-            <input
-              type="date"
-              value={createForm.fecha_nacimiento}
-              onChange={handleCreateChange("fecha_nacimiento")}
-              className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
-            />
-            <select
-              value={createForm.role}
-              onChange={handleCreateChange("role")}
-              className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
-            >
-              <option value="soporte">Soporte</option>
-              <option value="dev">Dev</option>
-              <option value="empleado">Empleado</option>
-            </select>
-          </div>
-          {createError ? (
-            <div className="text-xs text-red-500">{createError}</div>
-          ) : null}
-          {createResult ? (
-            <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-xs text-slate-600 space-y-1">
-              <div>Correo: {createResult.email}</div>
-              <div>Contrasena provisional: {createResult.password}</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-[#2F1A55]">
+              Crear cuenta de soporte
             </div>
+            <button
+              type="button"
+              onClick={() => setCreateOpen((prev) => !prev)}
+              className="rounded-2xl border border-[#E9E2F7] px-4 py-2 text-xs font-semibold text-[#5E30A5]"
+            >
+              Crear cuenta
+            </button>
+          </div>
+          {createOpen ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  value={createForm.nombre}
+                  onChange={handleCreateChange("nombre")}
+                  placeholder="Nombre"
+                  className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+                />
+                <input
+                  value={createForm.apellido}
+                  onChange={handleCreateChange("apellido")}
+                  placeholder="Apellido"
+                  className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+                />
+                <input
+                  value={createForm.email}
+                  onChange={handleCreateChange("email")}
+                  placeholder="Correo"
+                  className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+                />
+                <input
+                  type="date"
+                  value={createForm.fecha_nacimiento}
+                  onChange={handleCreateChange("fecha_nacimiento")}
+                  className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+                />
+                <select
+                  value={createForm.role}
+                  onChange={handleCreateChange("role")}
+                  className="rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+                >
+                  <option value="soporte">Soporte</option>
+                  <option value="dev">Dev</option>
+                  <option value="empleado">Empleado</option>
+                </select>
+              </div>
+              {createError ? (
+                <div className="text-xs text-red-500">{createError}</div>
+              ) : null}
+              {createResult ? (
+                <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-xs text-slate-600 space-y-1">
+                  <div>Correo: {createResult.email}</div>
+                  <div>Contrasena provisional: {createResult.password}</div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={createLoading}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold text-white ${
+                  createLoading ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+                }`}
+              >
+                {createLoading ? "Creando..." : "Crear cuenta"}
+              </button>
+            </>
           ) : null}
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={createLoading}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold text-white ${
-              createLoading ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
-            }`}
-          >
-            {createLoading ? "Creando..." : "Crear cuenta"}
-          </button>
         </div>
 
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 space-y-4">
