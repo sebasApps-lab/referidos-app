@@ -70,9 +70,14 @@ serve(async (req) => {
     });
 
   if (createErr || !created?.user) {
+    const message = createErr?.message || "user_create_failed";
+    const isDuplicate =
+      message.toLowerCase().includes("already") ||
+      message.toLowerCase().includes("exists") ||
+      message.toLowerCase().includes("duplicate");
     return jsonResponse(
-      { ok: false, error: createErr?.message || "user_create_failed" },
-      500,
+      { ok: false, error: message, code: isDuplicate ? "email_exists" : "create_failed" },
+      isDuplicate ? 409 : 500,
       cors
     );
   }
@@ -95,6 +100,7 @@ serve(async (req) => {
     );
 
   if (upsertErr) {
+    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
     return jsonResponse(
       { ok: false, error: "profile_upsert_failed" },
       500,
