@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import SupportGate from "./SupportGate";
-import { assignSupportThread } from "../supportClient";
+import {
+  assignSupportThread,
+  startAdminSupportSession,
+} from "../supportClient";
 
 const STATUS_GROUPS = [
   { id: "new", label: "Nuevos" },
@@ -19,6 +22,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState("new");
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionError, setSessionError] = useState("");
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +53,29 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     };
   }, [isAdmin, usuario]);
 
+  useEffect(() => {
+    let active = true;
+    const loadSession = async () => {
+      if (!usuario?.id) return;
+      setSessionLoading(true);
+      const { data } = await supabase
+        .from("support_agent_sessions")
+        .select("id")
+        .eq("agent_id", usuario.id)
+        .is("end_at", null)
+        .order("start_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!active) return;
+      setSessionActive(Boolean(data?.id));
+      setSessionLoading(false);
+    };
+    loadSession();
+    return () => {
+      active = false;
+    };
+  }, [usuario?.id]);
+
   const filtered = useMemo(
     () => threads.filter((t) => t.status === activeStatus),
     [activeStatus, threads]
@@ -60,15 +89,35 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     );
   }, [threads, usuario]);
 
-  const handleAssign = async (publicId) => {
-    const result = await assignSupportThread({ thread_public_id: publicId });
-    if (result.ok) {
-      setThreads((prev) =>
-        prev.map((item) =>
-          item.public_id === publicId ? { ...item, status: "assigned" } : item
-        )
-      );
+  const ensureSession = async () => {
+    if (sessionActive) return true;
+    if (!isAdmin) {
+      setSessionError("Debes iniciar jornada para tomar tickets.");
+      return false;
     }
+    setSessionError("");
+    const result = await startAdminSupportSession();
+    if (!result.ok) {
+      setSessionError("No se pudo iniciar la jornada.");
+      return false;
+    }
+    setSessionActive(true);
+    return true;
+  };
+
+  const handleAssign = async (publicId) => {
+    const ok = await ensureSession();
+    if (!ok) return;
+    const result = await assignSupportThread({ thread_public_id: publicId });
+    if (!result.ok) {
+      setSessionError("No se pudo asignar el ticket.");
+      return;
+    }
+    setThreads((prev) =>
+      prev.map((item) =>
+        item.public_id === publicId ? { ...item, status: "assigned" } : item
+      )
+    );
   };
 
   const content = (
@@ -83,6 +132,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
         <p className="text-sm text-slate-500">
           Gestiona tickets segun su estado y prioridad.
         </p>
+        {sessionError ? (
+          <div className="text-xs text-red-500">{sessionError}</div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -103,7 +155,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       </div>
 
       <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-        {loading ? (
+        {loading || sessionLoading ? (
           <div className="text-sm text-slate-500">Cargando tickets...</div>
         ) : filtered.length === 0 ? (
           <div className="text-sm text-slate-500">
@@ -113,7 +165,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
           filtered.map((thread) => (
             <div
               key={thread.public_id}
-              className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 space-y-2"
+              className={`rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 space-y-2 ${
+                !sessionActive ? "opacity-60" : ""
+              }`}
             >
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>{thread.category}</span>
@@ -140,9 +194,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                   <button
                     type="button"
                     onClick={() => handleAssign(thread.public_id)}
-                    disabled={hasActive}
+                    disabled={!sessionActive || hasActive}
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      hasActive
+                      !sessionActive || hasActive
                         ? "bg-[#C9B6E8] text-white"
                         : "bg-[#5E30A5] text-white"
                     }`}

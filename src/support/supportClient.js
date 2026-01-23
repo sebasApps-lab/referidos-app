@@ -110,3 +110,57 @@ export async function pingSupportSession() {
   return { ok: true, data };
 }
 
+export async function startAdminSupportSession() {
+  const { data, error } = await supabase.functions.invoke(
+    "support-admin-start-session",
+    { body: {} }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function endAdminSupportSession(payload = {}) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-admin-end-session",
+    { body: payload }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function pingAdminSupportSession() {
+  const { data, error } = await supabase.functions.invoke(
+    "support-admin-ping",
+    { body: {} }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function createSupportAdminUser(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-admin-create-user",
+    { body: payload }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function cancelSupportThread(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-cancel-thread",
+    { body: payload }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}

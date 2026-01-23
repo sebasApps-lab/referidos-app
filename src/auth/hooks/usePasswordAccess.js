@@ -114,7 +114,10 @@ export default function usePasswordAccess({ provider = "email" } = {}) {
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (userId) {
-        await supabase.from("usuarios").update({ has_password: true }).eq("id_auth", userId);
+        await supabase
+          .from("usuarios")
+          .update({ has_password: true, must_change_password: false })
+          .eq("id_auth", userId);
       }
       return { ok: true };
     } finally {

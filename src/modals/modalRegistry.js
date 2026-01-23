@@ -22,6 +22,9 @@ import ModalPinVerify from "../components/modals/ModalPinVerify";
 import ModalEmailVerification from "../components/modals/ModalEmailVerification";
 import ModalEmailReauth from "../components/modals/ModalEmailReauth";
 import ModalPasswordReauth from "../components/modals/ModalPasswordReauth";
+import ModalForcePasswordChange from "../components/modals/ModalForcePasswordChange";
+import ModalSupportQueue from "../components/modals/ModalSupportQueue";
+import ModalSupportQueueCancel from "../components/modals/ModalSupportQueueCancel";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -46,4 +49,7 @@ export const modalRegistry = {
   EmailVerification: ModalEmailVerification,
   EmailReauth: ModalEmailReauth,
   PasswordReauth: ModalPasswordReauth,
+  ForcePasswordChange: ModalForcePasswordChange,
+  SupportQueue: ModalSupportQueue,
+  SupportQueueCancel: ModalSupportQueueCancel,
 };

@@ -46,6 +46,18 @@ serve(async (req) => {
   }
 
   const isAdminSelf = usuario.role === "admin" && agentId === usuario.id;
+  const { data: sessionRow } = await supabaseAdmin
+    .from("support_agent_sessions")
+    .select("id")
+    .eq("agent_id", agentId)
+    .is("end_at", null)
+    .order("start_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!sessionRow?.id) {
+    return jsonResponse({ ok: false, error: "agent_session_inactive" }, 409, cors);
+  }
   const { data: agentProfile, error: agentErr } = await supabaseAdmin
     .from("support_agent_profiles")
     .select("user_id, authorized_for_work, authorized_until, blocked, support_phone")

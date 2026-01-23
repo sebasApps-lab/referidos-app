@@ -75,6 +75,7 @@ type UsuarioProfile = {
     verification_status: string | null;
     email_verificado: boolean | null;
     has_password: boolean | null;
+    must_change_password: boolean | null;
     fecha_nacimiento: string | null;
     genero: string | null;
     account_status: AccountStatus | null;

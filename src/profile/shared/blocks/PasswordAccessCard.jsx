@@ -44,6 +44,8 @@ export default function PasswordAccessCard({
   currentPasswordRef,
   passwordInputRef,
   confirmInputRef,
+  hideClose = false,
+  hideCancel = false,
 }) {
   return (
     <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
@@ -72,14 +74,16 @@ export default function PasswordAccessCard({
           ) : null}
         </div>
         {showPasswordForm ? (
-          <button
-            type="button"
-            onClick={onPasswordCancel}
-            className="h-8 w-8 rounded-full border border-slate-900 bg-white text-slate-900 flex items-center justify-center"
+          hideClose ? null : (
+            <button
+              type="button"
+              onClick={onPasswordCancel}
+              className="h-8 w-8 rounded-full border border-slate-900 bg-white text-slate-900 flex items-center justify-center"
               aria-label="Cerrar contraseña"
-          >
-            <X size={14} />
-          </button>
+            >
+              <X size={14} />
+            </button>
+          )
         ) : passwordActive ? (
           <div className="flex items-center gap-2">
             <button
@@ -262,13 +266,15 @@ export default function PasswordAccessCard({
             </div>
           ) : null}
           <div className="mt-2 flex items-center justify-between text-sm font-semibold px-4">
-            <button
-              type="button"
-              onClick={onPasswordCancel}
-              className="text-[#2F1A55]"
-            >
-              Cancelar
-            </button>
+            {hideCancel ? <span /> : (
+              <button
+                type="button"
+                onClick={onPasswordCancel}
+                className="text-[#2F1A55]"
+              >
+                Cancelar
+              </button>
+            )}
             <button
               type="button"
               onClick={onPasswordSave}

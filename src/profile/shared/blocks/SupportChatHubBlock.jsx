@@ -2,18 +2,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MessageSquareText } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useAppStore } from "../../../store/appStore";
+import { useModal } from "../../../modals/useModal";
 import { SUPPORT_CHAT_CATEGORIES } from "../data/supportChatCategories";
 import { createSupportChatThread } from "../services/supportChatClient";
+import { cancelSupportThread } from "../../../support/supportClient";
 
 export default function SupportChatHubBlock({ role, onShowTickets }) {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const location = useLocation();
+  const { openModal } = useModal();
   const [category, setCategory] = useState("acceso");
   const [summary, setSummary] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(null);
+  const [queueCanceled, setQueueCanceled] = useState(false);
 
   const categories = useMemo(
     () => SUPPORT_CHAT_CATEGORIES.filter((item) => item.roles.includes(role)),
@@ -57,7 +61,27 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
       setCreated({ error: result.error || "No se pudo crear el ticket." });
       return;
     }
+    const threadPublicId = result.data?.thread_public_id;
     setCreated(result.data);
+    setQueueCanceled(false);
+    const queueModalProps = {
+      onConfirmUnderstand: () => {},
+      onRequestCancel: () => {
+        openModal("SupportQueueCancel", {
+          onContinueQueue: () => openModal("SupportQueue", queueModalProps),
+          onConfirmCancel: async () => {
+            if (!threadPublicId) return;
+            const cancelResult = await cancelSupportThread({
+              thread_public_id: threadPublicId,
+            });
+            if (cancelResult.ok) {
+              setQueueCanceled(true);
+            }
+          },
+        });
+      },
+    };
+    openModal("SupportQueue", queueModalProps);
   };
 
   const handleOpenWhatsapp = () => {
@@ -149,13 +173,20 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
           <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-xs text-slate-600 whitespace-pre-line">
             {created.wa_message_text}
           </div>
-          <button
-            type="button"
-            onClick={handleOpenWhatsapp}
-            className="w-full rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
-          >
-            Abrir WhatsApp
-          </button>
+          {!queueCanceled ? (
+            <button
+              type="button"
+              onClick={handleOpenWhatsapp}
+              className="w-full rounded-2xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+            >
+              Abrir WhatsApp
+            </button>
+          ) : null}
+          {queueCanceled ? (
+            <div className="text-xs text-slate-500">
+              Busqueda de asesor cancelada.
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

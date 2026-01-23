@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { runValidateRegistration } from "../services/registrationClient";
+import { useModal } from "../modals/useModal";
 
 const ACCOUNT_STATUS_MESSAGES = {
   blocked: "Tu cuenta ha sido bloqueada, contacta a servicio al cliente.",
@@ -34,6 +35,7 @@ export default function AppGate({ publicElement = null }) {
   const bootstrapError = useAppStore((s) => s.bootstrapError);
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
   const logout = useAppStore((s) => s.logout);
+  const { openModal, activeModal } = useModal();
   const resetRequestedRef = useRef(false);
   const validateAttemptedRef = useRef(false);
   const [validatePending, setValidatePending] = useState(false);
@@ -71,6 +73,18 @@ export default function AppGate({ publicElement = null }) {
     sessionStorage.setItem("auth_status_error", message);
     logout();
   }, [bootstrap, usuario, onboarding, logout]);
+
+  const mustChangePassword =
+    Boolean(usuario?.must_change_password) &&
+    ["soporte", "dev", "empleado"].includes(usuario?.role);
+
+  useEffect(() => {
+    if (bootstrap || typeof usuario === "undefined") return;
+    if (!usuario) return;
+    if (!mustChangePassword) return;
+    if (activeModal === "ForcePasswordChange") return;
+    openModal("ForcePasswordChange");
+  }, [activeModal, bootstrap, mustChangePassword, openModal, usuario]);
 
   useEffect(() => {
     if (bootstrap || typeof usuario === "undefined") return;

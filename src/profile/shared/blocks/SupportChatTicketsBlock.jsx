@@ -64,7 +64,7 @@ export default function SupportChatTicketsBlock({ onBackToHub }) {
                     Resolucion: {ticket.resolution}
                   </div>
                 ) : null}
-                {ticket.status !== "closed" ? (
+                {ticket.status !== "closed" && ticket.status !== "cancelled" ? (
                   <button
                     type="button"
                     onClick={() => {

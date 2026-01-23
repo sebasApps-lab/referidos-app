@@ -548,10 +548,17 @@ export default function NegocioPerfil() {
       setPasswordAttempted(false);
       const userId = accessUser?.id_auth ?? accessUser?.id ?? null;
       if (userId) {
-        await supabase.from("usuarios").update({ has_password: true }).eq("id_auth", userId);
+        await supabase
+          .from("usuarios")
+          .update({ has_password: true, must_change_password: false })
+          .eq("id_auth", userId);
       }
       if (accessUser) {
-        setUser({ ...accessUser, has_password: true });
+        setUser({
+          ...accessUser,
+          has_password: true,
+          must_change_password: false,
+        });
       }
     };
 

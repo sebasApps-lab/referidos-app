@@ -22,7 +22,8 @@ export default function ModalProvider() {
   );
   const isFullScreenOverlay =
     activeModal === "SplashChoiceOverlay" || activeModal === "SplashEmailConfirmation";
-  const disableBackdropClose = activeModal === "SplashEmailConfirmation";
+  const disableBackdropClose =
+    activeModal === "SplashEmailConfirmation" || activeModal === "ForcePasswordChange";
 
   const updateViewport = (force = false) => {
     if (!force && viewportLockRef.current) return;
