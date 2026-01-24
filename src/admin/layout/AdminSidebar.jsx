@@ -63,7 +63,7 @@ export default function AdminSidebar({ open, onClose }) {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform border-r border-[#E9E2F7] bg-white px-4 pb-6 pt-6 shadow-lg transition-transform lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 transform flex-col overflow-y-auto border-r border-[#E9E2F7] bg-white px-4 pb-6 pt-6 shadow-lg transition-transform lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

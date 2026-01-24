@@ -111,7 +111,18 @@ type DireccionProfile = {
     lng: number | null;
 };
 
-const OWNER_FIELDS: (keyof UsuarioProfile) [] = ["nombre", "apellido", "fecha_nacimiento", "genero"];
+const OWNER_FIELDS: (keyof UsuarioProfile)[] = [
+    "nombre",
+    "apellido",
+    "fecha_nacimiento",
+    "genero",
+];
+const SUPPORT_FIELDS: (keyof UsuarioProfile)[] = [
+    "nombre",
+    "apellido",
+    "fecha_nacimiento",
+    "email",
+];
 const BUSINESS_REQUIRED_IN_NEGOCIO: (keyof NegocioProfile)[] = ["nombre", "categoria"];
 
 serve (async (req) => {
@@ -267,16 +278,8 @@ serve (async (req) => {
     const reasons: string[] = [];
     const patch: Record<string, unknown> = {};
 
-    //3) Estado de cuenta(HARD GATE)
+    //3) Sincronizar email Auth -> perfil (no bloquea acceso)
     const accountStatus = profile.account_status as AccountStatus | null;
-
-    if (!accountStatus) {
-        reasons.push("missing_account_status");
-    } else if (accountStatus !== "active") {
-        reasons.push(`account_status:${accountStatus}`);
-    }
-    
-    //4) Sincronizar email Auth → perfil (no bloquea acceso)
     if (authEmail && profile.email !== authEmail) {
         patch.email = authEmail;
     }
@@ -289,12 +292,33 @@ serve (async (req) => {
         reasons.push("missing_role");
     }
 
+    //4) Estado de cuenta (HARD GATE, excepto soporte)
+    if (role !== "soporte") {
+        if (!accountStatus) {
+            reasons.push("missing_account_status");
+        } else if (accountStatus !== "active") {
+            reasons.push(`account_status:${accountStatus}`);
+        }
+    } else if (
+        accountStatus &&
+        ["blocked", "suspended", "deleted"].includes(accountStatus)
+    ) {
+        reasons.push(`account_status:${accountStatus}`);
+    }
+
     let negocioRow: Record<string, unknown> | null = null;
 
     //5) Validaciones por rol
     if (role === "cliente") {
         if(!profile.nombre && baseName) {
             patch.nombre = baseName;
+        }
+    }
+
+    if (role === "soporte") {
+        const missingSupport = SUPPORT_FIELDS.filter((f) => !profile[f]);
+        if (missingSupport.length) {
+            reasons.push(`missing_support_fields:${missingSupport.join(",")}`);
         }
     }
 
@@ -478,4 +502,5 @@ function json(
         headers: { "Content-Type": "application/json", ...headers },
     });
 }
+
 
