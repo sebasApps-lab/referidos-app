@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
-import { createSupportAdminUser } from "../../support/supportClient";
+import {
+  assignSupportThread,
+  closeSupportThread,
+  createSupportAdminUser,
+} from "../../support/supportClient";
 
 export default function AdminSupportAgents() {
   const [agents, setAgents] = useState([]);
@@ -17,6 +21,11 @@ export default function AdminSupportAgents() {
   const [nameDrafts, setNameDrafts] = useState({});
   const [expandedMap, setExpandedMap] = useState({});
   const [agentErrors, setAgentErrors] = useState({});
+  const [availableThreads, setAvailableThreads] = useState([]);
+  const [assignErrors, setAssignErrors] = useState({});
+  const [phoneEditingMap, setPhoneEditingMap] = useState({});
+  const [timeFromEditingMap, setTimeFromEditingMap] = useState({});
+  const [timeUntilEditingMap, setTimeUntilEditingMap] = useState({});
   const [createForm, setCreateForm] = useState({
     nombre: "",
     apellido: "",
@@ -56,6 +65,34 @@ export default function AdminSupportAgents() {
       return `0${local}`;
     }
     return rawValue;
+  };
+
+  const normalizeSupportPhoneInput = (value) => {
+    if (!value) return "";
+    const digits = value.replace(/\D/g, "");
+    if (digits.startsWith("593")) {
+      const local = digits.slice(3);
+      return local.length === 9 ? `0${local}` : local;
+    }
+    if (digits.length === 10 && digits.startsWith("0")) {
+      return digits;
+    }
+    return digits;
+  };
+
+  const formatSupportPhoneForSave = (value) => {
+    if (!value) return null;
+    const digits = value.replace(/\D/g, "");
+    if (digits.startsWith("593")) {
+      return `+${digits}`;
+    }
+    if (digits.length === 10 && digits.startsWith("0")) {
+      return `+593${digits.slice(1)}`;
+    }
+    if (digits.length === 9) {
+      return `+593${digits}`;
+    }
+    return `+${digits}`;
   };
 
   const timeValueToIso = (timeValue) => {
@@ -103,17 +140,28 @@ export default function AdminSupportAgents() {
     const nextUntilDrafts = {};
     const nextFromDrafts = {};
     (data || []).forEach((agent) => {
-      nextDrafts[agent.user_id] = agent.support_phone || "";
+      nextDrafts[agent.user_id] = normalizeSupportPhoneInput(agent.support_phone || "");
       nextUntilDrafts[agent.user_id] = agent.authorized_until
         ? new Date(agent.authorized_until).toISOString().slice(11, 16)
         : "18:00";
       nextFromDrafts[agent.user_id] = agent.authorized_from
-        ? new Date(agent.authorized_from).toISOString().slice(11, 16)
+        ? formatTime(agent.authorized_from)
         : "08:00";
     });
     setPhoneDrafts(nextDrafts);
     setAuthorizedUntilDrafts(nextUntilDrafts);
     setAuthorizedFromDrafts(nextFromDrafts);
+    const nextPhoneEdit = {};
+    const nextTimeFromEdit = {};
+    const nextTimeUntilEdit = {};
+    (data || []).forEach((agent) => {
+      nextPhoneEdit[agent.user_id] = !agent.support_phone;
+      nextTimeFromEdit[agent.user_id] = false;
+      nextTimeUntilEdit[agent.user_id] = false;
+    });
+    setPhoneEditingMap(nextPhoneEdit);
+    setTimeFromEditingMap(nextTimeFromEdit);
+    setTimeUntilEditingMap(nextTimeUntilEdit);
 
     if (data && data.length > 0) {
       const agentIds = data.map((agent) => agent.user_id);
@@ -179,14 +227,101 @@ export default function AdminSupportAgents() {
     } else {
       setRecentTicketsMap({});
     }
+
+    const { data: threads } = await supabase
+      .from("support_threads")
+      .select("id, public_id, status, category, created_at")
+      .in("status", ["new", "queued"])
+      .order("created_at", { ascending: true })
+      .limit(12);
+    setAvailableThreads(threads || []);
     setLoading(false);
+  };
+
+  const refreshAgentRow = async (userId) => {
+    const { data: agent } = await supabase
+      .from("support_agent_profiles")
+      .select(
+        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from"
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!agent) return;
+    setAgents((prev) =>
+      prev.map((item) => (item.user_id === userId ? agent : item))
+    );
+    setPhoneDrafts((prev) => ({
+      ...prev,
+      [userId]: normalizeSupportPhoneInput(agent.support_phone || ""),
+    }));
+    setAuthorizedUntilDrafts((prev) => ({
+      ...prev,
+      [userId]: agent.authorized_until
+        ? new Date(agent.authorized_until).toISOString().slice(11, 16)
+        : "18:00",
+    }));
+    setAuthorizedFromDrafts((prev) => ({
+      ...prev,
+      [userId]: agent.authorized_from ? formatTime(agent.authorized_from) : "08:00",
+    }));
+
+    const { data: userRow } = await supabase
+      .from("usuarios")
+      .select("id, nombre, apellido, public_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (userRow) {
+      setUsersMap((prev) => ({ ...prev, [userId]: userRow }));
+    }
+
+    const { data: session } = await supabase
+      .from("support_agent_sessions")
+      .select("agent_id, start_at, last_seen_at")
+      .eq("agent_id", userId)
+      .is("end_at", null)
+      .maybeSingle();
+    setSessionsMap((prev) => ({
+      ...prev,
+      [userId]: session || null,
+    }));
+
+    const { data: activeThread } = await supabase
+      .from("support_threads")
+      .select("assigned_agent_id, public_id, status")
+      .eq("assigned_agent_id", userId)
+      .in("status", ["assigned", "in_progress", "waiting_user"])
+      .maybeSingle();
+    setActiveTicketsMap((prev) => ({
+      ...prev,
+      [userId]: activeThread || null,
+    }));
   };
 
   useEffect(() => {
     mountedRef.current = true;
     loadAgents();
+    // Realtime subscription (disabled until prod)
+    // const channel = supabase
+    //   .channel("support_admin_agents")
+    //   .on(
+    //     "postgres_changes",
+    //     { event: "*", schema: "public", table: "support_agent_sessions" },
+    //     loadAgents
+    //   )
+    //   .on(
+    //     "postgres_changes",
+    //     { event: "*", schema: "public", table: "support_agent_profiles" },
+    //     loadAgents
+    //   )
+    //   .on(
+    //     "postgres_changes",
+    //     { event: "*", schema: "public", table: "support_threads" },
+    //     loadAgents
+    //   )
+    //   .subscribe();
     return () => {
       mountedRef.current = false;
+      // if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
@@ -204,7 +339,7 @@ export default function AdminSupportAgents() {
         ...prev,
         [userId]: error?.message || "No se pudo guardar los cambios.",
       }));
-      return;
+      return false;
     }
     setAgentErrors((prev) => ({
       ...prev,
@@ -215,7 +350,7 @@ export default function AdminSupportAgents() {
     );
     setPhoneDrafts((prev) => ({
       ...prev,
-      [userId]: data.support_phone || "",
+      [userId]: normalizeSupportPhoneInput(data.support_phone || ""),
     }));
     setAuthorizedUntilDrafts((prev) => ({
       ...prev,
@@ -225,10 +360,16 @@ export default function AdminSupportAgents() {
     }));
     setAuthorizedFromDrafts((prev) => ({
       ...prev,
-      [userId]: data.authorized_from
-        ? new Date(data.authorized_from).toISOString().slice(11, 16)
-        : "08:00",
+      [userId]: data.authorized_from ? formatTime(data.authorized_from) : "08:00",
     }));
+    return true;
+  };
+
+  const isPhoneValid = (rawValue) => {
+    const digits = String(rawValue || "").replace(/\D/g, "");
+    return (
+      (digits.length === 10 && digits.startsWith("0")) || digits.length === 9
+    );
   };
 
   const updateUsuario = async (userId, patch) => {
@@ -386,6 +527,13 @@ export default function AdminSupportAgents() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <button
+                        type="button"
+                        onClick={() => refreshAgentRow(agent.user_id)}
+                        className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
                       <div className="font-semibold text-[#5E30A5]">
                         {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
                           ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
@@ -445,101 +593,308 @@ export default function AdminSupportAgents() {
                     </div>
                   ) : null}
 
-                  {expandedMap[agent.user_id] ? (
-                    <div className="mt-4 space-y-3 text-xs text-slate-500">
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-[70px] text-slate-400">Tel</span>
-                        <input
-                          value={phoneDrafts[agent.user_id] ?? ""}
-                          onChange={(e) =>
-                            setPhoneDrafts((prev) => ({
-                              ...prev,
-                              [agent.user_id]: e.target.value,
-                            }))
-                          }
-                          placeholder="Sin numero"
-                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateAgent(agent.user_id, {
-                              support_phone: phoneDrafts[agent.user_id] || null,
-                            })
-                          }
-                          className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
-                        >
-                          Guardar
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-[70px] text-slate-400">Desde</span>
-                        <input
-                          type="time"
-                          value={authorizedFromDrafts[agent.user_id] ?? "08:00"}
-                          onChange={(e) =>
-                            setAuthorizedFromDrafts((prev) => ({
-                              ...prev,
-                              [agent.user_id]: e.target.value,
-                            }))
-                          }
-                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-[70px] text-slate-400">Hasta</span>
-                        <input
-                          type="time"
-                          value={authorizedUntilDrafts[agent.user_id] ?? "18:00"}
-                          onChange={(e) =>
-                            setAuthorizedUntilDrafts((prev) => ({
-                              ...prev,
-                              [agent.user_id]: e.target.value,
-                            }))
-                          }
-                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                        />
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateAgent(agent.user_id, {
-                              authorized_for_work: true,
-                              blocked: false,
-                              authorized_from: timeValueToIso(
-                                authorizedFromDrafts[agent.user_id] || "08:00"
-                              ),
-                              authorized_until: timeValueToIso(
-                                authorizedUntilDrafts[agent.user_id]
-                              ),
-                            })
-                          }
-                          className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-                        >
-                          Autorizar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateAgent(agent.user_id, {
-                              authorized_for_work: false,
-                              blocked: true,
-                            })
-                          }
-                          className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
-                        >
-                          No autorizar
-                        </button>
-                      </div>
-                      {agentErrors[agent.user_id] ? (
-                        <div className="text-xs text-red-500">
-                          {agentErrors[agent.user_id]}
+                      {expandedMap[agent.user_id] ? (
+                    <div className="mt-4 grid gap-4 text-xs text-slate-500 md:grid-cols-[1fr_1fr]">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[70px] text-slate-400">Tel</span>
+                          {phoneEditingMap[agent.user_id] ? (
+                            <>
+                              <input
+                                value={phoneDrafts[agent.user_id] ?? ""}
+                                onChange={(e) =>
+                                  setPhoneDrafts((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: normalizeSupportPhoneInput(
+                                      e.target.value
+                                    ),
+                                  }))
+                                }
+                                placeholder="Sin numero"
+                                className="w-1/4 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                              />
+                              {isPhoneValid(phoneDrafts[agent.user_id]) ? (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await updateAgent(agent.user_id, {
+                                      support_phone: formatSupportPhoneForSave(
+                                        phoneDrafts[agent.user_id]
+                                      ),
+                                    });
+                                    setPhoneEditingMap((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: false,
+                                    }));
+                                  }}
+                                  className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
+                                >
+                                  OK
+                                </button>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <span className="flex-1 text-slate-600">
+                                {formatSupportPhone(agent.support_phone)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPhoneEditingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: true,
+                                  }))
+                                }
+                                className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                              >
+                                ✎
+                              </button>
+                            </>
+                          )}
                         </div>
-                      ) : null}
+
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[70px] text-slate-400">Desde</span>
+                          {timeFromEditingMap[agent.user_id] ? (
+                            <input
+                              type="time"
+                              value={authorizedFromDrafts[agent.user_id] ?? "08:00"}
+                              onChange={(e) =>
+                                setAuthorizedFromDrafts((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: e.target.value,
+                                }))
+                              }
+                              className="w-24 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                            />
+                          ) : (
+                            <span className="flex-1 text-slate-600">
+                              {authorizedFromDrafts[agent.user_id] ?? "08:00"}
+                            </span>
+                          )}
+                          {!timeFromEditingMap[agent.user_id] ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTimeFromEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: true,
+                                }))
+                              }
+                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                            >
+                              ✎
+                            </button>
+                          ) : agent.authorized_from ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTimeFromEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: false,
+                                }))
+                              }
+                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                            >
+                              ✕
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[70px] text-slate-400">Hasta</span>
+                          {timeUntilEditingMap[agent.user_id] ? (
+                            <input
+                              type="time"
+                              value={authorizedUntilDrafts[agent.user_id] ?? "18:00"}
+                              onChange={(e) =>
+                                setAuthorizedUntilDrafts((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: e.target.value,
+                                }))
+                              }
+                              className="w-24 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                            />
+                          ) : (
+                            <span className="flex-1 text-slate-600">
+                              {authorizedUntilDrafts[agent.user_id] ?? "18:00"}
+                            </span>
+                          )}
+                          {!timeUntilEditingMap[agent.user_id] ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTimeUntilEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: true,
+                                }))
+                              }
+                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                            >
+                              ✎
+                            </button>
+                          ) : agent.authorized_until ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTimeUntilEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: false,
+                                }))
+                              }
+                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                            >
+                              ✕
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {!agent.authorized_for_work ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const ok = await updateAgent(agent.user_id, {
+                                  authorized_for_work: true,
+                                  blocked: false,
+                                  authorized_from: timeValueToIso(
+                                    authorizedFromDrafts[agent.user_id] || "08:00"
+                                  ),
+                                  authorized_until: timeValueToIso(
+                                    authorizedUntilDrafts[agent.user_id]
+                                  ),
+                                });
+                                if (ok) {
+                                  setExpandedMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                }
+                              }}
+                              className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+                            >
+                              Autorizar
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={async () =>
+                              updateAgent(agent.user_id, {
+                                authorized_for_work: false,
+                                blocked: true,
+                              })
+                            }
+                            className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
+                          >
+                            Bloquear
+                          </button>
+                        </div>
+                        {agentErrors[agent.user_id] ? (
+                          <div className="text-xs text-red-500">
+                            {agentErrors[agent.user_id]}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-2 text-xs text-slate-500">
+                        <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                          Tickets
+                        </div>
+                        {activeTicketsMap[agent.user_id] ? (
+                          <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2">
+                            <div className="font-semibold text-slate-600">
+                              {activeTicketsMap[agent.user_id].public_id}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              {activeTicketsMap[agent.user_id].status}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const result = await closeSupportThread({
+                                  thread_public_id:
+                                    activeTicketsMap[agent.user_id].public_id,
+                                  resolution: "Cierre forzado por admin",
+                                  root_cause: "cierre_forzado",
+                                });
+                                if (!result.ok) {
+                                  setAssignErrors((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]:
+                                      result.error || "No se pudo cerrar.",
+                                  }));
+                                  return;
+                                }
+                                setAssignErrors((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: "",
+                                }));
+                                await loadAgents();
+                              }}
+                              className="mt-2 rounded-full border border-[#E9E2F7] px-3 py-1 text-[11px] font-semibold text-slate-600"
+                            >
+                              Forzar cierre
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {availableThreads.length === 0 ? (
+                              <div className="text-xs text-slate-400">
+                                Sin tickets disponibles
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {availableThreads.slice(0, 4).map((thread) => (
+                                  <div
+                                    key={thread.id}
+                                    className="flex items-center justify-between gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2"
+                                  >
+                                    <div>
+                                      <div className="font-semibold text-slate-600">
+                                        {thread.public_id}
+                                      </div>
+                                      <div className="text-[11px] text-slate-400">
+                                        {thread.status}
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const result = await assignSupportThread({
+                                          thread_public_id: thread.public_id,
+                                          agent_id: agent.user_id,
+                                        });
+                                        if (!result.ok) {
+                                          setAssignErrors((prev) => ({
+                                            ...prev,
+                                            [agent.user_id]:
+                                              result.error || "No se pudo asignar.",
+                                          }));
+                                          return;
+                                        }
+                                        setAssignErrors((prev) => ({
+                                          ...prev,
+                                          [agent.user_id]: "",
+                                        }));
+                                        await loadAgents();
+                                      }}
+                                      className="rounded-full border border-[#E9E2F7] px-3 py-1 text-[11px] font-semibold text-slate-600"
+                                    >
+                                      Asignar
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {assignErrors[agent.user_id] ? (
+                              <div className="text-xs text-red-500">
+                                {assignErrors[agent.user_id]}
+                              </div>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
                     </div>
                   ) : null}
                 </div>

@@ -5,7 +5,7 @@ security definer
 set search_path = public
 as $$
 declare
-  actor_usuario_id text;
+  actor_usuario_id uuid;
 begin
   select id into actor_usuario_id
   from public.usuarios

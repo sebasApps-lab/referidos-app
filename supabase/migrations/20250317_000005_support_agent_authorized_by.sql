@@ -1,25 +1,10 @@
--- Normalize support agent timezone defaults and fix agent event enum casting.
-
-alter table public.support_agent_profiles
-  alter column authorized_from
-  set default (
-    (date_trunc('day', now() at time zone 'America/Guayaquil') + interval '8 hours')
-    at time zone 'America/Guayaquil'
-  );
-
-update public.support_agent_profiles
-set authorized_from = authorized_from + interval '5 hours'
-where authorized_from is not null
-  and extract(hour from authorized_from at time zone 'UTC') = 8
-  and extract(minute from authorized_from) = 0;
-
 create or replace function public.log_support_agent_profile_change()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
-  declare
+declare
   actor_usuario_id uuid;
 begin
   select id into actor_usuario_id
@@ -38,6 +23,13 @@ begin
       actor_usuario_id,
       jsonb_build_object('authorized_for_work', new.authorized_for_work)
     );
+
+    if new.authorized_for_work then
+      update public.support_agent_sessions
+      set authorized_by = actor_usuario_id
+      where agent_id = new.user_id
+        and end_at is null;
+    end if;
   end if;
 
   if new.blocked is distinct from old.blocked then
