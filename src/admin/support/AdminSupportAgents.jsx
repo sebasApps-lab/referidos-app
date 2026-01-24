@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import { createSupportAdminUser } from "../../support/supportClient";
@@ -8,12 +9,14 @@ export default function AdminSupportAgents() {
   const [loading, setLoading] = useState(true);
   const [phoneDrafts, setPhoneDrafts] = useState({});
   const [authorizedUntilDrafts, setAuthorizedUntilDrafts] = useState({});
+  const [authorizedFromDrafts, setAuthorizedFromDrafts] = useState({});
   const [usersMap, setUsersMap] = useState({});
   const [sessionsMap, setSessionsMap] = useState({});
   const [activeTicketsMap, setActiveTicketsMap] = useState({});
   const [recentTicketsMap, setRecentTicketsMap] = useState({});
   const [nameDrafts, setNameDrafts] = useState({});
-  const [editMap, setEditMap] = useState({});
+  const [expandedMap, setExpandedMap] = useState({});
+  const [agentErrors, setAgentErrors] = useState({});
   const [createForm, setCreateForm] = useState({
     nombre: "",
     apellido: "",
@@ -27,24 +30,90 @@ export default function AdminSupportAgents() {
   const [createOpen, setCreateOpen] = useState(false);
   const mountedRef = useRef(true);
 
+  const formatTime = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString("es-EC", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "America/Guayaquil",
+    });
+  };
+
+  const formatSupportPhone = (rawValue) => {
+    if (!rawValue) return "Sin numero";
+    const digits = rawValue.replace(/\D/g, "");
+    let local = digits;
+    if (local.startsWith("593")) {
+      local = local.slice(3);
+    }
+    if (local.length > 9) {
+      local = local.slice(-9);
+    }
+    if (local.length === 9) {
+      return `0${local}`;
+    }
+    return rawValue;
+  };
+
+  const timeValueToIso = (timeValue) => {
+    if (!timeValue) return null;
+    const [hours, minutes] = timeValue.split(":").map((value) => parseInt(value, 10));
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    const now = new Date();
+    now.setHours(hours, minutes, 0, 0);
+    return now.toISOString();
+  };
+
+  const computeGlow = (agent) => {
+    if (agent.blocked) return "shadow-[0_0_0_1px_rgba(239,68,68,0.4)]";
+    if (!agent.authorized_for_work) {
+      return "shadow-[0_0_0_1px_rgba(148,163,184,0.4)]";
+    }
+    if (sessionsMap[agent.user_id]) {
+      return "shadow-[0_0_0_1px_rgba(34,197,94,0.4)]";
+    }
+    const fallbackStart = new Date();
+    fallbackStart.setHours(8, 0, 0, 0);
+    const startAt = agent.authorized_from
+      ? new Date(agent.authorized_from)
+      : fallbackStart;
+    if (Number.isNaN(startAt.getTime())) {
+      return "shadow-[0_0_0_1px_rgba(148,163,184,0.4)]";
+    }
+    if (Date.now() < startAt.getTime()) {
+      return "shadow-[0_0_0_1px_rgba(34,197,94,0.4)]";
+    }
+    return "shadow-[0_0_0_1px_rgba(249,115,22,0.45)]";
+  };
+
   const loadAgents = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("support_agent_profiles")
-      .select("user_id, support_phone, authorized_for_work, blocked, authorized_until")
+      .select(
+        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from"
+      )
       .order("authorized_for_work", { ascending: false });
     if (!mountedRef.current) return;
     setAgents(data || []);
     const nextDrafts = {};
     const nextUntilDrafts = {};
+    const nextFromDrafts = {};
     (data || []).forEach((agent) => {
       nextDrafts[agent.user_id] = agent.support_phone || "";
       nextUntilDrafts[agent.user_id] = agent.authorized_until
-        ? new Date(agent.authorized_until).toISOString().slice(0, 16)
-        : "";
+        ? new Date(agent.authorized_until).toISOString().slice(11, 16)
+        : "18:00";
+      nextFromDrafts[agent.user_id] = agent.authorized_from
+        ? new Date(agent.authorized_from).toISOString().slice(11, 16)
+        : "08:00";
     });
     setPhoneDrafts(nextDrafts);
     setAuthorizedUntilDrafts(nextUntilDrafts);
+    setAuthorizedFromDrafts(nextFromDrafts);
 
     if (data && data.length > 0) {
       const agentIds = data.map((agent) => agent.user_id);
@@ -122,13 +191,25 @@ export default function AdminSupportAgents() {
   }, []);
 
   const updateAgent = async (userId, patch) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("support_agent_profiles")
       .update(patch)
       .eq("user_id", userId)
-      .select("user_id, support_phone, authorized_for_work, blocked, authorized_until")
+      .select(
+        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from"
+      )
       .single();
-    if (!data) return;
+    if (error || !data) {
+      setAgentErrors((prev) => ({
+        ...prev,
+        [userId]: error?.message || "No se pudo guardar los cambios.",
+      }));
+      return;
+    }
+    setAgentErrors((prev) => ({
+      ...prev,
+      [userId]: "",
+    }));
     setAgents((prev) =>
       prev.map((agent) => (agent.user_id === userId ? data : agent))
     );
@@ -139,8 +220,14 @@ export default function AdminSupportAgents() {
     setAuthorizedUntilDrafts((prev) => ({
       ...prev,
       [userId]: data.authorized_until
-        ? new Date(data.authorized_until).toISOString().slice(0, 16)
-        : "",
+        ? new Date(data.authorized_until).toISOString().slice(11, 16)
+        : "18:00",
+    }));
+    setAuthorizedFromDrafts((prev) => ({
+      ...prev,
+      [userId]: data.authorized_from
+        ? new Date(data.authorized_from).toISOString().slice(11, 16)
+        : "08:00",
     }));
   };
 
@@ -161,16 +248,6 @@ export default function AdminSupportAgents() {
       [userId]: {
         nombre: data.nombre || "",
         apellido: data.apellido || "",
-      },
-    }));
-  };
-
-  const setEditField = (userId, field, value) => {
-    setEditMap((prev) => ({
-      ...prev,
-      [userId]: {
-        ...(prev[userId] || {}),
-        [field]: value,
       },
     }));
   };
@@ -294,97 +371,84 @@ export default function AdminSupportAgents() {
         </div>
 
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 space-y-4">
-        {loading ? (
-          <div className="text-sm text-slate-500">Cargando asesores...</div>
-        ) : agents.length === 0 ? (
-          <div className="text-sm text-slate-500">Sin asesores registrados.</div>
-        ) : (
-          <div className="space-y-3">
-            {agents.map((agent) => (
-              <div
-                key={agent.user_id}
-                className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-sm text-slate-600"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold text-[#2F1A55]">
-                    {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
-                      ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
-                      : usersMap[agent.user_id]?.public_id || "Sin nombre"}
-                  </div>
-                  <div className="text-xs">
-                    {agent.authorized_for_work ? "Autorizado" : "Bloqueado"}
-                  </div>
-                </div>
-
-                <div className="mt-3 space-y-2 text-xs text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-[70px] text-slate-400">Nombre</span>
-                    {editMap[agent.user_id]?.name ||
-                    !usersMap[agent.user_id]?.nombre ||
-                    !usersMap[agent.user_id]?.apellido ? (
-                      <>
-                        <input
-                          value={nameDrafts[agent.user_id]?.nombre ?? ""}
-                          onChange={(e) =>
-                            setNameDrafts((prev) => ({
-                              ...prev,
-                              [agent.user_id]: {
-                                ...(prev[agent.user_id] || {}),
-                                nombre: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="Sin nombre"
-                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                        />
-                        <input
-                          value={nameDrafts[agent.user_id]?.apellido ?? ""}
-                          onChange={(e) =>
-                            setNameDrafts((prev) => ({
-                              ...prev,
-                              [agent.user_id]: {
-                                ...(prev[agent.user_id] || {}),
-                                apellido: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="Sin apellido"
-                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            updateUsuario(agent.user_id, {
-                              nombre: nameDrafts[agent.user_id]?.nombre || null,
-                              apellido: nameDrafts[agent.user_id]?.apellido || null,
-                            });
-                            setEditField(agent.user_id, "name", false);
-                          }}
-                          className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
-                        >
-                          Guardar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1">
-                          {`${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setEditField(agent.user_id, "name", true)}
-                          className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
-                        >
-                          ✎
-                        </button>
-                      </>
-                    )}
+          {loading ? (
+            <div className="text-sm text-slate-500">Cargando asesores...</div>
+          ) : agents.length === 0 ? (
+            <div className="text-sm text-slate-500">Sin asesores registrados.</div>
+          ) : (
+            <div className="space-y-3">
+              {agents.map((agent) => (
+                <div
+                  key={agent.user_id}
+                  className={`rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3 text-sm text-slate-600 ${computeGlow(
+                    agent
+                  )}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <div className="font-semibold text-[#5E30A5]">
+                        {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
+                          ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
+                          : usersMap[agent.user_id]?.public_id || "Sin nombre"}
+                      </div>
+                      {!expandedMap[agent.user_id] ? (
+                        <>
+                          <div
+                            className={
+                              agent.support_phone ? "text-slate-500" : "text-slate-900"
+                            }
+                          >
+                            {formatSupportPhone(agent.support_phone)}
+                          </div>
+                          <div
+                            className={
+                              sessionsMap[agent.user_id]
+                                ? "text-slate-500"
+                                : "text-slate-900"
+                            }
+                          >
+                            {sessionsMap[agent.user_id] ? "Sesion activa" : "Sin timbrar"}
+                          </div>
+                          <div className="text-slate-500">
+                            {agent.authorized_from
+                              ? formatTime(agent.authorized_from)
+                              : "08:00"}
+                            {" - "}
+                            {agent.authorized_until
+                              ? formatTime(agent.authorized_until)
+                              : "18:00"}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedMap((prev) => ({
+                          ...prev,
+                          [agent.user_id]: !prev[agent.user_id],
+                        }))
+                      }
+                      className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
+                    >
+                      {expandedMap[agent.user_id] ? (
+                        <ChevronUp size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-[70px] text-slate-400">Tel</span>
-                    {editMap[agent.user_id]?.phone || !agent.support_phone ? (
-                      <>
+                  {activeTicketsMap[agent.user_id] ? (
+                    <div className="mt-2 text-xs text-slate-500">
+                      Ticket asignado: {activeTicketsMap[agent.user_id].public_id}
+                    </div>
+                  ) : null}
+
+                  {expandedMap[agent.user_id] ? (
+                    <div className="mt-4 space-y-3 text-xs text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-[70px] text-slate-400">Tel</span>
                         <input
                           value={phoneDrafts[agent.user_id] ?? ""}
                           onChange={(e) =>
@@ -398,38 +462,37 @@ export default function AdminSupportAgents() {
                         />
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={() =>
                             updateAgent(agent.user_id, {
                               support_phone: phoneDrafts[agent.user_id] || null,
-                            });
-                            setEditField(agent.user_id, "phone", false);
-                          }}
+                            })
+                          }
                           className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
                         >
                           Guardar
                         </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1">{agent.support_phone}</span>
-                        <button
-                          type="button"
-                          onClick={() => setEditField(agent.user_id, "phone", true)}
-                          className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
-                        >
-                          ✎
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-[70px] text-slate-400">Hasta</span>
-                    {editMap[agent.user_id]?.until || !agent.authorized_until ? (
-                      <>
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-[70px] text-slate-400">Desde</span>
                         <input
-                          type="datetime-local"
-                          value={authorizedUntilDrafts[agent.user_id] ?? ""}
+                          type="time"
+                          value={authorizedFromDrafts[agent.user_id] ?? "08:00"}
+                          onChange={(e) =>
+                            setAuthorizedFromDrafts((prev) => ({
+                              ...prev,
+                              [agent.user_id]: e.target.value,
+                            }))
+                          }
+                          className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-[70px] text-slate-400">Hasta</span>
+                        <input
+                          type="time"
+                          value={authorizedUntilDrafts[agent.user_id] ?? "18:00"}
                           onChange={(e) =>
                             setAuthorizedUntilDrafts((prev) => ({
                               ...prev,
@@ -438,95 +501,51 @@ export default function AdminSupportAgents() {
                           }
                           className="flex-1 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            updateAgent(agent.user_id, {
-                              authorized_until: authorizedUntilDrafts[agent.user_id]
-                                ? new Date(authorizedUntilDrafts[agent.user_id]).toISOString()
-                                : null,
-                            });
-                            setEditField(agent.user_id, "until", false);
-                          }}
-                          className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
-                        >
-                          Guardar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1">
-                          {new Date(agent.authorized_until).toLocaleString()}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setEditField(agent.user_id, "until", true)}
-                          className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
-                        >
-                          ✎
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      </div>
 
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <span className="min-w-[70px]">Sesion</span>
-                    <span className="flex-1">
-                      {sessionsMap[agent.user_id] ? "Activa" : "Sin timbrar"}
-                    </span>
-                  </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateAgent(agent.user_id, {
+                              authorized_for_work: true,
+                              blocked: false,
+                              authorized_from: timeValueToIso(
+                                authorizedFromDrafts[agent.user_id] || "08:00"
+                              ),
+                              authorized_until: timeValueToIso(
+                                authorizedUntilDrafts[agent.user_id]
+                              ),
+                            })
+                          }
+                          className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+                        >
+                          Autorizar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateAgent(agent.user_id, {
+                              authorized_for_work: false,
+                              blocked: true,
+                            })
+                          }
+                          className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
+                        >
+                          No autorizar
+                        </button>
+                      </div>
+                      {agentErrors[agent.user_id] ? (
+                        <div className="text-xs text-red-500">
+                          {agentErrors[agent.user_id]}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
-                {sessionsMap[agent.user_id]?.last_seen_at ? (
-                  <div className="text-[11px] text-slate-300">
-                    Ultimo ping: {new Date(sessionsMap[agent.user_id].last_seen_at).toLocaleString()}
-                  </div>
-                ) : null}
-                <div className="text-xs text-slate-500 mt-2">
-                  Ticket activo: {activeTicketsMap[agent.user_id]?.public_id || "Ninguno"}
-                </div>
-                {activeTicketsMap[agent.user_id]?.status ? (
-                  <div className="text-[11px] text-slate-400">
-                    Estado: {activeTicketsMap[agent.user_id].status}
-                  </div>
-                ) : null}
-                {recentTicketsMap[agent.user_id]?.length ? (
-                  <div className="text-[11px] text-slate-400 mt-2">
-                    Ultimos tickets:{" "}
-                    {recentTicketsMap[agent.user_id]
-                      .map((thread) => thread.public_id)
-                      .join(", ")}
-                  </div>
-                ) : null}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateAgent(agent.user_id, {
-                        authorized_for_work: true,
-                        blocked: false,
-                      })
-                    }
-                    className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-                  >
-                    Autorizar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateAgent(agent.user_id, {
-                        authorized_for_work: false,
-                        blocked: true,
-                      })
-                    }
-                    className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
-                  >
-                    Bloquear
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>
