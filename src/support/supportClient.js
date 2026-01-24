@@ -110,10 +110,10 @@ export async function pingSupportSession() {
   return { ok: true, data };
 }
 
-export async function startAdminSupportSession() {
+export async function startAdminSupportSession(payload = {}) {
   const { data, error } = await supabase.functions.invoke(
     "support-admin-start-session",
-    { body: {} }
+    { body: payload }
   );
   if (error) {
     return { ok: false, error: error.message };
@@ -136,6 +136,17 @@ export async function pingAdminSupportSession() {
   const { data, error } = await supabase.functions.invoke(
     "support-admin-ping",
     { body: {} }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function denyAdminSupportSession(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-admin-deny-session",
+    { body: payload }
   );
   if (error) {
     return { ok: false, error: error.message };

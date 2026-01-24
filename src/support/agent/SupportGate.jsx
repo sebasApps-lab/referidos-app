@@ -11,17 +11,23 @@ export default function SupportGate({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionActive, setSessionActive] = useState(false);
+  const [requestPending, setRequestPending] = useState(false);
+  const [startLoading, setStartLoading] = useState(false);
+  const [endLoading, setEndLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadProfile = async () => {
       const { data } = await supabase
         .from("support_agent_profiles")
-        .select("authorized_for_work, authorized_until, blocked")
+        .select(
+          "authorized_for_work, authorized_until, blocked, session_request_status"
+        )
         .limit(1)
         .maybeSingle();
       if (!active) return;
       setProfile(data);
+      setRequestPending(data?.session_request_status === "pending");
       const { data: session } = await supabase
         .from("support_agent_sessions")
         .select("id")
@@ -80,18 +86,30 @@ export default function SupportGate({ children }) {
         <div className="text-xs text-slate-500">
           Inicia tu sesion de soporte para aparecer como disponible.
         </div>
-        <button
-          type="button"
-          onClick={async () => {
-            const result = await startSupportSession();
-            if (result.ok) {
-              setSessionActive(true);
-            }
-          }}
-          className="rounded-2xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
-        >
-          Iniciar jornada
-        </button>
+        {requestPending ? (
+          <div className="text-xs text-slate-500">
+            Esperando confirmacion del admin.
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={async () => {
+              setStartLoading(true);
+              const result = await startSupportSession();
+              setStartLoading(false);
+              if (result.ok && result.data?.pending) {
+                setRequestPending(true);
+              } else if (result.ok) {
+                setSessionActive(true);
+              }
+            }}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold text-white ${
+              startLoading ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+            }`}
+          >
+            {startLoading ? "Iniciando..." : "Iniciar jornada"}
+          </button>
+        )}
       </div>
     );
   }
@@ -102,14 +120,18 @@ export default function SupportGate({ children }) {
         <button
           type="button"
           onClick={async () => {
+            setEndLoading(true);
             const result = await endSupportSession({ reason: "logout" });
+            setEndLoading(false);
             if (result.ok) {
               setSessionActive(false);
             }
           }}
-          className="rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+          className={`rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold ${
+            endLoading ? "text-slate-400" : "text-slate-600"
+          }`}
         >
-          Terminar jornada
+          {endLoading ? "Cerrando..." : "Terminar jornada"}
         </button>
       </div>
       {children}

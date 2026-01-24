@@ -6,6 +6,8 @@ import {
   assignSupportThread,
   closeSupportThread,
   createSupportAdminUser,
+  denyAdminSupportSession,
+  startAdminSupportSession,
 } from "../../support/supportClient";
 
 export default function AdminSupportAgents() {
@@ -26,6 +28,8 @@ export default function AdminSupportAgents() {
   const [phoneEditingMap, setPhoneEditingMap] = useState({});
   const [timeFromEditingMap, setTimeFromEditingMap] = useState({});
   const [timeUntilEditingMap, setTimeUntilEditingMap] = useState({});
+  const [refreshingMap, setRefreshingMap] = useState({});
+  const [actionLoadingMap, setActionLoadingMap] = useState({});
   const [createForm, setCreateForm] = useState({
     nombre: "",
     apellido: "",
@@ -131,7 +135,7 @@ export default function AdminSupportAgents() {
     const { data } = await supabase
       .from("support_agent_profiles")
       .select(
-        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from"
+        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from, session_request_status, session_request_at"
       )
       .order("authorized_for_work", { ascending: false });
     if (!mountedRef.current) return;
@@ -239,10 +243,11 @@ export default function AdminSupportAgents() {
   };
 
   const refreshAgentRow = async (userId) => {
+    setRefreshingMap((prev) => ({ ...prev, [userId]: true }));
     const { data: agent } = await supabase
       .from("support_agent_profiles")
       .select(
-        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from"
+        "user_id, support_phone, authorized_for_work, blocked, authorized_until, authorized_from, session_request_status, session_request_at"
       )
       .eq("user_id", userId)
       .maybeSingle();
@@ -295,6 +300,7 @@ export default function AdminSupportAgents() {
       ...prev,
       [userId]: activeThread || null,
     }));
+    setRefreshingMap((prev) => ({ ...prev, [userId]: false }));
   };
 
   useEffect(() => {
@@ -527,13 +533,46 @@ export default function AdminSupportAgents() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => refreshAgentRow(agent.user_id)}
-                        className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
-                      >
-                        <RefreshCw size={14} />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => refreshAgentRow(agent.user_id)}
+                      className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
+                    >
+                      <RefreshCw
+                        size={14}
+                        className={
+                          refreshingMap[agent.user_id] ? "animate-spin" : ""
+                        }
+                      />
+                    </button>
+                    {agent.session_request_status === "pending" ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await startAdminSupportSession({
+                              agent_id: agent.user_id,
+                            });
+                            await refreshAgentRow(agent.user_id);
+                          }}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await denyAdminSupportSession({
+                              agent_id: agent.user_id,
+                            });
+                            await refreshAgentRow(agent.user_id);
+                          }}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : null}
                       <div className="font-semibold text-[#5E30A5]">
                         {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
                           ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
@@ -755,6 +794,10 @@ export default function AdminSupportAgents() {
                             <button
                               type="button"
                               onClick={async () => {
+                                setActionLoadingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: true,
+                                }));
                                 const ok = await updateAgent(agent.user_id, {
                                   authorized_for_work: true,
                                   blocked: false,
@@ -765,6 +808,10 @@ export default function AdminSupportAgents() {
                                     authorizedUntilDrafts[agent.user_id]
                                   ),
                                 });
+                                setActionLoadingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: false,
+                                }));
                                 if (ok) {
                                   setExpandedMap((prev) => ({
                                     ...prev,
@@ -772,20 +819,38 @@ export default function AdminSupportAgents() {
                                   }));
                                 }
                               }}
-                              className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+                              disabled={actionLoadingMap[agent.user_id]}
+                              className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${
+                                actionLoadingMap[agent.user_id]
+                                  ? "bg-[#C9B6E8] cursor-not-allowed"
+                                  : "bg-[#5E30A5]"
+                              }`}
                             >
                               Autorizar
                             </button>
                           ) : null}
                           <button
                             type="button"
-                            onClick={async () =>
-                              updateAgent(agent.user_id, {
+                            onClick={async () => {
+                              setActionLoadingMap((prev) => ({
+                                ...prev,
+                                [agent.user_id]: true,
+                              }));
+                              await updateAgent(agent.user_id, {
                                 authorized_for_work: false,
                                 blocked: true,
-                              })
-                            }
-                            className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
+                              });
+                              setActionLoadingMap((prev) => ({
+                                ...prev,
+                                [agent.user_id]: false,
+                              }));
+                            }}
+                            disabled={actionLoadingMap[agent.user_id]}
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                              actionLoadingMap[agent.user_id]
+                                ? "border-red-200 text-red-300 cursor-not-allowed"
+                                : "border-red-200 text-red-500"
+                            }`}
                           >
                             Bloquear
                           </button>

@@ -1,3 +1,19 @@
+alter table public.support_agent_profiles
+  add column if not exists session_request_status text,
+  add column if not exists session_request_at timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'support_agent_session_request_status_check'
+  ) then
+    alter table public.support_agent_profiles
+      add constraint support_agent_session_request_status_check
+      check (session_request_status in ('pending', 'denied'));
+  end if;
+end $$;
+
 create or replace function public.log_support_agent_profile_change()
 returns trigger
 language plpgsql

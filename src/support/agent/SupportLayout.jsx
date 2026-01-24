@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { MessageSquare, List, Users } from "lucide-react";
+import { useAppStore } from "../../store/appStore";
 
 const NAV_ITEMS = [
   { to: "/soporte/inbox", label: "Inbox", Icon: List },
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
 
 export default function SupportLayout({ isAdmin = false }) {
   const location = useLocation();
+  const logout = useAppStore((s) => s.logout);
   const items = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
   return (
@@ -38,6 +40,13 @@ export default function SupportLayout({ isAdmin = false }) {
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={() => logout?.()}
+            className="mt-6 w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+          >
+            Cerrar sesion
+          </button>
         </aside>
 
         <main className="px-4 pb-16 pt-6">

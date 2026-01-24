@@ -38,49 +38,30 @@ serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const agentId = body.agent_id || usuario.id;
+  const agentId = body.agent_id;
 
-  await supabaseAdmin
-    .from("support_agent_profiles")
-    .upsert({ user_id: agentId }, { onConflict: "user_id" });
-
-  const { data: openSession } = await supabaseAdmin
-    .from("support_agent_sessions")
-    .select("id")
-    .eq("agent_id", agentId)
-    .is("end_at", null)
-    .order("start_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (openSession?.id) {
-    return jsonResponse({ ok: true, session_id: openSession.id }, 200, cors);
+  if (!agentId) {
+    return jsonResponse({ ok: false, error: "missing_agent_id" }, 400, cors);
   }
 
-  const { data: session, error: sessionErr } = await supabaseAdmin
-    .from("support_agent_sessions")
-    .insert({ agent_id: agentId, authorized_by: usuario.id })
-    .select("id, start_at")
-    .single();
-
-  if (sessionErr || !session) {
-    return jsonResponse({ ok: false, error: "session_start_failed" }, 500, cors);
-  }
-
-  await supabaseAdmin.from("support_agent_events").insert({
-    agent_id: agentId,
-    event_type: "agent_login",
-    actor_id: usuario.id,
-    details: { session_id: session.id, actor_role: "admin" },
-  });
-
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from("support_agent_profiles")
     .update({
-      session_request_status: null,
+      session_request_status: "denied",
       session_request_at: null,
     })
     .eq("user_id", agentId);
 
-  return jsonResponse({ ok: true, session_id: session.id }, 200, cors);
+  if (error) {
+    return jsonResponse({ ok: false, error: "deny_failed" }, 500, cors);
+  }
+
+  await supabaseAdmin.from("support_agent_events").insert({
+    agent_id: agentId,
+    event_type: "agent_revoked",
+    actor_id: usuario.id,
+    details: { reason: "session_denied" },
+  });
+
+  return jsonResponse({ ok: true }, 200, cors);
 });

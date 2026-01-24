@@ -60,6 +60,11 @@ serve(async (req) => {
       .eq("id", session.id);
   }
 
+  await supabaseAdmin
+    .from("support_agent_profiles")
+    .update({ authorized_for_work: false })
+    .eq("user_id", usuario.id);
+
   const { data: activeThreads } = await supabaseAdmin
     .from("support_threads")
     .select("id, status")

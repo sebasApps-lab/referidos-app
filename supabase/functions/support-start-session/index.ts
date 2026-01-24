@@ -39,7 +39,9 @@ serve(async (req) => {
 
   const { data: agentProfile, error: agentErr } = await supabaseAdmin
     .from("support_agent_profiles")
-    .select("user_id, authorized_for_work, authorized_until, blocked")
+    .select(
+      "user_id, authorized_for_work, authorized_until, blocked, session_request_status"
+    )
     .eq("user_id", usuario.id)
     .maybeSingle();
 
@@ -67,23 +69,21 @@ serve(async (req) => {
     return jsonResponse({ ok: true, session_id: openSession.id }, 200, cors);
   }
 
-  const { data: session, error: sessionErr } = await supabaseAdmin
-    .from("support_agent_sessions")
-    .insert({ agent_id: usuario.id })
-    .select("id, start_at")
-    .single();
-
-  if (sessionErr || !session) {
-    return jsonResponse({ ok: false, error: "session_start_failed" }, 500, cors);
+  if (agentProfile.session_request_status === "pending") {
+    return jsonResponse({ ok: true, pending: true }, 200, cors);
   }
 
-  await supabaseAdmin.from("support_agent_events").insert({
-    agent_id: usuario.id,
-    event_type: "agent_login",
-    actor_id: usuario.id,
-    details: { session_id: session.id },
-  });
+  const { error: requestErr } = await supabaseAdmin
+    .from("support_agent_profiles")
+    .update({
+      session_request_status: "pending",
+      session_request_at: new Date().toISOString(),
+    })
+    .eq("user_id", usuario.id);
 
-  return jsonResponse({ ok: true, session_id: session.id }, 200, cors);
+  if (requestErr) {
+    return jsonResponse({ ok: false, error: "session_request_failed" }, 500, cors);
+  }
+
+  return jsonResponse({ ok: true, pending: true }, 200, cors);
 });
-
