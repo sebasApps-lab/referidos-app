@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RefreshCw, X } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -7,6 +7,7 @@ import {
   closeSupportThread,
   createSupportAdminUser,
   denyAdminSupportSession,
+  endAdminSupportSession,
   startAdminSupportSession,
 } from "../../support/supportClient";
 
@@ -533,9 +534,9 @@ export default function AdminSupportAgents() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                    <button
-                      type="button"
-                      onClick={() => refreshAgentRow(agent.user_id)}
+                      <button
+                        type="button"
+                        onClick={() => refreshAgentRow(agent.user_id)}
                       className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
                     >
                       <RefreshCw
@@ -545,6 +546,113 @@ export default function AdminSupportAgents() {
                         }
                       />
                     </button>
+                    <div className="font-semibold text-[#5E30A5]">
+                      {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
+                        ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
+                        : usersMap[agent.user_id]?.public_id || "Sin nombre"}
+                    </div>
+                      {!expandedMap[agent.user_id] ? (
+                        <>
+                          <div
+                            className={
+                              agent.support_phone ? "text-slate-500" : "text-slate-900"
+                            }
+                          >
+                            {formatSupportPhone(agent.support_phone)}
+                          </div>
+                          <div
+                            className={
+                              sessionsMap[agent.user_id]
+                                ? "text-slate-500"
+                                : "text-slate-900"
+                            }
+                          >
+                            {sessionsMap[agent.user_id]
+                              ? "Sesion activa"
+                              : "Sesion inactiva"}
+                          </div>
+                          <div className="text-slate-500">
+                            {agent.authorized_from
+                              ? formatTime(agent.authorized_from)
+                              : "08:00"}
+                            {" - "}
+                            {agent.authorized_until
+                              ? formatTime(agent.authorized_until)
+                              : "18:00"}
+                          </div>
+                          {!agent.authorized_for_work &&
+                          !agent.blocked &&
+                          phoneDrafts[agent.user_id] &&
+                          authorizedFromDrafts[agent.user_id] &&
+                          authorizedUntilDrafts[agent.user_id] ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setActionLoadingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: true,
+                                  }));
+                                  const ok = await updateAgent(agent.user_id, {
+                                    authorized_for_work: true,
+                                    blocked: false,
+                                    authorized_from: timeValueToIso(
+                                      authorizedFromDrafts[agent.user_id] || "08:00"
+                                    ),
+                                    authorized_until: timeValueToIso(
+                                      authorizedUntilDrafts[agent.user_id]
+                                    ),
+                                  });
+                                  setActionLoadingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                  if (ok) {
+                                    setExpandedMap((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: false,
+                                    }));
+                                  }
+                                }}
+                                disabled={actionLoadingMap[agent.user_id]}
+                                className={`rounded-full px-3 py-1 text-[11px] font-semibold text-white ${
+                                  actionLoadingMap[agent.user_id]
+                                    ? "bg-[#C9B6E8] cursor-not-allowed"
+                                    : "bg-[#5E30A5]"
+                                }`}
+                              >
+                                Autorizar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setActionLoadingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: true,
+                                  }));
+                                  await updateAgent(agent.user_id, {
+                                    authorized_for_work: false,
+                                    blocked: true,
+                                  });
+                                  setActionLoadingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                }}
+                                disabled={actionLoadingMap[agent.user_id]}
+                                className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                                  actionLoadingMap[agent.user_id]
+                                    ? "border-red-200 text-red-300 cursor-not-allowed"
+                                    : "border-red-200 text-red-500"
+                                }`}
+                              >
+                                Bloquear
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
                     {agent.session_request_status === "pending" ? (
                       <div className="flex items-center gap-2">
                         <button
@@ -573,57 +681,39 @@ export default function AdminSupportAgents() {
                         </button>
                       </div>
                     ) : null}
-                      <div className="font-semibold text-[#5E30A5]">
-                        {usersMap[agent.user_id]?.nombre || usersMap[agent.user_id]?.apellido
-                          ? `${usersMap[agent.user_id]?.nombre || ""} ${usersMap[agent.user_id]?.apellido || ""}`.trim()
-                          : usersMap[agent.user_id]?.public_id || "Sin nombre"}
-                      </div>
-                      {!expandedMap[agent.user_id] ? (
-                        <>
-                          <div
-                            className={
-                              agent.support_phone ? "text-slate-500" : "text-slate-900"
-                            }
-                          >
-                            {formatSupportPhone(agent.support_phone)}
-                          </div>
-                          <div
-                            className={
-                              sessionsMap[agent.user_id]
-                                ? "text-slate-500"
-                                : "text-slate-900"
-                            }
-                          >
-                            {sessionsMap[agent.user_id] ? "Sesion activa" : "Sin timbrar"}
-                          </div>
-                          <div className="text-slate-500">
-                            {agent.authorized_from
-                              ? formatTime(agent.authorized_from)
-                              : "08:00"}
-                            {" - "}
-                            {agent.authorized_until
-                              ? formatTime(agent.authorized_until)
-                              : "18:00"}
-                          </div>
-                        </>
+                    <div className="flex items-center gap-2">
+                      {sessionsMap[agent.user_id] ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await endAdminSupportSession({
+                              agent_id: agent.user_id,
+                              reason: "admin_revoke",
+                            });
+                            await refreshAgentRow(agent.user_id);
+                          }}
+                          className="rounded-full border border-[#E9E2F7] px-3 py-1 text-[11px] font-semibold text-slate-600"
+                        >
+                          Cerrar jornada
+                        </button>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedMap((prev) => ({
+                            ...prev,
+                            [agent.user_id]: !prev[agent.user_id],
+                          }))
+                        }
+                        className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
+                      >
+                        {expandedMap[agent.user_id] ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedMap((prev) => ({
-                          ...prev,
-                          [agent.user_id]: !prev[agent.user_id],
-                        }))
-                      }
-                      className="rounded-full border border-[#E9E2F7] p-2 text-slate-500"
-                    >
-                      {expandedMap[agent.user_id] ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </button>
                   </div>
 
                   {activeTicketsMap[agent.user_id] ? (

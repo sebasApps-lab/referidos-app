@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { MessageSquare, List, Users } from "lucide-react";
+import { MessageSquare, List, Users, LogOut } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 
 const NAV_ITEMS = [
@@ -43,9 +43,10 @@ export default function SupportLayout({ isAdmin = false }) {
           <button
             type="button"
             onClick={() => logout?.()}
-            className="mt-6 w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+            className="mt-6 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#F7F4FF]"
           >
-            Cerrar sesion
+            <LogOut size={18} />
+            <span>Cerrar sesion</span>
           </button>
         </aside>
 

@@ -6,6 +6,7 @@ import {
   signUpWithEmail,
   signOut,
 } from "../services/authService";
+import { endSupportSession } from "../support/supportClient";
 import { getActivePromos } from "../services/promoService";
 import {
   generatePromoQr,
@@ -401,6 +402,8 @@ export const useAppStore = create(
 
         logout: async () => {
           let userId = null;
+          const currentUser = get().usuario;
+          const isSupport = currentUser?.role === "soporte";
           try {
             const { data } = await supabase.auth.getSession();
             userId = data?.session?.user?.id ?? null;
@@ -408,6 +411,9 @@ export const useAppStore = create(
             userId = null;
           }
           try{
+            if (isSupport) {
+              await endSupportSession({ reason: "logout" });
+            }
             await signOut();
           } catch (e) {
             //opcional: log o toast

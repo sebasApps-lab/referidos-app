@@ -48,14 +48,8 @@ serve(async (req) => {
   if (agentErr || !agentProfile) {
     return jsonResponse({ ok: false, error: "agent_not_found" }, 404, cors);
   }
-  if (agentProfile.blocked || !agentProfile.authorized_for_work) {
+  if (agentProfile.blocked) {
     return jsonResponse({ ok: false, error: "not_authorized" }, 403, cors);
-  }
-  if (
-    agentProfile.authorized_until &&
-    new Date(agentProfile.authorized_until).getTime() < Date.now()
-  ) {
-    return jsonResponse({ ok: false, error: "authorization_expired" }, 403, cors);
   }
 
   const { data: openSession } = await supabaseAdmin

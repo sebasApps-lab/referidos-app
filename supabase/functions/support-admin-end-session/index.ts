@@ -38,37 +38,46 @@ serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const reason = body.reason ?? "logout";
-
-  const { data: session } = await supabaseAdmin
-    .from("support_agent_sessions")
-    .select("id")
-    .eq("agent_id", usuario.id)
-    .is("end_at", null)
-    .order("start_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (session?.id) {
-    await supabaseAdmin
-      .from("support_agent_sessions")
-      .update({
-        end_at: new Date().toISOString(),
-        end_reason: reason,
-        last_seen_at: new Date().toISOString(),
-      })
-      .eq("id", session.id);
+  const rawReason = body.reason ?? "admin_revoke";
+  const allowedReasons = new Set(["logout", "timeout", "admin_revoke", "manual_end"]);
+  const reason = allowedReasons.has(rawReason) ? rawReason : "admin_revoke";
+  const agentId = body.agent_id;
+  if (!agentId) {
+    return jsonResponse({ ok: false, error: "missing_agent_id" }, 400, cors);
   }
 
-  await supabaseAdmin
-    .from("support_agent_profiles")
-    .update({ authorized_for_work: false })
-    .eq("user_id", usuario.id);
+  const { data: endedSessions, error: endErr } = await supabaseAdmin
+    .from("support_agent_sessions")
+    .update({
+      end_at: new Date().toISOString(),
+      end_reason: reason,
+      last_seen_at: new Date().toISOString(),
+    })
+    .eq("agent_id", agentId)
+    .is("end_at", null)
+    .select("id");
+
+  if (endErr) {
+    return jsonResponse(
+      { ok: false, error: "session_end_failed", details: endErr.message },
+      500,
+      cors
+    );
+  }
+
+  if (!endedSessions || endedSessions.length === 0) {
+    return jsonResponse(
+      { ok: false, error: "no_open_session", agent_id: agentId },
+      404,
+      cors
+    );
+  }
+
 
   const { data: activeThreads } = await supabaseAdmin
     .from("support_threads")
     .select("id")
-    .eq("assigned_agent_id", usuario.id)
+    .eq("assigned_agent_id", agentId)
     .in("status", ["assigned", "in_progress", "waiting_user", "queued"]);
 
   if (activeThreads && activeThreads.length > 0) {
@@ -94,11 +103,11 @@ serve(async (req) => {
   }
 
   await supabaseAdmin.from("support_agent_events").insert({
-    agent_id: usuario.id,
+    agent_id: agentId,
     event_type: "agent_logout",
     actor_id: usuario.id,
     details: { reason, actor_role: "admin" },
   });
 
-  return jsonResponse({ ok: true }, 200, cors);
+  return jsonResponse({ ok: true, ended: endedSessions.length }, 200, cors);
 });
