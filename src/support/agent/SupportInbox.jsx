@@ -14,6 +14,7 @@ const STATUS_GROUPS = [
   { id: "in_progress", label: "En progreso" },
   { id: "waiting_user", label: "Esperando usuario" },
   { id: "queued", label: "En cola" },
+  { id: "closed", label: "Resueltos" },
 ];
 
 export default function SupportInbox({ isAdmin = false, basePath = "/soporte" }) {
@@ -25,6 +26,10 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
+  const formatDateTime = (value) =>
+    new Date(value).toLocaleString("es-EC", {
+      timeZone: "America/Guayaquil",
+    });
 
   useEffect(() => {
     let active = true;
@@ -178,7 +183,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
               </div>
               <div className="text-[11px] text-slate-400">
                 {thread.user_public_id} •{" "}
-                {new Date(thread.created_at).toLocaleString()}
+                {formatDateTime(thread.created_at)}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button

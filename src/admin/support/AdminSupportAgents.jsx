@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp, RefreshCw, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, Pencil, RefreshCw, X } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -56,6 +56,17 @@ export default function AdminSupportAgents() {
     });
   };
 
+  const formatDate = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("es-EC", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "America/Guayaquil",
+    });
+  };
+
   const formatSupportPhone = (rawValue) => {
     if (!rawValue) return "Sin numero";
     const digits = rawValue.replace(/\D/g, "");
@@ -100,13 +111,121 @@ export default function AdminSupportAgents() {
     return `+${digits}`;
   };
 
-  const timeValueToIso = (timeValue) => {
+  const buildHourOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour += 1) {
+      options.push(hour.toString().padStart(2, "0"));
+    }
+    return options;
+  };
+
+  const hourOptions = useMemo(() => buildHourOptions(), []);
+
+  const pad2 = (value) => value.toString().padStart(2, "0");
+
+  const parseTimeToMinutes = (value) => {
+    if (!value) return null;
+    const [h, m] = value.split(":").map((item) => parseInt(item, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const clampToShift = (fromTime, untilTime) => {
+    const fromMinutes = parseTimeToMinutes(fromTime);
+    const untilMinutes = parseTimeToMinutes(untilTime);
+    if (fromMinutes === null || untilMinutes === null) return untilTime;
+    let diff = (untilMinutes - fromMinutes + 1440) % 1440;
+    if (diff === 0) diff = 1440;
+    if (diff <= 480) return untilTime;
+    const maxMinutes = (fromMinutes + 480) % 1440;
+    return `${pad2(Math.floor(maxMinutes / 60))}:${pad2(maxMinutes % 60)}`;
+  };
+
+  const getAllowedUntilMinutes = (fromTime) => {
+    const fromMinutes = parseTimeToMinutes(fromTime);
+    if (fromMinutes === null) return null;
+    return (fromMinutes + 480) % 1440;
+  };
+
+  const isAfterLimit = (fromTime, untilTime) => {
+    const fromMinutes = parseTimeToMinutes(fromTime);
+    const untilMinutes = parseTimeToMinutes(untilTime);
+    if (fromMinutes === null || untilMinutes === null) return false;
+    let diff = (untilMinutes - fromMinutes + 1440) % 1440;
+    if (diff === 0) diff = 1440;
+    return diff > 480;
+  };
+
+  const getShiftDuration = (agent) => {
+    if (!agent.authorized_from || !agent.authorized_until) return "";
+    const start = new Date(agent.authorized_from);
+    const end = new Date(agent.authorized_until);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return "";
+    const minutes = Math.round(diffMs / 60000);
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours <= 0) return "";
+    return mins ? `${hours}h ${pad2(mins)}m` : `${hours} horas`;
+  };
+
+  const getAgentFromTime = (agent) =>
+    agent.authorized_from ? formatTime(agent.authorized_from) : "08:00";
+  const getAgentUntilTime = (agent) =>
+    agent.authorized_until ? formatTime(agent.authorized_until) : "18:00";
+  const getAgentDateRange = (agent) => {
+    if (!agent.authorized_from || !agent.authorized_until) return "";
+    const startDate = formatDate(agent.authorized_from);
+    const endDate = formatDate(agent.authorized_until);
+    if (!startDate || !endDate || startDate === endDate) return "";
+    return `${startDate} - ${endDate}`;
+  };
+
+  const hasAgentChanges = (agent) => {
+    const phoneDraft = phoneDrafts[agent.user_id] ?? "";
+    const currentPhone = agent.support_phone || "";
+    const nextPhone = phoneDraft ? formatSupportPhoneForSave(phoneDraft) : null;
+    const phoneChanged = (nextPhone || "") !== currentPhone;
+    const fromChanged =
+      (authorizedFromDrafts[agent.user_id] ?? "08:00") !== getAgentFromTime(agent);
+    const untilChanged =
+      (authorizedUntilDrafts[agent.user_id] ?? "18:00") !==
+      getAgentUntilTime(agent);
+    return phoneChanged || fromChanged || untilChanged;
+  };
+
+  const timeValueToIso = (timeValue, dayOffset = 0) => {
     if (!timeValue) return null;
     const [hours, minutes] = timeValue.split(":").map((value) => parseInt(value, 10));
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-    const now = new Date();
-    now.setHours(hours, minutes, 0, 0);
-    return now.toISOString();
+    const offsetMs = 5 * 60 * 60 * 1000;
+    const ecuNow = new Date(Date.now() - offsetMs);
+    const utcTime = Date.UTC(
+      ecuNow.getUTCFullYear(),
+      ecuNow.getUTCMonth(),
+      ecuNow.getUTCDate() + dayOffset,
+      hours + 5,
+      minutes,
+      0,
+      0
+    );
+    return new Date(utcTime).toISOString();
+  };
+
+  const buildEcuadorDate = (hour, minute = 0, dayOffset = 0) => {
+    const offsetMs = 5 * 60 * 60 * 1000;
+    const ecuNow = new Date(Date.now() - offsetMs);
+    const utcTime = Date.UTC(
+      ecuNow.getUTCFullYear(),
+      ecuNow.getUTCMonth(),
+      ecuNow.getUTCDate() + dayOffset,
+      hour + 5,
+      minute,
+      0,
+      0
+    );
+    return new Date(utcTime);
   };
 
   const computeGlow = (agent) => {
@@ -117,18 +236,23 @@ export default function AdminSupportAgents() {
     if (sessionsMap[agent.user_id]) {
       return "shadow-[0_0_0_1px_rgba(34,197,94,0.4)]";
     }
-    const fallbackStart = new Date();
-    fallbackStart.setHours(8, 0, 0, 0);
     const startAt = agent.authorized_from
       ? new Date(agent.authorized_from)
-      : fallbackStart;
-    if (Number.isNaN(startAt.getTime())) {
+      : buildEcuadorDate(8, 0);
+    const endAt = agent.authorized_until
+      ? new Date(agent.authorized_until)
+      : buildEcuadorDate(18, 0);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
       return "shadow-[0_0_0_1px_rgba(148,163,184,0.4)]";
     }
-    if (Date.now() < startAt.getTime()) {
+    const now = Date.now();
+    if (now < startAt.getTime()) {
       return "shadow-[0_0_0_1px_rgba(34,197,94,0.4)]";
     }
-    return "shadow-[0_0_0_1px_rgba(249,115,22,0.45)]";
+    if (now <= endAt.getTime()) {
+      return "shadow-[0_0_0_1px_rgba(249,115,22,0.45)]";
+    }
+    return "shadow-[0_0_0_1px_rgba(148,163,184,0.4)]";
   };
 
   const loadAgents = async () => {
@@ -146,12 +270,14 @@ export default function AdminSupportAgents() {
     const nextFromDrafts = {};
     (data || []).forEach((agent) => {
       nextDrafts[agent.user_id] = normalizeSupportPhoneInput(agent.support_phone || "");
-      nextUntilDrafts[agent.user_id] = agent.authorized_until
-        ? new Date(agent.authorized_until).toISOString().slice(11, 16)
-        : "18:00";
-      nextFromDrafts[agent.user_id] = agent.authorized_from
+      const fromValue = agent.authorized_from
         ? formatTime(agent.authorized_from)
         : "08:00";
+      const untilValue = agent.authorized_until
+        ? formatTime(agent.authorized_until)
+        : "18:00";
+      nextFromDrafts[agent.user_id] = fromValue;
+      nextUntilDrafts[agent.user_id] = clampToShift(fromValue, untilValue);
     });
     setPhoneDrafts(nextDrafts);
     setAuthorizedUntilDrafts(nextUntilDrafts);
@@ -260,11 +386,19 @@ export default function AdminSupportAgents() {
       ...prev,
       [userId]: normalizeSupportPhoneInput(agent.support_phone || ""),
     }));
+    const fromValue = agent.authorized_from
+      ? formatTime(agent.authorized_from)
+      : "08:00";
+    const untilValue = agent.authorized_until
+      ? formatTime(agent.authorized_until)
+      : "18:00";
     setAuthorizedUntilDrafts((prev) => ({
       ...prev,
-      [userId]: agent.authorized_until
-        ? new Date(agent.authorized_until).toISOString().slice(11, 16)
-        : "18:00",
+      [userId]: clampToShift(fromValue, untilValue),
+    }));
+    setAuthorizedFromDrafts((prev) => ({
+      ...prev,
+      [userId]: fromValue,
     }));
     setAuthorizedFromDrafts((prev) => ({
       ...prev,
@@ -359,11 +493,19 @@ export default function AdminSupportAgents() {
       ...prev,
       [userId]: normalizeSupportPhoneInput(data.support_phone || ""),
     }));
+    const dataFromValue = data.authorized_from
+      ? formatTime(data.authorized_from)
+      : "08:00";
+    const dataUntilValue = data.authorized_until
+      ? formatTime(data.authorized_until)
+      : "18:00";
     setAuthorizedUntilDrafts((prev) => ({
       ...prev,
-      [userId]: data.authorized_until
-        ? new Date(data.authorized_until).toISOString().slice(11, 16)
-        : "18:00",
+      [userId]: clampToShift(dataFromValue, dataUntilValue),
+    }));
+    setAuthorizedFromDrafts((prev) => ({
+      ...prev,
+      [userId]: dataFromValue,
     }));
     setAuthorizedFromDrafts((prev) => ({
       ...prev,
@@ -579,12 +721,18 @@ export default function AdminSupportAgents() {
                             {agent.authorized_until
                               ? formatTime(agent.authorized_until)
                               : "18:00"}
+                            {getShiftDuration(agent)
+                              ? ` (turno de ${getShiftDuration(agent)})`
+                              : ""}
+                            {getAgentDateRange(agent)
+                              ? ` (${getAgentDateRange(agent)})`
+                              : ""}
                           </div>
                           {!agent.authorized_for_work &&
                           !agent.blocked &&
-                          phoneDrafts[agent.user_id] &&
-                          authorizedFromDrafts[agent.user_id] &&
-                          authorizedUntilDrafts[agent.user_id] ? (
+                          agent.support_phone &&
+                          agent.authorized_from &&
+                          agent.authorized_until ? (
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -596,12 +744,6 @@ export default function AdminSupportAgents() {
                                   const ok = await updateAgent(agent.user_id, {
                                     authorized_for_work: true,
                                     blocked: false,
-                                    authorized_from: timeValueToIso(
-                                      authorizedFromDrafts[agent.user_id] || "08:00"
-                                    ),
-                                    authorized_until: timeValueToIso(
-                                      authorizedUntilDrafts[agent.user_id]
-                                    ),
                                   });
                                   setActionLoadingMap((prev) => ({
                                     ...prev,
@@ -665,7 +807,7 @@ export default function AdminSupportAgents() {
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
                         >
-                          ✓
+                          <Check size={12} />
                         </button>
                         <button
                           type="button"
@@ -677,7 +819,7 @@ export default function AdminSupportAgents() {
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       </div>
                     ) : null}
@@ -742,32 +884,33 @@ export default function AdminSupportAgents() {
                                 placeholder="Sin numero"
                                 className="w-1/4 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
                               />
-                              {isPhoneValid(phoneDrafts[agent.user_id]) ? (
+                              {agent.support_phone ? (
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    await updateAgent(agent.user_id, {
-                                      support_phone: formatSupportPhoneForSave(
-                                        phoneDrafts[agent.user_id]
+                                    setPhoneDrafts((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: normalizeSupportPhoneInput(
+                                        agent.support_phone || ""
                                       ),
-                                    });
+                                    }));
                                     setPhoneEditingMap((prev) => ({
                                       ...prev,
                                       [agent.user_id]: false,
                                     }));
                                   }}
-                                  className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
+                                  className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
                                 >
-                                  OK
+                                  <X size={12} />
                                 </button>
                               ) : null}
                             </>
                           ) : (
                             <>
-                              <span className="flex-1 text-slate-600">
-                                {formatSupportPhone(agent.support_phone)}
-                              </span>
-                              <button
+                            <span className="text-slate-600">
+                              {formatSupportPhone(agent.support_phone)}
+                            </span>
+                            <button
                                 type="button"
                                 onClick={() =>
                                   setPhoneEditingMap((prev) => ({
@@ -775,111 +918,269 @@ export default function AdminSupportAgents() {
                                     [agent.user_id]: true,
                                   }))
                                 }
-                                className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                                className="ml-1 rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
                               >
-                                ✎
+                                <Pencil size={12} />
                               </button>
                             </>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="min-w-[70px] text-slate-400">Desde</span>
-                          {timeFromEditingMap[agent.user_id] ? (
-                            <input
-                              type="time"
-                              value={authorizedFromDrafts[agent.user_id] ?? "08:00"}
-                              onChange={(e) =>
-                                setAuthorizedFromDrafts((prev) => ({
-                                  ...prev,
-                                  [agent.user_id]: e.target.value,
-                                }))
-                              }
-                              className="w-24 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                            />
-                          ) : (
-                            <span className="flex-1 text-slate-600">
-                              {authorizedFromDrafts[agent.user_id] ?? "08:00"}
-                            </span>
-                          )}
-                          {!timeFromEditingMap[agent.user_id] ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setTimeFromEditingMap((prev) => ({
-                                  ...prev,
-                                  [agent.user_id]: true,
-                                }))
-                              }
-                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
-                            >
-                              ✎
-                            </button>
-                          ) : agent.authorized_from ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setTimeFromEditingMap((prev) => ({
-                                  ...prev,
-                                  [agent.user_id]: false,
-                                }))
-                              }
-                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
-                            >
-                              ✕
-                            </button>
-                          ) : null}
-                        </div>
+                        <div className="grid grid-cols-[minmax(70px,auto)_max-content_max-content] items-center gap-x-1 gap-y-3">
+                          <div className="flex w-fit items-center gap-1">
+                            <span className="min-w-[70px] text-slate-400">Desde</span>
+                            {timeFromEditingMap[agent.user_id] ? (
+                              <div className="flex w-fit items-center gap-2">
+                                <select
+                                  value={
+                                    (authorizedFromDrafts[agent.user_id] ?? "08:00").split(":")[0]
+                                  }
+                                  onChange={(e) => {
+                                    const nextHour = e.target.value;
+                                    const current = authorizedFromDrafts[agent.user_id] ?? "08:00";
+                                    const nextValue = `${nextHour}:${current.split(":")[1] ?? "00"}`;
+                                    setAuthorizedFromDrafts((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: nextValue,
+                                    }));
+                                    const untilValue =
+                                      authorizedUntilDrafts[agent.user_id] ?? "18:00";
+                                    if (isAfterLimit(nextValue, untilValue)) {
+                                      setAuthorizedUntilDrafts((prev) => ({
+                                        ...prev,
+                                        [agent.user_id]: getAllowedUntilMinutes(nextValue) !== null
+                                          ? `${pad2(Math.floor(getAllowedUntilMinutes(nextValue) / 60))}:${pad2(getAllowedUntilMinutes(nextValue) % 60)}`
+                                          : untilValue,
+                                      }));
+                                    }
+                                  }}
+                                  className="w-16 rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                                >
+                                  {hourOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                                <span className="text-xs text-slate-400">:</span>
+                                <select
+                                  value={
+                                    (authorizedFromDrafts[agent.user_id] ?? "08:00").split(":")[1] ??
+                                    "00"
+                                  }
+                                  onChange={(e) => {
+                                    const current = authorizedFromDrafts[agent.user_id] ?? "08:00";
+                                    const nextValue = `${current.split(":")[0]}:${e.target.value}`;
+                                    setAuthorizedFromDrafts((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: nextValue,
+                                    }));
+                                    const untilValue =
+                                      authorizedUntilDrafts[agent.user_id] ?? "18:00";
+                                    if (isAfterLimit(nextValue, untilValue)) {
+                                      setAuthorizedUntilDrafts((prev) => ({
+                                        ...prev,
+                                        [agent.user_id]: getAllowedUntilMinutes(nextValue) !== null
+                                          ? `${pad2(Math.floor(getAllowedUntilMinutes(nextValue) / 60))}:${pad2(getAllowedUntilMinutes(nextValue) % 60)}`
+                                          : untilValue,
+                                      }));
+                                    }
+                                  }}
+                                  className="w-16 rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                                >
+                                  {Array.from({ length: 60 }).map((_, idx) => (
+                                    <option key={idx} value={pad2(idx)}>
+                                      {pad2(idx)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : (
+                              <span className="w-fit text-slate-600">
+                                {getAgentFromTime(agent)}
+                                {getAgentDateRange(agent)
+                                  ? ` (${formatDate(agent.authorized_from)})`
+                                  : ""}
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="min-w-[70px] text-slate-400">Hasta</span>
-                          {timeUntilEditingMap[agent.user_id] ? (
-                            <input
-                              type="time"
-                              value={authorizedUntilDrafts[agent.user_id] ?? "18:00"}
-                              onChange={(e) =>
-                                setAuthorizedUntilDrafts((prev) => ({
-                                  ...prev,
-                                  [agent.user_id]: e.target.value,
-                                }))
-                              }
-                              className="w-24 rounded-full border border-[#E9E2F7] bg-white px-3 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                            />
-                          ) : (
-                            <span className="flex-1 text-slate-600">
-                              {authorizedUntilDrafts[agent.user_id] ?? "18:00"}
-                            </span>
-                          )}
                           {!timeUntilEditingMap[agent.user_id] ? (
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={() => {
+                                setTimeFromEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: true,
+                                }));
                                 setTimeUntilEditingMap((prev) => ({
                                   ...prev,
                                   [agent.user_id]: true,
-                                }))
-                              }
-                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                                }));
+                              }}
+                              className="col-start-3 row-span-2 self-center rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
                             >
-                              ✎
+                              <Pencil size={12} />
                             </button>
-                          ) : agent.authorized_until ? (
+                          ) : (
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={() => {
+                                setAuthorizedFromDrafts((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: getAgentFromTime(agent),
+                                }));
+                                setAuthorizedUntilDrafts((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: getAgentUntilTime(agent),
+                                }));
+                                setTimeFromEditingMap((prev) => ({
+                                  ...prev,
+                                  [agent.user_id]: false,
+                                }));
                                 setTimeUntilEditingMap((prev) => ({
                                   ...prev,
                                   [agent.user_id]: false,
-                                }))
-                              }
-                              className="rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
+                                }));
+                              }}
+                              className="col-start-3 row-span-2 self-center rounded-full border border-[#E9E2F7] px-2 py-1 text-[10px] font-semibold text-slate-500"
                             >
-                              ✕
+                              <X size={12} />
+                            </button>
+                          )}
+
+                          <div className="flex w-fit items-center gap-1">
+                            <span className="min-w-[70px] text-slate-400">Hasta</span>
+                            {timeUntilEditingMap[agent.user_id] ? (
+                              <div className="flex w-fit items-center gap-2">
+                                <select
+                                  value={
+                                    (authorizedUntilDrafts[agent.user_id] ?? "18:00").split(":")[0]
+                                  }
+                                  onChange={(e) => {
+                                    const nextHour = e.target.value;
+                                    const current =
+                                      authorizedUntilDrafts[agent.user_id] ?? "18:00";
+                                    setAuthorizedUntilDrafts((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: `${nextHour}:${current.split(":")[1] ?? "00"}`,
+                                    }));
+                                  }}
+                                  className="w-16 rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                                >
+                                  {hourOptions.map((option) => {
+                                    const fromValue =
+                                      authorizedFromDrafts[agent.user_id] ?? "08:00";
+                                    const optionValue = `${option}:00`;
+                                    const disabled = isAfterLimit(fromValue, optionValue);
+                                    return (
+                                      <option
+                                        key={option}
+                                        value={option}
+                                        disabled={disabled}
+                                        style={disabled ? { color: "#CBD5E1" } : undefined}
+                                      >
+                                        {option}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                                <span className="text-xs text-slate-400">:</span>
+                                <select
+                                  value={
+                                    (authorizedUntilDrafts[agent.user_id] ?? "18:00").split(":")[1] ??
+                                    "00"
+                                  }
+                                  onChange={(e) => {
+                                    const current =
+                                      authorizedUntilDrafts[agent.user_id] ?? "18:00";
+                                    setAuthorizedUntilDrafts((prev) => ({
+                                      ...prev,
+                                      [agent.user_id]: `${current.split(":")[0]}:${e.target.value}`,
+                                    }));
+                                  }}
+                                  className="w-16 rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                                >
+                                  {Array.from({ length: 60 }).map((_, idx) => {
+                                    const minuteValue = pad2(idx);
+                                    const fromValue =
+                                      authorizedFromDrafts[agent.user_id] ?? "08:00";
+                                    const hourValue =
+                                      (authorizedUntilDrafts[agent.user_id] ?? "18:00").split(":")[0];
+                                    const optionValue = `${hourValue}:${minuteValue}`;
+                                    const disabled = isAfterLimit(fromValue, optionValue);
+                                    return (
+                                      <option
+                                        key={minuteValue}
+                                        value={minuteValue}
+                                        disabled={disabled}
+                                        style={disabled ? { color: "#CBD5E1" } : undefined}
+                                      >
+                                        {minuteValue}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            ) : (
+                              <span className="w-fit text-slate-600">
+                                {getAgentUntilTime(agent)}
+                                {getAgentDateRange(agent)
+                                  ? ` (${formatDate(agent.authorized_until)})`
+                                  : ""}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {hasAgentChanges(agent) ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const ok = await updateAgent(agent.user_id, {
+                                  support_phone: isPhoneValid(
+                                    phoneDrafts[agent.user_id]
+                                  )
+                                    ? formatSupportPhoneForSave(
+                                        phoneDrafts[agent.user_id]
+                                      )
+                                    : agent.support_phone,
+                                  authorized_from: timeValueToIso(
+                                    authorizedFromDrafts[agent.user_id] || "08:00"
+                                  ),
+                                  authorized_until: timeValueToIso(
+                                    authorizedUntilDrafts[agent.user_id],
+                                    isAfterLimit(
+                                      authorizedFromDrafts[agent.user_id] || "08:00",
+                                      authorizedUntilDrafts[agent.user_id] || "18:00"
+                                    )
+                                      ? 1
+                                      : authorizedUntilDrafts[agent.user_id] <
+                                          (authorizedFromDrafts[agent.user_id] || "08:00")
+                                        ? 1
+                                        : 0
+                                  ),
+                                });
+                                if (ok) {
+                                  setPhoneEditingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                  setTimeFromEditingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                  setTimeUntilEditingMap((prev) => ({
+                                    ...prev,
+                                    [agent.user_id]: false,
+                                  }));
+                                }
+                              }}
+                              className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+                            >
+                              Guardar
                             </button>
                           ) : null}
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap gap-2">
                           {!agent.authorized_for_work ? (
                             <button
                               type="button"
@@ -895,7 +1196,16 @@ export default function AdminSupportAgents() {
                                     authorizedFromDrafts[agent.user_id] || "08:00"
                                   ),
                                   authorized_until: timeValueToIso(
-                                    authorizedUntilDrafts[agent.user_id]
+                                    authorizedUntilDrafts[agent.user_id],
+                                    isAfterLimit(
+                                      authorizedFromDrafts[agent.user_id] || "08:00",
+                                      authorizedUntilDrafts[agent.user_id] || "18:00"
+                                    )
+                                      ? 1
+                                      : authorizedUntilDrafts[agent.user_id] <
+                                          (authorizedFromDrafts[agent.user_id] || "08:00")
+                                        ? 1
+                                        : 0
                                   ),
                                 });
                                 setActionLoadingMap((prev) => ({

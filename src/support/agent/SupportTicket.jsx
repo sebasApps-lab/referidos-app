@@ -20,6 +20,10 @@ export default function SupportTicket() {
   const [resolution, setResolution] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
+  const formatDateTime = (value) =>
+    new Date(value).toLocaleString("es-EC", {
+      timeZone: "America/Guayaquil",
+    });
 
   useEffect(() => {
     let active = true;
@@ -179,7 +183,7 @@ export default function SupportTicket() {
                   <div className="text-[#2F1A55] font-semibold">
                     {event.event_type}
                   </div>
-                  <div>{new Date(event.created_at).toLocaleString()}</div>
+                  <div>{formatDateTime(event.created_at)}</div>
                 </div>
               ))}
             </div>
@@ -230,7 +234,7 @@ export default function SupportTicket() {
                   >
                     <div className="text-[11px] text-slate-400">
                       {log.level} • {log.category} •{" "}
-                      {new Date(log.created_at).toLocaleString()}
+                      {formatDateTime(log.created_at)}
                     </div>
                     <div className="mt-1">{log.message}</div>
                   </div>

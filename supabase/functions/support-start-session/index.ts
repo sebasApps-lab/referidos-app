@@ -37,6 +37,10 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);
   }
 
+  await supabaseAdmin
+    .from("support_agent_profiles")
+    .upsert({ user_id: usuario.id }, { onConflict: "user_id" });
+
   const { data: agentProfile, error: agentErr } = await supabaseAdmin
     .from("support_agent_profiles")
     .select(
