@@ -26,6 +26,7 @@ import AdminSupportTicket from "./admin/support/AdminSupportTicket";
 // Lazy pages
 const AuthEntry = lazy(() => import("./pages/AuthEntry"));
 const AppGate = lazy(() => import("./pages/AppGate"));
+const LegalRouter = lazy(() => import("./legal/LegalRouter"));
 
 const AdminInicio = lazy(() => import("./pages/admin/AdminInicio"));
 const AdminUsuarios = lazy(() => import("./pages/admin/AdminUsuarios"));
@@ -45,6 +46,7 @@ export default function AppRoutes() {
       {/* PUBLIC */}
       <Route path="/" element={<AppGate publicElement={<AuthEntry />} />} />
       <Route path="/auth" element={<AppGate publicElement={<AuthEntry />} />} />
+      <Route path="/legal/:locale/:document" element={<LegalRouter />} />
 
       {/* APP ENTRY POINT */}
       <Route path="/app" element={<AppGate />} />

@@ -19,6 +19,10 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
   //No decidir nada mientras estamos en bootstrap
   if (bootstrap) return null;
 
+  if (pathname.startsWith("/legal")) {
+    return null;
+  }
+
   // Sin sesión: solo permitir landing/login
   if (!usuario) {
     if (pathname !== "/" && pathname !== "/auth") {
