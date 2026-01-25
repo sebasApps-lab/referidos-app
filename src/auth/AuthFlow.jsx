@@ -385,12 +385,17 @@ export default function AuthFlow() {
         <WelcomeStep
           error={flow.welcomeError}
           loading={flow.welcomeLoading}
+          oauthLoading={flow.oauthLoading}
+          oauthProvider={flow.oauthProvider}
           onEmail={() => {
             flow.setWelcomeError("");
             flow.setStep(AUTH_STEPS.EMAIL_LOGIN);
           }}
           onGoogle={actions.startGoogleOneTap}
-          onFacebook={actions.startFacebookOneTap}
+          onFacebook={actions.startFacebookOAuth}
+          onApple={actions.startAppleOAuth}
+          onTwitter={actions.startTwitterOAuth}
+          onDiscord={actions.startDiscordOAuth}
         />
       )}
 

@@ -8,9 +8,14 @@ import OAuthButtons from "../blocks/OAuthButtons";
 export default function WelcomeStep({
   error,
   loading,
+  oauthLoading,
+  oauthProvider,
   onEmail,
   onGoogle,
   onFacebook,
+  onApple,
+  onTwitter,
+  onDiscord,
 }) {
   return (
     <div className="relative w-full max-w-sm">
@@ -50,8 +55,13 @@ export default function WelcomeStep({
 
           <OAuthButtons
             loading={loading}
+            oauthLoading={oauthLoading}
+            oauthProvider={oauthProvider}
             onGoogle={onGoogle}
             onFacebook={onFacebook}
+            onApple={onApple}
+            onTwitter={onTwitter}
+            onDiscord={onDiscord}
           />
 
           <div className="text-center pt-2 text-sm text-gray-500">
