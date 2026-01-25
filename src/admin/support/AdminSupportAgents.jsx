@@ -926,7 +926,7 @@ export default function AdminSupportAgents() {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-[minmax(70px,auto)_max-content_max-content] items-center gap-x-1 gap-y-3">
+                        <div className="grid grid-cols-[max-content_max-content_max-content] items-center gap-x-2 gap-y-3">
                           <div className="flex w-fit items-center gap-1">
                             <span className="min-w-[70px] text-slate-400">Desde</span>
                             {timeFromEditingMap[agent.user_id] ? (
