@@ -674,7 +674,7 @@ export default function useAuthActions({
   const startGoogleOAuth = useCallback(() => startOAuth("google"), [startOAuth]);
   const startFacebookOAuth = useCallback(() => startOAuth("facebook"), [startOAuth]);
   const startAppleOAuth = useCallback(() => startOAuth("apple"), [startOAuth]);
-  const startTwitterOAuth = useCallback(() => startOAuth("twitter"), [startOAuth]);
+  const startTwitterOAuth = useCallback(() => startOAuth("x"), [startOAuth]);
   const startDiscordOAuth = useCallback(() => startOAuth("discord"), [startOAuth]);
 
   const startGoogleOneTap = useCallback(async () => {

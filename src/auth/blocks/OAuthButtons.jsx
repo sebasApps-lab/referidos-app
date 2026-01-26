@@ -31,7 +31,7 @@ export default function OAuthButtons({
       Icon: AppleIcon,
     },
     {
-      key: "twitter",
+      key: "x",
       label: "Continuar con X",
       onClick: onTwitter,
       Icon: XIcon,

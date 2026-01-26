@@ -22,6 +22,9 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
   if (pathname.startsWith("/legal")) {
     return null;
   }
+  if (pathname === "/inicio" || pathname === "/bienvenido") {
+    return null;
+  }
 
   // Sin sesión: solo permitir landing/login
   if (!usuario) {
