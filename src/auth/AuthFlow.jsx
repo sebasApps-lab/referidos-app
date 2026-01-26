@@ -393,7 +393,7 @@ export default function AuthFlow() {
           }}
           onGoogle={actions.startGoogleOneTap}
           onFacebook={actions.startFacebookOAuth}
-          onApple={actions.startAppleOAuth}
+          // onApple={actions.startAppleOAuth}
           onTwitter={actions.startTwitterOAuth}
           onDiscord={actions.startDiscordOAuth}
         />

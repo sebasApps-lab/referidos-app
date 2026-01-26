@@ -59,7 +59,7 @@ export default function WelcomeStep({
             oauthProvider={oauthProvider}
             onGoogle={onGoogle}
             onFacebook={onFacebook}
-            onApple={onApple}
+            // onApple={onApple}
             onTwitter={onTwitter}
             onDiscord={onDiscord}
           />

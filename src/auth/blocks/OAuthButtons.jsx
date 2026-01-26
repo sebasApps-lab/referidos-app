@@ -24,12 +24,13 @@ export default function OAuthButtons({
       onClick: onFacebook,
       Icon: FacebookIcon,
     },
-    {
-      key: "apple",
-      label: "Continuar con Apple",
-      onClick: onApple,
-      Icon: AppleIcon,
-    },
+    // Apple OAuth se habilitara en futuras versiones.
+    // {
+    //   key: "apple",
+    //   label: "Continuar con Apple",
+    //   onClick: onApple,
+    //   Icon: AppleIcon,
+    // },
     {
       key: "x",
       label: "Continuar con X",
