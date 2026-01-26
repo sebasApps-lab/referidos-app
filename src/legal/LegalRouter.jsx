@@ -2,12 +2,14 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import DataDeletionPage from "./pages/DataDeletionPage";
 import LegalLayout from "./LegalLayout";
 import LegalContent from "./blocks/LegalContent";
 
 const DOC_PAGES = {
   terms: TermsPage,
   privacy: PrivacyPage,
+  "data-deletion": DataDeletionPage,
 };
 
 const SUPPORTED_LOCALES = ["es", "en"];
