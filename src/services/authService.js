@@ -46,10 +46,11 @@ export async function signInWithOAuth(provider, opts = {}) {
   return { ok: false, error: "No se pudo iniciar el flujo OAuth" };
 }
 
-export async function signInWithGoogleIdToken({ token }) {
+export async function signInWithGoogleIdToken({ token, nonce }) {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "google",
     token,
+    nonce,
   });
   if (error) throw error;
   return data;

@@ -8,6 +8,25 @@ function ensureBrowser() {
   }
 }
 
+function base64UrlEncode(buffer) {
+  const text = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  return text.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function createNonce(length = 32) {
+  const bytes = new Uint8Array(length);
+  window.crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function sha256Hex(value) {
+  const data = new TextEncoder().encode(value);
+  const hash = await window.crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function loadGoogleClient() {
   ensureBrowser();
   if (window.google?.accounts?.id) return Promise.resolve(window.google);
@@ -37,6 +56,8 @@ function loadGoogleClient() {
 export async function requestGoogleCredential({ clientId, context = "signin" }) {
   if (!clientId) throw new Error("Falta GOOGLE_CLIENT_ID para One Tap");
   const google = await loadGoogleClient();
+  const rawNonce = createNonce();
+  const hashedNonce = await sha256Hex(rawNonce);
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -53,7 +74,11 @@ export async function requestGoogleCredential({ clientId, context = "signin" }) 
       callback: (response) => {
         if (settled) return;
         if (response?.credential) {
-          finish({ type: "credential", credential: response.credential });
+          finish({
+            type: "credential",
+            credential: response.credential,
+            nonce: rawNonce,
+          });
         } else {
           finish(new Error("No se pudo obtener credencial de Google"), true);
         }
@@ -61,6 +86,7 @@ export async function requestGoogleCredential({ clientId, context = "signin" }) 
       cancel_on_tap_outside: true,
       use_fedcm_for_prompt: true,
       context,
+      nonce: hashedNonce,
     });
 
     google.accounts.id.prompt((notification) => {
