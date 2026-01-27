@@ -54,14 +54,14 @@ export default function ClienteInicio() {
   const { filterPromos } = usePromoSearch(query);
   const searchResults = filterPromos(promos);
   const hasQuery = query.trim().length > 0;
+  const isActive = useCacheStore(
+    (state) => state.activeKeys.cliente === CACHE_KEYS.CLIENTE_INICIO
+  );
   const { docked: searchDocked, heroVisible } = useSearchDock({
     enabled: isActive,
     rootSelector: `[data-cache-key="${CACHE_KEYS.CLIENTE_INICIO}"]`,
   });
   const { setHeaderOptions, headerEntering } = useClienteHeader();
-  const isActive = useCacheStore(
-    (state) => state.activeKeys.cliente === CACHE_KEYS.CLIENTE_INICIO
-  );
 
   const usePromosPreview = true;
 
