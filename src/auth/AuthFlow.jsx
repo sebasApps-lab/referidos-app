@@ -245,8 +245,22 @@ export default function AuthFlow() {
 
   const verificationStatus =
     onboarding?.verification_status || onboarding?.usuario?.verification_status;
+  const clientSteps = onboarding?.client_steps || {};
+  const clientProfile = clientSteps.profile || {};
+  const clientAddress = clientSteps.address || {};
+  const clientProfileCompleted = Boolean(clientProfile.completed);
+  const clientAddressCompleted = Boolean(clientAddress.completed);
+  const clientProfileSkipped =
+    Boolean(clientProfile.skipped) && !clientProfileCompleted;
+  const clientAddressSkipped =
+    Boolean(clientAddress.skipped) && !clientAddressCompleted;
+  const clientStepsPending =
+    isClient &&
+    ((!clientProfileCompleted && !clientProfileSkipped) ||
+      (!clientAddressCompleted && !clientAddressSkipped));
   useEffect(() => {
     if (!onboarding?.allowAccess) return;
+    if (clientStepsPending) return;
     if (verificationStatus === "unverified") {
       if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_PROMPT) {
         flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);

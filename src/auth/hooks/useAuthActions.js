@@ -729,14 +729,8 @@ export default function useAuthActions({
   const startGoogleOneTap = useCallback(async () => {
     setWelcomeError("");
     setWelcomeLoading(true);
-    const fallbackEnabled = false;
-    const fallbackMessage =
-      "No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.";
+    const fallbackEnabled = true;
     const fallbackToOAuth = async () => {
-      if (!fallbackEnabled) {
-        setWelcomeError(fallbackMessage);
-        return;
-      }
       try {
         await signInWithOAuth("google", { redirectTo });
       } catch (err) {

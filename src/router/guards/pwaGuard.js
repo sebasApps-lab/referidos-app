@@ -8,15 +8,15 @@ export function isPWA() {
 }
 
 /**
- * Devuelve la ruta de redirección o null.
- * - Solo actúa en modo PWA
+ * Devuelve la ruta de redireccion o null.
+ * - Solo actua en modo PWA
  * - No decide nada durante bootstrap
  * - No interfiere con onboarding incompleto
  */
 export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
   if (!isPWA()) return null;
 
-  //No decidir nada mientras estamos en bootstrap
+  // No decidir nada mientras estamos en bootstrap
   if (bootstrap) return null;
 
   if (pathname.startsWith("/legal")) {
@@ -26,7 +26,7 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
     return null;
   }
 
-  // Sin sesión: solo permitir landing/login
+  // Sin sesion: solo permitir landing/login
   if (!usuario) {
     if (pathname !== "/" && pathname !== "/auth") {
       return "/";
@@ -34,8 +34,8 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
     return null;
   }
 
-  //Sesión activa pero onboarding incompleto → NO forzar rutas
-  if (!onboarding?.allowAccess){
+  // Sesion activa pero onboarding incompleto -> no forzar rutas
+  if (!onboarding?.allowAccess) {
     return null;
   }
 
@@ -53,11 +53,18 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
     ((!clientProfileCompleted && !clientProfileSkipped) ||
       (!clientAddressCompleted && !clientAddressSkipped));
 
-  if (clientStepsPending && pathname === "/auth") {
-    return null;
+  const verificationStatus =
+    onboarding?.verification_status || onboarding?.usuario?.verification_status;
+  const verificationPending =
+    verificationStatus === "unverified" || verificationStatus === "in_progress";
+  const shouldHoldAuth = verificationPending || clientStepsPending;
+
+  if (shouldHoldAuth) {
+    if (pathname === "/auth") return null;
+    return "/auth";
   }
 
-  //Accesso válido → forzar home correcto según role
+  // Acceso valido -> forzar home correcto segun role
   if (usuario) {
     if (usuario.role === "cliente" && !pathname.startsWith("/cliente")) {
       return "/cliente/inicio";

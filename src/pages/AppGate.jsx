@@ -190,6 +190,11 @@ export default function AppGate({ publicElement = null }) {
     usuario?.role === "cliente" &&
     ((!clientProfileCompleted && !clientProfileSkipped) ||
       (!clientAddressCompleted && !clientAddressSkipped));
+  const verificationStatus =
+    onboarding?.verification_status || onboarding?.usuario?.verification_status;
+  const verificationPending =
+    verificationStatus === "unverified" || verificationStatus === "in_progress";
+  const shouldHoldAuth = verificationPending || clientStepsPending;
 
   if (!usuario) {
     if (onboardingOk) {
@@ -214,6 +219,13 @@ export default function AppGate({ publicElement = null }) {
     return <Navigate to="/" replace />;
   }
 
+  if (shouldHoldAuth) {
+    if (publicElement) {
+      return publicElement;
+    }
+    return <Navigate to="/auth" replace />;
+  }
+
   if (!onboarding?.allowAccess) {
     if (publicElement) {
       if (location.pathname === "/") {
@@ -225,14 +237,7 @@ export default function AppGate({ publicElement = null }) {
   }
 
   if (publicElement) {
-    const verificationStatus =
-      onboarding?.verification_status || onboarding?.usuario?.verification_status;
-    const shouldHoldAuth =
-      location.pathname === "/auth" &&
-      (verificationStatus === "unverified" ||
-        verificationStatus === "in_progress" ||
-        clientStepsPending);
-    if (shouldHoldAuth) {
+    if (location.pathname === "/auth" && shouldHoldAuth) {
       return publicElement;
     }
     return <Navigate to="/app" replace />;
