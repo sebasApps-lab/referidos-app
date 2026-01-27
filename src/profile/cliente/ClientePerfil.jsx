@@ -82,6 +82,7 @@ import TierNextCard from "../shared/blocks/TierNextCard";
 import SessionsList from "../shared/blocks/SessionsList";
 import ThemeSelector from "../shared/blocks/ThemeSelector";
 import TwoFACard from "../shared/blocks/TwoFACard";
+import useMfaState from "../shared/hooks/useMfaState";
 import SupportHelpOptions from "../shared/blocks/SupportHelpOptions";
 import FaqContent from "../shared/blocks/FaqContent";
 import SupportFeedbackForm from "../shared/blocks/SupportFeedbackForm";
@@ -139,10 +140,14 @@ export default function ClientePerfil() {
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
   const [sessions, setSessions] = useState(getSessionListFallback());
-  const [twoFAVerified] = useState(false);
-  const [twoFATotp, setTwoFATotp] = useState(false);
-  const [twoFASms] = useState(false);
-  const [twoFABackup, setTwoFABackup] = useState(true);
+  const twoFASms = false;
+  const {
+    loading: mfaLoading,
+    error: mfaError,
+    totpEnabled,
+    totpFactorId,
+    refresh: refreshMfa,
+  } = useMfaState();
   const [twoFADismissed, setTwoFADismissed] = useState(false);
   const [aliasStatus, setAliasStatus] = useState(null);
   const [helpView, setHelpView] = useState("menu");
@@ -226,10 +231,21 @@ export default function ClientePerfil() {
                 title: "App autenticadora",
                 description: "TOTP para accesos seguros.",
                 toggle: {
-                  active: twoFATotp,
-                  onChange: () =>
-                    twoFAVerified && setTwoFATotp((prev) => !prev),
-                  disabled: !twoFAVerified,
+                  active: totpEnabled,
+                  onChange: () => {
+                    if (mfaLoading) return;
+                    if (totpEnabled) {
+                      openModal("TwoFADisable", {
+                        factorId: totpFactorId,
+                        onDisabled: refreshMfa,
+                      });
+                      return;
+                    }
+                    openModal("TwoFAEnroll", {
+                      onComplete: refreshMfa,
+                    });
+                  },
+                  disabled: mfaLoading,
                 },
               },
               {
@@ -244,19 +260,16 @@ export default function ClientePerfil() {
                   disabled: true,
                 },
               },
-              {
-                id: "backup",
-                title: "Codigos de respaldo",
-                description: "Imprime o guarda los codigos.",
-                toggle: {
-                  active: twoFABackup,
-                  onChange: () =>
-                    twoFAVerified && setTwoFABackup((prev) => !prev),
-                  disabled: !twoFAVerified,
-                },
-              },
             ]}
           />,
+          mfaError ? (
+            <div
+              key="mfa-error"
+              className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-[11px] text-red-500"
+            >
+              {mfaError}
+            </div>
+          ) : null,
         ]}
         notice={
           !twoFADismissed ? (
@@ -277,11 +290,14 @@ export default function ClientePerfil() {
       />
     ),
     [
-      twoFABackup,
       twoFADismissed,
       twoFASms,
-      twoFATotp,
-      twoFAVerified,
+      totpEnabled,
+      mfaLoading,
+      mfaError,
+      openModal,
+      refreshMfa,
+      totpFactorId,
     ]
   );
 

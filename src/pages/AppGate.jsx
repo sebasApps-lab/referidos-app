@@ -4,6 +4,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import { runValidateRegistration } from "../services/registrationClient";
 import { useModal } from "../modals/useModal";
+import useMfaGate from "../hooks/useMfaGate";
 
 const ACCOUNT_STATUS_MESSAGES = {
   blocked: "Tu cuenta ha sido bloqueada, contacta a servicio al cliente.",
@@ -36,6 +37,7 @@ export default function AppGate({ publicElement = null }) {
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
   const logout = useAppStore((s) => s.logout);
   const { openModal, activeModal } = useModal();
+  const { blockAccess } = useMfaGate();
   const resetRequestedRef = useRef(false);
   const validateAttemptedRef = useRef(false);
   const [validatePending, setValidatePending] = useState(false);
@@ -152,6 +154,17 @@ export default function AppGate({ publicElement = null }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white">
         Cargando...
+      </div>
+    );
+  }
+
+  if (blockAccess) {
+    if (publicElement) {
+      return publicElement;
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#5E30A5] text-white">
+        Verificando seguridad...
       </div>
     );
   }

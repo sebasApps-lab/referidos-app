@@ -25,6 +25,9 @@ import ModalPasswordReauth from "../components/modals/ModalPasswordReauth";
 import ModalForcePasswordChange from "../components/modals/ModalForcePasswordChange";
 import ModalSupportQueue from "../components/modals/ModalSupportQueue";
 import ModalSupportQueueCancel from "../components/modals/ModalSupportQueueCancel";
+import ModalTwoFAEnroll from "../components/modals/ModalTwoFAEnroll";
+import ModalTwoFAVerify from "../components/modals/ModalTwoFAVerify";
+import ModalTwoFADisable from "../components/modals/ModalTwoFADisable";
 
 export const modalRegistry = {
   Tier: ModalTier,
@@ -52,4 +55,7 @@ export const modalRegistry = {
   ForcePasswordChange: ModalForcePasswordChange,
   SupportQueue: ModalSupportQueue,
   SupportQueueCancel: ModalSupportQueueCancel,
+  TwoFAEnroll: ModalTwoFAEnroll,
+  TwoFAVerify: ModalTwoFAVerify,
+  TwoFADisable: ModalTwoFADisable,
 };
