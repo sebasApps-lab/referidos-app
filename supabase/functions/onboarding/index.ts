@@ -56,6 +56,10 @@ type OnboardingResult = {
     reasons: string[]; //motivos por los cuales no se da acceso
     usuario: Record<string, unknown> | null;
     negocio: Record<string, unknown> | null;
+    client_steps?: {
+        profile: { completed: boolean; skipped: boolean };
+        address: { completed: boolean; skipped: boolean };
+    } | null;
     email_confirmed?: boolean;
     phone?: string | null;
     ruc?: string | null;
@@ -79,6 +83,8 @@ type UsuarioProfile = {
     fecha_nacimiento: string | null;
     genero: string | null;
     account_status: AccountStatus | null;
+    cliente_profile_skipped?: boolean | null;
+    cliente_address_skipped?: boolean | null;
 };
 
 type NegocioProfile = {
@@ -307,12 +313,59 @@ serve (async (req) => {
     }
 
     let negocioRow: Record<string, unknown> | null = null;
+    let clientSteps: OnboardingResult["client_steps"] | null = null;
 
     //5) Validaciones por rol
     if (role === "cliente") {
         if(!profile.nombre && baseName) {
             patch.nombre = baseName;
         }
+        const profileCompleted =
+            Boolean(profile.nombre) &&
+            Boolean(profile.apellido) &&
+            Boolean(profile.genero) &&
+            Boolean(profile.fecha_nacimiento);
+        const profileSkipped = Boolean(profile.cliente_profile_skipped);
+
+        let addressCompleted = false;
+        if (profile.id) {
+            const { data: clientDir, error: clientDirErr } = await supabaseAdmin
+                .from("direcciones")
+                .select("id, calles, sector, referencia, ciudad, provincia_id, canton_id, parroquia_id, parroquia, lat, lng")
+                .eq("owner_id", profile.id)
+                .eq("is_user_provided", true)
+                .order("updated_at", { ascending: false })
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle<DireccionProfile>();
+
+            if (!clientDirErr && clientDir) {
+                const hasUbicacion =
+                    Boolean(clientDir.ciudad) ||
+                    Boolean(clientDir.parroquia_id) ||
+                    Boolean(clientDir.parroquia);
+                const missingFields =
+                    !clientDir.calles ||
+                    !hasUbicacion ||
+                    !clientDir.sector ||
+                    !clientDir.provincia_id ||
+                    !clientDir.canton_id ||
+                    clientDir.lat === null ||
+                    clientDir.lng === null;
+                addressCompleted = !missingFields;
+            }
+        }
+        const addressSkipped = Boolean(profile.cliente_address_skipped);
+        clientSteps = {
+            profile: {
+                completed: profileCompleted,
+                skipped: profileSkipped,
+            },
+            address: {
+                completed: addressCompleted,
+                skipped: addressSkipped,
+            },
+        };
     }
 
     if (role === "soporte") {
@@ -480,6 +533,7 @@ serve (async (req) => {
             reasons,
             usuario: updatedProfile,
             negocio: negocioRow,
+            client_steps: clientSteps,
             email_confirmed: emailConfirmed,
             phone: profile.telefono ?? null,
             ruc: rucValue,

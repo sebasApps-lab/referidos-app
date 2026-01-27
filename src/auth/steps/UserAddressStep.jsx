@@ -43,7 +43,7 @@ const WEEKEND_KEYS = ["sabado", "domingo"];
 
 
 
-export default function BusinessAddressStep({
+export default function UserAddressStep({
   innerRef,
   searchModeOpen,
   onSearchModeChange,
@@ -57,7 +57,14 @@ export default function BusinessAddressStep({
   subtitle,
   error,
   onSubmit,
+  mode = "negocio",
+  requireHorarios,
+  onSkip,
+  primaryLabel = "Entrar",
 }) {
+  const isBusiness = mode === "negocio";
+  const shouldRequireHorarios =
+    typeof requireHorarios === "boolean" ? requireHorarios : isBusiness;
   const [stage, setStage] = useState("pending");
   const [searchValue, setSearchValue] = useState("");
   const isSearchModeOpen = Boolean(searchModeOpen);
@@ -517,9 +524,11 @@ export default function BusinessAddressStep({
   const referenciaValue = String(direccionPayload?.referencia || "");
   const currentHorarios =
     horarios && typeof horarios === "object" ? horarios : DEFAULT_HORARIOS;
-  const hasAnyHorario = WEEK_DAYS.some(
-    (day) => (currentHorarios?.semanal?.[day.key] || []).length > 0
-  );
+  const hasAnyHorario = shouldRequireHorarios
+    ? WEEK_DAYS.some(
+      (day) => (currentHorarios?.semanal?.[day.key] || []).length > 0
+    )
+    : true;
 
   const updateHorarios = useCallback(
     (nextValue) => {
@@ -985,7 +994,7 @@ export default function BusinessAddressStep({
             }
             results={searchResultsList}
             footer={
-              <div className="pb-4">
+              <div className="pb-4 space-y-2">
                 <button
                   type="button"
                   onClick={handleConfirmSearch}
@@ -994,6 +1003,15 @@ export default function BusinessAddressStep({
                 >
                   Confirmar
                 </button>
+                {onSkip && !isBusiness && (
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    className="w-full text-sm font-semibold text-gray-500"
+                  >
+                    Omitir por ahora
+                  </button>
+                )}
               </div>
             }
           >
@@ -1149,6 +1167,15 @@ export default function BusinessAddressStep({
                 >
                   {isReverseLoading ? "Confirmando..." : "Confirmar"}
                 </button>
+                {onSkip && !isBusiness && (
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    className="w-full text-sm font-semibold text-gray-500 mt-2"
+                  >
+                    Omitir por ahora
+                  </button>
+                )}
               </div>
               </>
             ) : null}
@@ -1220,9 +1247,10 @@ export default function BusinessAddressStep({
                 </div>
               </div>
             </div>
-            <div className="mt-1 space-y-2 h-[240px] flex flex-col">
-              <div className="text-sm font-semibold text-gray-900">Horario</div>
-              <div className="space-y-3 overflow-y-auto pr-1">
+            {isBusiness && (
+              <div className="mt-1 space-y-2 h-[240px] flex flex-col">
+                <div className="text-sm font-semibold text-gray-900">Horario</div>
+                <div className="space-y-3 overflow-y-auto pr-1">
                 <div ref={weekdaysRef} className="space-y-3">
                   <div className="flex items-center gap-3 text-sm text-gray-700">
                     {(() => {
@@ -1609,17 +1637,20 @@ export default function BusinessAddressStep({
                 <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200/80 to-transparent" />
               </div>
             </div>
-            <label className="flex items-center gap-2 pt-2 pb-1 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={Boolean(isSucursalPrincipal)}
-                onChange={(event) =>
-                  onChangeSucursalPrincipal?.(event.target.checked)
-                }
-                className="h-4 w-4 accent-[#5E30A5]"
-              />
-              Este es mi sucursal principal
-            </label>
+            )}
+            {isBusiness && (
+              <label className="flex items-center gap-2 pt-2 pb-1 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(isSucursalPrincipal)}
+                  onChange={(event) =>
+                    onChangeSucursalPrincipal?.(event.target.checked)
+                  }
+                  className="h-4 w-4 accent-[#5E30A5]"
+                />
+                Este es mi sucursal principal
+              </label>
+            )}
 
             <div className="mt-auto pt-4">
               <button
@@ -1627,8 +1658,17 @@ export default function BusinessAddressStep({
                 disabled={!hasAnyHorario}
                 className="w-full bg-[#10B981] text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Entrar
+                {primaryLabel}
               </button>
+              {onSkip && !isBusiness && (
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  className="w-full text-sm font-semibold text-gray-500 mt-2"
+                >
+                  Omitir por ahora
+                </button>
+              )}
             </div>
           </>
         )}

@@ -19,3 +19,11 @@ export function mapNegocioPrefill({ usuario, onboarding }) {
     calle2,
   };
 }
+
+export function mapClientePrefill({ usuario }) {
+  return {
+    nombreDueno: usuario?.nombre || "",
+    apellidoDueno: usuario?.apellido || "",
+    telefono: usuario?.telefono || "",
+  };
+}

@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
 import { AUTH_STEPS } from "../constants/authSteps";
-import { mapNegocioPrefill } from "../utils/authMappers";
-import { formatBirthdateForInput, normalizeOwnerName } from "../utils/ownerDataUtils";
+import { mapClientePrefill, mapNegocioPrefill } from "../utils/authMappers";
+import {
+  formatBirthdateForInput,
+  normalizeUserName,
+} from "../utils/userProfileUtils";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function useAuthPrefill({
@@ -175,8 +178,25 @@ export default function useAuthPrefill({
     const boot = onboarding || {};
     const neg = boot.negocio ?? null;
     const allowAccess = !!boot.allowAccess;
+    const resolveClientSteps = (state) => {
+      const steps = state?.client_steps || {};
+      const profile = steps.profile || {};
+      const address = steps.address || {};
+      const profileCompleted = Boolean(profile.completed);
+      const addressCompleted = Boolean(address.completed);
+      const profileSkipped = Boolean(profile.skipped) && !profileCompleted;
+      const addressSkipped = Boolean(address.skipped) && !addressCompleted;
+      return {
+        profilePending: !profileCompleted && !profileSkipped,
+        addressPending: !addressCompleted && !addressSkipped,
+      };
+    };
+    const clientSteps = resolveClientSteps(boot);
 
-    if (allowAccess) {
+    if (
+      allowAccess &&
+      !(u.role === "cliente" && (clientSteps.profilePending || clientSteps.addressPending))
+    ) {
       setIsAddressPrefillReady?.(true);
       return;
     }
@@ -188,9 +208,111 @@ export default function useAuthPrefill({
     }
 
     if (u.role === "cliente") {
-      setIsAddressPrefillReady?.(true);
-      setStep(AUTH_STEPS.EMAIL_LOGIN);
-      setEmailError(boot.reasons?.join(", ") || "Completa tu registro");
+      if (!allowAccess) {
+        setIsAddressPrefillReady?.(true);
+        setStep(AUTH_STEPS.EMAIL_LOGIN);
+        setEmailError(boot.reasons?.join(", ") || "Completa tu registro");
+        return;
+      }
+
+      setIsAddressPrefillReady?.(false);
+      const prefill = mapClientePrefill({ usuario: u, onboarding: boot });
+      const prefillNombre = normalizeUserName(prefill.nombreDueno || "");
+      const prefillApellido = normalizeUserName(prefill.apellidoDueno || "");
+      const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
+      const prefillGenero = u.genero || "";
+
+      if (clientSteps.profilePending) {
+        setStep(AUTH_STEPS.USER_PROFILE);
+      } else if (clientSteps.addressPending) {
+        setStep(AUTH_STEPS.USER_ADDRESS);
+      } else {
+        setIsAddressPrefillReady?.(true);
+        return;
+      }
+
+      setNombreDueno(prefillNombre);
+      setApellidoDueno(prefillApellido);
+      setTelefono(prefill.telefono);
+      setFechaNacimiento(prefillFecha);
+      setOwnerPrefill?.({
+        nombre: prefillNombre,
+        apellido: prefillApellido,
+        fechaNacimiento: prefillFecha,
+        genero: prefillGenero,
+      });
+      setGenero?.(prefillGenero || "no_especificar");
+
+      const requestId = ++direccionRequestRef.current;
+      const finalizeDireccion = () => {
+        if (requestId === direccionRequestRef.current) {
+          setIsAddressPrefillReady?.(true);
+        }
+      };
+
+      const loadDireccion = async () => {
+        if (!u?.id) {
+          finalizeDireccion();
+          return;
+        }
+
+        const { data: dirData, error: dirErr } = await supabase
+          .from("direcciones")
+          .select("calles, referencia, sector, ciudad, parroquia, parroquia_id, lat, lng, place_id, label, provider, provincia_id, canton_id")
+          .eq("owner_id", u.id)
+          .eq("is_user_provided", true)
+          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+        if (requestId !== direccionRequestRef.current) return;
+        if (dirErr || !dirData) {
+          finalizeDireccion();
+          return;
+        }
+        setCalle1(dirData.calles || "");
+        setCalle2("");
+        setSectorNegocio(dirData.sector || "");
+        const hasUbicacion =
+          Boolean(dirData.ciudad) ||
+          Boolean(dirData.parroquia_id) ||
+          Boolean(dirData.parroquia);
+        const hasDireccionFields =
+          Boolean(dirData.calles) &&
+          hasUbicacion &&
+          Boolean(dirData.sector) &&
+          Boolean(dirData.provincia_id) &&
+          Boolean(dirData.canton_id) &&
+          dirData.lat != null &&
+          dirData.lng != null;
+
+        if (hasDireccionFields) {
+          setDireccionPayload?.({
+            place_id: dirData.place_id || "",
+            label: dirData.label || "",
+            display_label: dirData.label || "",
+            provider: dirData.provider || "",
+            lat: dirData.lat ?? null,
+            lng: dirData.lng ?? null,
+            provincia_id: dirData.provincia_id || "",
+            canton_id: dirData.canton_id || "",
+            parroquia_id: dirData.parroquia_id || "",
+            parroquia: dirData.parroquia || "",
+            ciudad: dirData.ciudad || "",
+            sector: dirData.sector || "",
+            calles: dirData.calles || "",
+            house_number: "",
+            postcode: "",
+            referencia: dirData.referencia || "",
+            provincia: "",
+            canton: "",
+            country: "",
+          });
+        }
+        finalizeDireccion();
+      };
+
+      loadDireccion().catch(() => finalizeDireccion());
       return;
     }
 
@@ -208,18 +330,18 @@ export default function useAuthPrefill({
         reasons.includes("missing_address_fields") ||
         reasons.includes("missing_sucursales_row") ||
         reasons.includes("missing_sucursales_fields");
-      const prefillNombre = normalizeOwnerName(prefill.nombreDueno || "");
-      const prefillApellido = normalizeOwnerName(prefill.apellidoDueno || "");
+      const prefillNombre = normalizeUserName(prefill.nombreDueno || "");
+      const prefillApellido = normalizeUserName(prefill.apellidoDueno || "");
       const prefillFecha = formatBirthdateForInput(u.fecha_nacimiento);
       const prefillGenero = u.genero || "";
       const prefillCategoria = prefill.categoriaNegocio || "";
 
       if (missingOwner) {
-        setStep(AUTH_STEPS.OWNER_DATA);
+        setStep(AUTH_STEPS.USER_PROFILE);
       } else if (missingBusinessRow || missingBusinessFields) {
         setStep(AUTH_STEPS.BUSINESS_DATA);
       } else if (missingAddress) {
-        setStep(AUTH_STEPS.BUSINESS_ADDRESS);
+        setStep(AUTH_STEPS.USER_ADDRESS);
       } else {
         setStep(AUTH_STEPS.BUSINESS_DATA);
       }

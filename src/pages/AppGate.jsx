@@ -164,6 +164,19 @@ export default function AppGate({ publicElement = null }) {
   }
 
   const onboardingOk = onboarding?.ok === true;
+  const clientSteps = onboarding?.client_steps || {};
+  const clientProfile = clientSteps.profile || {};
+  const clientAddress = clientSteps.address || {};
+  const clientProfileCompleted = Boolean(clientProfile.completed);
+  const clientAddressCompleted = Boolean(clientAddress.completed);
+  const clientProfileSkipped =
+    Boolean(clientProfile.skipped) && !clientProfileCompleted;
+  const clientAddressSkipped =
+    Boolean(clientAddress.skipped) && !clientAddressCompleted;
+  const clientStepsPending =
+    usuario?.role === "cliente" &&
+    ((!clientProfileCompleted && !clientProfileSkipped) ||
+      (!clientAddressCompleted && !clientAddressSkipped));
 
   if (!usuario) {
     if (onboardingOk) {
@@ -203,7 +216,9 @@ export default function AppGate({ publicElement = null }) {
       onboarding?.verification_status || onboarding?.usuario?.verification_status;
     const shouldHoldAuth =
       location.pathname === "/auth" &&
-      (verificationStatus === "unverified" || verificationStatus === "in_progress");
+      (verificationStatus === "unverified" ||
+        verificationStatus === "in_progress" ||
+        clientStepsPending);
     if (shouldHoldAuth) {
       return publicElement;
     }

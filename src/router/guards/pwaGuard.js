@@ -39,6 +39,24 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
     return null;
   }
 
+  const clientSteps = onboarding?.client_steps || {};
+  const clientProfile = clientSteps.profile || {};
+  const clientAddress = clientSteps.address || {};
+  const clientProfileCompleted = Boolean(clientProfile.completed);
+  const clientAddressCompleted = Boolean(clientAddress.completed);
+  const clientProfileSkipped =
+    Boolean(clientProfile.skipped) && !clientProfileCompleted;
+  const clientAddressSkipped =
+    Boolean(clientAddress.skipped) && !clientAddressCompleted;
+  const clientStepsPending =
+    usuario?.role === "cliente" &&
+    ((!clientProfileCompleted && !clientProfileSkipped) ||
+      (!clientAddressCompleted && !clientAddressSkipped));
+
+  if (clientStepsPending && pathname === "/auth") {
+    return null;
+  }
+
   //Accesso válido → forzar home correcto según role
   if (usuario) {
     if (usuario.role === "cliente" && !pathname.startsWith("/cliente")) {

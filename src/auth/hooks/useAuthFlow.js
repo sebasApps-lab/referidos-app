@@ -102,7 +102,13 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
 
   const getActiveFormRef = useCallback(
     (targetStep = step) =>
-      targetStep === AUTH_STEPS.BUSINESS_DATA
+      [
+        AUTH_STEPS.BUSINESS_DATA,
+        AUTH_STEPS.BUSINESS_CATEGORY,
+        AUTH_STEPS.USER_ADDRESS,
+        AUTH_STEPS.ACCOUNT_VERIFY,
+        AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
+      ].includes(targetStep)
         ? regPage2Ref.current
         : regPage1Ref.current,
     [step]
@@ -111,7 +117,7 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
   const measureHeights = useCallback(
     (targetStep = step) => {
       if (
-        targetStep !== AUTH_STEPS.OWNER_DATA &&
+        targetStep !== AUTH_STEPS.USER_PROFILE &&
         targetStep !== AUTH_STEPS.BUSINESS_DATA
       ) {
         return;

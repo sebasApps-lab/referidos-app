@@ -3,10 +3,10 @@ import ErrorBanner from "../blocks/ErrorBanner";
 import {
   formatBirthdateInput,
   getBirthdateStatus,
-  normalizeOwnerName,
-} from "../utils/ownerDataUtils";
+  normalizeUserName,
+} from "../utils/userProfileUtils";
 
-export default function OwnerDataStep({
+export default function UserProfileStep({
   error,
   inputClassName,
   nombreDueno,
@@ -14,11 +14,13 @@ export default function OwnerDataStep({
   genero,
   fechaNacimiento,
   subtitle,
+  underageMessage,
   onChangeNombre,
   onChangeApellido,
   onChangeGenero,
   onChangeFechaNacimiento,
   onSubmit,
+  onSkip,
   innerRef,
   onGoWelcome,
   primaryDisabled,
@@ -59,7 +61,7 @@ export default function OwnerDataStep({
               value={nombreDueno}
               maxLength={26}
               onChange={(event) =>
-                onChangeNombre(normalizeOwnerName(event.target.value))
+                onChangeNombre(normalizeUserName(event.target.value))
               }
             />
           </div>
@@ -71,7 +73,7 @@ export default function OwnerDataStep({
               value={apellidoDueno}
               maxLength={26}
               onChange={(event) =>
-                onChangeApellido(normalizeOwnerName(event.target.value))
+                onChangeApellido(normalizeUserName(event.target.value))
               }
             />
           </div>
@@ -91,7 +93,7 @@ export default function OwnerDataStep({
 
             {birthStatus.isValid && birthStatus.isUnderage ? (
               <div className="text-xs text-red-500">
-                Tienes que ser mayor de edad para ser el administrador.
+                {underageMessage || "Tienes que ser mayor de edad para ser el administrador."}
               </div>
             ) : null}
           </div>
@@ -131,6 +133,15 @@ export default function OwnerDataStep({
             >
               Continuar
             </button>
+            {onSkip && (
+              <button
+                type="button"
+                onClick={onSkip}
+                className="w-full text-sm font-semibold text-gray-500 mt-2"
+              >
+                Omitir por ahora
+              </button>
+            )}
           </div>
         </div>
       </div>

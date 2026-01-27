@@ -9,10 +9,10 @@ import StepProgress from "./blocks/StepProgress";
 import EmailLoginStep from "./steps/EmailLoginStep";
 import EmailRegisterStep from "./steps/EmailRegisterStep";
 import WelcomeStep from "./steps/WelcomeStep";
-import OwnerDataStep from "./steps/OwnerDataStep";
+import UserProfileStep from "./steps/UserProfileStep";
 import BusinessDataStep from "./steps/BusinessDataStep";
 import BusinessCategoryStep from "./steps/BusinessCategoryStep";
-import BusinessAddressStep from "./steps/BusinessAddressStep";
+import UserAddressStep from "./steps/UserAddressStep";
 import AccountVerifyStep from "./steps/AccountVerifyStep";
 import AccountVerifyPrompt from "./steps/AccountVerifyPrompt";
 import RoleSelectStep from "./steps/RoleSelectStep";
@@ -20,7 +20,7 @@ import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
 import useAuthPrefill from "./hooks/useAuthPrefill";
 import { AUTH_STEPS } from "./constants/authSteps";
-import { getOwnerDataStatus } from "./utils/ownerDataUtils";
+import { getUserProfileStatus } from "./utils/userProfileUtils";
 import { AUTH_BRAND } from "./constants/authCopy";
 import {
   BUSINESS_CATEGORIES,
@@ -28,8 +28,8 @@ import {
   getBusinessCategoryPath,
 } from "./constants/businessCategories";
 
-const STEP_COPY = {
-  [AUTH_STEPS.OWNER_DATA]: {
+const BUSINESS_STEP_COPY = {
+  [AUTH_STEPS.USER_PROFILE]: {
     header: "Cuentanos mas sobre ti",
     subtitle: "Eres quien administrara el negocio en la app.",
   },
@@ -43,7 +43,7 @@ const STEP_COPY = {
     subtitle: "No te preocupes, puedes cambiarlo despues",
     helperLabel: "Asi podremos mostrar tus promos a las personas correctas.",
   },
-  [AUTH_STEPS.BUSINESS_ADDRESS]: {
+  [AUTH_STEPS.USER_ADDRESS]: {
     header: "Donde estas ubicado?",
     subtitle: "Ayudanos a conectar tu negocio con personas cerca de ti.",
   },
@@ -59,11 +59,25 @@ const STEP_COPY = {
   },
 };
 
+const CLIENT_STEP_COPY = {
+  [AUTH_STEPS.USER_PROFILE]: {
+    header: "Completa tu perfil",
+    subtitle: "Es opcional, pero ayuda a personalizar tu experiencia.",
+  },
+  [AUTH_STEPS.USER_ADDRESS]: {
+    header: "Donde estas?",
+    subtitle: "Opcional para mostrarte promos cerca de ti.",
+  },
+};
+
 export default function AuthFlow() {
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout);
+  const currentRole = usuario?.role || onboarding?.usuario?.role;
+  const isBusiness = currentRole === "negocio";
+  const isClient = currentRole === "cliente";
   const initialStep = useMemo(
     () =>
       location.pathname === "/auth"
@@ -263,7 +277,7 @@ export default function AuthFlow() {
   const canSubmitPassword = hasMinLength && hasNumberAndSymbol && passwordsMatch;
   const ownerStatus = useMemo(
     () =>
-      getOwnerDataStatus({
+      getUserProfileStatus({
         nombre: flow.nombreDueno,
         apellido: flow.apellidoDueno,
         genero: flow.genero,
@@ -273,10 +287,10 @@ export default function AuthFlow() {
   );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
   const isFormStep = [
-    AUTH_STEPS.OWNER_DATA,
+    AUTH_STEPS.USER_PROFILE,
     AUTH_STEPS.BUSINESS_DATA,
     AUTH_STEPS.BUSINESS_CATEGORY,
-    AUTH_STEPS.BUSINESS_ADDRESS,
+    AUTH_STEPS.USER_ADDRESS,
     AUTH_STEPS.ACCOUNT_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
   ].includes(flow.step);
@@ -290,14 +304,23 @@ export default function AuthFlow() {
     : isFormStep
     ? "mb-4 text-center"
     : "mt-12 mb-2 text-center";
-  const stepCopy = STEP_COPY[flow.step] || {};
+  const stepCopyMap = isClient
+    ? { ...BUSINESS_STEP_COPY, ...CLIENT_STEP_COPY }
+    : BUSINESS_STEP_COPY;
+  const stepCopy = stepCopyMap[flow.step] || {};
   const headerTitle =
     stepCopy.header || stepCopy.headerFallback || AUTH_BRAND.name;
-  const ownerSubtitle = STEP_COPY[AUTH_STEPS.OWNER_DATA]?.subtitle;
-  const businessSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
-  const categorySubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.subtitle;
-  const categoryHelper = STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.helperLabel;
-  const addressSubtitle = STEP_COPY[AUTH_STEPS.BUSINESS_ADDRESS]?.subtitle;
+  const userProfileSubtitle = (isClient
+    ? CLIENT_STEP_COPY
+    : BUSINESS_STEP_COPY)[AUTH_STEPS.USER_PROFILE]?.subtitle;
+  const businessSubtitle = BUSINESS_STEP_COPY[AUTH_STEPS.BUSINESS_DATA]?.subtitle;
+  const categorySubtitle =
+    BUSINESS_STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.subtitle;
+  const categoryHelper =
+    BUSINESS_STEP_COPY[AUTH_STEPS.BUSINESS_CATEGORY]?.helperLabel;
+  const addressSubtitle = (isClient
+    ? CLIENT_STEP_COPY
+    : BUSINESS_STEP_COPY)[AUTH_STEPS.USER_ADDRESS]?.subtitle;
   const categoryPath = useMemo(
     () => getBusinessCategoryPath(flow.categoriaNegocio),
     [flow.categoriaNegocio]
@@ -331,13 +354,13 @@ export default function AuthFlow() {
       return;
     }
     if (
-      flow.step === AUTH_STEPS.BUSINESS_ADDRESS &&
+      flow.step === AUTH_STEPS.USER_ADDRESS &&
       flow.isAddressSearchModeOpen
     ) {
       flow.setIsAddressSearchModeOpen(false);
       return;
     }
-    if (flow.step === AUTH_STEPS.OWNER_DATA) {
+    if (flow.step === AUTH_STEPS.USER_PROFILE && isBusiness) {
       setShowExitConfirm(true);
       return;
     }
@@ -345,7 +368,7 @@ export default function AuthFlow() {
   };
 
   React.useEffect(() => {
-    if (flow.step !== AUTH_STEPS.BUSINESS_ADDRESS && flow.isAddressSearchModeOpen) {
+    if (flow.step !== AUTH_STEPS.USER_ADDRESS && flow.isAddressSearchModeOpen) {
       flow.setIsAddressSearchModeOpen(false);
     }
   }, [flow.isAddressSearchModeOpen, flow.setIsAddressSearchModeOpen, flow.step]);
@@ -364,16 +387,17 @@ export default function AuthFlow() {
         />
       )}
 
-      {(flow.step === AUTH_STEPS.OWNER_DATA ||
-        flow.step === AUTH_STEPS.BUSINESS_CATEGORY ||
-        flow.step === AUTH_STEPS.BUSINESS_DATA ||
-        flow.step === AUTH_STEPS.BUSINESS_ADDRESS) && (
+      {(isBusiness &&
+        (flow.step === AUTH_STEPS.USER_PROFILE ||
+          flow.step === AUTH_STEPS.BUSINESS_CATEGORY ||
+          flow.step === AUTH_STEPS.BUSINESS_DATA ||
+          flow.step === AUTH_STEPS.USER_ADDRESS)) && (
         <div className="w-full max-w-sm px-2 mb-4">
           <StepProgress
             page={
-              flow.step === AUTH_STEPS.OWNER_DATA
+              flow.step === AUTH_STEPS.USER_PROFILE
                 ? 1
-                : flow.step === AUTH_STEPS.BUSINESS_ADDRESS
+                : flow.step === AUTH_STEPS.USER_ADDRESS
                   ? 3
                   : 2
             }
@@ -473,20 +497,26 @@ export default function AuthFlow() {
               style={flow.containerStyle}
               className="relative z-10 flex-1"
             >
-      {flow.step === AUTH_STEPS.OWNER_DATA && (
-        <OwnerDataStep
+      {flow.step === AUTH_STEPS.USER_PROFILE && (
+        <UserProfileStep
           error={flow.emailError}
           inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 mb-2 text-sm"
           nombreDueno={flow.nombreDueno}
           apellidoDueno={flow.apellidoDueno}
           fechaNacimiento={flow.fechaNacimiento}
           genero={flow.genero}
-          subtitle={ownerSubtitle}
+          subtitle={userProfileSubtitle}
+          underageMessage={
+            isBusiness
+              ? "Tienes que ser mayor de edad para ser el administrador"
+              : "Debes ser mayor de edad para usar la app."
+          }
           onChangeNombre={flow.setNombreDueno}
           onChangeApellido={flow.setApellidoDueno}
           onChangeGenero={flow.setGenero}
           onChangeFechaNacimiento={flow.setFechaNacimiento}
-          onSubmit={actions.handleOwnerData}
+          onSubmit={actions.handleUserProfile}
+          onSkip={isClient ? actions.skipUserProfile : undefined}
           innerRef={flow.regPage1Ref}
           onGoWelcome={resetToWelcome}
           primaryDisabled={!ownerStatus.canSubmit}
@@ -526,8 +556,8 @@ export default function AuthFlow() {
                 />
               )}
 
-              {flow.step === AUTH_STEPS.BUSINESS_ADDRESS && (
-                <BusinessAddressStep
+              {flow.step === AUTH_STEPS.USER_ADDRESS && (
+                <UserAddressStep
                   innerRef={flow.regPage2Ref}
                   searchModeOpen={flow.isAddressSearchModeOpen}
                   onSearchModeChange={flow.setIsAddressSearchModeOpen}
@@ -540,7 +570,10 @@ export default function AuthFlow() {
                   onChangeDireccionPayload={flow.setDireccionPayload}
                   subtitle={addressSubtitle}
                   error={flow.emailError}
-                  onSubmit={actions.handleBusinessAddress}
+                  onSubmit={actions.handleUserAddress}
+                  onSkip={isClient ? actions.skipUserAddress : undefined}
+                  primaryLabel={isBusiness ? "Entrar" : "Continuar"}
+                  mode={isBusiness ? "negocio" : "cliente"}
                 />
               )}
 

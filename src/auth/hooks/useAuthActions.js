@@ -11,9 +11,9 @@ import { requestGoogleCredential } from "../../utils/googleOneTap";
 import { AUTH_STEPS } from "../constants/authSteps";
 import {
   buildBirthdateISO,
-  getOwnerDataStatus,
-  normalizeOwnerName,
-} from "../utils/ownerDataUtils";
+  getUserProfileStatus,
+  normalizeUserName,
+} from "../utils/userProfileUtils";
 import {
   getBusinessDataStatus,
   normalizeBusinessName,
@@ -117,10 +117,39 @@ export default function useAuthActions({
   const setJustCompletedRegistration = useAppStore(
     (s) => s.setJustCompletedRegistration
   );
+  const usuario = useAppStore((s) => s.usuario);
+  const onboarding = useAppStore((s) => s.onboarding);
 
   const redirectTo =
     (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
     import.meta.env.VITE_AUTH_REDIRECT_URL;
+
+  const resolveClientSteps = useCallback((state = onboarding) => {
+    const steps = state?.client_steps || {};
+    const profile = steps.profile || {};
+    const address = steps.address || {};
+    const profileCompleted = Boolean(profile.completed);
+    const addressCompleted = Boolean(address.completed);
+    const profileSkipped = Boolean(profile.skipped) && !profileCompleted;
+    const addressSkipped = Boolean(address.skipped) && !addressCompleted;
+    return {
+      profilePending: !profileCompleted && !profileSkipped,
+      addressPending: !addressCompleted && !addressSkipped,
+    };
+  }, [onboarding]);
+
+  const advanceClientFlow = useCallback(async () => {
+    await bootstrapAuth({ force: true });
+    const nextOnboarding = useAppStore.getState().onboarding;
+    const { profilePending, addressPending } = resolveClientSteps(nextOnboarding);
+    if (profilePending) {
+      goToStep(AUTH_STEPS.USER_PROFILE);
+      return;
+    }
+    if (addressPending) {
+      goToStep(AUTH_STEPS.USER_ADDRESS);
+    }
+  }, [bootstrapAuth, goToStep, resolveClientSteps]);
 
   const goToEmailLogin = useCallback(() => {
     setStep(AUTH_STEPS.EMAIL_LOGIN);
@@ -293,7 +322,7 @@ export default function useAuthActions({
 
     if (bootstrap) {
       await bootstrapAuth({ force: true });
-      goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
+      goToStep(AUTH_STEPS.USER_PROFILE);
     }
     return { ok: true };
   }, [bootstrapAuth, email, setEmailError]);
@@ -448,46 +477,36 @@ export default function useAuthActions({
     validateEmailRegister,
   ]);
 
-  const handleOwnerData = useCallback(async () => {
-    const ownerStatus = getOwnerDataStatus({
+  const handleUserProfile = useCallback(async () => {
+    const profileStatus = getUserProfileStatus({
       nombre: nombreDueno,
       apellido: apellidoDueno,
       genero,
       fechaNacimiento,
     });
-    if (!ownerStatus.nombre.trim()) return setEmailError("Ingrese nombres");
-    if (!ownerStatus.apellido.trim()) return setEmailError("Ingrese apellidos");
-    if (!ownerStatus.genero.trim()) return setEmailError("Selecciona un género");
-    if (!ownerStatus.birthStatus.isValid) {
+    if (!profileStatus.nombre.trim()) return setEmailError("Ingrese nombres");
+    if (!profileStatus.apellido.trim()) return setEmailError("Ingrese apellidos");
+    if (!profileStatus.genero.trim()) return setEmailError("Selecciona un g??nero");
+    if (!profileStatus.birthStatus.isValid) {
       return setEmailError("Ingrese una fecha de nacimiento valida");
-    }
-    if (ownerStatus.birthStatus.isUnderage) {
-      return setEmailError("Tienes que ser mayor de edad para ser el administrador");
     }
     setEmailError("");
 
-    const prefillNombre = normalizeOwnerName(ownerPrefill?.nombre || "");
-    const prefillApellido = normalizeOwnerName(ownerPrefill?.apellido || "");
+    const prefillNombre = normalizeUserName(ownerPrefill?.nombre || "");
+    const prefillApellido = normalizeUserName(ownerPrefill?.apellido || "");
     const prefillFecha = ownerPrefill?.fechaNacimiento || "";
     const prefillGenero = ownerPrefill?.genero || "";
     const unchanged =
-      ownerStatus.nombre === prefillNombre &&
-      ownerStatus.apellido === prefillApellido &&
+      profileStatus.nombre === prefillNombre &&
+      profileStatus.apellido === prefillApellido &&
       (fechaNacimiento || "") === prefillFecha &&
-      ownerStatus.genero === prefillGenero;
-
-    if (unchanged) {
-      goToStep(AUTH_STEPS.BUSINESS_DATA);
-      return;
-    }
+      profileStatus.genero === prefillGenero;
 
     const session = (await supabase.auth.getSession()).data.session;
     if (!session?.user) {
       setEmailError("No hay sesion activa");
       return;
     }
-    //Perfil debe existir y ser rol negocio (ya seteado en SplashChoice)
-    //Inserta/actualiza datos del propietario en usuarios
     const { data: existing, error: exErr } = await supabase
       .from("usuarios")
       .select("*")
@@ -497,34 +516,64 @@ export default function useAuthActions({
       setEmailError(exErr.message || "No se pudo leer perfil");
       return;
     }
-    if (!existing) {
+    if (!existing?.role) {
       setEmailError("Primero debes seleccionar tipo de cuenta");
       return;
     }
-    if (existing.role !== "negocio") {
-      setEmailError("Tu cuenta no es de negocio");
+    if (existing.role !== "negocio" && existing.role !== "cliente") {
+      setEmailError("Tu cuenta no es valida");
       return;
     }
+
+    const underageMessage =
+      existing.role === "negocio"
+        ? "Tienes que ser mayor de edad para ser el administrador"
+        : "Debes ser mayor de edad para usar la app.";
+    if (profileStatus.birthStatus.isUnderage) {
+      return setEmailError(underageMessage);
+    }
+
+    const shouldUpdateProfile =
+      !unchanged || Boolean(existing.cliente_profile_skipped);
+
+    if (!shouldUpdateProfile) {
+      if (existing.role === "negocio") {
+        goToStep(AUTH_STEPS.BUSINESS_DATA);
+        return;
+      }
+      await advanceClientFlow();
+      return;
+    }
+
     const birthdateIso = buildBirthdateISO(fechaNacimiento);
+    const updatePayload = {
+      nombre: profileStatus.nombre,
+      apellido: profileStatus.apellido,
+      genero: profileStatus.genero,
+      fecha_nacimiento: birthdateIso,
+    };
+    if (existing.role === "cliente") {
+      updatePayload.cliente_profile_skipped = false;
+    }
     const { error } = await supabase
       .from("usuarios")
-      .update({
-        nombre: ownerStatus.nombre,
-        apellido: ownerStatus.apellido,
-        genero: ownerStatus.genero,
-        fecha_nacimiento: birthdateIso,
-      })
+      .update(updatePayload)
       .eq("id_auth", session.user.id);
 
     if (error) {
-      setEmailError(error.message || "No se pudo guardar datos del propietario");
+      setEmailError(error.message || "No se pudo guardar datos del usuario");
       return;
     }
 
-    await bootstrapAuth({ force: true });
-    goToStep(AUTH_STEPS.BUSINESS_DATA);
+    if (existing.role === "negocio") {
+      await bootstrapAuth({ force: true });
+      goToStep(AUTH_STEPS.BUSINESS_DATA);
+      return;
+    }
+    await advanceClientFlow();
   }, [
     apellidoDueno,
+    advanceClientFlow,
     bootstrapAuth,
     fechaNacimiento,
     genero,
@@ -639,7 +688,7 @@ export default function useAuthActions({
       }
 
       await bootstrapAuth({ force: true });
-      goToStep(AUTH_STEPS.BUSINESS_ADDRESS);
+      goToStep(AUTH_STEPS.USER_ADDRESS);
     } catch (err) {
       setEmailError(err?.message || "Error al registrar negocio");
     }
@@ -716,6 +765,163 @@ export default function useAuthActions({
   }, [bootstrapAuth, redirectTo, setWelcomeError, setWelcomeLoading]);
 
   const startFacebookOneTap = useCallback(() => {}, []);
+
+  const skipUserProfile = useCallback(async () => {
+    setEmailError("");
+    const session = (await supabase.auth.getSession())?.data?.session;
+    if (!session?.user) {
+      setEmailError("No hay sesion activa");
+      return;
+    }
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ cliente_profile_skipped: true })
+      .eq("id_auth", session.user.id);
+    if (error) {
+      setEmailError(error.message || "No se pudo omitir el paso");
+      return;
+    }
+    await advanceClientFlow();
+  }, [advanceClientFlow, setEmailError]);
+
+  const skipUserAddress = useCallback(async () => {
+    setEmailError("");
+    const session = (await supabase.auth.getSession())?.data?.session;
+    if (!session?.user) {
+      setEmailError("No hay sesion activa");
+      return;
+    }
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ cliente_address_skipped: true })
+      .eq("id_auth", session.user.id);
+    if (error) {
+      setEmailError(error.message || "No se pudo omitir el paso");
+      return;
+    }
+    await advanceClientFlow();
+  }, [advanceClientFlow, setEmailError]);
+
+  const handleClientAddress = useCallback(async () => {
+    setEmailError("");
+    const placeId = String(direccionPayload?.place_id || "").trim();
+    const label = toTitleCaseEs(String(direccionPayload?.label || "").trim());
+    const provider = String(direccionPayload?.provider || "").trim();
+    const provinciaId = String(direccionPayload?.provincia_id || "").trim();
+    const cantonId = String(direccionPayload?.canton_id || "").trim();
+    const parroquiaId = String(direccionPayload?.parroquia_id || "").trim();
+    const latValue = direccionPayload?.lat ?? null;
+    const lngValue = direccionPayload?.lng ?? null;
+    if (!placeId || !label) {
+      setEmailError("Selecciona una direcciÃ³n de la lista");
+      return;
+    }
+
+    const calles = toTitleCaseEs(String(direccionPayload?.calles || "").trim());
+    const ciudad = toTitleCaseEs(String(direccionPayload?.ciudad || "").trim());
+    const sector = toTitleCaseEs(String(direccionPayload?.sector || "").trim());
+    const referencia = String(direccionPayload?.referencia || "").trim();
+    const parroquiaText = toTitleCaseEs(
+      String(direccionPayload?.parroquia || "").trim()
+    );
+
+    if (latValue == null || lngValue == null) {
+      setEmailError("Selecciona una direcciÃ³n vÃ¡lida");
+      return;
+    }
+
+    const session = (await supabase.auth.getSession())?.data?.session;
+    const userId = session?.user?.id;
+    if (!userId) {
+      setEmailError("No hay sesiÃ³n activa. Inicia sesiÃ³n y vuelve a intentar.");
+      return;
+    }
+
+    const { data: userRow, error: userErr } = await supabase
+      .from("usuarios")
+      .select("id, role")
+      .eq("id_auth", userId)
+      .maybeSingle();
+
+    if (userErr || !userRow) {
+      setEmailError(userErr?.message || "No se pudo leer el perfil");
+      return;
+    }
+    if (userRow.role !== "cliente") {
+      setEmailError("Tu cuenta no es de cliente");
+      return;
+    }
+
+    const direccionData = {
+      owner_id: userRow.id,
+      calles: calles || null,
+      referencia: referencia || null,
+      ciudad: ciudad || null,
+      sector: sector || null,
+      lat: Number(latValue),
+      lng: Number(lngValue),
+      place_id: placeId,
+      label,
+      provider: provider || null,
+      provincia_id: provinciaId || null,
+      canton_id: cantonId || null,
+      parroquia_id: parroquiaId || null,
+      parroquia: parroquiaId ? null : (parroquiaText || null),
+      is_user_provided: true,
+    };
+
+    const { data: existingDir, error: existingErr } = await supabase
+      .from("direcciones")
+      .select(
+        "id, owner_id, calles, referencia, ciudad, sector, lat, lng, place_id, label, provider, provincia_id, canton_id, parroquia_id, parroquia, is_user_provided"
+      )
+      .eq("owner_id", userRow.id)
+      .eq("is_user_provided", true)
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingErr) {
+      setEmailError(existingErr.message || "No se pudo leer la direccion");
+      return;
+    }
+
+    if (existingDir?.id) {
+      const needsUpdate = !areDireccionesEqual(existingDir, direccionData);
+      if (needsUpdate) {
+        const { error: dirErr } = await supabase
+          .from("direcciones")
+          .update(direccionData)
+          .eq("id", existingDir.id);
+        if (dirErr) {
+          setEmailError(dirErr.message || "No se pudo actualizar la direccion");
+          return;
+        }
+      }
+    } else {
+      const { error: dirErr } = await supabase
+        .from("direcciones")
+        .insert(direccionData)
+        .select("id")
+        .maybeSingle();
+      if (dirErr) {
+        setEmailError(dirErr.message || "No se pudo guardar la direccion");
+        return;
+      }
+    }
+
+    const { error: skipErr } = await supabase
+      .from("usuarios")
+      .update({ cliente_address_skipped: false })
+      .eq("id_auth", userId);
+    if (skipErr) {
+      setEmailError(skipErr.message || "No se pudo actualizar el perfil");
+      return;
+    }
+
+    await advanceClientFlow();
+  }, [advanceClientFlow, direccionPayload, setEmailError]);
 
   const handleBusinessAddress = useCallback(async () => {
     setEmailError("");
@@ -979,35 +1185,51 @@ export default function useAuthActions({
     setJustCompletedRegistration,
   ]);
 
+  const handleUserAddress = useCallback(async () => {
+    const role = usuario?.role || onboarding?.usuario?.role;
+    if (role === "cliente") {
+      await handleClientAddress();
+      return;
+    }
+    await handleBusinessAddress();
+  }, [handleBusinessAddress, handleClientAddress, onboarding?.usuario?.role, usuario?.role]);
+
   const handleButtonBack = useCallback(() => {
+    const role = usuario?.role || onboarding?.usuario?.role;
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {
       goToStep(AUTH_STEPS.BUSINESS_DATA);
       return;
     }
-    if (step === AUTH_STEPS.BUSINESS_ADDRESS) {
+    if (step === AUTH_STEPS.USER_ADDRESS) {
+      if (role === "cliente") {
+        goToStep(AUTH_STEPS.USER_PROFILE);
+        return;
+      }
       goToStep(AUTH_STEPS.BUSINESS_DATA);
       return;
     }
     if (step === AUTH_STEPS.BUSINESS_DATA) {
-      goToStep(AUTH_STEPS.OWNER_DATA);
+      goToStep(AUTH_STEPS.USER_PROFILE);
       return;
     }
-    if (step === AUTH_STEPS.OWNER_DATA) {
+    if (step === AUTH_STEPS.USER_PROFILE) {
       goToEmailRegister();
       return;
     }
     goToEmailRegister();
-  }, [goToEmailRegister, goToStep, step]);
+  }, [goToEmailRegister, goToStep, onboarding?.usuario?.role, step, usuario?.role]);
 
   return {
     goToEmailLogin,
     goToEmailRegister,
     handleEmailLogin,
     handleEmailRegister,
-    handleOwnerData,
+    handleUserProfile,
     handleBusinessData,
-    handleBusinessAddress,
+    handleUserAddress,
     handleRoleSelect,
+    skipUserProfile,
+    skipUserAddress,
     startOAuth,
     startGoogleOAuth,
     startFacebookOAuth,

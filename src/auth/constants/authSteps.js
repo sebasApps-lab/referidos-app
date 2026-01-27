@@ -4,10 +4,10 @@ export const AUTH_STEPS = {
   EMAIL_REGISTER: "email-register",
   OAUTH_CALLBACK: "oauth-callback",
   ROLE_SELECT: "role-select",
-  OWNER_DATA: "owner-data",
+  USER_PROFILE: "user-profile",
   BUSINESS_DATA: "business-data",
   BUSINESS_CATEGORY: "business-category",
-  BUSINESS_ADDRESS: "business-address",
+  USER_ADDRESS: "user-address",
   ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
   ACCOUNT_VERIFY: "account-verify",
   PENDING: "pending",
@@ -15,10 +15,10 @@ export const AUTH_STEPS = {
 };
 
 export const AUTH_FORM_STEPS = {
-  OWNER: "owner-data",
+  USER_PROFILE: "user-profile",
   BUSINESS: "business-data",
   BUSINESS_CATEGORY: "business-category",
-  BUSINESS_ADDRESS: "business-address",
+  USER_ADDRESS: "user-address",
   ACCOUNT_VERIFY: "account-verify",
   ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
 };

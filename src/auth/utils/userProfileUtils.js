@@ -1,15 +1,15 @@
-export const OWNER_NAME_MAX = 26;
+export const USER_NAME_MAX = 26;
 
 const NAME_CLEAN_RE = /[^\p{L} ]+/gu;
 const MULTI_SPACE_RE = /\s+/g;
 const BIRTHDATE_FULL_RE = /^\d{2}\/\d{2}\/\d{4}$/;
 
-export function normalizeOwnerName(value = "") {
+export function normalizeUserName(value = "") {
   const cleaned = value
     .replace(NAME_CLEAN_RE, "")
     .replace(MULTI_SPACE_RE, " ")
     .trimStart();
-  return cleaned.slice(0, OWNER_NAME_MAX);
+  return cleaned.slice(0, USER_NAME_MAX);
 }
 
 export function formatBirthdateInput(value = "") {
@@ -84,9 +84,9 @@ export function buildBirthdateISO(value = "") {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function getOwnerDataStatus({ nombre, apellido, fechaNacimiento, genero }) {
-  const nameValue = normalizeOwnerName(nombre || "");
-  const lastValue = normalizeOwnerName(apellido || "");
+export function getUserProfileStatus({ nombre, apellido, fechaNacimiento, genero }) {
+  const nameValue = normalizeUserName(nombre || "");
+  const lastValue = normalizeUserName(apellido || "");
   const genderValue = String(genero || "").trim();
   const hasNombre = nameValue.trim().length > 0;
   const hasApellido = lastValue.trim().length > 0;
