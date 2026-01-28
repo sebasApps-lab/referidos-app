@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+﻿import React, { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import AuthView from "./AuthView";
@@ -15,6 +15,8 @@ import BusinessCategoryStep from "./steps/BusinessCategoryStep";
 import UserAddressStep from "./steps/UserAddressStep";
 import AccountVerifyStep from "./steps/AccountVerifyStep";
 import AccountVerifyPrompt from "./steps/AccountVerifyPrompt";
+import AddPasswordStep from "./steps/AddPasswordStep";
+import AddTwoFAStep from "./steps/AddTwoFAStep";
 import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
@@ -30,43 +32,73 @@ import {
 
 const BUSINESS_STEP_COPY = {
   [AUTH_STEPS.USER_PROFILE]: {
-    header: "Cuentanos mas sobre ti",
-    subtitle: "Eres quien administrara el negocio en la app.",
+    header: "Cuéntanos más sobre ti",
+    subtitle: "Eres quien administrará el negocio en la app.",
   },
   [AUTH_STEPS.BUSINESS_DATA]: {
     header: "Ahora tu negocio",
-    subtitle: "Asi te veran tus clientes",
+    subtitle: "Así te verán tus clientes",
   },
   [AUTH_STEPS.BUSINESS_CATEGORY]: {
-    header: "Cuentanos a que se dedica tu negocio",
-    headerFallback: "Como definirias tu negocio?",
-    subtitle: "No te preocupes, puedes cambiarlo despues",
-    helperLabel: "Asi podremos mostrar tus promos a las personas correctas.",
+    header: "Cuéntanos a qué se dedica tu negocio",
+    headerFallback: "Cómo definirías tu negocio?",
+    subtitle: "No te preocupes, puedes cambiarlo después",
+    helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
   },
   [AUTH_STEPS.USER_ADDRESS]: {
-    header: "Donde estas ubicado?",
-    subtitle: "Ayudanos a conectar tu negocio con personas cerca de ti.",
+    header: "¿Dónde estás ubicado?",
+    subtitle: "Ayúdanos a conectar tu negocio con personas cerca de ti.",
   },
   [AUTH_STEPS.ACCOUNT_VERIFY]: {
     header: "Desbloquea tus beneficios",
     subtitle:
-      "Esto es opcional, pero te ayudara a sacarle mas provecho a la app.",
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
   },
   [AUTH_STEPS.ACCOUNT_VERIFY_PROMPT]: {
     header: "Desbloquea tus beneficios",
     subtitle:
-      "Esto es opcional, pero te ayudara a sacarle mas provecho a la app.",
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
+  },
+  [AUTH_STEPS.ADD_PASSWORD]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
+  },
+  [AUTH_STEPS.ADD_2FA]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
   },
 };
 
 const CLIENT_STEP_COPY = {
   [AUTH_STEPS.USER_PROFILE]: {
-    header: "Completa tu perfil",
-    subtitle: "Es opcional, pero ayuda a personalizar tu experiencia.",
+    header: "Cuéntanos más sobre ti",
+    subtitle: "Empieza por personalizar tu experiencia en la app.",
   },
   [AUTH_STEPS.USER_ADDRESS]: {
-    header: "Donde estas?",
-    subtitle: "Opcional para mostrarte promos cerca de ti.",
+    header: "Descubre promociones cerca de ti",
+    subtitle: "Encuentra lo que más te conviene según tu ubicación.",
+  },
+  [AUTH_STEPS.ACCOUNT_VERIFY]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
+  },
+  [AUTH_STEPS.ACCOUNT_VERIFY_PROMPT]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
+  },
+  [AUTH_STEPS.ADD_PASSWORD]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
+  },
+  [AUTH_STEPS.ADD_2FA]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
   },
 };
 
@@ -75,9 +107,11 @@ export default function AuthFlow() {
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout);
+  const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
   const currentRole = usuario?.role || onboarding?.usuario?.role;
   const isBusiness = currentRole === "negocio";
   const isClient = currentRole === "cliente";
+  const minAge = isClient ? 16 : 18;
   const initialStep = useMemo(
     () =>
       location.pathname === "/auth"
@@ -245,6 +279,17 @@ export default function AuthFlow() {
 
   const verificationStatus =
     onboarding?.verification_status || onboarding?.usuario?.verification_status;
+  const authProfile = onboarding?.usuario || {};
+  const hasPassword = Boolean(authProfile?.has_password);
+  const hasMfa = Boolean(
+    authProfile?.mfa_totp_enabled ||
+      authProfile?.mfa_method ||
+      authProfile?.mfa_primary_method ||
+      authProfile?.mfa_enrolled_at
+  );
+  const emailConfirmed = Boolean(onboarding?.email_confirmed);
+  const provider = onboarding?.provider || "email";
+  const providers = onboarding?.providers || [];
   const clientSteps = onboarding?.client_steps || {};
   const clientProfile = clientSteps.profile || {};
   const clientAddress = clientSteps.address || {};
@@ -268,9 +313,13 @@ export default function AuthFlow() {
       return;
     }
     if (verificationStatus === "in_progress") {
-      const target = AUTH_STEPS.ACCOUNT_VERIFY;
-      if (flow.step !== target) {
-        flow.setStep(target);
+      const allowed = [
+        AUTH_STEPS.ACCOUNT_VERIFY,
+        AUTH_STEPS.ADD_PASSWORD,
+        AUTH_STEPS.ADD_2FA,
+      ];
+      if (!allowed.includes(flow.step)) {
+        flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY);
       }
       return;
     }
@@ -296,8 +345,15 @@ export default function AuthFlow() {
         apellido: flow.apellidoDueno,
         genero: flow.genero,
         fechaNacimiento: flow.fechaNacimiento,
+        minAge,
       }),
-    [flow.apellidoDueno, flow.fechaNacimiento, flow.genero, flow.nombreDueno]
+    [
+      flow.apellidoDueno,
+      flow.fechaNacimiento,
+      flow.genero,
+      flow.nombreDueno,
+      minAge,
+    ]
   );
   const isWelcome = flow.step === AUTH_STEPS.WELCOME;
   const isFormStep = [
@@ -307,6 +363,8 @@ export default function AuthFlow() {
     AUTH_STEPS.USER_ADDRESS,
     AUTH_STEPS.ACCOUNT_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
+    AUTH_STEPS.ADD_PASSWORD,
+    AUTH_STEPS.ADD_2FA,
   ].includes(flow.step);
   const containerClassName = isWelcome
     ? "justify-center pb-28"
@@ -522,9 +580,10 @@ export default function AuthFlow() {
           subtitle={userProfileSubtitle}
           underageMessage={
             isBusiness
-              ? "Tienes que ser mayor de edad para ser el administrador"
-              : "Debes ser mayor de edad para usar la app."
+              ? "Tienes que ser mayor de edad para ser el administrador de un negocio"
+              : "Debes tener al menos 16 años para usar la app."
           }
+          minAge={minAge}
           onChangeNombre={flow.setNombreDueno}
           onChangeApellido={flow.setApellidoDueno}
           onChangeGenero={flow.setGenero}
@@ -595,6 +654,7 @@ export default function AuthFlow() {
                 <AccountVerifyPrompt
                   innerRef={flow.regPage2Ref}
                   onVerify={() => flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY)}
+                  mode={isBusiness ? "negocio" : "cliente"}
                 />
               )}
 
@@ -603,9 +663,36 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   phone={onboarding?.phone || usuario?.telefono || ""}
                   ruc={onboarding?.ruc || ""}
-                  emailConfirmed={Boolean(onboarding?.email_confirmed)}
-                  provider={onboarding?.provider || "email"}
-                  providers={onboarding?.providers || []}
+                  emailConfirmed={emailConfirmed}
+                  provider={provider}
+                  providers={providers}
+                  hasPassword={hasPassword}
+                  hasMfa={hasMfa}
+                  mode={isBusiness ? "negocio" : "cliente"}
+                  onGoAddPassword={() => flow.goToStep(AUTH_STEPS.ADD_PASSWORD)}
+                  onGoAdd2FA={() => flow.goToStep(AUTH_STEPS.ADD_2FA)}
+                />
+              )}
+
+              {flow.step === AUTH_STEPS.ADD_PASSWORD && (
+                <AddPasswordStep
+                  innerRef={flow.regPage2Ref}
+                  emailConfirmed={emailConfirmed}
+                  provider={provider}
+                  providers={providers}
+                  hasPassword={hasPassword}
+                  hasMfa={hasMfa}
+                />
+              )}
+
+              {flow.step === AUTH_STEPS.ADD_2FA && (
+                <AddTwoFAStep
+                  innerRef={flow.regPage2Ref}
+                  onCancel={() => flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY)}
+                  onComplete={async () => {
+                    await bootstrapAuth({ force: true });
+                    flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY);
+                  }}
                 />
               )}
             </div>
@@ -644,4 +731,5 @@ export default function AuthFlow() {
     </AuthView>
   );
 }
+
 

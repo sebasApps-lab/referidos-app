@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import { validarCedula } from "../../utils/validators";
 import ContactPhoneBlock from "../blocks/ContactPhoneBlock";
 import EmailVerificationBlock from "../blocks/EmailVerificationBlock";
 import PasswordSetupBlock from "../blocks/PasswordSetupBlock";
+import { Lock, ShieldCheck } from "lucide-react";
 
 export default function AccountVerifyStep({
   innerRef,
@@ -13,16 +14,28 @@ export default function AccountVerifyStep({
   emailConfirmed,
   provider,
   providers,
+  hasPassword = false,
+  hasMfa = false,
+  onGoAddPassword,
+  onGoAdd2FA,
+  mode = "negocio",
 }) {
+  const isBusiness = mode === "negocio";
   const [currentScreen, setCurrentScreen] = useState(() => {
-    if (phone && ruc && emailConfirmed === false) return "email";
+    if (isBusiness) {
+      if (phone && ruc && emailConfirmed === false) return "email";
+      return "contact";
+    }
+    if (phone && emailConfirmed === false) return "email";
     return "contact";
   });
   const [savingRuc, setSavingRuc] = useState(false);
   const [phoneConfirmed, setPhoneConfirmed] = useState(Boolean(phone));
   const [rucValue, setRucValue] = useState(String(ruc || ""));
-  const [rucConfirmed, setRucConfirmed] = useState(Boolean(ruc));
-  const [editingRuc, setEditingRuc] = useState(!ruc);
+  const [rucConfirmed, setRucConfirmed] = useState(
+    () => (isBusiness ? Boolean(ruc) : true)
+  );
+  const [editingRuc, setEditingRuc] = useState(() => (isBusiness ? !ruc : false));
   const [rucError, setRucError] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [passwordSave, setPasswordSave] = useState(null);
@@ -37,26 +50,34 @@ export default function AccountVerifyStep({
         : [];
   const isOauthPrimary =
     provider && provider !== "email" && provider !== "password";
-  const hasEmailProvider =
-    providerList.includes("email") || providerList.includes("password");
+  const hasPasswordValue =
+    Boolean(hasPassword) ||
+    providerList.includes("email") ||
+    providerList.includes("password");
   const passwordProvider = isOauthPrimary ? "oauth" : provider;
+  const showOauthChoice =
+    !isBusiness && isOauthPrimary && Boolean(emailConfirmed);
 
-  const normalizedRuc = rucValue.replace(/\D/g, "").slice(0, 13);
+  const normalizedRuc = isBusiness
+    ? rucValue.replace(/\D/g, "").slice(0, 13)
+    : "";
   const rucCore = normalizedRuc.slice(0, 10);
   const rucSuffix = normalizedRuc.slice(10);
   const rucValid =
+    isBusiness &&
     normalizedRuc.length === 13 &&
     rucSuffix === "001" &&
     validarCedula(rucCore);
 
-  const canContinue = phoneConfirmed && rucConfirmed;
+  const canContinue = phoneConfirmed && (isBusiness ? rucConfirmed : true);
 
   useEffect(() => {
+    if (!isBusiness) return;
     if (!ruc || rucValue) return;
     setRucValue(String(ruc));
     setRucConfirmed(true);
     setEditingRuc(false);
-  }, [ruc, rucValue]);
+  }, [isBusiness, ruc, rucValue]);
 
   useEffect(() => {
     let active = true;
@@ -81,7 +102,7 @@ export default function AccountVerifyStep({
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
-      setFinalizeError("No se pudo obtener sesion.");
+      setFinalizeError("No se pudo obtener sesión.");
       return;
     }
     if (!isOauthPrimary) {
@@ -91,12 +112,16 @@ export default function AccountVerifyStep({
         return;
       }
       if (!data?.user?.email_confirmed_at) {
-        setFinalizeError("Tu correo aun no ha sido confirmado.");
+        setFinalizeError("Tu correo aún no ha sido confirmado.");
         return;
       }
-    } else if (!hasEmailProvider && !passwordSave?.saved) {
-      setFinalizeError("Agrega una contrasena para continuar.");
-      return;
+    } else {
+      const canVerifyWithOauth =
+        hasPasswordValue || hasMfa || Boolean(passwordSave?.saved);
+      if (!canVerifyWithOauth) {
+        setFinalizeError("Agrega una contraseña para continuar.");
+        return;
+      }
     }
     const { error: updErr } = await supabase
       .from("usuarios")
@@ -114,7 +139,7 @@ export default function AccountVerifyStep({
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
-      setSkipError("No se pudo obtener sesion.");
+      setSkipError("No se pudo obtener sesión.");
       return;
     }
     const { error: updErr } = await supabase
@@ -133,7 +158,7 @@ export default function AccountVerifyStep({
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
-      return { ok: false, error: "No se pudo obtener sesion." };
+      return { ok: false, error: "No se pudo obtener sesión." };
     }
     const { error: updErr } = await supabase
       .from("usuarios")
@@ -142,10 +167,10 @@ export default function AccountVerifyStep({
     if (updErr) {
       return {
         ok: false,
-        error: updErr.message || "No se pudo guardar el telefono.",
+        error: updErr.message || "No se pudo guardar el teléfono.",
       };
     }
-    return { ok: true, message: "Telefono guardado." };
+    return { ok: true, message: "Teléfono guardado." };
   };
 
   const handleSaveRuc = async () => {
@@ -156,7 +181,7 @@ export default function AccountVerifyStep({
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId) {
-        setRucError("No se pudo obtener sesion.");
+        setRucError("No se pudo obtener sesión.");
         return;
       }
       const { data: usuarioRow, error: usuarioErr } = await supabase
@@ -194,11 +219,106 @@ export default function AccountVerifyStep({
     }
   };
 
+  if (showOauthChoice) {
+    const highlightPassword = hasPasswordValue;
+    const highlightMfa = hasMfa;
+    const canVerify = highlightPassword || highlightMfa;
+    return (
+      <div className="flex h-full flex-col pb-4" ref={innerRef}>
+        <div className="flex-1 flex flex-col">
+          <div className="text-lg font-semibold text-gray-900 text-center">
+            Elige un metodo
+          </div>
+          <p className="mt-2 text-sm text-gray-600 text-center">
+            Puedes usar cualquiera de esos métodos para asegurar tu cuenta.
+          </p>
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="space-y-3">
+            <button
+              type="button"
+              onClick={onGoAddPassword}
+              className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition ${
+                highlightPassword
+                  ? "border-[#5E30A5] bg-[#F7F3FF] text-[#2F1A55]"
+                  : "border-gray-200 text-gray-700"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    highlightPassword
+                      ? "bg-[#E6DBFA] text-[#5E30A5]"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  <Lock size={16} />
+                </span>
+                <div className="font-semibold">Usar contraseña</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={onGoAdd2FA}
+              className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition ${
+                highlightMfa
+                  ? "border-[#5E30A5] bg-[#F7F3FF] text-[#2F1A55]"
+                  : "border-gray-200 text-gray-700"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    highlightMfa
+                      ? "bg-[#E6DBFA] text-[#5E30A5]"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  <ShieldCheck size={16} />
+                </span>
+                <div className="font-semibold">Verificación de 2 pasos</div>
+              </div>
+            </button>
+            </div>
+          </div>
+          {finalizeError && (
+            <div className="text-center text-xs text-red-500 mt-3">
+              {finalizeError}
+            </div>
+          )}
+          {skipError && (
+            <div className="text-center text-xs text-red-500 mt-2">
+              {skipError}
+            </div>
+          )}
+        </div>
+        <div className="mt-4 space-y-3">
+          {canVerify && (
+            <button
+              type="button"
+              onClick={handleFinalize}
+              className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold"
+            >
+              Verificar cuenta
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSkipVerification}
+            className="w-full text-sm font-semibold text-gray-500"
+          >
+            Verificar más tarde
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (currentScreen === "email") {
-    const showPasswordSetup = isOauthPrimary && !hasEmailProvider;
-    const showPasswordSaved = isOauthPrimary && hasEmailProvider;
+    const showPasswordSetup = isOauthPrimary && !hasPasswordValue;
+    const showPasswordSaved = isOauthPrimary && hasPasswordValue;
     const showEmailBlock = !isOauthPrimary;
-    const passwordSaved = showPasswordSetup ? Boolean(passwordSave?.saved) : true;
+    const canFinalize =
+      !isOauthPrimary || hasPasswordValue || hasMfa || passwordSave?.saved;
     return (
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
         <div className="flex-1 space-y-4">
@@ -214,7 +334,7 @@ export default function AccountVerifyStep({
           ) : null}
           {showPasswordSaved ? (
             <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-emerald-600">
-              <span>Contrasena guardada</span>
+              <span>Contraseña guardada</span>
               <svg
                 viewBox="0 0 24 24"
                 className="h-4 w-4"
@@ -247,7 +367,7 @@ export default function AccountVerifyStep({
           <button
             type="button"
             onClick={handleFinalize}
-            disabled={!passwordSaved}
+            disabled={!canFinalize}
             className="w-full rounded-lg bg-[#5E30A5] py-2.5 text-white font-semibold disabled:opacity-50"
           >
             Finalizar
@@ -257,7 +377,7 @@ export default function AccountVerifyStep({
             onClick={handleSkipVerification}
             className="w-full text-sm font-semibold text-gray-500"
           >
-            Verificar mas tarde
+            Verificar más tarde
           </button>
         </div>
       </div>
@@ -272,74 +392,76 @@ export default function AccountVerifyStep({
             Paso 1 de 2
           </div>
           <p className="text-sm text-gray-600">
-            Con la siguiente informacion aseguras tu cuenta y tus beneficios.
+            Con la siguiente información aseguras tu cuenta y tus beneficios.
           </p>
         </div>
-        <div className="space-y-2 text-sm text-gray-700">
-          <div className="text-sm font-semibold text-gray-900">
-            Informacion de tu negocio
-          </div>
-          <label className="block text-xs text-gray-500 ml-1">RUC</label>
-          {!editingRuc && rucConfirmed ? (
-            <div className="flex items-center gap-2 text-sm text-gray-700 pl-1">
-              <span>{normalizedRuc}</span>
-              <button
-                type="button"
-                onClick={() => setEditingRuc(true)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Editar RUC"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
-                </svg>
-              </button>
+        {isBusiness ? (
+          <div className="space-y-2 text-sm text-gray-700">
+            <div className="text-sm font-semibold text-gray-900">
+              Información de tu negocio
             </div>
-          ) : (
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={normalizedRuc}
-                onChange={(event) => {
-                  const next = event.target.value.replace(/\D/g, "").slice(0, 13);
-                  setRucValue(next);
-                  setRucConfirmed(false);
-                  setRucError("");
-                }}
-                placeholder="Ej: 1791283465001"
-                className={`w-full rounded-lg border px-3 py-2 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30 ${
-                  rucError
-                    ? "border-red-300 text-red-500"
-                    : "border-gray-200 text-gray-700"
-                }`}
-              />
-              {normalizedRuc.length === 13 && (
+            <label className="block text-xs text-gray-500 ml-1">RUC</label>
+            {!editingRuc && rucConfirmed ? (
+              <div className="flex items-center gap-2 text-sm text-gray-700 pl-1">
+                <span>{normalizedRuc}</span>
                 <button
                   type="button"
-                  onClick={handleSaveRuc}
-                  disabled={!rucValid || savingRuc}
-                  className={`absolute right-0 top-0 h-full px-3 text-xs font-semibold border-l ${
-                    rucError
-                      ? "text-red-500 border-red-300"
-                      : "text-[#5E30A5] border-gray-200"
-                  } disabled:text-gray-300`}
+                  onClick={() => setEditingRuc(true)}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Editar RUC"
                 >
-                  OK
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+                  </svg>
                 </button>
-              )}
-            </div>
-          )}
-          {rucError && <p className="text-xs text-red-500">{rucError}</p>}
-        </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={normalizedRuc}
+                  onChange={(event) => {
+                    const next = event.target.value.replace(/\D/g, "").slice(0, 13);
+                    setRucValue(next);
+                    setRucConfirmed(false);
+                    setRucError("");
+                  }}
+                  placeholder="Ej: 1791283465001"
+                  className={`w-full rounded-lg border px-3 py-2 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E30A5]/30 ${
+                    rucError
+                      ? "border-red-300 text-red-500"
+                      : "border-gray-200 text-gray-700"
+                  }`}
+                />
+                {normalizedRuc.length === 13 && (
+                  <button
+                    type="button"
+                    onClick={handleSaveRuc}
+                    disabled={!rucValid || savingRuc}
+                    className={`absolute right-0 top-0 h-full px-3 text-xs font-semibold border-l ${
+                      rucError
+                        ? "text-red-500 border-red-300"
+                        : "text-[#5E30A5] border-gray-200"
+                    } disabled:text-gray-300`}
+                  >
+                    OK
+                  </button>
+                )}
+              </div>
+            )}
+            {rucError && <p className="text-xs text-red-500">{rucError}</p>}
+          </div>
+        ) : null}
 
         <ContactPhoneBlock
           phone={phone}
@@ -365,7 +487,7 @@ export default function AccountVerifyStep({
           onClick={handleSkipVerification}
           className="w-full text-sm font-semibold text-gray-500"
         >
-          Verificar mas tarde
+          Verificar más tarde
         </button>
         {skipError && (
           <div className="mt-2 text-center text-xs text-red-500">
@@ -376,3 +498,4 @@ export default function AccountVerifyStep({
     </div>
   );
 }
+

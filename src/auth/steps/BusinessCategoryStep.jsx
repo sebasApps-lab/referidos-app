@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+﻿import React, { useEffect, useMemo, useState } from "react";
 
 export default function BusinessCategoryStep({
   subtitle,
@@ -144,12 +143,6 @@ export default function BusinessCategoryStep({
             Continuar
           </button>
         </div>
-
-        <div className="text-center mt-3">
-          <Link to="/" onClick={onGoWelcome} className="text-sm text-gray-700">
-            YA TENGO UNA CUENTA.
-          </Link>
-        </div>
       </div>
     </section>
   );
@@ -240,3 +233,4 @@ function CategoryGrid({
     </div>
   );
 }
+

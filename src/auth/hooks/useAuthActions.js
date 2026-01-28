@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+﻿import { useCallback } from "react";
 import {
   CODE_RE,
   EMAIL_RE,
@@ -191,8 +191,8 @@ export default function useAuthActions({
     setEmailError("");
 
     if (!email) return setEmailError("Ingrese su email");
-    if (!validateEmail(email)) return setEmailError("Formato de email inválido");
-    if (!password) return setEmailError("Ingrese su contraseña");
+    if (!validateEmail(email)) return setEmailError("Formato de email invÃ¡lido");
+    if (!password) return setEmailError("Ingrese su contraseÃ±a");
 
     setLoginLoading(true);
     const result = await login(email, password);
@@ -201,7 +201,7 @@ export default function useAuthActions({
     if (!result.ok) {
       const msg = (result.error || "").toLowerCase();
 
-      //UX especÇðfica: cuenta creada con Oauth
+      //UX especÃ‡Ã°fica: cuenta creada con Oauth
       if (
         msg.includes("invalid") ||
         msg.includes("credentials") ||
@@ -214,7 +214,7 @@ export default function useAuthActions({
           .maybeSingle();
 
         if (oauthUser) {
-          setEmailError("Esta Cuenta fue creada con Google. Inicia sesión con Google para continuar");
+          setEmailError("Esta Cuenta fue creada con Google. Inicia sesiÃ³n con Google para continuar");
           return;
         }
       }
@@ -478,17 +478,19 @@ export default function useAuthActions({
   ]);
 
   const handleUserProfile = useCallback(async () => {
+    const role = usuario?.role || onboarding?.usuario?.role;
     const profileStatus = getUserProfileStatus({
       nombre: nombreDueno,
       apellido: apellidoDueno,
       genero,
       fechaNacimiento,
+      minAge: role === "cliente" ? 16 : 18,
     });
     if (!profileStatus.nombre.trim()) return setEmailError("Ingrese nombres");
     if (!profileStatus.apellido.trim()) return setEmailError("Ingrese apellidos");
-    if (!profileStatus.genero.trim()) return setEmailError("Selecciona un g??nero");
+    if (!profileStatus.genero.trim()) return setEmailError("Selecciona un género");
     if (!profileStatus.birthStatus.isValid) {
-      return setEmailError("Ingrese una fecha de nacimiento valida");
+      return setEmailError("Ingrese una fecha de nacimiento válida");
     }
     setEmailError("");
 
@@ -527,8 +529,8 @@ export default function useAuthActions({
 
     const underageMessage =
       existing.role === "negocio"
-        ? "Tienes que ser mayor de edad para ser el administrador"
-        : "Debes ser mayor de edad para usar la app.";
+        ? "Tienes que ser mayor de edad para ser el administrador de un negocio"
+        : "Debes tener al menos 16 años para usar la app.";
     if (profileStatus.birthStatus.isUnderage) {
       return setEmailError(underageMessage);
     }
@@ -579,8 +581,10 @@ export default function useAuthActions({
     genero,
     goToStep,
     nombreDueno,
+    onboarding?.usuario?.role,
     ownerPrefill,
     setEmailError,
+    usuario?.role,
   ]);
 
   const handleBusinessData = useCallback(async () => {
@@ -613,7 +617,7 @@ export default function useAuthActions({
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId || !session?.access_token) {
-        setEmailError("No hay sesion activa. Inicia sesión y vuelve a intentar.");
+        setEmailError("No hay sesion activa. Inicia sesiÃ³n y vuelve a intentar.");
         return;
       }
 
@@ -714,7 +718,7 @@ export default function useAuthActions({
       await signInWithOAuth(provider, { redirectTo });
     } catch (err) {
       localStorage.removeItem(OAUTH_INTENT_KEY);
-      setEmailError(err?.message || "No se pudo iniciar sesiÇün");
+      setEmailError(err?.message || "No se pudo iniciar sesiÃ‡Ã¼n");
       setOauthLoading(false);
       setOauthProvider(null);
     }
@@ -817,7 +821,7 @@ export default function useAuthActions({
     const latValue = direccionPayload?.lat ?? null;
     const lngValue = direccionPayload?.lng ?? null;
     if (!placeId || !label) {
-      setEmailError("Selecciona una direcciÃ³n de la lista");
+      setEmailError("Selecciona una direcciÃƒÂ³n de la lista");
       return;
     }
 
@@ -830,14 +834,14 @@ export default function useAuthActions({
     );
 
     if (latValue == null || lngValue == null) {
-      setEmailError("Selecciona una direcciÃ³n vÃ¡lida");
+      setEmailError("Selecciona una direcciÃƒÂ³n vÃƒÂ¡lida");
       return;
     }
 
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
-      setEmailError("No hay sesiÃ³n activa. Inicia sesiÃ³n y vuelve a intentar.");
+      setEmailError("No hay sesiÃƒÂ³n activa. Inicia sesiÃƒÂ³n y vuelve a intentar.");
       return;
     }
 
@@ -938,7 +942,7 @@ export default function useAuthActions({
     const latValue = direccionPayload?.lat ?? null;
     const lngValue = direccionPayload?.lng ?? null;
     if (!placeId || !label) {
-      setEmailError("Selecciona una dirección de la lista");
+      setEmailError("Selecciona una direcciÃ³n de la lista");
       return;
     }
 
@@ -951,14 +955,14 @@ export default function useAuthActions({
     );
 
     if (latValue == null || lngValue == null) {
-      setEmailError("Selecciona una dirección válida");
+      setEmailError("Selecciona una direcciÃ³n vÃ¡lida");
       return;
     }
 
     const session = (await supabase.auth.getSession())?.data?.session;
     const userId = session?.user?.id;
     if (!userId) {
-      setEmailError("No hay sesión activa. Inicia sesión y vuelve a intentar.");
+      setEmailError("No hay sesiÃ³n activa. Inicia sesiÃ³n y vuelve a intentar.");
       return;
     }
 
@@ -1175,7 +1179,7 @@ export default function useAuthActions({
 
     const result = await runValidateRegistration();
     if (!result?.ok || !result?.valid) {
-      setEmailError(result?.message || result?.error || "Aún falta completar datos");
+      setEmailError(result?.message || result?.error || "AÃºn falta completar datos");
     } else {
       setJustCompletedRegistration?.(true);
     }
@@ -1200,6 +1204,10 @@ export default function useAuthActions({
 
   const handleButtonBack = useCallback(() => {
     const role = usuario?.role || onboarding?.usuario?.role;
+    if (step === AUTH_STEPS.ADD_PASSWORD || step === AUTH_STEPS.ADD_2FA) {
+      goToStep(AUTH_STEPS.ACCOUNT_VERIFY);
+      return;
+    }
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {
       goToStep(AUTH_STEPS.BUSINESS_DATA);
       return;
@@ -1246,4 +1254,5 @@ export default function useAuthActions({
     validateNegocioCode,
   };
 }
+
 

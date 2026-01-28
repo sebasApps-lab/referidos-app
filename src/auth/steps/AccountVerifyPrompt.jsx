@@ -1,11 +1,29 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 
-export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
+export default function AccountVerifyPrompt({
+  innerRef,
+  onSkip,
+  onVerify,
+  mode = "negocio",
+}) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const bootstrapAuth = useAppStore((s) => s.bootstrapAuth);
+  const isBusiness = mode === "negocio";
+
+  const benefits = isBusiness
+    ? [
+        "Publicar hasta 2 promociones adicionales",
+        "Tener mayor visibilidad frente a los usuarios",
+        "Mostrar tu perfil como cuenta verificada",
+      ]
+    : [
+        "Canjeo ilimitado de promociones disponibles",
+        "Acumulación de puntos para mejorar beneficios",
+        "Soporte proritario",
+      ];
 
   const updateStatus = async (nextStatus) => {
     if (saving) return;
@@ -15,7 +33,7 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
       const session = (await supabase.auth.getSession())?.data?.session;
       const userId = session?.user?.id;
       if (!userId) {
-        setError("No se pudo obtener sesion.");
+        setError("No se pudo obtener sesión.");
         return;
       }
       const { error: updErr } = await supabase
@@ -47,7 +65,7 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
             Lleva tu cuenta al siguiente nivel
           </div>
           <p className="text-sm text-gray-600">
-            Es opcional, pero te permitira aprovechar mucho mas la app.
+            Es opcional, pero te permitirá aprovechar mucho más la app.
           </p>
 
           <div className="-mx-2 mt-6 relative rounded-[28px] border border-[#E9E2F7] bg-white px-6 pb-8 pt-9">
@@ -57,9 +75,24 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
               </span>
             </div>
             <ul className="space-y-8 text-[13px] text-gray-600">
-              <li>Publicar hasta 2 promociones adicionales</li>
-              <li>Tener mayor visibilidad frente a los usuarios</li>
-              <li>Mostrar tu perfil como cuenta verificada</li>
+              {benefits.map((benefit, index) => {
+                if (!isBusiness && index === 1) {
+                  return (
+                    <li key={benefit}>
+                      Acumulación de puntos para mejorar beneficios (
+                      <button
+                        type="button"
+                        onClick={(event) => event.preventDefault()}
+                        className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold"
+                      >
+                        Ligas
+                      </button>
+                      )
+                    </li>
+                  );
+                }
+                return <li key={benefit}>{benefit}</li>;
+              })}
             </ul>
           </div>
 
@@ -74,7 +107,7 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
 
         <div className="mt-auto space-y-3 pt-4">
           <div className="text-xs text-gray-500 text-center mb-3">
-            Puedes hacerlo mas tarde.
+            Puedes hacerlo más tarde.
             Las cuentas verificadas obtienen mayor visibilidad.
           </div>
           <button
@@ -91,7 +124,7 @@ export default function AccountVerifyPrompt({ innerRef, onSkip, onVerify }) {
             className="w-full text-sm font-semibold text-gray-500 mt-1"
             disabled={saving}
           >
-            Mas tarde
+            Más tarde
           </button>
         </div>
       </div>

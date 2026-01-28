@@ -40,6 +40,13 @@ const WEEK_DAYS = [
 ];
 const WEEKDAY_KEYS = ["lunes", "martes", "miercoles", "jueves", "viernes"];
 const WEEKEND_KEYS = ["sabado", "domingo"];
+const CLIENT_ADDRESS_TAGS = ["Casa", "Oficina", "Trabajo"];
+const CLIENT_ADDRESS_OTHER = "Otro";
+const CLIENT_ADDRESS_CUSTOM_KEY = "custom";
+const CLIENT_ADDRESS_TAG_KEY = "client_address_label";
+const CLIENT_ADDRESS_TAG_DRAFT_KEY = "client_address_label_draft";
+const CLIENT_ADDRESS_MIN_LENGTH = 3;
+const CLIENT_ADDRESS_MAX_DIGITS = 2;
 
 
 
@@ -106,11 +113,17 @@ export default function UserAddressStep({
   const [searchResults, setSearchResults] = useState([]);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasMapZoomed, setHasMapZoomed] = useState(false);
+  const [addressTag, setAddressTag] = useState("");
+  const [activeTag, setActiveTag] = useState("");
+  const [customTagInput, setCustomTagInput] = useState("");
+  const [isCustomEditing, setIsCustomEditing] = useState(false);
   const initialMoveSkippedRef = useRef(false);
   const initialZoomSkippedRef = useRef(false);
   const programmaticMoveRef = useRef(false);
   const programmaticZoomRef = useRef(false);
   const zoomSequenceRef = useRef(null);
+  const addressTagInitRef = useRef(false);
+  const customInputRef = useRef(null);
   const { openModal } = useModal();
   const weekdaysRef = useRef(null);
   const weekendRef = useRef(null);
@@ -205,6 +218,67 @@ export default function UserAddressStep({
   );
 
   useEffect(() => {
+    if (isBusiness) return;
+    if (addressTagInitRef.current) return;
+    const storedLabel =
+      typeof window !== "undefined"
+        ? localStorage.getItem(CLIENT_ADDRESS_TAG_KEY) || ""
+        : "";
+    const storedDraft =
+      typeof window !== "undefined"
+        ? localStorage.getItem(CLIENT_ADDRESS_TAG_DRAFT_KEY) || ""
+        : "";
+    const payloadReference = String(direccionPayload?.referencia || "").trim();
+    const initialLabel = (storedLabel || payloadReference || "").trim();
+    if (initialLabel) {
+      if (CLIENT_ADDRESS_TAGS.includes(initialLabel)) {
+        setActiveTag(initialLabel);
+        setAddressTag(initialLabel);
+        setCustomTagInput("");
+        setIsCustomEditing(false);
+      } else {
+        setActiveTag(CLIENT_ADDRESS_CUSTOM_KEY);
+        setAddressTag(initialLabel);
+        setCustomTagInput(storedDraft || initialLabel);
+        setIsCustomEditing(false);
+      }
+    } else {
+      setActiveTag("");
+      setAddressTag("");
+      setCustomTagInput(storedDraft || "");
+      setIsCustomEditing(false);
+    }
+    addressTagInitRef.current = true;
+  }, [direccionPayload?.referencia, isBusiness]);
+
+  useEffect(() => {
+    if (isBusiness) return;
+    if (typeof window === "undefined") return;
+    localStorage.setItem(CLIENT_ADDRESS_TAG_KEY, addressTag);
+  }, [addressTag, isBusiness]);
+
+  useEffect(() => {
+    if (isBusiness) return;
+    if (typeof window === "undefined") return;
+    localStorage.setItem(CLIENT_ADDRESS_TAG_DRAFT_KEY, customTagInput);
+  }, [customTagInput, isBusiness]);
+
+  useEffect(() => {
+    if (!isCustomEditing) return;
+    const timer = setTimeout(() => {
+      customInputRef.current?.focus?.();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isCustomEditing]);
+
+  useEffect(() => {
+    if (isBusiness) return;
+    const currentRef = String(direccionPayload?.referencia || "");
+    if (addressTag === currentRef) return;
+    updateDireccionPayload({ referencia: addressTag });
+  }, [addressTag, direccionPayload?.referencia, isBusiness, updateDireccionPayload]);
+
+  useEffect(() => {
     return () => {
       if (zoomSequenceRef.current) {
         clearTimeout(zoomSequenceRef.current);
@@ -222,6 +296,7 @@ export default function UserAddressStep({
     programmaticMoveRef,
     programmaticZoomRef,
     closeZoom: CLOSE_ZOOM,
+    locationTitle: isBusiness ? "Ubicación del negocio" : "Ubicación",
   });
 
   const isPrefillReady = Boolean(isAddressPrefillReady);
@@ -522,6 +597,17 @@ export default function UserAddressStep({
     direccionPayload?.parroquia || parroquiaNombre || ""
   );
   const referenciaValue = String(direccionPayload?.referencia || "");
+  const customTagDigits = countDigits(customTagInput);
+  const customTagTrimmed = customTagInput.trim();
+  const customTagValid =
+    customTagTrimmed.length >= CLIENT_ADDRESS_MIN_LENGTH &&
+    customTagDigits <= CLIENT_ADDRESS_MAX_DIGITS;
+  const customBadgeLabel =
+    addressTag && !CLIENT_ADDRESS_TAGS.includes(addressTag)
+      ? addressTag
+      : CLIENT_ADDRESS_OTHER;
+  const badgeBase =
+    "px-3 py-1.5 text-xs rounded-full border transition-colors";
   const currentHorarios =
     horarios && typeof horarios === "object" ? horarios : DEFAULT_HORARIOS;
   const hasAnyHorario = shouldRequireHorarios
@@ -529,6 +615,37 @@ export default function UserAddressStep({
       (day) => (currentHorarios?.semanal?.[day.key] || []).length > 0
     )
     : true;
+  const handleSelectTag = useCallback(
+    (tag) => {
+      setActiveTag(tag);
+      setAddressTag(tag);
+      setIsCustomEditing(false);
+    },
+    []
+  );
+  const handleStartCustom = useCallback(() => {
+    setActiveTag(CLIENT_ADDRESS_CUSTOM_KEY);
+    setIsCustomEditing(true);
+    if (!customTagInput && addressTag && !CLIENT_ADDRESS_TAGS.includes(addressTag)) {
+      setCustomTagInput(addressTag);
+    }
+  }, [addressTag, customTagInput]);
+  const handleCustomChange = useCallback((event) => {
+    const next = event.target.value;
+    if (countDigits(next) > CLIENT_ADDRESS_MAX_DIGITS) return;
+    setCustomTagInput(next);
+    setActiveTag(CLIENT_ADDRESS_CUSTOM_KEY);
+    setAddressTag(next.trim());
+  }, []);
+  const handleCustomConfirm = useCallback(() => {
+    const trimmed = customTagInput.trim();
+    if (trimmed.length < CLIENT_ADDRESS_MIN_LENGTH) return;
+    if (countDigits(trimmed) > CLIENT_ADDRESS_MAX_DIGITS) return;
+    setAddressTag(trimmed);
+    setCustomTagInput(trimmed);
+    setActiveTag(CLIENT_ADDRESS_CUSTOM_KEY);
+    setIsCustomEditing(false);
+  }, [customTagInput]);
 
   const updateHorarios = useCallback(
     (nextValue) => {
@@ -700,15 +817,26 @@ export default function UserAddressStep({
     },
     [openModal, updateDayTime]
   );
-  const payloadCiudad = toTitleCaseEs(
-    direccionPayload?.ciudad || payloadCanton || payloadParroquia || ""
+  const rawCiudad = String(direccionPayload?.ciudad || "");
+  const summaryCiudad = toTitleCaseEs(
+    (isBusiness
+      ? rawCiudad || payloadCanton || payloadParroquia
+      : rawCiudad || payloadParroquia || payloadCanton) || ""
   );
-  const summaryCiudad = toTitleCaseEs(direccionPayload?.ciudad || "");
   const summaryCalle = direccionPayload?.calles
     ? `${toTitleCaseEs(direccionPayload.calles)}${
         direccionPayload?.house_number ? ` ${direccionPayload.house_number}` : ""
       }`.trim()
     : "";
+  const hasProvincia = Boolean(payloadProvincia);
+  const hasCiudad = Boolean(summaryCiudad);
+  const hasCalle = Boolean(summaryCalle);
+  const shouldShowCanton = isBusiness
+    ? !hasCiudad && payloadCanton
+    : (!hasProvincia || !hasCiudad) && payloadCanton;
+  const shouldShowSector = isBusiness
+    ? Boolean(direccionPayload?.sector)
+    : (!hasCalle || !hasCiudad) && direccionPayload?.sector;
 
   const isManualFallback = mapStatus === "error";
   const hasTerritorySelection = Boolean(
@@ -972,7 +1100,7 @@ export default function UserAddressStep({
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         {!isPrefillReady || stage === "pending" ? (
           <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
-            Cargando direccion...
+            Cargando dirección...
           </div>
         ) : stage === "map" ? (
           <AddressStepSearch
@@ -987,7 +1115,7 @@ export default function UserAddressStep({
               <>
                 <p className="text-sm text-gray-600 text-center">
                   {subtitle ||
-                    "Ay?anos a conectar tu negocio con personas cerca de ti."}
+                    "Ayúdanos a conectar tu negocio con personas cerca de ti."}
                 </p>
                 <div className="mt-3 -mx-3">{searchInput}</div>
               </>
@@ -1019,7 +1147,7 @@ export default function UserAddressStep({
               <>
               <p className="text-sm text-gray-600 mt-3 mb-4 text-center">
                 {subtitle ||
-                  "Ay?anos a conectar tu negocio con personas cerca de ti."}
+                  "Ayúdanos a conectar tu negocio con personas cerca de ti."}
               </p>
 
               {(localError || reverseError || error) && (
@@ -1036,7 +1164,7 @@ export default function UserAddressStep({
                       <div className="absolute left-0 right-0 top-1 z-[1001]">
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3 text-xs text-emerald-600 shadow-sm">
                           <PinOutlineIcon className="h-6 w-6 text-emerald-500" />
-                          Asegurate de senalar el punto correcto y pulsa confirmar.
+                          Asegúrate de señalar el punto correcto y pulsa confirmar.
                           <button
                             type="button"
                             onClick={() => setShowZoomHint(false)}
@@ -1099,7 +1227,7 @@ export default function UserAddressStep({
                       type="button"
                       onClick={requestLocation}
                       className="absolute bottom-3 right-3 h-9 w-9 rounded-full bg-white/95 shadow-lg flex items-center justify-center text-gray-700 z-[1000]"
-                      aria-label="Reintentar ubicaci?"
+                      aria-label="Reintentar ubicación"
                     >
                       <CompassIcon className="h-6 w-6" />
                     </button>
@@ -1126,8 +1254,8 @@ export default function UserAddressStep({
                     />
 
                     <SearchableSelect
-                      label="Cant?"
-                      placeholder="Selecciona cant?"
+                      label="Cantón"
+                      placeholder="Selecciona Cantón"
                       value={cantonId}
                       options={cantonOptions}
                       disabled={!canSelectCanton}
@@ -1188,31 +1316,31 @@ export default function UserAddressStep({
 
             <div className="flex-1 -mt-1">
               <div className="-mx-3 rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-4 text-sm text-gray-700 space-y-2 shadow-[inset_0_0_0_1px_rgba(74,222,128,0.08),0_0_0_1px_rgba(74,222,128,0.2),0_0_12px_rgba(74,222,128,0.25)]">
-                {payloadProvincia && (
+                {hasProvincia && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 shrink-0">Provincia:</span>
                     <span className="truncate">{payloadProvincia}</span>
                   </div>
                 )}
-                {summaryCiudad && (
+                {hasCiudad && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 shrink-0">Ciudad:</span>
                     <span className="truncate">{summaryCiudad}</span>
                   </div>
                 )}
-                {!summaryCiudad && payloadCanton && (
+                {shouldShowCanton && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 shrink-0">Canton:</span>
                     <span className="truncate">{payloadCanton}</span>
                   </div>
                 )}
-                {payloadParroquia && (
+                {isBusiness && payloadParroquia && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 shrink-0">Ciudad:</span>
                     <span className="truncate">{payloadParroquia}</span>
                   </div>
                 )}
-                {direccionPayload?.sector && (
+                {shouldShowSector && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 shrink-0">Sector:</span>
                     <span className="truncate">{direccionPayload.sector}</span>
@@ -1226,25 +1354,92 @@ export default function UserAddressStep({
                 )}
                 {direccionPayload?.postcode && (
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-gray-500 shrink-0">Codigo postal:</span>
+                    <span className="text-gray-500 shrink-0">Código postal:</span>
                     <span className="truncate">{direccionPayload.postcode}</span>
                   </div>
                 )}
-                <div className="space-y-1 pt-1">
-                  <label className="block text-gray-500">
-                    Referencia (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={200}
-                    value={referenciaValue}
-                    onChange={(event) =>
-                      updateDireccionPayload({ referencia: event.target.value })
-                    }
-                    placeholder="Ej: Edificio azul, junto a la panaderia"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
-                  />
-                </div>
+                {isBusiness ? (
+                  <div className="space-y-1 pt-1">
+                    <label className="block text-gray-500">
+                      Referencia (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={200}
+                      value={referenciaValue}
+                      onChange={(event) =>
+                        updateDireccionPayload({ referencia: event.target.value })
+                      }
+                      placeholder="Ej: Edificio azul, junto a la panadería"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    <label className="block text-gray-500">
+                      Nombre de la dirección
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {CLIENT_ADDRESS_TAGS.map((tag) => {
+                        const isSelected = activeTag === tag;
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => handleSelectTag(tag)}
+                            className={`${badgeBase} ${
+                              isSelected
+                                ? "border-[#5E30A5] text-[#5E30A5] bg-[#F5F0FF]"
+                                : "border-gray-300 text-gray-600"
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                      <div className="basis-full flex">
+                        {isCustomEditing ? (
+                          <div
+                            className={`${badgeBase} flex items-center gap-2 border-[#5E30A5] bg-[#F5F0FF] px-3 py-2 min-h-[38px] min-w-[180px]`}
+                          >
+                            <input
+                              ref={customInputRef}
+                              type="text"
+                              value={customTagInput}
+                              onChange={handleCustomChange}
+                              placeholder="Otro"
+                              className="bg-transparent text-[#5E30A5] placeholder:text-[#9C7BD5] text-xs focus:outline-none px-1"
+                            />
+                            {customTagValid && (
+                              <button
+                                type="button"
+                                onClick={handleCustomConfirm}
+                                className="text-[11px] font-semibold text-[#5E30A5]"
+                              >
+                                OK
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleStartCustom}
+                            className={`${badgeBase} ${
+                              activeTag === CLIENT_ADDRESS_CUSTOM_KEY
+                                ? "border-[#5E30A5] text-[#5E30A5] bg-[#F5F0FF]"
+                                : "border-gray-300 text-gray-600"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {customBadgeLabel}
+                              <PencilIcon className="h-3 w-3" />
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {isBusiness && (
@@ -1722,6 +1917,11 @@ function formatProvince(value) {
   return toTitleCaseEs(text);
 }
 
+function countDigits(value) {
+  const match = String(value || "").match(/\d/g);
+  return match ? match.length : 0;
+}
+
 
 function haversineDistance(a, b) {
   const toRad = (value) => (Number(value) * Math.PI) / 180;
@@ -1945,6 +2145,23 @@ function XIcon({ className = "" }) {
   );
 }
 
+function PencilIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+    </svg>
+  );
+}
+
 function PinOutlineIcon({ className = "" }) {
   return (
     <svg
@@ -1999,6 +2216,7 @@ function CompassIcon({ className = "" }) {
     </svg>
   );
 }
+
 
 
 

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import { useMemo } from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import {
   formatBirthdateInput,
@@ -15,6 +15,7 @@ export default function UserProfileStep({
   fechaNacimiento,
   subtitle,
   underageMessage,
+  minAge = 18,
   onChangeNombre,
   onChangeApellido,
   onChangeGenero,
@@ -26,8 +27,8 @@ export default function UserProfileStep({
   primaryDisabled,
 }) {
   const birthStatus = useMemo(
-    () => getBirthdateStatus(fechaNacimiento),
-    [fechaNacimiento]
+    () => getBirthdateStatus(fechaNacimiento, minAge),
+    [fechaNacimiento, minAge]
   );
   const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
   const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";
@@ -48,7 +49,7 @@ export default function UserProfileStep({
     >
       <div className="pb-4 flex h-full flex-col" ref={innerRef}>
         <p className="text-sm text-gray-600 mt-3 mb-6 text-center">
-          {subtitle || "Eres quien administrara el negocio en la app."}
+          {subtitle || "Eres quien administrará el negocio en la app."}
         </p>
 
         {error && <ErrorBanner message={error} className="mb-2" />}
@@ -79,7 +80,7 @@ export default function UserProfileStep({
           </div>
 
           <div className="space-y-1">
-            <label className={labelClassName}>¿Cuando naciste?</label>
+            <label className={labelClassName}>¿Cuándo naciste?</label>
             <input
               className={fieldClassName}
               value={fechaNacimiento}
@@ -93,7 +94,8 @@ export default function UserProfileStep({
 
             {birthStatus.isValid && birthStatus.isUnderage ? (
               <div className="text-xs text-red-500">
-                {underageMessage || "Tienes que ser mayor de edad para ser el administrador."}
+                {underageMessage ||
+                  "Tienes que ser mayor de edad para ser el administrador de un negocio."}
               </div>
             ) : null}
           </div>
@@ -148,3 +150,4 @@ export default function UserProfileStep({
     </section>
   );
 }
+

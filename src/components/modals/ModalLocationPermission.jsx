@@ -1,7 +1,10 @@
 import React from "react";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalLocationPermission({ onConfirm }) {
+export default function ModalLocationPermission({
+  onConfirm,
+  title = "Ubicación del negocio",
+}) {
   const { closeModal } = useModal();
 
   return (
@@ -9,11 +12,9 @@ export default function ModalLocationPermission({ onConfirm }) {
       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
         <LocationPinIcon className="h-6 w-6" />
       </div>
-      <div className="text-base font-semibold text-[#2F1A55]">
-        Ubicacion del negocio
-      </div>
+      <div className="text-base font-semibold text-[#2F1A55]">{title}</div>
       <p className="mt-2 text-sm text-slate-500">
-        Podemos usar tu ubicacion para centrar el mapa cerca de ti. Tambien
+        Podemos usar tu ubicación para centrar el mapa cerca de ti. También
         puedes mover el mapa manualmente.
       </p>
       <div className="mt-6 flex items-center justify-center gap-2">
@@ -32,7 +33,7 @@ export default function ModalLocationPermission({ onConfirm }) {
           }}
           className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#4B2488]"
         >
-          Usar ubicacion
+          Usar ubicación
         </button>
       </div>
     </div>

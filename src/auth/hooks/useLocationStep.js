@@ -13,6 +13,7 @@ export default function useLocationStep({
   programmaticMoveRef,
   programmaticZoomRef,
   closeZoom,
+  locationTitle,
 }) {
   const { openModal, closeModal, activeModal } = useModal();
   const [permissionState, setPermissionState] = useState("prompt");
@@ -146,6 +147,7 @@ export default function useLocationStep({
             didPromptLocationRef.current = true;
             openModal("LocationPermission", {
               onConfirm: () => requestLocation(),
+              title: locationTitle,
             });
           }
         };

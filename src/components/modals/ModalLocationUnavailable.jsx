@@ -10,10 +10,10 @@ export default function ModalLocationUnavailable({ onRetry }) {
         <GpsOffIcon className="h-6 w-6" />
       </div>
       <div className="text-base font-semibold text-[#2F1A55]">
-        No pudimos obtener tu ubicacion
+        No pudimos obtener tu ubicación
       </div>
       <p className="mt-2 text-sm text-slate-500">
-        Intenta mover el mapa manualmente o buscar la direccion del negocio.
+        Intenta mover el mapa manualmente o buscar tu dirección en el buscador.
       </p>
       <div className="mt-6 flex items-center justify-center">
         <button
