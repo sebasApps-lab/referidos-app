@@ -1214,6 +1214,10 @@ export default function useAuthActions({
       goToStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);
       return;
     }
+    if (step === AUTH_STEPS.BUSINESS_VERIFY) {
+      goToStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);
+      return;
+    }
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {
       goToStep(AUTH_STEPS.BUSINESS_DATA);
       return;

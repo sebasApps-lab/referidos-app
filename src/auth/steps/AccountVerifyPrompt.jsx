@@ -83,7 +83,7 @@ export default function AccountVerifyPrompt({
                       <button
                         type="button"
                         onClick={(event) => event.preventDefault()}
-                        className="inline-flex items-center gap-1 text-[#5E30A5] font-semibold"
+                        className="text-[#5E30A5] font-semibold"
                       >
                         Ligas
                       </button>

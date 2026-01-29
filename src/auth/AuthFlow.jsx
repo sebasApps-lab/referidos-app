@@ -13,13 +13,13 @@ import UserProfileStep from "./steps/UserProfileStep";
 import BusinessDataStep from "./steps/BusinessDataStep";
 import BusinessCategoryStep from "./steps/BusinessCategoryStep";
 import UserAddressStep from "./steps/UserAddressStep";
-import AccountVerifyStep from "./steps/AccountVerifyStep";
 import AccountVerifyPrompt from "./steps/AccountVerifyPrompt";
 import AddPasswordStep from "./steps/AddPasswordStep";
 import AddTwoFAStep from "./steps/AddTwoFAStep";
 import VerifyEmailStep from "./steps/VerifyEmailStep";
 import AccountVerifyMethodStep from "./steps/AccountVerifyMethodStep";
 import AccountVerifyReadyStep from "./steps/AccountVerifyReadyStep";
+import BusinessVerifyStep from "./steps/BusinessVerifyStep";
 import RoleSelectStep from "./steps/RoleSelectStep";
 import useAuthFlow from "./hooks/useAuthFlow";
 import useAuthActions from "./hooks/useAuthActions";
@@ -47,6 +47,11 @@ const BUSINESS_STEP_COPY = {
     headerFallback: "Cómo definirías tu negocio?",
     subtitle: "No te preocupes, puedes cambiarlo después",
     helperLabel: "Así podremos mostrar tus promos a las personas correctas.",
+  },
+  [AUTH_STEPS.BUSINESS_VERIFY]: {
+    header: "Desbloquea tus beneficios",
+    subtitle:
+      "Esto es opcional, pero te ayudará a sacarle más provecho a la app.",
   },
   [AUTH_STEPS.USER_ADDRESS]: {
     header: "¿Dónde estás ubicado?",
@@ -340,32 +345,26 @@ export default function AuthFlow() {
     ((!clientProfileCompleted && !clientProfileSkipped) ||
       (!clientAddressCompleted && !clientAddressSkipped));
   const verificationSteps = [
-    AUTH_STEPS.ACCOUNT_VERIFY,
+    AUTH_STEPS.BUSINESS_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
     AUTH_STEPS.VERIFY_EMAIL,
     AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
     AUTH_STEPS.ADD_PASSWORD,
     AUTH_STEPS.ADD_MFA,
   ];
-  const isVerificationStep = verificationSteps.includes(flow.step);
   useEffect(() => {
     if (!onboarding?.allowAccess) return;
     if (clientStepsPending) return;
-    if (!legalAccepted && !isVerificationStep) {
-      if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_READY) {
-        flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
-      }
-      return;
-    }
-    if (verificationStatus === "unverified") {
+    const status = verificationStatus || "unverified";
+    if (status === "unverified") {
       if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_PROMPT) {
         flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);
       }
       return;
     }
-    if (verificationStatus === "in_progress") {
+    if (status === "in_progress") {
       const target = isBusiness
-        ? AUTH_STEPS.ACCOUNT_VERIFY
+        ? AUTH_STEPS.BUSINESS_VERIFY
         : emailConfirmed
           ? AUTH_STEPS.ACCOUNT_VERIFY_METHOD
           : AUTH_STEPS.VERIFY_EMAIL;
@@ -374,15 +373,22 @@ export default function AuthFlow() {
       }
       return;
     }
+    if (status === "verified" || status === "skipped") {
+      if (!legalAccepted) {
+        if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_READY) {
+          flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
+        }
+      }
+      return;
+    }
   }, [
     flow,
     onboarding?.allowAccess,
     clientStepsPending,
-    legalAccepted,
-    isVerificationStep,
     verificationStatus,
     emailConfirmed,
     isBusiness,
+    legalAccepted,
   ]);
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
   const hasMinLength = flow.password.length >= 8;
@@ -417,6 +423,7 @@ export default function AuthFlow() {
     AUTH_STEPS.BUSINESS_DATA,
     AUTH_STEPS.BUSINESS_CATEGORY,
     AUTH_STEPS.USER_ADDRESS,
+    AUTH_STEPS.BUSINESS_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
     AUTH_STEPS.VERIFY_EMAIL,
@@ -732,7 +739,7 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   onVerify={() => {
                     if (isBusiness) {
-                      flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY);
+                      flow.goToStep(AUTH_STEPS.BUSINESS_VERIFY);
                       return;
                     }
                     flow.goToStep(
@@ -746,25 +753,23 @@ export default function AuthFlow() {
                 />
               )}
 
-              {flow.step === AUTH_STEPS.ACCOUNT_VERIFY && isBusiness && (
-                <AccountVerifyStep
+              {flow.step === AUTH_STEPS.BUSINESS_VERIFY && isBusiness && (
+                <BusinessVerifyStep
                   innerRef={flow.regPage2Ref}
                   phone={onboarding?.phone || usuario?.telefono || ""}
                   ruc={onboarding?.ruc || ""}
-                  emailConfirmed={emailConfirmed}
-                  provider={provider}
-                  providers={providers}
-                  hasPassword={hasPassword}
-                  hasMfa={hasMfa}
-                  mode={isBusiness ? "negocio" : "cliente"}
-                  onGoAddPassword={() => flow.goToStep(AUTH_STEPS.ADD_PASSWORD)}
-                  onGoAdd2FA={() => flow.goToStep(AUTH_STEPS.ADD_MFA)}
+                  onContinue={() =>
+                    flow.goToStep(
+                      emailConfirmed
+                        ? AUTH_STEPS.ACCOUNT_VERIFY_METHOD
+                        : AUTH_STEPS.VERIFY_EMAIL
+                    )
+                  }
                   onSkip={handleVerificationExit}
-                  onVerified={handleVerificationExit}
                 />
               )}
 
-              {flow.step === AUTH_STEPS.VERIFY_EMAIL && isClient && (
+              {flow.step === AUTH_STEPS.VERIFY_EMAIL && (
                 <VerifyEmailStep
                   innerRef={flow.regPage2Ref}
                   emailConfirmed={emailConfirmed}
@@ -773,7 +778,7 @@ export default function AuthFlow() {
                 />
               )}
 
-              {flow.step === AUTH_STEPS.ACCOUNT_VERIFY_METHOD && isClient && (
+              {flow.step === AUTH_STEPS.ACCOUNT_VERIFY_METHOD && (
                 <AccountVerifyMethodStep
                   innerRef={flow.regPage2Ref}
                   hasPassword={hasPassword}
@@ -785,7 +790,7 @@ export default function AuthFlow() {
                 />
               )}
 
-              {flow.step === AUTH_STEPS.ADD_PASSWORD && isClient && (
+              {flow.step === AUTH_STEPS.ADD_PASSWORD && (
                 <AddPasswordStep
                   innerRef={flow.regPage2Ref}
                   provider={provider}
@@ -796,7 +801,7 @@ export default function AuthFlow() {
                 />
               )}
 
-              {flow.step === AUTH_STEPS.ADD_MFA && isClient && (
+              {flow.step === AUTH_STEPS.ADD_MFA && (
                 <AddTwoFAStep
                   innerRef={flow.regPage2Ref}
                   onCancel={() => flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY_METHOD)}
@@ -807,7 +812,16 @@ export default function AuthFlow() {
               {flow.step === AUTH_STEPS.ACCOUNT_VERIFY_READY && (
                 <AccountVerifyReadyStep
                   innerRef={flow.regPage2Ref}
-                  isVerified={emailConfirmed && (hasPassword || hasMfa)}
+                  isVerified={
+                    isBusiness
+                      ? Boolean(
+                          emailConfirmed &&
+                            (hasPassword || hasMfa) &&
+                            (onboarding?.phone || usuario?.telefono) &&
+                            onboarding?.ruc
+                        )
+                      : Boolean(emailConfirmed && (hasPassword || hasMfa))
+                  }
                   termsAccepted={termsAccepted}
                   privacyAccepted={privacyAccepted}
                   onBackToVerify={() =>

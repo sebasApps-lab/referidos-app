@@ -127,17 +127,17 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
   }, []);
 
   const helperText = useMemo(() => {
-    if (loading) return "Generando tu codigo...";
-    if (enrollError) return "No se pudo iniciar la configuracion.";
+    if (loading) return "Generando tu código...";
+    if (enrollError) return "No se pudo iniciar la configuración.";
     if (mode === "existing") {
-      return "Ya tienes 2FA activo. Ingresa el codigo de tu app.";
+      return "Ya tienes 2FA activo. Ingresa el código de tu app.";
     }
-    return "Escanea el QR con tu app autenticadora y escribe el codigo.";
+    return "Escanea el QR con tu app autenticadora y escribe el código.";
   }, [enrollError, loading, mode]);
 
   const handleVerify = async () => {
     if (!factorId) {
-      setVerifyError("No se pudo iniciar la verificacion.");
+      setVerifyError("No se pudo iniciar la verificación.");
       return;
     }
     setVerifyError("");
@@ -147,7 +147,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
       code: code.trim(),
     });
     if (!result.ok) {
-      setVerifyError(result.error || "Codigo invalido");
+      setVerifyError(result.error || "Código inválido");
       setSubmitting(false);
       return;
     }
@@ -171,7 +171,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
       return (
         <img
           src={qrCode}
-          alt="Codigo QR para app autenticadora"
+          alt="Código QR para app autenticadora"
           className="mx-auto h-40 w-40"
           loading="lazy"
         />
@@ -231,7 +231,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
 
         <div className="mt-4 space-y-2">
           <label className="block text-xs text-gray-500 ml-1">
-            Codigo de 6 digitos
+            Código de 6 dígitos
           </label>
           <input
             type="text"
@@ -262,7 +262,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
           disabled={!canSubmit}
           className="flex-1 rounded-lg bg-[#5E30A5] py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "Verificando..." : "Continuar"}
+          {submitting ? "Verificando..." : "Confirmar"}
         </button>
       </div>
     </div>
