@@ -14,7 +14,7 @@ const FRIENDLY_NAME = "App autenticadora";
 const isActiveStatus = (status) =>
   ["verified", "active"].includes(String(status || "").toLowerCase());
 
-export default function AddTwoFAStep({ innerRef, onCancel, onComplete }) {
+export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
   const [loading, setLoading] = useState(true);
   const [enrollError, setEnrollError] = useState("");
   const [mode, setMode] = useState("enroll");
@@ -153,7 +153,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onComplete }) {
     }
     await syncTotpFlags({ enabled: true });
     setSubmitting(false);
-    onComplete?.();
+    onContinue?.();
   };
 
   const renderQr = () => {
@@ -262,7 +262,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onComplete }) {
           disabled={!canSubmit}
           className="flex-1 rounded-lg bg-[#5E30A5] py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "Verificando..." : "Confirmar"}
+          {submitting ? "Verificando..." : "Continuar"}
         </button>
       </div>
     </div>

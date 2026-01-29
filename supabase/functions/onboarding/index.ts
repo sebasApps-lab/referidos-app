@@ -85,6 +85,8 @@ type UsuarioProfile = {
     account_status: AccountStatus | null;
     cliente_profile_skipped?: boolean | null;
     cliente_address_skipped?: boolean | null;
+    terms_accepted?: boolean | null;
+    privacy_accepted?: boolean | null;
 };
 
 type NegocioProfile = {

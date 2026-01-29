@@ -10,8 +10,11 @@ export const AUTH_STEPS = {
   USER_ADDRESS: "user-address",
   ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
   ACCOUNT_VERIFY: "account-verify",
+  VERIFY_EMAIL: "verify-email",
+  ACCOUNT_VERIFY_METHOD: "account-verify-method",
+  ACCOUNT_VERIFY_READY: "account-verify-ready",
   ADD_PASSWORD: "add-password",
-  ADD_2FA: "add-2fa",
+  ADD_MFA: "add-mfa",
   PENDING: "pending",
   ERROR: "error",
 };
@@ -23,6 +26,9 @@ export const AUTH_FORM_STEPS = {
   USER_ADDRESS: "user-address",
   ACCOUNT_VERIFY: "account-verify",
   ACCOUNT_VERIFY_PROMPT: "account-verify-prompt",
+  VERIFY_EMAIL: "verify-email",
+  ACCOUNT_VERIFY_METHOD: "account-verify-method",
+  ACCOUNT_VERIFY_READY: "account-verify-ready",
   ADD_PASSWORD: "add-password",
-  ADD_2FA: "add-2fa",
+  ADD_MFA: "add-mfa",
 };

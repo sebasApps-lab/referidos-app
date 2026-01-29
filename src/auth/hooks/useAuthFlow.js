@@ -108,8 +108,11 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
         AUTH_STEPS.USER_ADDRESS,
         AUTH_STEPS.ACCOUNT_VERIFY,
         AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
+        AUTH_STEPS.VERIFY_EMAIL,
+        AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
+        AUTH_STEPS.ACCOUNT_VERIFY_READY,
         AUTH_STEPS.ADD_PASSWORD,
-        AUTH_STEPS.ADD_2FA,
+        AUTH_STEPS.ADD_MFA,
       ].includes(targetStep)
         ? regPage2Ref.current
         : regPage1Ref.current,

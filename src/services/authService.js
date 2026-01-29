@@ -47,11 +47,12 @@ export async function signInWithOAuth(provider, opts = {}) {
 }
 
 export async function signInWithGoogleIdToken({ token, nonce }) {
-  const { data, error } = await supabase.auth.signInWithIdToken({
+  const payload = {
     provider: "google",
     token,
-    nonce,
-  });
+  };
+  if (nonce) payload.nonce = nonce;
+  const { data, error } = await supabase.auth.signInWithIdToken(payload);
   if (error) throw error;
   return data;
 }

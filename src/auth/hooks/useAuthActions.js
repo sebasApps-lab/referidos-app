@@ -733,7 +733,6 @@ export default function useAuthActions({
   const startGoogleOneTap = useCallback(async () => {
     setWelcomeError("");
     setWelcomeLoading(true);
-    const fallbackEnabled = true;
     const fallbackToOAuth = async () => {
       try {
         await signInWithOAuth("google", { redirectTo });
@@ -743,7 +742,7 @@ export default function useAuthActions({
     };
 
     if (!GOOGLE_ONE_TAP_CLIENT_ID) {
-      await fallbackToOAuth();
+      setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
       setWelcomeLoading(false);
       return;
     }
@@ -754,19 +753,18 @@ export default function useAuthActions({
       });
 
       if (!result || result.type !== "credential") {
-        await fallbackToOAuth();
+        setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
         return;
       }
 
       localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
       await signInWithGoogleIdToken({
         token: result.credential,
-        nonce: result.nonce,
       });
 
       await bootstrapAuth({ force: true });
     } catch (err) {
-      await fallbackToOAuth();
+      setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
     } finally {
       setWelcomeLoading(false);
     }
@@ -1204,8 +1202,16 @@ export default function useAuthActions({
 
   const handleButtonBack = useCallback(() => {
     const role = usuario?.role || onboarding?.usuario?.role;
-    if (step === AUTH_STEPS.ADD_PASSWORD || step === AUTH_STEPS.ADD_2FA) {
-      goToStep(AUTH_STEPS.ACCOUNT_VERIFY);
+    if (step === AUTH_STEPS.ADD_PASSWORD || step === AUTH_STEPS.ADD_MFA) {
+      goToStep(AUTH_STEPS.ACCOUNT_VERIFY_METHOD);
+      return;
+    }
+    if (
+      step === AUTH_STEPS.VERIFY_EMAIL ||
+      step === AUTH_STEPS.ACCOUNT_VERIFY_METHOD ||
+      step === AUTH_STEPS.ACCOUNT_VERIFY_READY
+    ) {
+      goToStep(AUTH_STEPS.ACCOUNT_VERIFY_PROMPT);
       return;
     }
     if (step === AUTH_STEPS.BUSINESS_CATEGORY) {

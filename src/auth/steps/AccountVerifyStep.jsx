@@ -18,6 +18,8 @@ export default function AccountVerifyStep({
   hasMfa = false,
   onGoAddPassword,
   onGoAdd2FA,
+  onSkip,
+  onVerified,
   mode = "negocio",
 }) {
   const isBusiness = mode === "negocio";
@@ -132,6 +134,7 @@ export default function AccountVerifyStep({
       return;
     }
     await bootstrapAuth({ force: true });
+    onVerified?.();
   };
 
   const handleSkipVerification = async () => {
@@ -151,6 +154,10 @@ export default function AccountVerifyStep({
       return;
     }
     await bootstrapAuth({ force: true });
+    if (onSkip) {
+      onSkip();
+      return;
+    }
     window.location.href = "/app";
   };
 
@@ -227,7 +234,7 @@ export default function AccountVerifyStep({
       <div className="flex h-full flex-col pb-4" ref={innerRef}>
         <div className="flex-1 flex flex-col">
           <div className="text-lg font-semibold text-gray-900 text-center">
-            Elige un metodo
+            Elige un método
           </div>
           <p className="mt-2 text-sm text-gray-600 text-center">
             Puedes usar cualquiera de esos métodos para asegurar tu cuenta.
