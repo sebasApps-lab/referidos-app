@@ -7,4 +7,7 @@ ALTER TABLE public.usuarios
   ADD COLUMN IF NOT EXISTS terms_accepted boolean default false,
   ADD COLUMN IF NOT EXISTS privacy_accepted boolean default false;
 
+ALTER TABLE public.negocios
+  ADD COLUMN IF NOT EXISTS escaneo_cara boolean default false;
+
 COMMIT;

@@ -57,7 +57,13 @@ export function pwaGuard(usuario, pathname, bootstrap, onboarding) {
     onboarding?.verification_status || onboarding?.usuario?.verification_status;
   const verificationPending =
     verificationStatus === "unverified" || verificationStatus === "in_progress";
-  const shouldHoldAuth = verificationPending || clientStepsPending;
+  const termsAccepted = Boolean(onboarding?.usuario?.terms_accepted);
+  const privacyAccepted = Boolean(onboarding?.usuario?.privacy_accepted);
+  const legalAccepted = termsAccepted && privacyAccepted;
+  const legalPending =
+    (usuario?.role === "cliente" || usuario?.role === "negocio") &&
+    !legalAccepted;
+  const shouldHoldAuth = verificationPending || clientStepsPending || legalPending;
 
   if (shouldHoldAuth) {
     if (pathname === "/auth") return null;

@@ -28,6 +28,7 @@ export default function useAuthPrefill({
   setCalle2,
   setDireccionPayload,
   setIsAddressPrefillReady,
+  skipStepChange = false,
 }) {
   const choiceOpenedRef = useRef(false);
   const direccionRequestRef = useRef(0);
@@ -223,9 +224,13 @@ export default function useAuthPrefill({
       const prefillGenero = u.genero || "";
 
       if (clientSteps.profilePending) {
-        setStep(AUTH_STEPS.USER_PROFILE);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.USER_PROFILE);
+        }
       } else if (clientSteps.addressPending) {
-        setStep(AUTH_STEPS.USER_ADDRESS);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.USER_ADDRESS);
+        }
       } else {
         setIsAddressPrefillReady?.(true);
         return;
@@ -337,13 +342,21 @@ export default function useAuthPrefill({
       const prefillCategoria = prefill.categoriaNegocio || "";
 
       if (missingOwner) {
-        setStep(AUTH_STEPS.USER_PROFILE);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.USER_PROFILE);
+        }
       } else if (missingBusinessRow || missingBusinessFields) {
-        setStep(AUTH_STEPS.BUSINESS_DATA);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.BUSINESS_DATA);
+        }
       } else if (missingAddress) {
-        setStep(AUTH_STEPS.USER_ADDRESS);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.USER_ADDRESS);
+        }
       } else {
-        setStep(AUTH_STEPS.BUSINESS_DATA);
+        if (!skipStepChange) {
+          setStep(AUTH_STEPS.BUSINESS_DATA);
+        }
       }
 
       setNombreDueno(prefillNombre);

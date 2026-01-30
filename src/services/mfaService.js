@@ -13,10 +13,48 @@ export const getMfaAssuranceLevel = async () => {
 
 export const listMfaFactors = async () => {
   const { data, error } = await supabase.auth.mfa.listFactors();
-  if (error) {
+  const isValidPayload =
+    Array.isArray(data) || Array.isArray(data?.totp) || Array.isArray(data?.all);
+  if (!error && isValidPayload) {
+    return { ok: true, data };
+  }
+
+  const session = (await supabase.auth.getSession())?.data?.session;
+  const accessToken = session?.access_token;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!accessToken || !supabaseUrl || !anonKey) {
     return { ok: false, error: toErrorMessage(error, "No se pudieron obtener factores") };
   }
-  return { ok: true, data };
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/factors`, {
+      method: "GET",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      return {
+        ok: false,
+        error:
+          body?.message ||
+          toErrorMessage(error, "No se pudieron obtener factores"),
+      };
+    }
+    const payload = await response.json();
+    const payloadOk =
+      Array.isArray(payload) ||
+      Array.isArray(payload?.totp) ||
+      Array.isArray(payload?.all);
+    if (!payloadOk) {
+      return { ok: false, error: "No se pudieron obtener factores" };
+    }
+    return { ok: true, data: payload };
+  } catch (err) {
+    return { ok: false, error: toErrorMessage(err, "No se pudieron obtener factores") };
+  }
 };
 
 export const enrollTotp = async ({

@@ -158,6 +158,15 @@ export default function AuthFlow() {
     [location.pathname]
   );
   const flow = useAuthFlow({ initialStep });
+  const isVerificationFlowStep = [
+    AUTH_STEPS.BUSINESS_VERIFY,
+    AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
+    AUTH_STEPS.VERIFY_EMAIL,
+    AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
+    AUTH_STEPS.ADD_PASSWORD,
+    AUTH_STEPS.ADD_MFA,
+    AUTH_STEPS.ACCOUNT_VERIFY_READY,
+  ].includes(flow.step);
 
   const resetToWelcome = React.useCallback(() => {
     flow.setEmail("");
@@ -312,6 +321,7 @@ export default function AuthFlow() {
     setCalle2: flow.setCalle2,
     setDireccionPayload: flow.setDireccionPayload,
     setIsAddressPrefillReady: flow.setIsAddressPrefillReady,
+    skipStepChange: isVerificationFlowStep,
   });
 
 
@@ -330,7 +340,6 @@ export default function AuthFlow() {
   const providers = onboarding?.providers || [];
   const termsAccepted = Boolean(authProfile?.terms_accepted);
   const privacyAccepted = Boolean(authProfile?.privacy_accepted);
-  const legalAccepted = termsAccepted && privacyAccepted;
   const clientSteps = onboarding?.client_steps || {};
   const clientProfile = clientSteps.profile || {};
   const clientAddress = clientSteps.address || {};
@@ -340,6 +349,12 @@ export default function AuthFlow() {
     Boolean(clientProfile.skipped) && !clientProfileCompleted;
   const clientAddressSkipped =
     Boolean(clientAddress.skipped) && !clientAddressCompleted;
+  const accountVerified = Boolean(emailConfirmed && (hasPassword || hasMfa));
+  const businessVerified = Boolean(
+    (onboarding?.ruc || onboarding?.negocio?.ruc) &&
+      (onboarding?.phone || usuario?.telefono) &&
+      onboarding?.negocio?.escaneo_cara
+  );
   const clientStepsPending =
     isClient &&
     ((!clientProfileCompleted && !clientProfileSkipped) ||
@@ -374,10 +389,8 @@ export default function AuthFlow() {
       return;
     }
     if (status === "verified" || status === "skipped") {
-      if (!legalAccepted) {
-        if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_READY) {
-          flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
-        }
+      if (flow.step !== AUTH_STEPS.ACCOUNT_VERIFY_READY) {
+        flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
       }
       return;
     }
@@ -388,7 +401,6 @@ export default function AuthFlow() {
     verificationStatus,
     emailConfirmed,
     isBusiness,
-    legalAccepted,
   ]);
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
   const hasMinLength = flow.password.length >= 8;
@@ -466,15 +478,7 @@ export default function AuthFlow() {
 
   const handleVerificationExit = React.useCallback(async () => {
     await bootstrapAuth({ force: true });
-    const next = useAppStore.getState().onboarding;
-    const accepted =
-      Boolean(next?.usuario?.terms_accepted) &&
-      Boolean(next?.usuario?.privacy_accepted);
-    if (!accepted) {
-      flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
-      return;
-    }
-    window.location.href = "/app";
+    flow.setStep(AUTH_STEPS.ACCOUNT_VERIFY_READY);
   }, [bootstrapAuth, flow]);
 
   const handleBackToMethod = React.useCallback(async () => {
@@ -814,13 +818,8 @@ export default function AuthFlow() {
                   innerRef={flow.regPage2Ref}
                   isVerified={
                     isBusiness
-                      ? Boolean(
-                          emailConfirmed &&
-                            (hasPassword || hasMfa) &&
-                            (onboarding?.phone || usuario?.telefono) &&
-                            onboarding?.ruc
-                        )
-                      : Boolean(emailConfirmed && (hasPassword || hasMfa))
+                      ? Boolean(accountVerified && businessVerified)
+                      : Boolean(accountVerified)
                   }
                   termsAccepted={termsAccepted}
                   privacyAccepted={privacyAccepted}

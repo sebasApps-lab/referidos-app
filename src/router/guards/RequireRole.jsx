@@ -6,6 +6,9 @@ export default function RequireRole({ children, role }) {
   const usuario = useAppStore((state) => state.usuario);
   const bootstrap = useAppStore((state) => state.bootstrap);
   const onboarding = useAppStore((state) => state.onboarding);
+  const termsAccepted = Boolean(onboarding?.usuario?.terms_accepted);
+  const privacyAccepted = Boolean(onboarding?.usuario?.privacy_accepted);
+  const legalAccepted = termsAccepted && privacyAccepted;
 
   //Esperar bootstrap
   if (bootstrap || typeof usuario === "undefined") {
@@ -23,6 +26,13 @@ export default function RequireRole({ children, role }) {
   
   //Falta completar onboarding
   if (!onboarding?.allowAccess) {
+    return <Navigate to="/auth" replace />
+  }
+  
+  if (
+    (usuario.role === "cliente" || usuario.role === "negocio") &&
+    !legalAccepted
+  ) {
     return <Navigate to="/auth" replace />
   }
 

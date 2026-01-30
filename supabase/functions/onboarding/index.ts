@@ -94,6 +94,8 @@ type NegocioProfile = {
     usuarioid: string;
     nombre: string | null;
     categoria: string | null;
+    ruc?: string | null;
+    escaneo_cara?: boolean | null;
 };
 
 type SucursalProfile = {

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import QRCode from "react-qr-code";
 import {
   challengeAndVerifyTotp,
   enrollTotp,
   listMfaFactors,
+  pickActiveTotpFactor,
   syncTotpFlags,
   unenrollFactor,
 } from "../../services/mfaService";
@@ -13,6 +14,21 @@ const FRIENDLY_NAME = "App autenticadora";
 
 const isActiveStatus = (status) =>
   ["verified", "active"].includes(String(status || "").toLowerCase());
+const isPendingStatus = (status) =>
+  ["unverified", "pending"].includes(String(status || "").toLowerCase());
+const getFriendlyName = (factor) =>
+  factor?.friendly_name || factor?.friendlyName || "";
+const getTotpFactors = (data) => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.totp)) return data.totp;
+  if (Array.isArray(data.all)) {
+    return data.all.filter(
+      (factor) => String(factor?.factor_type || "").toLowerCase() === "totp"
+    );
+  }
+  return [];
+};
 
 export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
   const [loading, setLoading] = useState(true);
@@ -25,6 +41,8 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [verifyError, setVerifyError] = useState("");
+  const preparingRef = useRef(false);
+  const initializedRef = useRef(false);
 
   const canSubmit =
     code.trim().length >= 6 && !submitting && !loading && Boolean(factorId);
@@ -54,6 +72,8 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
   };
 
   const prepareEnrollment = async () => {
+    if (preparingRef.current || factorId) return;
+    preparingRef.current = true;
     setLoading(true);
     setEnrollError("");
     setMode("enroll");
@@ -61,19 +81,45 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
 
     const list = await listMfaFactors();
     if (list.ok) {
-      const factors = list.data?.totp || [];
-      const active = factors.find((factor) => isActiveStatus(factor?.status));
-      if (active) {
+      const factors = getTotpFactors(list.data);
+      const named = factors.find(
+        (factor) => getFriendlyName(factor) === FRIENDLY_NAME
+      );
+      if (named && isActiveStatus(named?.status)) {
+        setMode("existing");
+        setFactorId(named.id);
+        setLoading(false);
+        preparingRef.current = false;
+        return;
+      }
+      if (named) {
+        setMode("existing");
+        setFactorId(named.id);
+        setLoading(false);
+        preparingRef.current = false;
+        return;
+      }
+      const active = pickActiveTotpFactor(factors);
+      if (active && isActiveStatus(active?.status)) {
         setMode("existing");
         setFactorId(active.id);
         setLoading(false);
+        preparingRef.current = false;
         return;
       }
-      const pending = factors.find(
-        (factor) => String(factor?.status || "").toLowerCase() === "unverified"
-      );
-      if (pending) {
-        await unenrollFactor(pending.id);
+      const pending = factors.filter((factor) => isPendingStatus(factor?.status));
+      if (pending.length) {
+        for (const factor of pending) {
+          const removed = await unenrollFactor(factor.id);
+          if (!removed.ok) {
+            setEnrollError(
+              removed.error || "No se pudo limpiar un intento anterior."
+            );
+            setLoading(false);
+            preparingRef.current = false;
+            return;
+          }
+        }
       }
     }
 
@@ -84,40 +130,72 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
         String(result.error || "").includes("friendly name");
       if (isNameConflict) {
         const retryList = await listMfaFactors();
-        const factors = retryList.ok ? retryList.data?.totp || [] : [];
-        const active = factors.find((factor) => isActiveStatus(factor?.status));
-        if (active) {
+        const factors = retryList.ok ? getTotpFactors(retryList.data) : [];
+        const named = factors.find(
+          (factor) => getFriendlyName(factor) === FRIENDLY_NAME
+        );
+        if (named && isActiveStatus(named?.status)) {
+          setMode("existing");
+          setFactorId(named.id);
+          setLoading(false);
+          preparingRef.current = false;
+          return;
+        }
+        if (named) {
+          setMode("existing");
+          setFactorId(named.id);
+          setLoading(false);
+          preparingRef.current = false;
+          return;
+        }
+        const active = pickActiveTotpFactor(factors);
+        if (active && isActiveStatus(active?.status)) {
           setMode("existing");
           setFactorId(active.id);
           setLoading(false);
+          preparingRef.current = false;
           return;
         }
-        const pending = factors.find(
-          (factor) => String(factor?.status || "").toLowerCase() === "unverified"
-        );
-        if (pending) {
-          await unenrollFactor(pending.id);
+        const pending = factors.filter((factor) => isPendingStatus(factor?.status));
+        if (pending.length) {
+          for (const factor of pending) {
+            const removed = await unenrollFactor(factor.id);
+            if (!removed.ok) {
+              setEnrollError(
+                removed.error || "No se pudo limpiar un intento anterior."
+              );
+              setLoading(false);
+              preparingRef.current = false;
+              return;
+            }
+          }
           const retry = await startEnroll();
           if (retry.ok) {
             setLoading(false);
+            preparingRef.current = false;
             return;
           }
           setEnrollError(retry.error || "No se pudo iniciar MFA");
           setLoading(false);
+          preparingRef.current = false;
           return;
         }
       }
       setEnrollError(result.error || "No se pudo iniciar MFA");
       setLoading(false);
+      preparingRef.current = false;
       return;
     }
 
     setLoading(false);
+    preparingRef.current = false;
   };
 
   useEffect(() => {
     let active = true;
     (async () => {
+      if (initializedRef.current) return;
+      initializedRef.current = true;
       await prepareEnrollment();
       if (!active) return;
     })();
