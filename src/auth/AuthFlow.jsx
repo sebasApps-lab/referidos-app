@@ -352,8 +352,7 @@ export default function AuthFlow() {
   const accountVerified = Boolean(emailConfirmed && (hasPassword || hasMfa));
   const businessVerified = Boolean(
     (onboarding?.ruc || onboarding?.negocio?.ruc) &&
-      (onboarding?.phone || usuario?.telefono) &&
-      onboarding?.negocio?.escaneo_cara
+      (onboarding?.phone || usuario?.telefono)
   );
   const clientStepsPending =
     isClient &&
