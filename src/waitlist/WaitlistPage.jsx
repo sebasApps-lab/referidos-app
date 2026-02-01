@@ -1,7 +1,7 @@
 ﻿// src/waitlist/WaitlistPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { submitWaitlistSignup } from "../services/waitlistClient";
+import { submitWaitlistSignup } from "./waitlistApi";
 
 const FLOW_TARGET_ID = "waitlist-flow";
 
