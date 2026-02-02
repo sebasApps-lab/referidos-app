@@ -346,7 +346,7 @@ export default function WaitlistPage() {
               </div>
 
               <div className="flex w-full flex-col items-stretch md:items-end">
-                <div className="flex items-center rounded-full bg-white/90 p-1 shadow-lg backdrop-blur">
+                <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
                     onClick={() => handleModeChange("cliente")}
@@ -354,7 +354,7 @@ export default function WaitlistPage() {
                     className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
                       mode === "cliente"
                         ? "bg-[var(--brand-purple)] text-white shadow"
-                        : "text-[var(--brand-purple)] hover:bg-white"
+                        : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
                     }`}
                   >
                     Explorar promos
@@ -363,10 +363,10 @@ export default function WaitlistPage() {
                     type="button"
                     onClick={() => handleModeChange("negocio")}
                     aria-pressed={mode === "negocio"}
-                    className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                    className={`-ml-0.5 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
                       mode === "negocio"
                         ? "bg-[var(--brand-purple)] text-white shadow"
-                        : "text-[var(--brand-purple)] hover:bg-white"
+                        : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
                     }`}
                   >
                     App para negocios
@@ -396,7 +396,7 @@ export default function WaitlistPage() {
                         <button
                           type="submit"
                           disabled={status === "loading"}
-                          className="w-4/5 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                          className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
                         </button>
