@@ -448,40 +448,49 @@ export default function WaitlistPage() {
                     </form>
                   </div>
                 ) : (
-                  <div className="mt-6 w-full rounded-[28px] border border-white/60 bg-white/90 p-6 shadow-lg backdrop-blur">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)]">
-                      Negocio
+                  <div className="mt-6 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                    <p className="text-sm text-white/80">
+                      Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[var(--ink)]">
-                      Prepara tus promociones antes del lanzamiento
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Crea promos en borrador y déjalas listas para publicar en la beta.
-                    </p>
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      {BUSINESS_STEPS.map((step) => (
-                        <div
-                          key={step.title}
-                          className="rounded-2xl border border-slate-100 bg-[#F8F7FF] p-4 text-xs text-slate-600"
-                        >
-                          <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand-purple)] text-white">
-                            <step.Icon />
+                    <div className="mt-4 space-y-2">
+                      {BUSINESS_STEPS.map((step, index) => {
+                        const isPurple = index % 2 === 1;
+                        return (
+                          <div
+                            key={step.title}
+                            className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+                              isPurple ? "bg-[var(--brand-purple)]" : "bg-white"
+                            }`}
+                          >
+                            <div
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                                isPurple ? "bg-white text-[var(--brand-purple)]" : "bg-[var(--brand-purple)] text-white"
+                              }`}
+                            >
+                              <step.Icon />
+                            </div>
+                            <div className="text-left">
+                              <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
+                                {step.title}
+                              </p>
+                              <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
+                                {step.description}
+                              </p>
+                            </div>
                           </div>
-                          <p className="font-semibold text-[var(--ink)]">{step.title}</p>
-                          <p className="mt-1 text-[11px] text-slate-500">{step.description}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                    <div className="mt-6">
+                    <div className="mt-6 flex flex-col items-end gap-2">
                       <a
                         href="/app"
                         onClick={() => trackEvent("open_pwa_click")}
-                        className="inline-flex items-center justify-center rounded-2xl bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 transition-transform hover:-translate-y-0.5"
+                        className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 py-3 text-center text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
                       >
-                        Abrir PWA para negocios
+                        Descargar panel para negocio
                       </a>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Funciona en Android y iPhone (modo instalación).
+                      <p className="text-xs text-white/70">
+                        Version PWA, funciona para Android y iPhone, proximamente en Windows.
                       </p>
                     </div>
                   </div>
