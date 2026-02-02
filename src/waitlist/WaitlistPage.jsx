@@ -258,6 +258,12 @@ export default function WaitlistPage() {
             58% 0%
           );
         }
+        .hero-grid {
+          display: grid;
+          gap: 2.5rem;
+          align-items: start;
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        }
         @media (max-width: 767px) {
           .hero-split-bg {
             -webkit-clip-path: polygon(
@@ -301,7 +307,7 @@ export default function WaitlistPage() {
       </div>
 
       <main className="relative z-10">
-        <div className="relative overflow-hidden">
+        <div className="relative min-h-[700px] overflow-hidden md:min-h-[860px]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
@@ -322,7 +328,7 @@ export default function WaitlistPage() {
           </header>
 
           <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
-            <div className="grid gap-10 md:grid-cols-[1.15fr,0.85fr] md:items-center">
+            <div className="hero-grid">
               <div className="space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-purple)]/20 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)] shadow-sm">
                   ALPHA / PRELAUNCH
@@ -336,20 +342,6 @@ export default function WaitlistPage() {
                   Todo claro, simple y con cupos limitados para la beta.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleHeroClick("cliente")}
-                    className="rounded-full bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60"
-                  >
-                    Quiero beneficios (Cliente)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleHeroClick("negocio")}
-                    className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/40"
-                  >
-                    Soy negocio
-                  </button>
                   <a
                     href="#como-funciona"
                     className="text-sm font-semibold text-[var(--brand-purple)] underline-offset-4 hover:underline"
@@ -364,41 +356,32 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="floaty absolute -top-6 left-6 h-16 w-16 rounded-2xl bg-white shadow-xl" />
-                <div className="floaty absolute -bottom-10 right-6 h-20 w-20 rounded-full bg-[var(--brand-yellow)]/70 blur-xl" />
-                <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-2xl backdrop-blur">
-                  <div className="grid gap-4">
-                    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-                        Promo destacada
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-lg font-semibold text-[var(--ink)]">2x1 en cafés</p>
-                          <p className="text-sm text-slate-600">Canjea con QR</p>
-                        </div>
-                        <span className="rounded-full bg-[var(--brand-yellow)] px-3 py-1 text-xs font-semibold text-[#5A3A00]">
-                          Liga Oro
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-[var(--brand-purple)]/90 p-4 text-white shadow">
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/70">Puntos</p>
-                        <p className="mt-2 text-xl font-semibold">+120</p>
-                        <p className="text-xs text-white/70">Por referir</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-4 text-slate-700 shadow">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Grupo</p>
-                        <p className="mt-2 text-lg font-semibold text-[var(--ink)]">Activo</p>
-                        <p className="text-xs text-slate-500">5 personas</p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-dashed border-[var(--brand-purple)]/40 bg-[var(--brand-purple)]/10 p-4 text-sm text-[var(--brand-purple)]">
-                      Beneficios acumulados listos para canje.
-                    </div>
-                  </div>
+              <div className="flex md:justify-end">
+                <div className="flex items-center rounded-full bg-white/90 p-1 shadow-lg backdrop-blur">
+                  <button
+                    type="button"
+                    onClick={() => handleHeroClick("cliente")}
+                    aria-pressed={mode === "cliente"}
+                    className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                      mode === "cliente"
+                        ? "bg-[var(--brand-purple)] text-white shadow"
+                        : "text-[var(--brand-purple)] hover:bg-white"
+                    }`}
+                  >
+                    Quiero beneficios
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleHeroClick("negocio")}
+                    aria-pressed={mode === "negocio"}
+                    className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                      mode === "negocio"
+                        ? "bg-[var(--brand-purple)] text-white shadow"
+                        : "text-[var(--brand-purple)] hover:bg-white"
+                    }`}
+                  >
+                    App para negocios
+                  </button>
                 </div>
               </div>
             </div>
