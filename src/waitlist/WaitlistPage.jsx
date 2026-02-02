@@ -374,9 +374,9 @@ export default function WaitlistPage() {
                 </div>
 
                 {mode === "cliente" ? (
-                  <div className="mt-6 w-full rounded-[28px] border border-white/10 bg-transparent p-6 text-right text-white shadow-[0_18px_45px_rgba(31,18,53,0.25)]">
+                  <div className="mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
                     <p className="text-sm text-white/80">
-                      Obten beneficios por participar en el acceso anticipado, registra tu correo y se te notificará apenas puedas unirte.
+                      Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
                     </p>
                     <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
                       <div className="flex flex-col items-end gap-3">
@@ -385,7 +385,7 @@ export default function WaitlistPage() {
                           type="email"
                           autoComplete="email"
                           placeholder="tucorreo@email.com"
-                          className="w-4/5 rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-right text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                          className="w-4/5 rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                           value={email}
                           onChange={(event) => {
                             setEmail(event.target.value);
@@ -396,7 +396,7 @@ export default function WaitlistPage() {
                         <button
                           type="submit"
                           disabled={status === "loading"}
-                          className="rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-[var(--brand-purple)] shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                          className="w-4/5 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
                         </button>
@@ -420,7 +420,8 @@ export default function WaitlistPage() {
 
                       <p className="text-xs text-white/70">
                         Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
-                        <span className="mx-1"> </span>
+                      </p>
+                      <p className="text-xs text-white/70">
                         <a href="/privacy" className="text-white hover:underline">
                           Privacidad
                         </a>
