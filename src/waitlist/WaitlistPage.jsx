@@ -385,6 +385,46 @@ export default function WaitlistPage() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-12 w-full">
+              <div className="relative w-full">
+                <div className="floaty absolute -top-6 left-6 h-16 w-16 rounded-2xl bg-white shadow-xl" />
+                <div className="floaty absolute -bottom-10 right-6 h-20 w-20 rounded-full bg-[var(--brand-yellow)]/70 blur-xl" />
+                <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-2xl backdrop-blur">
+                  <div className="grid gap-4">
+                    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                        Promo destacada
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-semibold text-[var(--ink)]">2x1 en cafés</p>
+                          <p className="text-sm text-slate-600">Canjea con QR</p>
+                        </div>
+                        <span className="rounded-full bg-[var(--brand-yellow)] px-3 py-1 text-xs font-semibold text-[#5A3A00]">
+                          Liga Oro
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-[var(--brand-purple)]/90 p-4 text-white shadow">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/70">Puntos</p>
+                        <p className="mt-2 text-xl font-semibold">+120</p>
+                        <p className="text-xs text-white/70">Por referir</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 text-slate-700 shadow">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Grupo</p>
+                        <p className="mt-2 text-lg font-semibold text-[var(--ink)]">Activo</p>
+                        <p className="text-xs text-slate-500">5 personas</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-dashed border-[var(--brand-purple)]/40 bg-[var(--brand-purple)]/10 p-4 text-sm text-[var(--brand-purple)]">
+                      Beneficios acumulados listos para canje.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
 
