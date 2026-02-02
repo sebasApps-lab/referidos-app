@@ -345,7 +345,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="flex w-full flex-col items-stretch md:items-end">
+              <div className="flex w-full -translate-y-3 flex-col items-stretch md:items-end">
                 <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
