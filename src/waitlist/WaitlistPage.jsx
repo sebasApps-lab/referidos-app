@@ -233,6 +233,57 @@ export default function WaitlistPage() {
         .floaty { animation: floaty 7s ease-in-out infinite; }
         .fade-up { animation: fadeUp 0.6s ease both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
+        .hero-split-bg {
+          background: var(--brand-purple);
+          -webkit-clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            60% 100%,
+            68% 82%,
+            58% 62%,
+            64% 48%,
+            70% 32%,
+            62% 16%,
+            66% 0%
+          );
+          clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            60% 100%,
+            68% 82%,
+            58% 62%,
+            64% 48%,
+            70% 32%,
+            62% 16%,
+            66% 0%
+          );
+        }
+        @media (max-width: 767px) {
+          .hero-split-bg {
+            -webkit-clip-path: polygon(
+              100% 0%,
+              100% 100%,
+              72% 100%,
+              78% 84%,
+              70% 62%,
+              74% 48%,
+              80% 32%,
+              74% 16%,
+              78% 0%
+            );
+            clip-path: polygon(
+              100% 0%,
+              100% 100%,
+              72% 100%,
+              78% 84%,
+              70% 62%,
+              74% 48%,
+              80% 32%,
+              74% 16%,
+              78% 0%
+            );
+          }
+        }
         @media (prefers-reduced-motion: reduce) {
           .floaty, .fade-up, .soft-glow { animation: none; }
         }
@@ -249,103 +300,110 @@ export default function WaitlistPage() {
         />
       </div>
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
-        <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
-          Referidos
-          <span className="ml-2 rounded-full bg-[var(--ink)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
-            prelaunch
-          </span>
-        </div>
-        <div className="hidden items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-          <span>Promos</span>
-          <span>Beneficios</span>
-          <span>Referidos</span>
-        </div>
-      </header>
-
       <main className="relative z-10">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
-          <div className="grid gap-10 md:grid-cols-[1.15fr,0.85fr] md:items-center">
-            <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-purple)]/20 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)] shadow-sm">
-                ALPHA / PRELAUNCH
-              </span>
-              <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
-                Promociones reales.
-                <span className="block text-[var(--brand-purple)]">Beneficios por referir.</span>
-              </h1>
-              <p className="max-w-xl text-base leading-7 text-slate-700 md:text-lg">
-                Negocios publican promos. Tú invitas amigos y ganas beneficios.
-                Todo claro, simple y con cupos limitados para la beta.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleHeroClick("cliente")}
-                  className="rounded-full bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60"
-                >
-                  Quiero beneficios (Cliente)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleHeroClick("negocio")}
-                  className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/40"
-                >
-                  Soy negocio
-                </button>
-                <a
-                  href="#como-funciona"
-                  className="text-sm font-semibold text-[var(--brand-purple)] underline-offset-4 hover:underline"
-                >
-                  ¿Cómo funciona?
-                </a>
-              </div>
-              <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-                <div className="rounded-full bg-white/80 px-3 py-1 shadow">Cupos limitados</div>
-                <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beta cerrada</div>
-                <div className="rounded-full bg-white/80 px-3 py-1 shadow">Acceso primero</div>
-              </div>
-            </div>
+        <div className="relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-white" />
+            <div className="hero-split-bg absolute inset-0" />
+          </div>
 
-            <div className="relative">
-              <div className="floaty absolute -top-6 left-6 h-16 w-16 rounded-2xl bg-white shadow-xl" />
-              <div className="floaty absolute -bottom-10 right-6 h-20 w-20 rounded-full bg-[var(--brand-yellow)]/70 blur-xl" />
-              <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-2xl backdrop-blur">
-                <div className="grid gap-4">
-                  <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-                      Promo destacada
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-lg font-semibold text-[var(--ink)]">2x1 en cafés</p>
-                        <p className="text-sm text-slate-600">Canjea con QR</p>
+          <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
+            <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
+              Referidos
+              <span className="ml-2 rounded-full bg-[var(--ink)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
+                prelaunch
+              </span>
+            </div>
+            <div className="hidden items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
+              <span>Promos</span>
+              <span>Beneficios</span>
+              <span>Referidos</span>
+            </div>
+          </header>
+
+          <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
+            <div className="grid gap-10 md:grid-cols-[1.15fr,0.85fr] md:items-center">
+              <div className="space-y-6">
+                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-purple)]/20 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)] shadow-sm">
+                  ALPHA / PRELAUNCH
+                </span>
+                <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
+                  Promociones reales.
+                  <span className="block text-[var(--brand-purple)]">Beneficios por referir.</span>
+                </h1>
+                <p className="max-w-xl text-base leading-7 text-slate-700 md:text-lg">
+                  Negocios publican promos. Tú invitas amigos y ganas beneficios.
+                  Todo claro, simple y con cupos limitados para la beta.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleHeroClick("cliente")}
+                    className="rounded-full bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60"
+                  >
+                    Quiero beneficios (Cliente)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleHeroClick("negocio")}
+                    className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/40"
+                  >
+                    Soy negocio
+                  </button>
+                  <a
+                    href="#como-funciona"
+                    className="text-sm font-semibold text-[var(--brand-purple)] underline-offset-4 hover:underline"
+                  >
+                    ¿Cómo funciona?
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Cupos limitados</div>
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beta cerrada</div>
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Acceso primero</div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="floaty absolute -top-6 left-6 h-16 w-16 rounded-2xl bg-white shadow-xl" />
+                <div className="floaty absolute -bottom-10 right-6 h-20 w-20 rounded-full bg-[var(--brand-yellow)]/70 blur-xl" />
+                <div className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-2xl backdrop-blur">
+                  <div className="grid gap-4">
+                    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                        Promo destacada
                       </div>
-                      <span className="rounded-full bg-[var(--brand-yellow)] px-3 py-1 text-xs font-semibold text-[#5A3A00]">
-                        Liga Oro
-                      </span>
+                      <div className="mt-3 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-semibold text-[var(--ink)]">2x1 en cafés</p>
+                          <p className="text-sm text-slate-600">Canjea con QR</p>
+                        </div>
+                        <span className="rounded-full bg-[var(--brand-yellow)] px-3 py-1 text-xs font-semibold text-[#5A3A00]">
+                          Liga Oro
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-[var(--brand-purple)]/90 p-4 text-white shadow">
-                      <p className="text-xs uppercase tracking-[0.2em] text-white/70">Puntos</p>
-                      <p className="mt-2 text-xl font-semibold">+120</p>
-                      <p className="text-xs text-white/70">Por referir</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-[var(--brand-purple)]/90 p-4 text-white shadow">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/70">Puntos</p>
+                        <p className="mt-2 text-xl font-semibold">+120</p>
+                        <p className="text-xs text-white/70">Por referir</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4 text-slate-700 shadow">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Grupo</p>
+                        <p className="mt-2 text-lg font-semibold text-[var(--ink)]">Activo</p>
+                        <p className="text-xs text-slate-500">5 personas</p>
+                      </div>
                     </div>
-                    <div className="rounded-2xl bg-white p-4 text-slate-700 shadow">
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Grupo</p>
-                      <p className="mt-2 text-lg font-semibold text-[var(--ink)]">Activo</p>
-                      <p className="text-xs text-slate-500">5 personas</p>
+                    <div className="rounded-2xl border border-dashed border-[var(--brand-purple)]/40 bg-[var(--brand-purple)]/10 p-4 text-sm text-[var(--brand-purple)]">
+                      Beneficios acumulados listos para canje.
                     </div>
-                  </div>
-                  <div className="rounded-2xl border border-dashed border-[var(--brand-purple)]/40 bg-[var(--brand-purple)]/10 p-4 text-sm text-[var(--brand-purple)]">
-                    Beneficios acumulados listos para canje.
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
           <div className="rounded-[36px] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur">
