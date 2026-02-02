@@ -448,17 +448,17 @@ export default function WaitlistPage() {
                     </form>
                   </div>
                 ) : (
-                  <div className="mt-6 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                  <div className="mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
                     <p className="text-sm text-white/80">
                       Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
                     </p>
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 space-y-1.5">
                       {BUSINESS_STEPS.map((step, index) => {
                         const isPurple = index % 2 === 1;
                         return (
                           <div
                             key={step.title}
-                            className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+                            className={`flex items-center gap-3 rounded-2xl px-4 py-2 ${
                               isPurple ? "bg-[var(--brand-purple)]" : "bg-white"
                             }`}
                           >
