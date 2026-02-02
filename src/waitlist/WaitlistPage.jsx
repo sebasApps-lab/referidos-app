@@ -305,11 +305,8 @@ export default function WaitlistPage() {
           <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
             <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
               Referidos
-              <span className="ml-2 rounded-full bg-[var(--ink)] px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
-                prelaunch
-              </span>
             </div>
-            <div className="hidden items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
+            <div className="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
               <span>Promos</span>
               <span>Beneficios</span>
               <span>Referidos</span>
@@ -319,8 +316,8 @@ export default function WaitlistPage() {
           <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
             <div className="hero-grid">
               <div className="space-y-6">
-                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-purple)]/20 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)] shadow-sm">
-                  ALPHA / PRELAUNCH
+                <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
+                  ACCESO ANTICIPADO
                 </span>
                 <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
                   Promociones reales.
@@ -495,9 +492,12 @@ export default function WaitlistPage() {
                       <a
                         href="/app"
                         onClick={() => trackEvent("open_pwa_click")}
-                        className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 py-3 text-center text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
+                        className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
                       >
                         Descargar panel para negocio
+                        <span className="block text-xs font-semibold text-slate-600">
+                          (Acceso anticipado)
+                        </span>
                       </a>
                       <p className="text-xs text-white/70">
                         Version PWA, funciona para Android y iPhone, proximamente en Windows.
