@@ -374,21 +374,18 @@ export default function WaitlistPage() {
                 </div>
 
                 {mode === "cliente" ? (
-                  <div className="mt-6 w-full rounded-[28px] border border-white/10 bg-white/10 p-6 text-white shadow-[0_18px_45px_rgba(31,18,53,0.25)] backdrop-blur">
+                  <div className="mt-6 w-full rounded-[28px] border border-white/10 bg-transparent p-6 text-right text-white shadow-[0_18px_45px_rgba(31,18,53,0.25)]">
                     <p className="text-sm text-white/80">
                       Obten beneficios por participar en el acceso anticipado, registra tu correo y se te notificará apenas puedas unirte.
                     </p>
                     <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                      <label className="block text-xs font-semibold text-white/70" htmlFor="waitlist-email">
-                        Email
-                      </label>
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col items-end gap-3">
                         <input
                           id="waitlist-email"
                           type="email"
                           autoComplete="email"
                           placeholder="tucorreo@email.com"
-                          className="w-full rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                          className="w-4/5 rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-right text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                           value={email}
                           onChange={(event) => {
                             setEmail(event.target.value);
@@ -433,7 +430,7 @@ export default function WaitlistPage() {
                         </a>
                       </p>
 
-                      <div aria-live="polite" className="min-h-[32px]">
+                      <div aria-live="polite" className="min-h-0">
                         {visibleMessage && (
                           <div
                             className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
