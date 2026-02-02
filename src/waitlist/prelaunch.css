@@ -6,10 +6,7 @@ html, body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
-  overscroll-behavior-y: contain;
-
-  /* Evita zoom por gestos en móvil */
-  touch-action: manipulation;
+  overscroll-behavior-y: auto;\r\n  touch-action: pan-y;
 }
 
 /* Permite que el navegador móvil oculte la URL bar automáticamente */
@@ -17,3 +14,4 @@ html {
   height: 100%;
   min-height: 100%;
 }
+

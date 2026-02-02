@@ -205,7 +205,7 @@ export default function WaitlistPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden bg-[#F7F4FF] text-slate-900"
+      className="relative min-h-screen overflow-x-hidden bg-[#F7F4FF] text-slate-900"
       style={{
         fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
       }}
@@ -307,7 +307,7 @@ export default function WaitlistPage() {
       </div>
 
       <main className="relative z-10">
-        <div className="relative min-h-[800px] overflow-hidden md:min-h-[960px]">
+        <div className="relative min-h-[800px] overflow-x-hidden md:min-h-[960px]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
@@ -356,7 +356,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="flex md:justify-end">
+              <div className="flex w-full flex-col items-stretch md:items-end">
                 <div className="flex items-center rounded-full bg-white/90 p-1 shadow-lg backdrop-blur">
                   <button
                     type="button"
@@ -368,7 +368,7 @@ export default function WaitlistPage() {
                         : "text-[var(--brand-purple)] hover:bg-white"
                     }`}
                   >
-                    Quiero beneficios
+                    Explorar promos
                   </button>
                   <button
                     type="button"
@@ -382,6 +382,85 @@ export default function WaitlistPage() {
                   >
                     App para negocios
                   </button>
+                </div>
+
+                <div className="mt-6 w-full rounded-[28px] border border-white/60 bg-white/90 p-6 shadow-lg backdrop-blur">
+                  <h3 className="text-2xl font-semibold text-[var(--ink)]">
+                    Recibe el acceso primero
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Déjanos tu email y te avisamos cuando esté lista la beta.
+                  </p>
+                  <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+                    <label className="block text-xs font-semibold text-slate-500" htmlFor="waitlist-email">
+                      Email
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      <input
+                        id="waitlist-email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="tucorreo@email.com"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/40"
+                        value={email}
+                        onChange={(event) => {
+                          setEmail(event.target.value);
+                          resetStatus();
+                        }}
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={status === "loading"}
+                        className="rounded-2xl bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {status === "loading" ? "Enviando..." : "Unirme"}
+                      </button>
+                    </div>
+
+                    <div
+                      className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
+                      aria-hidden="true"
+                    >
+                      <label htmlFor="company">Empresa</label>
+                      <input
+                        id="company"
+                        name="company"
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={honeypot}
+                        onChange={(event) => setHoneypot(event.target.value)}
+                      />
+                    </div>
+
+                    <p className="text-xs text-slate-500">
+                      Al unirte, te avisaremos cuando la beta esté disponible.
+                      <span className="mx-1"> </span>
+                      <a href="/privacy" className="text-[var(--brand-purple)] hover:underline">
+                        Privacidad
+                      </a>
+                      <span className="mx-1">·</span>
+                      <a href="/terms" className="text-[var(--brand-purple)] hover:underline">
+                        Términos
+                      </a>
+                    </p>
+
+                    <div aria-live="polite" className="min-h-[32px]">
+                      {visibleMessage && (
+                        <div
+                          className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
+                            status === "error"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {status === "error" ? <AlertIcon /> : <CheckIcon />}
+                          {visibleMessage}
+                        </div>
+                      )}
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -439,127 +518,11 @@ export default function WaitlistPage() {
                   Dos rutas claras. Una sola experiencia.
                 </p>
               </div>
-              <div
-                role="tablist"
-                aria-label="Selector de flujo"
-                className="flex w-full max-w-md rounded-full border border-slate-200 bg-white p-1 text-sm font-semibold"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === "cliente"}
-                  onClick={() => handleModeChange("cliente")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 transition-all ${
-                    mode === "cliente"
-                      ? "bg-[var(--brand-purple)] text-white shadow"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <UserIcon />
-                  Cliente
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === "negocio"}
-                  onClick={() => handleModeChange("negocio")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 transition-all ${
-                    mode === "negocio"
-                      ? "bg-[var(--brand-purple)] text-white shadow"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <StoreIcon />
-                  Negocio
-                </button>
-              </div>
             </div>
 
-            <div className="mt-6 grid gap-6 md:grid-cols-[1.1fr,0.9fr]">
+            <div className={`mt-6 grid gap-6 ${mode === "cliente" ? "md:grid-cols-1" : "md:grid-cols-[1.1fr,0.9fr]"}`}>
               {mode === "cliente" ? (
                 <>
-                  <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--brand-purple)]">
-                      Cliente
-                    </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[var(--ink)]">
-                      Recibe el acceso primero
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Déjanos tu email y te avisamos cuando esté lista la beta.
-                    </p>
-                    <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                      <label className="block text-xs font-semibold text-slate-500" htmlFor="waitlist-email">
-                        Email
-                      </label>
-                      <div className="flex flex-col gap-3 md:flex-row">
-                        <input
-                          id="waitlist-email"
-                          type="email"
-                          autoComplete="email"
-                          placeholder="tucorreo@email.com"
-                          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/40"
-                          value={email}
-                          onChange={(event) => {
-                            setEmail(event.target.value);
-                            resetStatus();
-                          }}
-                          required
-                        />
-                        <button
-                          type="submit"
-                          disabled={status === "loading"}
-                          className="rounded-2xl bg-[var(--brand-purple)] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {status === "loading" ? "Enviando..." : "Unirme"}
-                        </button>
-                      </div>
-
-                      <div
-                        className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
-                        aria-hidden="true"
-                      >
-                        <label htmlFor="company">Empresa</label>
-                        <input
-                          id="company"
-                          name="company"
-                          type="text"
-                          tabIndex={-1}
-                          autoComplete="off"
-                          value={honeypot}
-                          onChange={(event) => setHoneypot(event.target.value)}
-                        />
-                      </div>
-
-                      <p className="text-xs text-slate-500">
-                        Al unirte, te avisaremos cuando la beta esté disponible.
-                        <span className="mx-1"> </span>
-                        <a href="/privacy" className="text-[var(--brand-purple)] hover:underline">
-                          Privacidad
-                        </a>
-                        <span className="mx-1">·</span>
-                        <a href="/terms" className="text-[var(--brand-purple)] hover:underline">
-                          Términos
-                        </a>
-                      </p>
-
-                      <div aria-live="polite" className="min-h-[32px]">
-                        {visibleMessage && (
-                          <div
-                            className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
-                              status === "error"
-                                ? "bg-rose-100 text-rose-700"
-                                : "bg-emerald-100 text-emerald-700"
-                            }`}
-                          >
-                            {status === "error" ? <AlertIcon /> : <CheckIcon />}
-                            {visibleMessage}
-                          </div>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-
                   <div className="fade-up rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
                       Beneficios visibles desde el día uno
