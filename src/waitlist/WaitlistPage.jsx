@@ -307,7 +307,7 @@ export default function WaitlistPage() {
       </div>
 
       <main className="relative z-10">
-        <div className="relative min-h-[700px] overflow-hidden md:min-h-[860px]">
+        <div className="relative min-h-[800px] overflow-hidden md:min-h-[960px]">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
@@ -335,7 +335,7 @@ export default function WaitlistPage() {
                 </span>
                 <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
                   Promociones reales.
-                  <span className="block text-[var(--brand-purple)]">Beneficios por referir.</span>
+                  <span className="block text-[var(--brand-purple)] md:whitespace-nowrap">Beneficios por referir.</span>
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-slate-700 md:text-lg">
                   Negocios publican promos. Tú invitas amigos y ganas beneficios.
