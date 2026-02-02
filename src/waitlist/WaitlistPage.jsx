@@ -296,8 +296,8 @@ export default function WaitlistPage() {
       </div>
 
       <main className="relative z-10">
-        <div className="relative min-h-[800px] overflow-x-hidden md:min-h-[960px]">
-          <div className="pointer-events-none absolute inset-0">
+        <div className="relative overflow-x-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-[800px] md:h-[960px]">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
           </div>
@@ -363,7 +363,7 @@ export default function WaitlistPage() {
                     type="button"
                     onClick={() => handleModeChange("negocio")}
                     aria-pressed={mode === "negocio"}
-                    className={`-ml-0.5 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                    className={`-ml-2 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
                       mode === "negocio"
                         ? "bg-[var(--brand-purple)] text-white shadow"
                         : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
