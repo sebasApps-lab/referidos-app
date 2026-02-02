@@ -463,19 +463,29 @@ export default function WaitlistPage() {
                             }`}
                           >
                             <div
-                              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                                isPurple ? "bg-white text-[var(--brand-purple)]" : "bg-[var(--brand-purple)] text-white"
-                              }`}
+                              className="text-3xl font-semibold leading-none text-transparent md:text-4xl"
+                              style={{
+                                WebkitTextStroke: `2px ${isPurple ? "rgba(255,255,255,0.85)" : "rgba(94,48,165,0.85)"}`,
+                              }}
                             >
-                              <step.Icon />
+                              {index + 1}
                             </div>
-                            <div className="text-left">
-                              <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
-                                {step.title}
-                              </p>
-                              <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
-                                {step.description}
-                              </p>
+                            <div className="flex flex-1 items-center justify-between gap-3">
+                              <div className="text-left">
+                                <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
+                                  {step.title}
+                                </p>
+                                <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
+                                  {step.description}
+                                </p>
+                              </div>
+                              <div
+                                className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                                  isPurple ? "bg-white text-[var(--brand-purple)]" : "bg-[var(--brand-purple)] text-white"
+                                }`}
+                              >
+                                <step.Icon />
+                              </div>
                             </div>
                           </div>
                         );
