@@ -36,23 +36,23 @@ const FAQ_ITEMS = [
 
 const BUSINESS_STEPS = [
   {
-    title: "Instala la PWA",
-    description: "En segundos y sin tiendas.",
+    title: "Instala la APP",
+    description: "Desde el navegador y en segundos",
     Icon: DownloadIcon,
   },
   {
-    title: "Regístrate con email o Google",
-    description: "Acceso inmediato.",
+    title: "Pide un código aquí",
+    description: "Llegará en menos de 1 minuto",
     Icon: KeyIcon,
   },
   {
-    title: "Crea promociones en borrador",
-    description: "Deja todo listo.",
+    title: "Regístrate",
+    description: "Usa correo, cuenta de Google, Facebook...",
     Icon: TagIcon,
   },
   {
-    title: "Envíalas a revisión",
-    description: "Listo para beta.",
+    title: "Crea promociones",
+    description: "Publica las promociones aprovadas",
     Icon: ShieldCheckIcon,
   },
 ];
@@ -317,15 +317,15 @@ export default function WaitlistPage() {
             <div className="hero-grid">
               <div className="space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
-                  ACCESO ANTICIPADO
+                  RESERVA TU ACCESO ANTICIPADO
                 </span>
                 <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
-                  Promociones reales.
-                  <span className="block text-[var(--brand-purple)] md:whitespace-nowrap">Beneficios por referir.</span>
+                  Busca promociones.
+                  <span className="block text-[var(--brand-purple)] md:whitespace-nowrap">Gana puntos canjeando.</span>
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-slate-700 md:text-lg">
-                  Negocios publican promos. Tú invitas amigos y ganas beneficios.
-                  Todo claro, simple y con cupos limitados para la beta.
+                  Encuentra promociones en restaurantes o negocios cerca de tí. Al invitar amigos multiplicas los puntos que recibes.
+                  Acumula puntos y obtén beneficios. Solo por canjear promociones.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <a
@@ -336,9 +336,10 @@ export default function WaitlistPage() {
                   </a>
                 </div>
                 <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Periodo de prueba</div>
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Cupos limitados</div>
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beta cerrada</div>
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Acceso primero</div>
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beneficios extra</div>
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Reserva ya</div>
                 </div>
               </div>
 
@@ -469,9 +470,14 @@ export default function WaitlistPage() {
                             </div>
                             <div className="flex flex-1 items-center justify-between gap-3">
                               <div className="text-left">
-                                <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
-                                  {step.title}
-                                </p>
+                              <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
+                                {step.title}
+                                {step.title === "Crea promociones" && (
+                                  <span className={`ml-2 text-[10px] font-semibold ${isPurple ? "text-white/70" : "text-slate-500"}`}>
+                                    borradores
+                                  </span>
+                                )}
+                              </p>
                                 <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
                                   {step.description}
                                 </p>
