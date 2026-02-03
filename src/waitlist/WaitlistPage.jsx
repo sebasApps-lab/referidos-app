@@ -215,9 +215,9 @@ export default function WaitlistPage() {
           return (
             <div
               key={step.title}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-2 ${
-                isPurple ? "bg-[var(--brand-purple)]" : "bg-white"
-              }`}
+                            className={`flex items-center gap-3 rounded-2xl px-4 py-2 ${
+                              isPurple ? "bg-transparent" : "bg-white"
+                            }`}
             >
               <div
                 className="step-number text-3xl font-semibold leading-none text-transparent md:text-4xl"
