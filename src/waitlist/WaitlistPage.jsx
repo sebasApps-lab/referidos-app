@@ -148,13 +148,21 @@ export default function WaitlistPage() {
   useEffect(() => {
     if (!rootRef.current || typeof window === "undefined") return;
     let rafId = null;
-    const maxStretch = 580;
+    const maxStretch = 1000;
+    const maxShift = 500;
+    const shiftStart = 1 / 5;
 
     const updateStretch = () => {
       rafId = null;
       const scrollY = window.scrollY || window.pageYOffset || 0;
       const stretch = Math.min(maxStretch, Math.max(0, scrollY));
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
+      const doc = document.documentElement;
+      const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
+      const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
+      const shiftProgress = Math.min(1, Math.max(0, (progress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6);
+      const shift = Math.min(maxShift, Math.max(0, shiftProgress * maxShift));
+      rootRef.current.style.setProperty("--hero-bg-shift", `${shift}px`);
     };
 
     const onScroll = () => {
@@ -394,6 +402,7 @@ export default function WaitlistPage() {
           --layout-min: 880px;
           --layout-max: 1440px;
           --hero-bg-stretch: 0px;
+          --hero-bg-shift: 0px;
         }
         @keyframes floaty {
           0% { transform: translateY(0px); }
@@ -415,9 +424,15 @@ export default function WaitlistPage() {
         .hero-bg-fixed {
           --hero-bg-base: 800px;
           height: calc(var(--hero-bg-base) + var(--hero-bg-stretch));
+          z-index: 0;
+        }
+        .hero-content {
+          position: relative;
+          z-index: 1;
         }
         .hero-split-bg {
           background: var(--brand-purple);
+          transform: translateX(var(--hero-bg-shift));
           -webkit-clip-path: polygon(
             100% 0%,
             100% 100%,
@@ -606,6 +621,11 @@ export default function WaitlistPage() {
         }
       `}</style>
 
+      <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0">
+        <div className="absolute inset-0 bg-white" />
+        <div className="hero-split-bg absolute inset-0" />
+      </div>
+
       <div className="pointer-events-none absolute inset-0">
         <div
           className="absolute -top-32 right-12 h-72 w-72 rounded-full blur-[130px] soft-glow"
@@ -619,23 +639,19 @@ export default function WaitlistPage() {
 
       <main className="relative z-10">
           <div className="relative">
-          <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0">
-            <div className="absolute inset-0 bg-white" />
-            <div className="hero-split-bg absolute inset-0" />
-          </div>
+          <div className="hero-content">
+            <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
+              <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
+                Referidos
+              </div>
+              <div className="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
+                <span>Promos</span>
+                <span>Beneficios</span>
+                <span>Referidos</span>
+              </div>
+            </header>
 
-          <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
-            <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
-              Referidos
-            </div>
-            <div className="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-              <span>Promos</span>
-              <span>Beneficios</span>
-              <span>Referidos</span>
-            </div>
-          </header>
-
-          <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
+            <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
             <div className="hero-grid">
               <div className="space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
@@ -707,12 +723,8 @@ export default function WaitlistPage() {
               </div>
             </div>
 
-            <div className="mt-12 w-full">
-              <div className="relative w-full">
-                <div className="relative h-[360px] md:h-[420px] rounded-[36px] bg-white/60" />
-              </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
