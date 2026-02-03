@@ -286,8 +286,13 @@ export default function WaitlistPage() {
             }
           }
           @media (max-width: 950px) {
-            .hero-right {
+            .hero-panel {
               padding-left: 1.5rem;
+            }
+          }
+          @media (max-width: 1030px) {
+            .hero-panel-negocio {
+              padding-left: 3rem;
             }
           }
         [data-desktop-lock="true"] .desktop-min {
@@ -303,6 +308,14 @@ export default function WaitlistPage() {
           right: auto;
           transform: translateX(-50%);
           height: 960px;
+        }
+        [data-desktop-lock="true"] .hero-body {
+          font-size: 1.125rem;
+          line-height: 1.75rem;
+        }
+        [data-desktop-lock="true"] .step-number {
+          font-size: 2.25rem;
+          line-height: 1;
         }
         [data-desktop-lock="true"] .hero-title {
           font-size: 3.75rem;
@@ -461,7 +474,7 @@ export default function WaitlistPage() {
                 </div>
 
                 {mode === "cliente" ? (
-                  <div className="mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                  <div className="hero-panel mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
                     <p className="text-sm text-white/80">
                       Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
                     </p>
@@ -535,7 +548,7 @@ export default function WaitlistPage() {
                     </form>
                   </div>
                 ) : (
-                  <div className="mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                  <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
                     <p className="text-sm text-white/80">
                       Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
                     </p>
@@ -550,7 +563,7 @@ export default function WaitlistPage() {
                             }`}
                           >
                             <div
-                              className="text-3xl font-semibold leading-none text-transparent md:text-4xl"
+                              className="step-number text-3xl font-semibold leading-none text-transparent md:text-4xl"
                               style={{
                                 WebkitTextStroke: `2px ${isPurple ? "rgba(255,255,255,0.85)" : "rgba(94,48,165,0.85)"}`,
                               }}
