@@ -617,7 +617,7 @@ export default function WaitlistPage() {
                   </a>
                 </div>
                 <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Periodo de prueba</div>
+                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beta cerrada</div>
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Cupos limitados</div>
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beneficios extra</div>
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Reserva ya</div>
@@ -676,16 +676,7 @@ export default function WaitlistPage() {
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
           <div className="rounded-[36px] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-[var(--ink)] md:text-3xl">
-                  Elige tu camino
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Dos rutas claras. Una sola experiencia.
-                </p>
-              </div>
-            </div>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" />
 
             <div className="mt-6 mode-stack">
               <div className="mode-sizer" aria-hidden="true">
