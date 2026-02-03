@@ -309,6 +309,14 @@ export default function WaitlistPage() {
           transform: translateX(-50%);
           height: 960px;
         }
+        [data-desktop-lock="true"] .hero-title {
+          font-size: 3.75rem;
+          line-height: 1.25;
+        }
+        [data-desktop-lock="true"] .hero-title span {
+          font-size: 3.75rem;
+          line-height: 1.25;
+        }
         [data-desktop-lock="true"] .hero-body {
           font-size: 1.125rem;
           line-height: 1.75rem;
@@ -316,14 +324,6 @@ export default function WaitlistPage() {
         [data-desktop-lock="true"] .step-number {
           font-size: 2.25rem;
           line-height: 1;
-        }
-        [data-desktop-lock="true"] .hero-title {
-          font-size: 3.75rem;
-          line-height: 1.1;
-        }
-        [data-desktop-lock="true"] .hero-title span {
-          font-size: 3.75rem;
-          line-height: 1.1;
         }
         @media (max-width: 767px) {
           .hero-split-bg {
