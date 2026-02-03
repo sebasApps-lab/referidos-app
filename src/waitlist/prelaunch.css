@@ -18,18 +18,23 @@ html {
 
 html[data-desktop-lock="true"],
 html[data-desktop-lock="true"] body {
-  overflow-x: auto;
+  overflow-x: auto !important;
+  max-width: none;
 }
 
 html[data-desktop-lock="true"] body {
+  min-width: var(--layout-min, 1280px);
+  padding: 0;
   display: flex;
   justify-content: center;
+  align-items: stretch;
 }
 
 html[data-desktop-lock="true"] #root {
-  width: 1440px;
-  min-width: 1440px;
-  margin-left: auto;
-  margin-right: auto;
+  width: clamp(var(--layout-min, 1280px), 100vw, var(--layout-max, 1440px));
+  min-width: var(--layout-min, 1280px);
+  max-width: var(--layout-max, 1440px);
+  flex: 0 0 clamp(var(--layout-min, 1280px), 100vw, var(--layout-max, 1440px));
+  margin: 0;
 }
 

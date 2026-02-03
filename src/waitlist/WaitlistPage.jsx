@@ -128,7 +128,7 @@ export default function WaitlistPage() {
   useEffect(() => {
     const hasScreen = typeof window !== "undefined" && window.screen;
     const screenWidth = hasScreen ? window.screen.width : 0;
-    if (screenWidth >= 1200) {
+    if (screenWidth >= 1024) {
       document.documentElement.dataset.desktopLock = "true";
     } else {
       delete document.documentElement.dataset.desktopLock;
@@ -214,6 +214,8 @@ export default function WaitlistPage() {
           --brand-purple: #5E30A5;
           --brand-yellow: #FFC21C;
           --ink: #1F1235;
+          --layout-min: 1280px;
+          --layout-max: 1440px;
         }
         @keyframes floaty {
           0% { transform: translateY(0px); }
@@ -264,17 +266,25 @@ export default function WaitlistPage() {
           grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
         }
         [data-desktop-lock="true"] .desktop-min {
-          width: 1440px;
-          min-width: 1440px;
-          max-width: 1440px;
+          width: clamp(var(--layout-min), 100vw, var(--layout-max));
+          min-width: var(--layout-min);
+          max-width: var(--layout-max);
           margin-left: auto;
           margin-right: auto;
         }
         [data-desktop-lock="true"] .hero-bg-fixed {
-          width: 1440px;
+          width: clamp(var(--layout-min), 100vw, var(--layout-max));
           left: 50%;
           right: auto;
           transform: translateX(-50%);
+        }
+        [data-desktop-lock="true"] .hero-title {
+          font-size: 3.75rem;
+          line-height: 1.1;
+        }
+        [data-desktop-lock="true"] .hero-title span {
+          font-size: 3.75rem;
+          line-height: 1.1;
         }
         @media (max-width: 767px) {
           .hero-split-bg {
@@ -319,7 +329,7 @@ export default function WaitlistPage() {
       </div>
 
       <main className="relative z-10">
-        <div className="relative overflow-x-hidden">
+          <div className="relative">
           <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0 h-[800px] md:h-[960px]">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
@@ -342,7 +352,7 @@ export default function WaitlistPage() {
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
                   RESERVA TU ACCESO ANTICIPADO
                 </span>
-                <h1 className="text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
+                <h1 className="hero-title text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
                   Busca promociones.
                   <span className="block text-[var(--brand-purple)] md:whitespace-nowrap">Gana puntos canjeando.</span>
                 </h1>
