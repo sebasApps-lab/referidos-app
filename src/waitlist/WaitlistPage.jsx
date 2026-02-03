@@ -60,7 +60,7 @@ const BUSINESS_STEPS = [
 export default function WaitlistPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [mode, setMode] = useState(() => normalizeMode(searchParams.get("mode")));
+  const mode = normalizeMode(searchParams.get("mode"));
   const [email, setEmail] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState("idle");
@@ -144,21 +144,14 @@ export default function WaitlistPage() {
     return () => window.removeEventListener("resize", applyLock);
   }, []);
 
-  useEffect(() => {
-    const nextMode = normalizeMode(searchParams.get("mode"));
-    if (nextMode !== mode) {
-      setMode(nextMode);
-    }
-  }, [searchParams, mode]);
-
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);
-    if (normalized !== mode) {
-      setMode(normalized);
+    const currentParam = searchParams.get("mode");
+    if (currentParam !== normalized) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("mode", normalized);
+      setSearchParams(nextParams, { replace: true });
     }
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("mode", normalized);
-    setSearchParams(nextParams, { replace: true });
     trackEvent(normalized === "cliente" ? "select_mode_cliente" : "select_mode_negocio");
   };
 
@@ -211,9 +204,153 @@ export default function WaitlistPage() {
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
 
+  const renderBusinessPanel = () => (
+    <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+      <p className="text-sm text-white/80">
+        Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
+      </p>
+      <div className="mt-4 space-y-1.5">
+        {BUSINESS_STEPS.map((step, index) => {
+          const isPurple = index % 2 === 1;
+          return (
+            <div
+              key={step.title}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-2 ${
+                isPurple ? "bg-[var(--brand-purple)]" : "bg-white"
+              }`}
+            >
+              <div
+                className="step-number text-3xl font-semibold leading-none text-transparent md:text-4xl"
+                style={{
+                  WebkitTextStroke: `2px ${isPurple ? "rgba(255,255,255,0.85)" : "rgba(94,48,165,0.85)"}`,
+                }}
+              >
+                {index + 1}
+              </div>
+              <div className="flex flex-1 items-center justify-between gap-3">
+                <div className="text-left">
+                  <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
+                    {step.title}
+                    {step.title === "Crea promociones" && (
+                      <span className={`ml-2 text-[10px] font-semibold ${isPurple ? "text-white/70" : "text-slate-500"}`}>
+                        borradores
+                      </span>
+                    )}
+                  </p>
+                  <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
+                    {step.description}
+                  </p>
+                </div>
+                <div
+                  className={`flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center rounded-xl ${
+                    isPurple ? "bg-white text-[var(--brand-purple)]" : "bg-[var(--brand-purple)] text-white"
+                  }`}
+                >
+                  <step.Icon />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-6 flex flex-col items-end gap-2">
+        <a
+          href="/app"
+          onClick={() => trackEvent("open_pwa_click")}
+          className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
+        >
+          Descargar panel para negocio
+          <span className="block text-xs font-semibold text-slate-600">
+            (Acceso anticipado)
+          </span>
+        </a>
+        <p className="text-xs text-white/70">
+          Version PWA, funciona para Android y iPhone, proximamente en Windows.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderClientPanel = () => (
+    <div className="hero-panel mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+      <p className="text-sm text-white/80">
+        Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
+      </p>
+      <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+        <div className="flex flex-col items-end gap-3">
+          <input
+            id="waitlist-email"
+            type="email"
+            autoComplete="email"
+            placeholder="tucorreo@email.com"
+            className="w-[288px] rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              resetStatus();
+            }}
+            required
+          />
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
+          </button>
+        </div>
+
+        <div
+          className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          <label htmlFor="company">Empresa</label>
+          <input
+            id="company"
+            name="company"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(event) => setHoneypot(event.target.value)}
+          />
+        </div>
+
+        <p className="text-xs text-white/70">
+          Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
+        </p>
+        <p className="text-xs text-white/70">
+          <a href="/privacy" className="text-white hover:underline">
+            Privacidad
+          </a>
+          <span className="mx-1">·</span>
+          <a href="/terms" className="text-white hover:underline">
+            Términos
+          </a>
+        </p>
+
+        <div aria-live="polite" className="min-h-0">
+          {visibleMessage && (
+            <div
+              className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
+                status === "error"
+                  ? "bg-rose-100 text-rose-700"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {status === "error" ? <AlertIcon /> : <CheckIcon />}
+              {visibleMessage}
+            </div>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+
   return (
       <div
         className="desktop-min relative min-h-screen bg-[#F7F4FF] text-slate-900"
+        data-mode={mode}
         style={{
           fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
         }}
@@ -281,19 +418,43 @@ export default function WaitlistPage() {
           position: relative;
           width: 100%;
         }
-        .hero-panel-reserve {
+        .mode-stack {
+          position: relative;
+        }
+        .mode-sizer {
           visibility: hidden;
           pointer-events: none;
         }
-        .hero-panel-overlay {
+        .mode-layer {
+          position: absolute;
+          inset: 0;
+        }
+        .hero-panel-sizer {
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .hero-panel-layer {
           position: absolute;
           inset: 0;
           display: flex;
           justify-content: flex-end;
           align-items: flex-start;
         }
-        .hero-panel-hidden {
-          display: none;
+        [data-mode="cliente"] .mode-negocio {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        [data-mode="negocio"] .mode-cliente {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        [data-mode="cliente"] .only-negocio {
+          display: none !important;
+        }
+        [data-mode="negocio"] .only-cliente {
+          display: none !important;
         }
           @media (max-width: 1080px) {
             .hero-subline {
@@ -492,148 +653,14 @@ export default function WaitlistPage() {
                 </div>
 
                 <div className="hero-panel-wrap">
-                  <div
-                    className={`hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto ${mode === "negocio" ? "" : "hero-panel-reserve"}`}
-                    aria-hidden={mode !== "negocio"}
-                  >
-                    <p className="text-sm text-white/80">
-                      Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
-                    </p>
-                    <div className="mt-4 space-y-1.5">
-                      {BUSINESS_STEPS.map((step, index) => {
-                        const isPurple = index % 2 === 1;
-                        return (
-                          <div
-                            key={step.title}
-                            className={`flex items-center gap-3 rounded-2xl px-4 py-2 ${
-                              isPurple ? "bg-[var(--brand-purple)]" : "bg-white"
-                            }`}
-                          >
-                            <div
-                              className="step-number text-3xl font-semibold leading-none text-transparent md:text-4xl"
-                              style={{
-                                WebkitTextStroke: `2px ${isPurple ? "rgba(255,255,255,0.85)" : "rgba(94,48,165,0.85)"}`,
-                              }}
-                            >
-                              {index + 1}
-                            </div>
-                            <div className="flex flex-1 items-center justify-between gap-3">
-                              <div className="text-left">
-                              <p className={`text-sm font-semibold ${isPurple ? "text-white" : "text-slate-900"}`}>
-                                {step.title}
-                                {step.title === "Crea promociones" && (
-                                  <span className={`ml-2 text-[10px] font-semibold ${isPurple ? "text-white/70" : "text-slate-500"}`}>
-                                    borradores
-                                  </span>
-                                )}
-                              </p>
-                                <p className={`text-xs ${isPurple ? "text-white/70" : "text-slate-500"}`}>
-                                  {step.description}
-                                </p>
-                              </div>
-                              <div
-                                className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                                  isPurple ? "bg-white text-[var(--brand-purple)]" : "bg-[var(--brand-purple)] text-white"
-                                }`}
-                              >
-                                <step.Icon />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-6 flex flex-col items-end gap-2">
-                      <a
-                        href="/app"
-                        onClick={() => trackEvent("open_pwa_click")}
-                        className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
-                      >
-                        Descargar panel para negocio
-                        <span className="block text-xs font-semibold text-slate-600">
-                          (Acceso anticipado)
-                        </span>
-                      </a>
-                      <p className="text-xs text-white/70">
-                        Version PWA, funciona para Android y iPhone, proximamente en Windows.
-                      </p>
-                    </div>
+                  <div className="hero-panel-sizer" aria-hidden="true">
+                    {renderBusinessPanel()}
                   </div>
-
-                  <div className={`hero-panel-overlay ${mode === "cliente" ? "" : "hero-panel-hidden"}`} aria-hidden={mode !== "cliente"}>
-                    <div className="hero-panel mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
-                      <p className="text-sm text-white/80">
-                        Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
-                      </p>
-                      <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                        <div className="flex flex-col items-end gap-3">
-                          <input
-                            id="waitlist-email"
-                            type="email"
-                            autoComplete="email"
-                            placeholder="tucorreo@email.com"
-                            className="w-[288px] rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                            value={email}
-                            onChange={(event) => {
-                              setEmail(event.target.value);
-                              resetStatus();
-                            }}
-                            required
-                          />
-                          <button
-                            type="submit"
-                            disabled={status === "loading"}
-                            className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
-                          </button>
-                        </div>
-
-                        <div
-                          className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
-                          aria-hidden="true"
-                        >
-                          <label htmlFor="company">Empresa</label>
-                          <input
-                            id="company"
-                            name="company"
-                            type="text"
-                            tabIndex={-1}
-                            autoComplete="off"
-                            value={honeypot}
-                            onChange={(event) => setHoneypot(event.target.value)}
-                          />
-                        </div>
-
-                        <p className="text-xs text-white/70">
-                          Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
-                        </p>
-                        <p className="text-xs text-white/70">
-                          <a href="/privacy" className="text-white hover:underline">
-                            Privacidad
-                          </a>
-                          <span className="mx-1">·</span>
-                          <a href="/terms" className="text-white hover:underline">
-                            Términos
-                          </a>
-                        </p>
-
-                        <div aria-live="polite" className="min-h-0">
-                          {visibleMessage && (
-                            <div
-                              className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
-                                status === "error"
-                                  ? "bg-rose-100 text-rose-700"
-                                  : "bg-emerald-100 text-emerald-700"
-                              }`}
-                            >
-                              {status === "error" ? <AlertIcon /> : <CheckIcon />}
-                              {visibleMessage}
-                            </div>
-                          )}
-                        </div>
-                      </form>
-                    </div>
+                  <div className="hero-panel-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+                    {renderBusinessPanel()}
+                  </div>
+                  <div className="hero-panel-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+                    {renderClientPanel()}
                   </div>
                 </div>
               </div>
@@ -694,31 +721,9 @@ export default function WaitlistPage() {
               </div>
             </div>
 
-            <div className={`mt-6 grid gap-6 ${mode === "cliente" ? "md:grid-cols-1" : "md:grid-cols-1"}`}>
-              {mode === "cliente" ? (
-                <>
-                  <div className="fade-up rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
-                    <h4 className="text-lg font-semibold text-[var(--ink)]">
-                      Beneficios visibles desde el día uno
-                    </h4>
-                    <ul className="mt-3 space-y-2">
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Promos reales y fáciles de canjear.
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Beneficios por referir a tu gente.
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Cupos limitados para acceder primero.
-                      </li>
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                <>
+            <div className="mt-6 mode-stack">
+              <div className="mode-sizer" aria-hidden="true">
+                <div className="grid gap-6 md:grid-cols-1">
                   <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
                       ¿Qué puedo hacer en prelaunch?
@@ -738,8 +743,56 @@ export default function WaitlistPage() {
                       </li>
                     </ul>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
+
+              <div className="mode-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+                <div className="grid gap-6 md:grid-cols-1">
+                  <div className="fade-up rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
+                    <h4 className="text-lg font-semibold text-[var(--ink)]">
+                      Beneficios visibles desde el día uno
+                    </h4>
+                    <ul className="mt-3 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
+                        Promos reales y fáciles de canjear.
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
+                        Beneficios por referir a tu gente.
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
+                        Cupos limitados para acceder primero.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mode-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+                <div className="grid gap-6 md:grid-cols-1">
+                  <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
+                    <h4 className="text-lg font-semibold text-[var(--ink)]">
+                      ¿Qué puedo hacer en prelaunch?
+                    </h4>
+                    <ul className="mt-3 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
+                        Crear promos draft.
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
+                        Previsualizarlas.
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
+                        Enviar para revisión.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
