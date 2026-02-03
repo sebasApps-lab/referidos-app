@@ -302,6 +302,7 @@ export default function WaitlistPage() {
           left: 50%;
           right: auto;
           transform: translateX(-50%);
+          height: 960px;
         }
         [data-desktop-lock="true"] .hero-title {
           font-size: 3.75rem;
