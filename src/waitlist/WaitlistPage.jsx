@@ -127,7 +127,7 @@ export default function WaitlistPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const lockWidth = 840;
+    const lockWidth = 880;
     const isDesktopDevice = window.screen && window.screen.width >= 1024;
 
     const applyLock = () => {
@@ -223,7 +223,7 @@ export default function WaitlistPage() {
           --brand-purple: #5E30A5;
           --brand-yellow: #FFC21C;
           --ink: #1F1235;
-          --layout-min: 840px;
+          --layout-min: 880px;
           --layout-max: 1440px;
         }
         @keyframes floaty {

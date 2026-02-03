@@ -23,7 +23,7 @@ html[data-desktop-lock="true"] body {
 }
 
 html[data-desktop-lock="true"] body {
-  min-width: var(--layout-min, 840px);
+  min-width: var(--layout-min, 880px);
   padding: 0;
   display: flex;
   justify-content: center;
@@ -31,10 +31,10 @@ html[data-desktop-lock="true"] body {
 }
 
 html[data-desktop-lock="true"] #root {
-  width: clamp(var(--layout-min, 840px), 100vw, var(--layout-max, 1440px));
-  min-width: var(--layout-min, 840px);
+  width: clamp(var(--layout-min, 880px), 100vw, var(--layout-max, 1440px));
+  min-width: var(--layout-min, 880px);
   max-width: var(--layout-max, 1440px);
-  flex: 0 0 clamp(var(--layout-min, 840px), 100vw, var(--layout-max, 1440px));
+  flex: 0 0 clamp(var(--layout-min, 880px), 100vw, var(--layout-max, 1440px));
   margin: 0;
 }
 
