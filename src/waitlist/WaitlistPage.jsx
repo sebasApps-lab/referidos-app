@@ -126,6 +126,16 @@ export default function WaitlistPage() {
   }, [location.pathname, location.search, meta]);
 
   useEffect(() => {
+    const hasScreen = typeof window !== "undefined" && window.screen;
+    const screenWidth = hasScreen ? window.screen.width : 0;
+    if (screenWidth >= 1200) {
+      document.documentElement.dataset.desktopLock = "true";
+    } else {
+      delete document.documentElement.dataset.desktopLock;
+    }
+  }, []);
+
+  useEffect(() => {
     const nextMode = normalizeMode(searchParams.get("mode"));
     if (nextMode !== mode) {
       setMode(nextMode);
@@ -193,12 +203,12 @@ export default function WaitlistPage() {
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
 
   return (
-    <div
-      className="relative min-h-screen overflow-x-hidden bg-[#F7F4FF] text-slate-900"
-      style={{
-        fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
-      }}
-    >
+      <div
+        className="desktop-min relative min-h-screen bg-[#F7F4FF] text-slate-900"
+        style={{
+          fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
+        }}
+      >
       <style>{`
         :root {
           --brand-purple: #5E30A5;
@@ -253,6 +263,19 @@ export default function WaitlistPage() {
           align-items: start;
           grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
         }
+        [data-desktop-lock="true"] .desktop-min {
+          width: 1440px;
+          min-width: 1440px;
+          max-width: 1440px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        [data-desktop-lock="true"] .hero-bg-fixed {
+          width: 1440px;
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+        }
         @media (max-width: 767px) {
           .hero-split-bg {
             -webkit-clip-path: polygon(
@@ -297,7 +320,7 @@ export default function WaitlistPage() {
 
       <main className="relative z-10">
         <div className="relative overflow-x-hidden">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[800px] md:h-[960px]">
+          <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0 h-[800px] md:h-[960px]">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
           </div>

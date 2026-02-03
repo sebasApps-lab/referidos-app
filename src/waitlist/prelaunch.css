@@ -6,6 +6,7 @@ html, body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  background: #F7F4FF;
   overscroll-behavior-y: auto;\r\n  touch-action: pan-y;
 }
 
@@ -13,5 +14,22 @@ html, body {
 html {
   height: 100%;
   min-height: 100%;
+}
+
+html[data-desktop-lock="true"],
+html[data-desktop-lock="true"] body {
+  overflow-x: auto;
+}
+
+html[data-desktop-lock="true"] body {
+  display: flex;
+  justify-content: center;
+}
+
+html[data-desktop-lock="true"] #root {
+  width: 1440px;
+  min-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
