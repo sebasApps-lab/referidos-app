@@ -340,6 +340,33 @@ export default function WaitlistPage() {
             white-space: normal;
           }
         }
+        [data-desktop-lock="true"] .hero-split-bg {
+          -webkit-clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            52% 100%,
+            60% 82%,
+            50% 62%,
+            56% 48%,
+            62% 32%,
+            54% 16%,
+            58% 0%
+          );
+          clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            52% 100%,
+            60% 82%,
+            50% 62%,
+            56% 48%,
+            62% 32%,
+            54% 16%,
+            58% 0%
+          );
+        }
+        [data-desktop-lock="true"] .hero-right {
+          align-items: flex-end;
+        }
         @media (prefers-reduced-motion: reduce) {
           .floaty, .fade-up, .soft-glow { animation: none; }
         }
