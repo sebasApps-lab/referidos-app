@@ -1,5 +1,5 @@
 ﻿// src/waitlist/WaitlistPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { submitWaitlistSignup } from "./waitlistApi";
 
@@ -61,6 +61,7 @@ export default function WaitlistPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = normalizeMode(searchParams.get("mode"));
+  const rootRef = useRef(null);
   const [email, setEmail] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState("idle");
@@ -142,6 +143,35 @@ export default function WaitlistPage() {
     applyLock();
     window.addEventListener("resize", applyLock);
     return () => window.removeEventListener("resize", applyLock);
+  }, []);
+
+  useEffect(() => {
+    if (!rootRef.current || typeof window === "undefined") return;
+    let rafId = null;
+    const maxStretch = 580;
+
+    const updateStretch = () => {
+      rafId = null;
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      const stretch = Math.min(maxStretch, Math.max(0, scrollY));
+      rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
+    };
+
+    const onScroll = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(updateStretch);
+    };
+
+    updateStretch();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (rafId != null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, []);
 
   const handleModeChange = (nextMode) => {
@@ -351,6 +381,7 @@ export default function WaitlistPage() {
       <div
         className="desktop-min relative min-h-screen bg-[#F7F4FF] text-slate-900"
         data-mode={mode}
+        ref={rootRef}
         style={{
           fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
         }}
@@ -362,6 +393,7 @@ export default function WaitlistPage() {
           --ink: #1F1235;
           --layout-min: 880px;
           --layout-max: 1440px;
+          --hero-bg-stretch: 0px;
         }
         @keyframes floaty {
           0% { transform: translateY(0px); }
@@ -380,6 +412,10 @@ export default function WaitlistPage() {
         .floaty { animation: floaty 7s ease-in-out infinite; }
         .fade-up { animation: fadeUp 0.6s ease both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
+        .hero-bg-fixed {
+          --hero-bg-base: 800px;
+          height: calc(var(--hero-bg-base) + var(--hero-bg-stretch));
+        }
         .hero-split-bg {
           background: var(--brand-purple);
           -webkit-clip-path: polygon(
@@ -440,6 +476,11 @@ export default function WaitlistPage() {
           justify-content: flex-end;
           align-items: flex-start;
         }
+        @media (min-width: 768px) {
+          .hero-bg-fixed {
+            --hero-bg-base: 960px;
+          }
+        }
         [data-mode="cliente"] .mode-negocio {
           opacity: 0;
           visibility: hidden;
@@ -486,7 +527,7 @@ export default function WaitlistPage() {
           left: 50%;
           right: auto;
           transform: translateX(-50%);
-          height: 960px;
+          height: calc(var(--hero-bg-base) + var(--hero-bg-stretch));
         }
         [data-desktop-lock="true"] .hero-title {
           font-size: 3.75rem;
@@ -578,7 +619,7 @@ export default function WaitlistPage() {
 
       <main className="relative z-10">
           <div className="relative">
-          <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0 h-[800px] md:h-[960px]">
+          <div className="hero-bg-fixed pointer-events-none absolute inset-x-0 top-0">
             <div className="absolute inset-0 bg-white" />
             <div className="hero-split-bg absolute inset-0" />
           </div>
