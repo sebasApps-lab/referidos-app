@@ -253,11 +253,11 @@ export default function WaitlistPage() {
           );
         })}
       </div>
-      <div className="mt-6 flex flex-col items-end gap-2">
+      <div className="mt-6 flex flex-col items-center gap-2 text-center">
         <a
           href="/app"
           onClick={() => trackEvent("open_pwa_click")}
-          className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
+          className="w-4/5 translate-x-2 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)]"
         >
           Descargar panel para negocio
           <span className="block text-xs font-semibold text-slate-600">
