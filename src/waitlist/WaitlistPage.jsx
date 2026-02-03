@@ -126,13 +126,22 @@ export default function WaitlistPage() {
   }, [location.pathname, location.search, meta]);
 
   useEffect(() => {
-    const hasScreen = typeof window !== "undefined" && window.screen;
-    const screenWidth = hasScreen ? window.screen.width : 0;
-    if (screenWidth >= 1024) {
-      document.documentElement.dataset.desktopLock = "true";
-    } else {
-      delete document.documentElement.dataset.desktopLock;
-    }
+    if (typeof window === "undefined") return;
+    const lockWidth = 840;
+    const isDesktopDevice = window.screen && window.screen.width >= 1024;
+
+    const applyLock = () => {
+      const shouldLock = isDesktopDevice && window.innerWidth <= lockWidth;
+      if (shouldLock) {
+        document.documentElement.dataset.desktopLock = "true";
+      } else {
+        delete document.documentElement.dataset.desktopLock;
+      }
+    };
+
+    applyLock();
+    window.addEventListener("resize", applyLock);
+    return () => window.removeEventListener("resize", applyLock);
   }, []);
 
   useEffect(() => {
@@ -214,7 +223,7 @@ export default function WaitlistPage() {
           --brand-purple: #5E30A5;
           --brand-yellow: #FFC21C;
           --ink: #1F1235;
-          --layout-min: 1280px;
+          --layout-min: 840px;
           --layout-max: 1440px;
         }
         @keyframes floaty {
@@ -263,8 +272,24 @@ export default function WaitlistPage() {
           display: grid;
           gap: 2.5rem;
           align-items: start;
-          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+          grid-template-columns: minmax(400px, 1.15fr) minmax(300px, 0.85fr);
         }
+        .hero-subline {
+          white-space: nowrap;
+        }
+          @media (max-width: 1080px) {
+            .hero-subline {
+              white-space: normal;
+            }
+            .hero-body {
+              padding-right: 2rem;
+            }
+          }
+          @media (max-width: 950px) {
+            .hero-right {
+              padding-left: 1.5rem;
+            }
+          }
         [data-desktop-lock="true"] .desktop-min {
           width: clamp(var(--layout-min), 100vw, var(--layout-max));
           min-width: var(--layout-min);
@@ -309,7 +334,10 @@ export default function WaitlistPage() {
               72% 32%,
               66% 16%,
               70% 0%
-            );
+          );
+          }
+          .hero-subline {
+            white-space: normal;
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -353,10 +381,10 @@ export default function WaitlistPage() {
                   RESERVA TU ACCESO ANTICIPADO
                 </span>
                 <h1 className="hero-title text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
-                  Busca promociones.
-                  <span className="block text-[var(--brand-purple)] md:whitespace-nowrap">Gana puntos canjeando.</span>
+                  Busca promociones
+                  <span className="hero-subline block text-[var(--brand-purple)]">Canjea y suma puntos</span>
                 </h1>
-                <p className="max-w-xl text-base leading-7 text-slate-700 md:text-lg">
+                  <p className="hero-body max-w-xl text-base leading-7 text-slate-700 md:text-lg">
                   Encuentra promociones en restaurantes o negocios cerca de tí. Al invitar amigos multiplicas los puntos que recibes.
                   Acumula puntos y obtén beneficios. Solo por canjear promociones.
                 </p>
@@ -376,7 +404,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="flex w-full -translate-y-3 flex-col items-stretch md:items-end">
+              <div className="hero-right flex w-full -translate-y-3 flex-col items-stretch md:items-end">
                 <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
@@ -416,7 +444,7 @@ export default function WaitlistPage() {
                           type="email"
                           autoComplete="email"
                           placeholder="tucorreo@email.com"
-                          className="w-4/5 rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                          className="w-[288px] rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                           value={email}
                           onChange={(event) => {
                             setEmail(event.target.value);
@@ -427,7 +455,7 @@ export default function WaitlistPage() {
                         <button
                           type="submit"
                           disabled={status === "loading"}
-                          className="w-4/5 rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
+                          className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
                         </button>
