@@ -277,6 +277,24 @@ export default function WaitlistPage() {
         .hero-subline {
           white-space: nowrap;
         }
+        .hero-panel-wrap {
+          position: relative;
+          width: 100%;
+        }
+        .hero-panel-reserve {
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .hero-panel-overlay {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          justify-content: flex-end;
+          align-items: flex-start;
+        }
+        .hero-panel-hidden {
+          display: none;
+        }
           @media (max-width: 1080px) {
             .hero-subline {
               white-space: normal;
@@ -473,82 +491,11 @@ export default function WaitlistPage() {
                   </button>
                 </div>
 
-                {mode === "cliente" ? (
-                  <div className="hero-panel mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
-                    <p className="text-sm text-white/80">
-                      Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
-                    </p>
-                    <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
-                      <div className="flex flex-col items-end gap-3">
-                        <input
-                          id="waitlist-email"
-                          type="email"
-                          autoComplete="email"
-                          placeholder="tucorreo@email.com"
-                          className="w-[288px] rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                          value={email}
-                          onChange={(event) => {
-                            setEmail(event.target.value);
-                            resetStatus();
-                          }}
-                          required
-                        />
-                        <button
-                          type="submit"
-                          disabled={status === "loading"}
-                          className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
-                        </button>
-                      </div>
-
-                      <div
-                        className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
-                        aria-hidden="true"
-                      >
-                        <label htmlFor="company">Empresa</label>
-                        <input
-                          id="company"
-                          name="company"
-                          type="text"
-                          tabIndex={-1}
-                          autoComplete="off"
-                          value={honeypot}
-                          onChange={(event) => setHoneypot(event.target.value)}
-                        />
-                      </div>
-
-                      <p className="text-xs text-white/70">
-                        Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
-                      </p>
-                      <p className="text-xs text-white/70">
-                        <a href="/privacy" className="text-white hover:underline">
-                          Privacidad
-                        </a>
-                        <span className="mx-1">·</span>
-                        <a href="/terms" className="text-white hover:underline">
-                          Términos
-                        </a>
-                      </p>
-
-                      <div aria-live="polite" className="min-h-0">
-                        {visibleMessage && (
-                          <div
-                            className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
-                              status === "error"
-                                ? "bg-rose-100 text-rose-700"
-                                : "bg-emerald-100 text-emerald-700"
-                            }`}
-                          >
-                            {status === "error" ? <AlertIcon /> : <CheckIcon />}
-                            {visibleMessage}
-                          </div>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-                ) : (
-                  <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                <div className="hero-panel-wrap">
+                  <div
+                    className={`hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto ${mode === "negocio" ? "" : "hero-panel-reserve"}`}
+                    aria-hidden={mode !== "negocio"}
+                  >
                     <p className="text-sm text-white/80">
                       Crea borradores de promociones, envialas a revisión y déjalas listas para publicar en el acceso anticipado.
                     </p>
@@ -612,7 +559,83 @@ export default function WaitlistPage() {
                       </p>
                     </div>
                   </div>
-                )}
+
+                  <div className={`hero-panel-overlay ${mode === "cliente" ? "" : "hero-panel-hidden"}`} aria-hidden={mode !== "cliente"}>
+                    <div className="hero-panel mt-6 w-full max-w-[360px] rounded-[28px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
+                      <p className="text-sm text-white/80">
+                        Obten beneficios por participar en el acceso anticipado, registra tu correo y te notificaremos.
+                      </p>
+                      <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+                        <div className="flex flex-col items-end gap-3">
+                          <input
+                            id="waitlist-email"
+                            type="email"
+                            autoComplete="email"
+                            placeholder="tucorreo@email.com"
+                            className="w-[288px] rounded-2xl border border-white/40 bg-white/95 px-4 py-3 text-left text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                            value={email}
+                            onChange={(event) => {
+                              setEmail(event.target.value);
+                              resetStatus();
+                            }}
+                            required
+                          />
+                          <button
+                            type="submit"
+                            disabled={status === "loading"}
+                            className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
+                          </button>
+                        </div>
+
+                        <div
+                          className="absolute left-[-9999px] top-auto h-0 w-0 overflow-hidden"
+                          aria-hidden="true"
+                        >
+                          <label htmlFor="company">Empresa</label>
+                          <input
+                            id="company"
+                            name="company"
+                            type="text"
+                            tabIndex={-1}
+                            autoComplete="off"
+                            value={honeypot}
+                            onChange={(event) => setHoneypot(event.target.value)}
+                          />
+                        </div>
+
+                        <p className="text-xs text-white/70">
+                          Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
+                        </p>
+                        <p className="text-xs text-white/70">
+                          <a href="/privacy" className="text-white hover:underline">
+                            Privacidad
+                          </a>
+                          <span className="mx-1">·</span>
+                          <a href="/terms" className="text-white hover:underline">
+                            Términos
+                          </a>
+                        </p>
+
+                        <div aria-live="polite" className="min-h-0">
+                          {visibleMessage && (
+                            <div
+                              className={`mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-semibold ${
+                                status === "error"
+                                  ? "bg-rose-100 text-rose-700"
+                                  : "bg-emerald-100 text-emerald-700"
+                              }`}
+                            >
+                              {status === "error" ? <AlertIcon /> : <CheckIcon />}
+                              {visibleMessage}
+                            </div>
+                          )}
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
