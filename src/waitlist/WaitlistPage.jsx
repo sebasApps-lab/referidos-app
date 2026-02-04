@@ -200,18 +200,36 @@ export default function WaitlistPage() {
     let rafId = null;
     const maxShift = 510;
     const shiftStart = 1 / 5;
+    const lockStart = 2 / 5;
+    const lockEnd = 4 / 5;
 
     const updateStretch = () => {
       rafId = null;
       const scrollY = window.scrollY || window.pageYOffset || 0;
       const baseHeight = window.innerWidth >= 768 ? 960 : 800;
       const doc = document.documentElement;
-      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 90);
-      const stretch = Math.min(maxStretch, Math.max(0, scrollY));
-      rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
-      const shiftProgress = Math.min(1, Math.max(0, (progress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6);
+      let virtualProgress = 0;
+      if (progress <= lockStart) {
+        virtualProgress = progress;
+      } else if (progress <= lockEnd) {
+        virtualProgress = lockStart;
+      } else {
+        const t = (progress - lockEnd) / (1 - lockEnd);
+        const eased = Math.min(1, Math.max(0, t ** 1.8));
+        virtualProgress = lockStart + eased * (1 - lockStart);
+      }
+      const virtualScrollY = maxScroll * virtualProgress;
+
+      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 90);
+      const stretch = Math.min(maxStretch, Math.max(0, virtualScrollY));
+      rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
+
+      const shiftProgress = Math.min(
+        1,
+        Math.max(0, (virtualProgress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6
+      );
       const shift = Math.min(maxShift, Math.max(0, shiftProgress * maxShift));
       rootRef.current.style.setProperty("--hero-bg-shift", `${shift}px`);
     };
