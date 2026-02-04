@@ -148,16 +148,17 @@ export default function WaitlistPage() {
   useEffect(() => {
     if (!rootRef.current || typeof window === "undefined") return;
     let rafId = null;
-    const maxStretch = 1000;
     const maxShift = 500;
     const shiftStart = 1 / 5;
 
     const updateStretch = () => {
       rafId = null;
       const scrollY = window.scrollY || window.pageYOffset || 0;
+      const baseHeight = window.innerWidth >= 768 ? 960 : 800;
+      const doc = document.documentElement;
+      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 150);
       const stretch = Math.min(maxStretch, Math.max(0, scrollY));
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
-      const doc = document.documentElement;
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
       const shiftProgress = Math.min(1, Math.max(0, (progress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6);
@@ -728,8 +729,16 @@ export default function WaitlistPage() {
         </div>
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="rounded-[36px] border border-white/70 bg-white/80 p-6 shadow-xl backdrop-blur">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" />
+          <div className="rounded-[36px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
+              ALPHA / PRELAUNCH
+            </span>
+            <h3 className="mt-3 text-xl font-semibold text-[var(--ink)]">
+              La beta llegará pronto
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              La lista de espera tiene cupos. Te avisaremos por email cuando se abra.
+            </p>
 
             <div className="mt-6 mode-stack">
               <div className="mode-sizer" aria-hidden="true">
@@ -821,32 +830,18 @@ export default function WaitlistPage() {
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="grid gap-6 md:grid-cols-[0.9fr,1.1fr]">
-            <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-lg">
-              <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
-                ALPHA / PRELAUNCH
-              </span>
-              <h3 className="mt-3 text-xl font-semibold text-[var(--ink)]">
-                La beta llegará pronto
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">
-                La lista de espera tiene cupos. Te avisaremos por email cuando se abra.
-              </p>
-            </div>
-
-            <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-lg">
-              <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
-              <div className="mt-4 space-y-3">
-                {FAQ_ITEMS.map((item) => (
-                  <div
-                    key={item.question}
-                    className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
-                  >
-                    <p className="font-semibold text-[var(--ink)]">{item.question}</p>
-                    <p className="mt-1 text-xs text-slate-500">{item.answer}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-lg">
+            <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
+            <div className="mt-4 space-y-3">
+              {FAQ_ITEMS.map((item) => (
+                <div
+                  key={item.question}
+                  className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
+                >
+                  <p className="font-semibold text-[var(--ink)]">{item.question}</p>
+                  <p className="mt-1 text-xs text-slate-500">{item.answer}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
