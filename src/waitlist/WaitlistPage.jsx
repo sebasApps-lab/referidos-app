@@ -198,11 +198,11 @@ export default function WaitlistPage() {
   useEffect(() => {
     if (!rootRef.current || typeof window === "undefined") return;
     let rafId = null;
-    const maxShift = 510;
+    const maxShift = 460;
     const shiftStart = 1 / 5;
     const lockStart = 1.5 / 5;
     const lockEnd = 2.5 / 5;
-    const phase3End = 4.5 / 5;
+    const phase3End = 4.3 / 5;
     const phase4End = 4.6 / 5;
     const lockGain = 1.3;
     const nearMax = 0.95;
@@ -225,7 +225,7 @@ export default function WaitlistPage() {
         virtualProgress = lockValue;
       } else if (progress <= phase3End) {
         const t = (progress - lockEnd) / (phase3End - lockEnd);
-        const eased = Math.min(1, Math.max(0, t ** 0.7));
+        const eased = Math.min(1, Math.max(0, t ** 1.3));
         virtualProgress = lockValue + eased * (phase3Target - lockValue);
       } else if (progress <= phase4End) {
         virtualProgress = phase3Target;
@@ -244,7 +244,7 @@ export default function WaitlistPage() {
         stretchProgress = lockValue;
       } else if (progress <= phase3End) {
         const t = (progress - lockEnd) / (phase3End - lockEnd);
-        const eased = Math.min(1, Math.max(0, t ** 0.7));
+        const eased = Math.min(1, Math.max(0, t ** 1.3));
         stretchProgress = lockValue + eased * (phase3Target - lockValue);
       } else if (progress <= phase4End) {
         stretchProgress = phase3Target;
