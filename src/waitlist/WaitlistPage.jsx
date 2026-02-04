@@ -198,7 +198,7 @@ export default function WaitlistPage() {
   useEffect(() => {
     if (!rootRef.current || typeof window === "undefined") return;
     let rafId = null;
-    const maxShift = 500;
+    const maxShift = 510;
     const shiftStart = 1 / 5;
 
     const updateStretch = () => {
@@ -206,7 +206,7 @@ export default function WaitlistPage() {
       const scrollY = window.scrollY || window.pageYOffset || 0;
       const baseHeight = window.innerWidth >= 768 ? 960 : 800;
       const doc = document.documentElement;
-      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 150);
+      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 90);
       const stretch = Math.min(maxStretch, Math.max(0, scrollY));
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
@@ -446,7 +446,7 @@ export default function WaitlistPage() {
 
   return (
       <div
-        className="desktop-min relative min-h-screen bg-[#F7F4FF] text-slate-900"
+        className="desktop-min relative min-h-screen bg-[var(--brand-purple)] text-slate-900"
         data-mode={mode}
         ref={rootRef}
         style={{
@@ -793,7 +793,7 @@ export default function WaitlistPage() {
         </div>
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="rounded-[36px] border border-white/70 bg-white/55 p-6 shadow-xl backdrop-blur">
+          <div className="rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
             </span>
@@ -914,7 +914,7 @@ export default function WaitlistPage() {
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-lg">
+          <div className="rounded-[28px] border border-slate-400/45 bg-white/85 p-6 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="flex flex-wrap items-baseline gap-2">
@@ -995,15 +995,17 @@ export default function WaitlistPage() {
         </section>
       </main>
 
-      <footer className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-10">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 pt-6 text-xs text-slate-500">
-          <span>© {new Date().getFullYear()} Referidos</span>
-          <div className="flex flex-wrap gap-4">
-            <a href="/privacy" className="hover:text-slate-700">Privacidad</a>
-            <a href="/terms" className="hover:text-slate-700">Términos</a>
-            <a href="mailto:soporte@referidos.app" className="hover:text-slate-700">Contacto</a>
+      <footer className="relative z-10 w-full pb-10">
+        <div className="border-t border-white/15">
+          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pt-6 text-xs text-white/75">
+            <span>© {new Date().getFullYear()} Referidos</span>
+            <div className="flex flex-wrap gap-4">
+              <a href="/privacy" className="hover:text-white">Privacidad</a>
+              <a href="/terms" className="hover:text-white">Términos</a>
+              <a href="mailto:soporte@referidos.app" className="hover:text-white">Contacto</a>
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.2em]">ALPHA v0.8</span>
           </div>
-          <span className="text-[10px] uppercase tracking-[0.2em]">ALPHA v0.8</span>
         </div>
       </footer>
     </div>
