@@ -200,8 +200,9 @@ export default function WaitlistPage() {
     let rafId = null;
     const maxShift = 510;
     const shiftStart = 1 / 5;
-    const lockStart = 2 / 5;
-    const lockEnd = 4 / 5;
+    const lockStart = 1.5 / 5;
+    const lockEnd = 2.1 / 5;
+    const lockGain = 1.3;
 
     const updateStretch = () => {
       rafId = null;
@@ -210,17 +211,34 @@ export default function WaitlistPage() {
       const doc = document.documentElement;
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
+      const lockValue = Math.min(1, lockStart * lockGain);
       let virtualProgress = 0;
       if (progress <= lockStart) {
-        virtualProgress = progress;
+        const t = Math.min(1, Math.max(0, progress / lockStart));
+        const eased = Math.min(1, Math.max(0, t ** 1.6));
+        virtualProgress = lockValue * eased;
       } else if (progress <= lockEnd) {
-        virtualProgress = lockStart;
+        virtualProgress = lockValue;
       } else {
         const t = (progress - lockEnd) / (1 - lockEnd);
         const eased = Math.min(1, Math.max(0, t ** 1.8));
-        virtualProgress = lockStart + eased * (1 - lockStart);
+        virtualProgress = lockValue + eased * (1 - lockValue);
       }
-      const virtualScrollY = maxScroll * virtualProgress;
+
+      let stretchProgress = 0;
+      if (progress <= lockStart) {
+        const t = Math.min(1, Math.max(0, progress / lockStart));
+        const eased = Math.min(1, Math.max(0, t ** 1.6));
+        stretchProgress = lockValue * eased;
+      } else if (progress <= lockEnd) {
+        stretchProgress = lockValue;
+      } else {
+        const t = (progress - lockEnd) / (1 - lockEnd);
+        const eased = Math.min(1, Math.max(0, t ** 1.8));
+        stretchProgress = lockValue + eased * (1 - lockValue);
+      }
+
+      const virtualScrollY = maxScroll * stretchProgress;
 
       const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 90);
       const stretch = Math.min(maxStretch, Math.max(0, virtualScrollY));
@@ -810,19 +828,19 @@ export default function WaitlistPage() {
           </div>
         </div>
 
-        <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
+        <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16 pt-16">
           <div className="rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
             </span>
-            <h3 className="mt-3 text-xl font-semibold text-[var(--ink)]">
+            <h3 className="mt-5 text-xl font-semibold text-[var(--ink)]">
               No te quedes sin participar, registra tu correo en la lista de espera.
             </h3>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-4 text-sm text-slate-600">
               Las invitaciones serán limitadas, te enviaremos la tuya por correo, participa y obtén beneficios extra.
             </p>
 
-            <div className="mt-6 mode-stack">
+            <div className="mt-10 mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
@@ -896,7 +914,7 @@ export default function WaitlistPage() {
               </div>
             </div>
 
-            <div id="como-funciona" className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div id="como-funciona" className="mt-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
                 <h4 className="text-sm font-semibold text-[var(--ink)]">
                   {cardOne.title}
@@ -928,11 +946,12 @@ export default function WaitlistPage() {
                 </p>
               </div>
             </div>
+            <div className="mt-6" />
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="rounded-[28px] border border-slate-400/45 bg-white/85 p-6 shadow-lg">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-52">
+          <div className="rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="flex flex-wrap items-baseline gap-2">
