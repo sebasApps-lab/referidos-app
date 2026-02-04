@@ -6,9 +6,59 @@ import { submitWaitlistSignup } from "./waitlistApi";
 const FLOW_TARGET_ID = "waitlist-flow";
 
 const HOW_CARDS = [
-  "Explora promos",
-  "Refiere y gana",
-  "Negocios crecen",
+  {
+    title: "Explora promos",
+    description:
+      "Explora la variedad de promociones en la aplicacion y escogue tus favoritas. Encuentra descuentos, regalos y más.",
+  },
+  {
+    title: "Refiere y gana",
+    description:
+      "Acercate al restaurante, local o negocio y canjea tu promoción. Así de simple empieza a sumar y acumular puntos. Si tus amigos también participan multiplicarás tus puntos.",
+  },
+  {
+    title: "Obtén beneficios",
+    description:
+      "La aplicacion te premia por acumular puntos, obtienes beneficios con tus puntos acumulados. Y ayudas a crecer a todo tipo de negocio.",
+  },
+];
+
+const FAQ_CLIENTE_ITEMS = [
+  {
+    question: "¿Tiene algún costo?",
+    answer:
+      "Es y será completamente gratis, sin subscripciones, sin compras en la aplicacion ni pagos ocultos. Jamás se te pedirá ingresar información de pago o tarjetas.",
+  },
+  {
+    question: "¿Es una app?",
+    answer:
+      "Sí. Es una app instalable (PWA). La instalas desde el navegador en 5 segundos, sin APK raros ni permisos especiales fuera de los normales del sitio. Se instala con el método oficial del navegador y se actualiza automáticamente funcionando en Android, iPhone y PC (según compatibilidad del navegador).",
+  },
+  {
+    question: "¿Cuándo sale?",
+    answer:
+      "El acceso anticipado a la beta cerrada empezará pronto, si registras tu correo recibiras una invitacion para unirte. La version pública de la aplicación puede tardar un poco más, pero puedes empezar a acumular tus beneficios en la beta cerrada.",
+  },
+  {
+    question: "¿Como me registro en la app?",
+    answer:
+      "Es muy rapido y simple, puedes continuar usando tu cuenta de Google, Facebook, etc. O registrarte con un correo y una contraseña.",
+  },
+  {
+    question: "¿Puedo quitar mi email de la lista?",
+    answerNode: (
+      <>
+        Tu email se borrará automaticamente de la lista una vez te enviemos la invitación cuando inicie el acceso anticipado. Pero si deseas borrarlo y no recibir la notificación con tu invitación, puedes hacerlo facilmente contactando con{" "}
+        <button
+          type="button"
+          className="text-[var(--brand-purple)] font-semibold hover:underline"
+        >
+          ayuda y soporte
+        </button>
+        .
+      </>
+    ),
+  },
 ];
 
 const FAQ_ITEMS = [
@@ -242,6 +292,14 @@ export default function WaitlistPage() {
 
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
+  const [cardOne, cardTwo, cardThree] = HOW_CARDS;
+
+  const handleSwitchToNegocio = () => {
+    handleModeChange("negocio");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const renderBusinessPanel = () => (
     <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
@@ -396,6 +454,7 @@ export default function WaitlistPage() {
         }}
       >
       <style>{`
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@100;200;300;400;500;600;700&display=swap");
         :root {
           --brand-purple: #5E30A5;
           --brand-yellow: #FFC21C;
@@ -491,6 +550,11 @@ export default function WaitlistPage() {
           display: flex;
           justify-content: flex-end;
           align-items: flex-start;
+        }
+        .note-thin {
+          font-weight: 200;
+          font-variation-settings: "wght" 200;
+          font-synthesis-weight: none;
         }
         @media (min-width: 768px) {
           .hero-bg-fixed {
@@ -729,15 +793,15 @@ export default function WaitlistPage() {
         </div>
 
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="rounded-[36px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur">
+          <div className="rounded-[36px] border border-white/70 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
             </span>
             <h3 className="mt-3 text-xl font-semibold text-[var(--ink)]">
-              El acceso anticipado y sus beneficios se abrirá pronto
+              No te quedes sin participar, registra tu correo en la lista de espera.
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              La lista de espera tiene cupos. Te avisaremos por email cuando se abra.
+              Las invitaciones serán limitadas, te enviaremos la tuya por correo, participa y obtén beneficios extra.
             </p>
 
             <div className="mt-6 mode-stack">
@@ -814,32 +878,118 @@ export default function WaitlistPage() {
               </div>
             </div>
 
-            <div id="como-funciona" className="mt-6 grid gap-4 md:grid-cols-3">
-              {HOW_CARDS.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[22px] border border-white/70 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm"
-                >
-                  {item}
-                </div>
-              ))}
+            <div id="como-funciona" className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+                <h4 className="text-sm font-semibold text-[var(--ink)]">
+                  {cardOne.title}
+                </h4>
+                <p className="mt-2 text-left text-xs font-normal text-slate-400">
+                  {cardOne.description}
+                </p>
+              </div>
+              <span aria-hidden="true" className="hidden text-2xl font-semibold text-black md:inline-flex">
+                &gt;
+              </span>
+              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+                <h4 className="text-sm font-semibold text-[var(--ink)]">
+                  {cardTwo.title}
+                </h4>
+                <p className="mt-2 text-left text-xs font-normal text-slate-400">
+                  {cardTwo.description}
+                </p>
+              </div>
+              <span aria-hidden="true" className="hidden text-2xl font-semibold text-black md:inline-flex">
+                &gt;
+              </span>
+              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+                <h4 className="text-sm font-semibold text-[var(--ink)]">
+                  {cardThree.title}
+                </h4>
+                <p className="mt-2 text-left text-xs font-normal text-slate-400">
+                  {cardThree.description}
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-16">
           <div className="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-lg">
-            <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
-            <div className="mt-4 space-y-3">
-              {FAQ_ITEMS.map((item) => (
-                <div
-                  key={item.question}
-                  className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
-                >
-                  <p className="font-semibold text-[var(--ink)]">{item.question}</p>
-                  <p className="mt-1 text-xs text-slate-500">{item.answer}</p>
+            <div className="mode-stack">
+              <div className="mode-sizer" aria-hidden="true">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h3 className="text-xl font-semibold text-[var(--ink)]">Más información</h3>
                 </div>
-              ))}
+                <div className="mt-4 space-y-3">
+                  {FAQ_CLIENTE_ITEMS.map((item) => (
+                    <div
+                      key={item.question}
+                      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
+                    >
+                      <p className="font-semibold text-[var(--ink)]">{item.question}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        {item.answerNode ?? item.answer}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="note-thin mt-4 text-center text-xs text-slate-800">
+                  Información válida para personas que no van a registrar un negocio, ni ofrecer promociones.{" "}
+                  <button
+                    type="button"
+                    onClick={handleSwitchToNegocio}
+                    className="note-thin text-[var(--brand-purple)] hover:underline"
+                  >
+                    Ver sección para negocios.
+                  </button>
+                </div>
+              </div>
+
+              <div className="mode-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h3 className="text-xl font-semibold text-[var(--ink)]">Más información</h3>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {FAQ_CLIENTE_ITEMS.map((item) => (
+                    <div
+                      key={item.question}
+                      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
+                    >
+                      <p className="font-semibold text-[var(--ink)]">{item.question}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        {item.answerNode ?? item.answer}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="note-thin mt-4 text-center text-xs text-slate-800">
+                  Información válida para personas que no van a registrar un negocio, ni ofrecer promociones.{" "}
+                  <button
+                    type="button"
+                    onClick={handleSwitchToNegocio}
+                    className="note-thin text-[var(--brand-purple)] hover:underline"
+                  >
+                    Ver sección para negocios.
+                  </button>
+                </div>
+              </div>
+
+              <div className="mode-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {FAQ_ITEMS.map((item) => (
+                    <div
+                      key={item.question}
+                      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
+                    >
+                      <p className="font-semibold text-[var(--ink)]">{item.question}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">{item.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </section>
