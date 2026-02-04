@@ -201,8 +201,11 @@ export default function WaitlistPage() {
     const maxShift = 510;
     const shiftStart = 1 / 5;
     const lockStart = 1.5 / 5;
-    const lockEnd = 2.1 / 5;
+    const lockEnd = 2.5 / 5;
+    const phase3End = 4.5 / 5;
+    const phase4End = 4.6 / 5;
     const lockGain = 1.3;
+    const nearMax = 0.95;
 
     const updateStretch = () => {
       rafId = null;
@@ -212,6 +215,7 @@ export default function WaitlistPage() {
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
       const lockValue = Math.min(1, lockStart * lockGain);
+      const phase3Target = Math.min(nearMax, 1);
       let virtualProgress = 0;
       if (progress <= lockStart) {
         const t = Math.min(1, Math.max(0, progress / lockStart));
@@ -219,10 +223,16 @@ export default function WaitlistPage() {
         virtualProgress = lockValue * eased;
       } else if (progress <= lockEnd) {
         virtualProgress = lockValue;
+      } else if (progress <= phase3End) {
+        const t = (progress - lockEnd) / (phase3End - lockEnd);
+        const eased = Math.min(1, Math.max(0, t ** 0.7));
+        virtualProgress = lockValue + eased * (phase3Target - lockValue);
+      } else if (progress <= phase4End) {
+        virtualProgress = phase3Target;
       } else {
-        const t = (progress - lockEnd) / (1 - lockEnd);
+        const t = (progress - phase4End) / (1 - phase4End);
         const eased = Math.min(1, Math.max(0, t ** 1.8));
-        virtualProgress = lockValue + eased * (1 - lockValue);
+        virtualProgress = phase3Target + eased * (1 - phase3Target);
       }
 
       let stretchProgress = 0;
@@ -232,10 +242,16 @@ export default function WaitlistPage() {
         stretchProgress = lockValue * eased;
       } else if (progress <= lockEnd) {
         stretchProgress = lockValue;
+      } else if (progress <= phase3End) {
+        const t = (progress - lockEnd) / (phase3End - lockEnd);
+        const eased = Math.min(1, Math.max(0, t ** 0.7));
+        stretchProgress = lockValue + eased * (phase3Target - lockValue);
+      } else if (progress <= phase4End) {
+        stretchProgress = phase3Target;
       } else {
-        const t = (progress - lockEnd) / (1 - lockEnd);
+        const t = (progress - phase4End) / (1 - phase4End);
         const eased = Math.min(1, Math.max(0, t ** 1.8));
-        stretchProgress = lockValue + eased * (1 - lockValue);
+        stretchProgress = phase3Target + eased * (1 - phase3Target);
       }
 
       const virtualScrollY = maxScroll * stretchProgress;
