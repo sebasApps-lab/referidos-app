@@ -731,10 +731,10 @@ export default function WaitlistPage() {
         <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16">
           <div className="rounded-[36px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
-              ALPHA / PRELAUNCH
+              BETA / ACCESO ANTICIPADO
             </span>
             <h3 className="mt-3 text-xl font-semibold text-[var(--ink)]">
-              La beta llegará pronto
+              El acceso anticipado y sus beneficios se abrirá pronto
             </h3>
             <p className="mt-2 text-sm text-slate-600">
               La lista de espera tiene cupos. Te avisaremos por email cuando se abra.
@@ -769,20 +769,20 @@ export default function WaitlistPage() {
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="fade-up rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
-                      Beneficios visibles desde el día uno
+                      Beneficios desde el día uno
                     </h4>
                     <ul className="mt-3 space-y-2">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Promos reales y fáciles de canjear.
+                        Promos listas y fáciles de canjear.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Beneficios por referir a tu gente.
+                        Multiplica puntos por llevar amigos.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-yellow)]" />
-                        Cupos limitados para acceder primero.
+                        Beneficios extra por participar en el acceso anticipado de la beta.
                       </li>
                     </ul>
                   </div>
@@ -813,19 +813,17 @@ export default function WaitlistPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section id="como-funciona" className="mx-auto w-full max-w-6xl px-6 pb-16">
-          <div className="grid gap-4 md:grid-cols-3">
-            {HOW_CARDS.map((item) => (
-              <div
-                key={item}
-                className="rounded-[28px] border border-white/70 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-lg"
-              >
-                {item}
-              </div>
-            ))}
+            <div id="como-funciona" className="mt-6 grid gap-4 md:grid-cols-3">
+              {HOW_CARDS.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-[22px] border border-white/70 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
