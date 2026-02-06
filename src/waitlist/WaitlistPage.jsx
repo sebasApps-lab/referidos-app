@@ -198,13 +198,14 @@ export default function WaitlistPage() {
   useEffect(() => {
     if (!rootRef.current || typeof window === "undefined") return;
     let rafId = null;
-    const maxShift = 460;
+    const maxShift = 260;
     const shiftStart = 1 / 5;
     const lockStart = 1.2 / 5;
     const lockEnd = 2.5 / 5;
     const phase3End = 3.5 / 5;
     const phase4End = 4.6 / 5;
     const lockGain = 1.2;
+    const lockGainShift = 2.4;
     const nearMax = 0.95;
 
     const updateStretch = () => {
@@ -215,18 +216,19 @@ export default function WaitlistPage() {
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
       const lockValue = Math.min(1, lockStart * lockGain);
+      const lockValueShift = Math.min(1, lockStart * lockGainShift);
       const phase3Target = Math.min(nearMax, 1);
       let virtualProgress = 0;
       if (progress <= lockStart) {
         const t = Math.min(1, Math.max(0, progress / lockStart));
         const eased = Math.min(1, Math.max(0, t ** 1.6));
-        virtualProgress = lockValue * eased;
+        virtualProgress = lockValueShift * eased;
       } else if (progress <= lockEnd) {
-        virtualProgress = lockValue;
+        virtualProgress = lockValueShift;
       } else if (progress <= phase3End) {
         const t = (progress - lockEnd) / (phase3End - lockEnd);
         const eased = Math.min(1, Math.max(0, t ** 1.3));
-        virtualProgress = lockValue + eased * (phase3Target - lockValue);
+        virtualProgress = lockValueShift + eased * (phase3Target - lockValueShift);
       } else if (progress <= phase4End) {
         virtualProgress = phase3Target;
       } else {
