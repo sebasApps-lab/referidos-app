@@ -100,16 +100,9 @@ export function useSectionScrollMotion(...sectionRefs) {
         }
 
         if (index === 0) {
-          const visiblePx =
-            Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
-          const visibleRatio = rect.height > 0 ? clamp01(visiblePx / rect.height) : 0;
-          const startAtVisibleRatio = 0.88;
-          const endAtVisibleRatio = 0.34;
-          const outFromHalfRaw = clamp01(
-            (startAtVisibleRatio - visibleRatio) /
-              Math.max(0.01, startAtVisibleRatio - endAtVisibleRatio)
-          );
-          const outFromHalf = easeSectionProgress(outFromHalfRaw);
+          const phase1Raw = clamp01(pageProgress / Math.max(0.0001, heroPhase1End));
+          // Very slow at start, then ramps up near the end of phase 1.
+          const outFromHalf = phase1Raw ** 2.9;
           const lateral = outFromHalf * 180;
           const opacity = 1 - outFromHalf * 0.82;
 

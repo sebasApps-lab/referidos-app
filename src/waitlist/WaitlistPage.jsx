@@ -440,7 +440,7 @@ export default function WaitlistPage() {
           100% { transform: translateY(0px); }
         }
         @keyframes fadeUp {
-          0% { opacity: 0; transform: translateY(18px); }
+          0% { opacity: 0; transform: translateY(42px); }
           100% { opacity: 1; transform: translateY(0); }
         }
         @keyframes shimmer {
@@ -449,7 +449,7 @@ export default function WaitlistPage() {
           100% { opacity: 0.3; }
         }
         .floaty { animation: floaty 7s ease-in-out infinite; }
-        .fade-up { animation: fadeUp 0.6s ease both; }
+        .fade-up { animation: fadeUp 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
         .hero-bg-fixed {
           --hero-bg-base: 1200px;
@@ -797,7 +797,7 @@ export default function WaitlistPage() {
           id={FLOW_TARGET_ID}
           className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-16 pt-16"
         >
-          <div className="rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
+          <div className="fade-up rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
             </span>
@@ -811,7 +811,7 @@ export default function WaitlistPage() {
             <div className="mt-10 mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="grid gap-6 md:grid-cols-1">
-                  <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
+                  <div className="rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
                       ¿Qué puedo hacer en prelaunch?
                     </h4>
@@ -835,7 +835,7 @@ export default function WaitlistPage() {
 
               <div className="mode-layer mode-cliente" aria-hidden={mode !== "cliente"}>
                 <div className="grid gap-6 md:grid-cols-1">
-                  <div className="fade-up rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
+                  <div className="rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
                       Beneficios desde el día uno
                     </h4>
@@ -859,7 +859,7 @@ export default function WaitlistPage() {
 
               <div className="mode-layer mode-negocio" aria-hidden={mode !== "negocio"}>
                 <div className="grid gap-6 md:grid-cols-1">
-                  <div className="fade-up rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
+                  <div className="rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
                       ¿Qué puedo hacer en prelaunch?
                     </h4>
@@ -919,7 +919,7 @@ export default function WaitlistPage() {
         </section>
 
         <section ref={sectionThreeRef} className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
-          <div className="rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
+          <div className="fade-up rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="flex flex-wrap items-baseline gap-2">
