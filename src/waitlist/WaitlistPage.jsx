@@ -526,10 +526,12 @@ export default function WaitlistPage() {
         .scroll-stage {
           --section-y: 0px;
           --section-opacity: 1;
+          --section-scale: 1;
           --section-hero-left-x: 0px;
           --section-hero-right-x: 0px;
           opacity: var(--section-opacity);
-          transform: translate3d(0, var(--section-y), 0);
+          transform: translate3d(0, var(--section-y), 0) scale(var(--section-scale));
+          transform-origin: center center;
           will-change: transform, opacity;
         }
         .scroll-stage-hero .hero-left-col,

@@ -19,6 +19,7 @@ export function useSectionScrollMotion(...sectionRefs) {
       refs.forEach((ref) => {
         ref.current.style.setProperty("--section-y", "0px");
         ref.current.style.setProperty("--section-opacity", "1");
+        ref.current.style.setProperty("--section-scale", "1");
         ref.current.style.setProperty("--section-hero-left-x", "0px");
         ref.current.style.setProperty("--section-hero-right-x", "0px");
       });
@@ -36,11 +37,18 @@ export function useSectionScrollMotion(...sectionRefs) {
     const enterStartFactor = [1.14, 0.76, 0.98];
     const opacitySpanFactor = [0.16, 0.16, 0.16];
     const moveSpanFactor = [0.4, 1.06, 0.4];
+    // Sync section 2 motion end with hero phase-1 freeze point.
+    const heroPhase1End = 1.2 / 5;
+    const section2MoveStart = 0.19;
     const update = () => {
       rafId = null;
 
       const viewportHeight =
         window.innerHeight || document.documentElement.clientHeight || 1;
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      const doc = document.documentElement;
+      const maxScroll = Math.max(0, doc.scrollHeight - viewportHeight);
+      const pageProgress = maxScroll > 0 ? clamp01(scrollY / maxScroll) : 0;
       refs.forEach((ref, index) => {
         const element = ref.current;
         if (!element) return;
@@ -52,7 +60,16 @@ export function useSectionScrollMotion(...sectionRefs) {
         const inOpacityRaw = clamp01((enterStart - rect.top) / Math.max(1, opacitySpan));
         const inMoveRaw = clamp01((enterStart - rect.top) / Math.max(1, moveSpan));
         const inOpacity = easeSectionProgress(inOpacityRaw);
-        const inMove = easeSectionProgress(inMoveRaw);
+        let inMove = easeSectionProgress(inMoveRaw);
+
+        // Section 2: start later, finish exactly when hero phase 1 ends.
+        if (index === 1) {
+          const syncedRaw = clamp01(
+            (pageProgress - section2MoveStart) /
+              Math.max(0.0001, heroPhase1End - section2MoveStart)
+          );
+          inMove = easeSectionProgress(syncedRaw);
+        }
 
         const outStart = viewportHeight * (outStartFactor[index] ?? 0.1);
         const outEnd = -Math.max(120, rect.height * (outEndHeightFactor[index] ?? 0.5));
@@ -76,6 +93,7 @@ export function useSectionScrollMotion(...sectionRefs) {
 
           element.style.setProperty("--section-y", "0px");
           element.style.setProperty("--section-opacity", `${opacity.toFixed(3)}`);
+          element.style.setProperty("--section-scale", "1");
           element.style.setProperty("--section-hero-left-x", `${(-lateral).toFixed(2)}px`);
           element.style.setProperty("--section-hero-right-x", `${lateral.toFixed(2)}px`);
           return;
@@ -86,10 +104,24 @@ export function useSectionScrollMotion(...sectionRefs) {
         const exitY = -outEased * (exitTravel[index] || 22);
         const translateY = enterY + exitY;
         const minOpacity = minOpacityBySection[index] ?? 0.18;
-        const opacity = minOpacity + (1 - minOpacity) * visibility;
+        let opacity = minOpacity + (1 - minOpacity) * visibility;
+        let scale = 1;
+
+        if (index === 1) {
+          const phaseRaw = clamp01(
+            (pageProgress - section2MoveStart) /
+              Math.max(0.0001, heroPhase1End - section2MoveStart)
+          );
+          const scaleEased = phaseRaw ** 2.8;
+          scale = 0.93 + 0.07 * scaleEased;
+          const fadeInEased = phaseRaw ** 1.55;
+          const fadeVisibility = clamp01(fadeInEased * outFactor);
+          opacity = minOpacity + (1 - minOpacity) * fadeVisibility;
+        }
 
         element.style.setProperty("--section-y", `${translateY.toFixed(2)}px`);
         element.style.setProperty("--section-opacity", opacity.toFixed(3));
+        element.style.setProperty("--section-scale", scale.toFixed(3));
       });
     };
 
