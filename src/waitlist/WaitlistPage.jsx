@@ -451,6 +451,10 @@ export default function WaitlistPage() {
           0% { opacity: 0; transform: translateX(72px); }
           100% { opacity: 1; transform: translateX(0); }
         }
+        @keyframes fadeDown {
+          0% { opacity: 0; transform: translateY(-38px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
         @keyframes shimmer {
           0% { opacity: 0.3; }
           50% { opacity: 0.7; }
@@ -460,6 +464,7 @@ export default function WaitlistPage() {
         .fade-up { animation: fadeUp 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .fade-edge-left { animation: fadeEdgeLeft 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .fade-edge-right { animation: fadeEdgeRight 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
+        .fade-down { animation: fadeDown 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
         .hero-bg-fixed {
           --hero-bg-base: 1200px;
@@ -685,7 +690,7 @@ export default function WaitlistPage() {
           align-items: flex-end;
         }
         @media (prefers-reduced-motion: reduce) {
-          .floaty, .fade-up, .fade-edge-left, .fade-edge-right, .soft-glow { animation: none; }
+          .floaty, .fade-up, .fade-edge-left, .fade-edge-right, .fade-down, .soft-glow { animation: none; }
           .scroll-stage {
             opacity: 1;
             transform: none;
@@ -713,13 +718,22 @@ export default function WaitlistPage() {
           <div className="relative">
           <div className="hero-content">
             <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
-              <div className="text-lg font-semibold tracking-tight text-[var(--ink)]">
-                Referidos
+              <div className="fade-edge-left text-lg font-semibold tracking-tight text-[var(--ink)]">
+                ReferidosAPP
               </div>
-              <div className="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-                <span>Promos</span>
-                <span>Beneficios</span>
-                <span>Referidos</span>
+              <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
+                {mode === "cliente" ? (
+                  <>
+                    <span>Beneficios</span>
+                    <span>Más información</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Promos</span>
+                    <span>Beta (Acceso Anticipado)</span>
+                    <span>Para qué sirve?</span>
+                  </>
+                )}
               </div>
             </header>
 
