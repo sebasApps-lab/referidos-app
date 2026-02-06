@@ -200,17 +200,17 @@ export default function WaitlistPage() {
     let rafId = null;
     const maxShift = 460;
     const shiftStart = 1 / 5;
-    const lockStart = 1.5 / 5;
+    const lockStart = 1.2 / 5;
     const lockEnd = 2.5 / 5;
-    const phase3End = 4.3 / 5;
+    const phase3End = 3.5 / 5;
     const phase4End = 4.6 / 5;
-    const lockGain = 1.3;
+    const lockGain = 1.2;
     const nearMax = 0.95;
 
     const updateStretch = () => {
       rafId = null;
       const scrollY = window.scrollY || window.pageYOffset || 0;
-      const baseHeight = window.innerWidth >= 768 ? 960 : 800;
+      const baseHeight = 1200;
       const doc = document.documentElement;
       const maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
@@ -256,7 +256,7 @@ export default function WaitlistPage() {
 
       const virtualScrollY = maxScroll * stretchProgress;
 
-      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 90);
+      const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 80);
       const stretch = Math.min(maxStretch, Math.max(0, virtualScrollY));
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
 
@@ -534,7 +534,7 @@ export default function WaitlistPage() {
         .fade-up { animation: fadeUp 0.6s ease both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
         .hero-bg-fixed {
-          --hero-bg-base: 800px;
+          --hero-bg-base: 1200px;
           height: calc(var(--hero-bg-base) + var(--hero-bg-stretch));
           z-index: 0;
         }
@@ -548,23 +548,25 @@ export default function WaitlistPage() {
           -webkit-clip-path: polygon(
             100% 0%,
             100% 100%,
-            52% 100%,
-            60% 82%,
-            50% 62%,
-            56% 48%,
-            62% 32%,
-            54% 16%,
+            38% 100%,
+            46% 95%,
+            60% 77.9%,
+            50% 58.9%,
+            56% 45.6%,
+            62% 30.4%,
+            54% 15.2%,
             58% 0%
           );
           clip-path: polygon(
             100% 0%,
             100% 100%,
-            52% 100%,
-            60% 82%,
-            50% 62%,
-            56% 48%,
-            62% 32%,
-            54% 16%,
+            38% 100%,
+            46% 95%,
+            60% 77.9%,
+            50% 58.9%,
+            56% 45.6%,
+            62% 30.4%,
+            54% 15.2%,
             58% 0%
           );
         }
@@ -607,11 +609,6 @@ export default function WaitlistPage() {
           font-weight: 200;
           font-variation-settings: "wght" 200;
           font-synthesis-weight: none;
-        }
-        @media (min-width: 768px) {
-          .hero-bg-fixed {
-            --hero-bg-base: 960px;
-          }
         }
         [data-mode="cliente"] .mode-negocio {
           opacity: 0;
@@ -682,23 +679,25 @@ export default function WaitlistPage() {
             -webkit-clip-path: polygon(
               100% 0%,
               100% 100%,
-              64% 100%,
-              70% 84%,
-              62% 62%,
-              66% 48%,
-              72% 32%,
-              66% 16%,
+              50% 100%,
+              58% 95%,
+              70% 79.8%,
+              62% 58.9%,
+              66% 45.6%,
+              72% 30.4%,
+              66% 15.2%,
               70% 0%
             );
             clip-path: polygon(
               100% 0%,
               100% 100%,
-              64% 100%,
-              70% 84%,
-              62% 62%,
-              66% 48%,
-              72% 32%,
-              66% 16%,
+              50% 100%,
+              58% 95%,
+              70% 79.8%,
+              62% 58.9%,
+              66% 45.6%,
+              72% 30.4%,
+              66% 15.2%,
               70% 0%
           );
           }
@@ -710,23 +709,25 @@ export default function WaitlistPage() {
           -webkit-clip-path: polygon(
             100% 0%,
             100% 100%,
-            52% 100%,
-            60% 82%,
-            50% 62%,
-            56% 48%,
-            62% 32%,
-            54% 16%,
+            38% 100%,
+            46% 95%,
+            60% 77.9%,
+            50% 58.9%,
+            56% 45.6%,
+            62% 30.4%,
+            54% 15.2%,
             58% 0%
           );
           clip-path: polygon(
             100% 0%,
             100% 100%,
-            52% 100%,
-            60% 82%,
-            50% 62%,
-            56% 48%,
-            62% 32%,
-            54% 16%,
+            38% 100%,
+            46% 95%,
+            60% 77.9%,
+            50% 58.9%,
+            56% 45.6%,
+            62% 30.4%,
+            54% 15.2%,
             58% 0%
           );
         }
@@ -966,7 +967,7 @@ export default function WaitlistPage() {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-52">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
           <div className="rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
