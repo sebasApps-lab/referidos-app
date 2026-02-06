@@ -443,6 +443,14 @@ export default function WaitlistPage() {
           0% { opacity: 0; transform: translateY(42px); }
           100% { opacity: 1; transform: translateY(0); }
         }
+        @keyframes fadeEdgeLeft {
+          0% { opacity: 0; transform: translateX(-72px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeEdgeRight {
+          0% { opacity: 0; transform: translateX(72px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
         @keyframes shimmer {
           0% { opacity: 0.3; }
           50% { opacity: 0.7; }
@@ -450,6 +458,8 @@ export default function WaitlistPage() {
         }
         .floaty { animation: floaty 7s ease-in-out infinite; }
         .fade-up { animation: fadeUp 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
+        .fade-edge-left { animation: fadeEdgeLeft 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
+        .fade-edge-right { animation: fadeEdgeRight 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
         .hero-bg-fixed {
           --hero-bg-base: 1200px;
@@ -675,7 +685,7 @@ export default function WaitlistPage() {
           align-items: flex-end;
         }
         @media (prefers-reduced-motion: reduce) {
-          .floaty, .fade-up, .soft-glow { animation: none; }
+          .floaty, .fade-up, .fade-edge-left, .fade-edge-right, .soft-glow { animation: none; }
           .scroll-stage {
             opacity: 1;
             transform: none;
@@ -719,6 +729,7 @@ export default function WaitlistPage() {
             >
             <div className="hero-grid">
               <div className="hero-left-col space-y-6">
+                <div className="fade-edge-left space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
                   RESERVA TU ACCESO ANTICIPADO
                 </span>
@@ -744,9 +755,11 @@ export default function WaitlistPage() {
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beneficios extra</div>
                   <div className="rounded-full bg-white/80 px-3 py-1 shadow">Reserva ya</div>
                 </div>
+                </div>
               </div>
 
               <div className="hero-right hero-right-col flex w-full -translate-y-3 flex-col items-stretch md:items-end">
+                <div className="fade-edge-right flex w-full flex-col items-stretch md:items-end">
                 <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
@@ -784,6 +797,7 @@ export default function WaitlistPage() {
                   <div className="hero-panel-layer mode-cliente" aria-hidden={mode !== "cliente"}>
                     {renderClientPanel()}
                   </div>
+                </div>
                 </div>
               </div>
             </div>
