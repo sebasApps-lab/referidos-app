@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { submitWaitlistSignup } from "./waitlistApi";
 import { useHeroMotion } from "./hooks/useHeroMotion";
+import { useSectionScrollMotion } from "./hooks/useSectionScrollMotion";
 
 const FLOW_TARGET_ID = "waitlist-flow";
 
@@ -113,6 +114,9 @@ export default function WaitlistPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = normalizeMode(searchParams.get("mode"));
   const rootRef = useRef(null);
+  const sectionOneRef = useRef(null);
+  const sectionTwoRef = useRef(null);
+  const sectionThreeRef = useRef(null);
   const [email, setEmail] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState("idle");
@@ -197,6 +201,7 @@ export default function WaitlistPage() {
   }, []);
 
   useHeroMotion(rootRef);
+  useSectionScrollMotion(sectionOneRef, sectionTwoRef, sectionThreeRef);
 
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);
@@ -518,6 +523,26 @@ export default function WaitlistPage() {
           justify-content: flex-end;
           align-items: flex-start;
         }
+        .scroll-stage {
+          --section-y: 0px;
+          --section-opacity: 1;
+          --section-hero-left-x: 0px;
+          --section-hero-right-x: 0px;
+          opacity: var(--section-opacity);
+          transform: translate3d(0, var(--section-y), 0);
+          will-change: transform, opacity;
+        }
+        .scroll-stage-hero .hero-left-col,
+        .scroll-stage-hero .hero-right-col {
+          will-change: left;
+          position: relative;
+        }
+        .scroll-stage-hero .hero-left-col {
+          left: var(--section-hero-left-x);
+        }
+        .scroll-stage-hero .hero-right-col {
+          left: var(--section-hero-right-x);
+        }
         .note-thin {
           font-weight: 200;
           font-variation-settings: "wght" 200;
@@ -649,6 +674,10 @@ export default function WaitlistPage() {
         }
         @media (prefers-reduced-motion: reduce) {
           .floaty, .fade-up, .soft-glow { animation: none; }
+          .scroll-stage {
+            opacity: 1;
+            transform: none;
+          }
         }
       `}</style>
 
@@ -682,9 +711,12 @@ export default function WaitlistPage() {
               </div>
             </header>
 
-            <section className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12">
+            <section
+              ref={sectionOneRef}
+              className="scroll-stage scroll-stage-hero relative mx-auto w-full max-w-6xl px-6 pb-14 pt-12"
+            >
             <div className="hero-grid">
-              <div className="space-y-6">
+              <div className="hero-left-col space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
                   RESERVA TU ACCESO ANTICIPADO
                 </span>
@@ -712,7 +744,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="hero-right flex w-full -translate-y-3 flex-col items-stretch md:items-end">
+              <div className="hero-right hero-right-col flex w-full -translate-y-3 flex-col items-stretch md:items-end">
                 <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
@@ -758,7 +790,11 @@ export default function WaitlistPage() {
           </div>
         </div>
 
-        <section id={FLOW_TARGET_ID} className="mx-auto w-full max-w-6xl px-6 pb-16 pt-16">
+        <section
+          ref={sectionTwoRef}
+          id={FLOW_TARGET_ID}
+          className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-16 pt-16"
+        >
           <div className="rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
@@ -880,7 +916,7 @@ export default function WaitlistPage() {
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
+        <section ref={sectionThreeRef} className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
           <div className="rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
