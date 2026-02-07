@@ -125,6 +125,8 @@ export default function WaitlistPage() {
   const [isBusinessBorderTracing, setIsBusinessBorderTracing] = useState(false);
   const borderTraceRafRef = useRef(null);
   const businessBorderTraceRafRef = useRef(null);
+  const borderTraceTimeoutRef = useRef(null);
+  const businessBorderTraceTimeoutRef = useRef(null);
 
   const meta = useMemo(
     () => ({
@@ -215,6 +217,12 @@ export default function WaitlistPage() {
       if (businessBorderTraceRafRef.current != null) {
         window.cancelAnimationFrame(businessBorderTraceRafRef.current);
       }
+      if (borderTraceTimeoutRef.current != null) {
+        window.clearTimeout(borderTraceTimeoutRef.current);
+      }
+      if (businessBorderTraceTimeoutRef.current != null) {
+        window.clearTimeout(businessBorderTraceTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -228,6 +236,13 @@ export default function WaitlistPage() {
       setIsBorderTracing(true);
       borderTraceRafRef.current = null;
     });
+    if (borderTraceTimeoutRef.current != null) {
+      window.clearTimeout(borderTraceTimeoutRef.current);
+    }
+    borderTraceTimeoutRef.current = window.setTimeout(() => {
+      setIsBorderTracing(false);
+      borderTraceTimeoutRef.current = null;
+    }, 1200);
   };
 
   const handleBorderTraceAnimationEnd = (event) => {
@@ -245,6 +260,13 @@ export default function WaitlistPage() {
       setIsBusinessBorderTracing(true);
       businessBorderTraceRafRef.current = null;
     });
+    if (businessBorderTraceTimeoutRef.current != null) {
+      window.clearTimeout(businessBorderTraceTimeoutRef.current);
+    }
+    businessBorderTraceTimeoutRef.current = window.setTimeout(() => {
+      setIsBusinessBorderTracing(false);
+      businessBorderTraceTimeoutRef.current = null;
+    }, 1200);
   };
 
   const handleBusinessBorderTraceAnimationEnd = (event) => {
@@ -410,7 +432,8 @@ export default function WaitlistPage() {
         <a
           href="/app"
           onClick={() => trackEvent("open_pwa_click")}
-          onMouseEnter={triggerBusinessBorderTrace}
+          onPointerEnter={triggerBusinessBorderTrace}
+          onPointerDown={triggerBusinessBorderTrace}
           onFocus={triggerBusinessBorderTrace}
           className={`waitlist-btn-trace w-[288px] translate-x-2 rounded-2xl border border-transparent bg-[#1F1F1E] px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 ${isBusinessBorderTracing ? "is-tracing" : ""}`}
         >
@@ -484,7 +507,8 @@ export default function WaitlistPage() {
           <button
             type="submit"
             disabled={status === "loading"}
-            onMouseEnter={triggerBorderTrace}
+            onPointerEnter={triggerBorderTrace}
+            onPointerDown={triggerBorderTrace}
             onFocus={triggerBorderTrace}
             className={`waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${isBorderTracing ? "is-tracing" : ""}`}
           >
