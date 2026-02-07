@@ -432,50 +432,12 @@ export default function WaitlistPage() {
         <a
           href="/app"
           onClick={() => trackEvent("open_pwa_click")}
-          onPointerEnter={triggerBusinessBorderTrace}
-          onPointerDown={triggerBusinessBorderTrace}
-          onFocus={triggerBusinessBorderTrace}
-          className={`waitlist-btn-trace w-[288px] translate-x-2 rounded-2xl border border-transparent bg-[#1F1F1E] px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 ${isBusinessBorderTracing ? "is-tracing" : ""}`}
+          className="w-[288px] translate-x-2 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1"
         >
           Descargar panel para negocio
-          <span className="block text-xs font-semibold text-[#FFC21C]">
+          <span className="block text-xs font-semibold text-slate-600">
             (Acceso anticipado)
           </span>
-          <svg
-            aria-hidden="true"
-            className="waitlist-btn-outline"
-            viewBox="0 0 292 60"
-            preserveAspectRatio="none"
-          >
-            <rect
-              className="trace-stroke trace-stroke--soft"
-              x="1.5"
-              y="1.5"
-              width="289"
-              height="57"
-              rx="16"
-              ry="16"
-            />
-            <rect
-              className="trace-stroke trace-stroke--mid"
-              x="1.5"
-              y="1.5"
-              width="289"
-              height="57"
-              rx="16"
-              ry="16"
-            />
-            <rect
-              className="trace-stroke trace-stroke--core"
-              x="1.5"
-              y="1.5"
-              width="289"
-              height="57"
-              rx="16"
-              ry="16"
-              onAnimationEnd={handleBusinessBorderTraceAnimationEnd}
-            />
-          </svg>
         </a>
         <p className="text-xs text-white/70">
           Version PWA, funciona para Android y iPhone, proximamente en Windows.
@@ -507,28 +469,9 @@ export default function WaitlistPage() {
           <button
             type="submit"
             disabled={status === "loading"}
-            onPointerEnter={triggerBorderTrace}
-            onPointerDown={triggerBorderTrace}
-            onFocus={triggerBorderTrace}
-            className={`waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${isBorderTracing ? "is-tracing" : ""}`}
+            className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
-            <svg
-              aria-hidden="true"
-              className="waitlist-btn-outline"
-              viewBox="0 0 292 60"
-              preserveAspectRatio="none"
-            >
-              <rect
-                x="1.5"
-                y="1.5"
-                width="289"
-                height="57"
-                rx="16"
-                ry="16"
-                onAnimationEnd={handleBorderTraceAnimationEnd}
-              />
-            </svg>
           </button>
         </div>
 
