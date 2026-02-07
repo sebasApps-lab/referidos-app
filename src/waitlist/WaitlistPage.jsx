@@ -113,6 +113,9 @@ export default function WaitlistPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = normalizeMode(searchParams.get("mode"));
+  const [uiMode, setUiMode] = useState(mode);
+  const [modeAnimTick, setModeAnimTick] = useState(0);
+  const pendingModeRef = useRef(null);
   const rootRef = useRef(null);
   const sectionOneRef = useRef(null);
   const sectionTwoRef = useRef(null);
@@ -226,6 +229,24 @@ export default function WaitlistPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (mode === uiMode) {
+      if (pendingModeRef.current === mode) {
+        pendingModeRef.current = null;
+      }
+      return;
+    }
+
+    // Ignore transient query state while an internal mode switch is committing.
+    if (pendingModeRef.current && mode !== pendingModeRef.current) {
+      return;
+    }
+
+    pendingModeRef.current = null;
+    setUiMode(mode);
+    setModeAnimTick((value) => value + 1);
+  }, [mode, uiMode]);
+
   const triggerBorderTrace = () => {
     if (status === "loading") return;
     if (borderTraceRafRef.current != null) {
@@ -277,6 +298,11 @@ export default function WaitlistPage() {
 
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);
+    if (normalized !== uiMode) {
+      pendingModeRef.current = normalized;
+      setUiMode(normalized);
+      setModeAnimTick((value) => value + 1);
+    }
     const currentParam = searchParams.get("mode");
     if (currentParam !== normalized) {
       const nextParams = new URLSearchParams(searchParams);
@@ -335,7 +361,7 @@ export default function WaitlistPage() {
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
   const [cardOne, cardTwo, cardThree] = HOW_CARDS;
-  const isNegocioMode = mode === "negocio";
+  const isNegocioMode = uiMode === "negocio";
   const heroBadgeText = isNegocioMode
     ? "ACCESO ANTICIPADO AL PANEL DE PROMOS"
     : "RESERVA TU ACCESO ANTICIPADO";
@@ -348,7 +374,7 @@ export default function WaitlistPage() {
     ? ["Acceso anticipado", "Entorno simple", "Beneficios por participar", "Empieza ya"]
     : ["Beta cerrada", "Cupos limitados", "Beneficios extra", "Reserva ya"];
   const miniNavItems =
-    mode === "cliente"
+    uiMode === "cliente"
       ? [
           { label: "Beneficios", target: "beneficios" },
           { label: "Más información", target: "mas-informacion" },
@@ -378,6 +404,7 @@ export default function WaitlistPage() {
       sectionThreeRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+  const modeAnimKey = `${uiMode}-${modeAnimTick}`;
 
   const renderBusinessPanel = () => (
     <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
@@ -525,7 +552,7 @@ export default function WaitlistPage() {
   return (
       <div
         className="desktop-min relative min-h-screen bg-[var(--brand-purple)] text-slate-900"
-        data-mode={mode}
+        data-mode={uiMode}
         ref={rootRef}
         style={{
           fontFamily: '"Space Grotesk", "Sora", "Trebuchet MS", sans-serif',
@@ -960,7 +987,7 @@ export default function WaitlistPage() {
             >
             <div className="hero-grid">
               <div className="hero-left-col space-y-6">
-                <div className="fade-edge-left space-y-6">
+                <div key={`hero-left-${modeAnimKey}`} className="fade-edge-left space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
                   {heroBadgeText}
                 </span>
@@ -990,14 +1017,13 @@ export default function WaitlistPage() {
               </div>
 
               <div className="hero-right hero-right-col flex w-full -translate-y-3 flex-col items-stretch md:items-end">
-                <div className="fade-edge-right flex w-full flex-col items-stretch md:items-end">
-                <div className="flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
+                <div className="fade-edge-right flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
                   <button
                     type="button"
                     onClick={() => handleModeChange("cliente")}
-                    aria-pressed={mode === "cliente"}
+                    aria-pressed={uiMode === "cliente"}
                     className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
-                      mode === "cliente"
+                      uiMode === "cliente"
                         ? "bg-[var(--brand-purple)] text-white shadow"
                         : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
                     }`}
@@ -1007,9 +1033,9 @@ export default function WaitlistPage() {
                   <button
                     type="button"
                     onClick={() => handleModeChange("negocio")}
-                    aria-pressed={mode === "negocio"}
+                    aria-pressed={uiMode === "negocio"}
                     className={`-ml-2 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
-                      mode === "negocio"
+                      uiMode === "negocio"
                         ? "bg-[var(--brand-purple)] text-white shadow"
                         : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
                     }`}
@@ -1018,14 +1044,15 @@ export default function WaitlistPage() {
                   </button>
                 </div>
 
+                <div key={`hero-right-${modeAnimKey}`} className="fade-edge-right flex w-full flex-col items-stretch md:items-end">
                 <div className="hero-panel-wrap">
                   <div className="hero-panel-sizer" aria-hidden="true">
                     {renderBusinessPanel()}
                   </div>
-                  <div className="hero-panel-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+                  <div className="hero-panel-layer mode-negocio" aria-hidden={uiMode !== "negocio"}>
                     {renderBusinessPanel()}
                   </div>
-                  <div className="hero-panel-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+                  <div className="hero-panel-layer mode-cliente" aria-hidden={uiMode !== "cliente"}>
                     {renderClientPanel()}
                   </div>
                 </div>
@@ -1042,7 +1069,7 @@ export default function WaitlistPage() {
           id={FLOW_TARGET_ID}
           className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-16 pt-16"
         >
-          <div className="fade-up rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
+          <div key={`section-two-${modeAnimKey}`} className="fade-up rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
               BETA / ACCESO ANTICIPADO
             </span>
@@ -1078,7 +1105,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="mode-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+              <div className="mode-layer mode-cliente" aria-hidden={uiMode !== "cliente"}>
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="rounded-[28px] border border-slate-100 bg-[#FFF7E5] p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
@@ -1102,7 +1129,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="mode-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+              <div className="mode-layer mode-negocio" aria-hidden={uiMode !== "negocio"}>
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
@@ -1164,7 +1191,7 @@ export default function WaitlistPage() {
         </section>
 
         <section ref={sectionThreeRef} className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
-          <div className="fade-up rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
+          <div key={`section-three-${modeAnimKey}`} className="fade-up rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
             <div className="mode-stack">
               <div className="mode-sizer" aria-hidden="true">
                 <div className="flex flex-wrap items-baseline gap-2">
@@ -1195,7 +1222,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="mode-layer mode-cliente" aria-hidden={mode !== "cliente"}>
+              <div className="mode-layer mode-cliente" aria-hidden={uiMode !== "cliente"}>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <h3 className="text-xl font-semibold text-[var(--ink)]">Más información</h3>
                 </div>
@@ -1224,7 +1251,7 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              <div className="mode-layer mode-negocio" aria-hidden={mode !== "negocio"}>
+              <div className="mode-layer mode-negocio" aria-hidden={uiMode !== "negocio"}>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
                 </div>

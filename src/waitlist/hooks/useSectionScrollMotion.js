@@ -7,6 +7,12 @@ function easeSectionProgress(value) {
   return 1 - (1 - easedIn) ** 1.9;
 }
 
+function easeOpacityProgress(value) {
+  const x = clamp01(value);
+  const easedIn = x ** 1.45;
+  return 1 - (1 - easedIn) ** 1.25;
+}
+
 export function useSectionScrollMotion(...sectionRefs) {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -122,7 +128,7 @@ export function useSectionScrollMotion(...sectionRefs) {
           const exitOpacityRaw = clamp01(
             (pageProgress - heroPhase3Start) / Math.max(0.0001, heroPhase3End - heroPhase3Start)
           );
-          const exitOpacityEased = easeSectionProgress(exitOpacityRaw);
+          const exitOpacityEased = easeOpacityProgress(exitOpacityRaw);
           const exitMoveRaw = clamp01(
             (pageProgress - section2OutMoveStart) /
               Math.max(0.0001, heroPhase3End - section2OutMoveStart)
@@ -138,7 +144,7 @@ export function useSectionScrollMotion(...sectionRefs) {
           const scaleEased = phaseRaw ** 2.8;
           const baseScale = 0.93 + 0.07 * scaleEased;
           scale = baseScale * (1 - 0.1 * exitMoveEased);
-          const fadeInEased = phaseRaw ** 1.55;
+          const fadeInEased = easeOpacityProgress(phaseRaw);
           const fadeVisibility = clamp01(fadeInEased * outFactor);
           opacity = minOpacity + (1 - minOpacity) * fadeVisibility;
         }
@@ -149,7 +155,7 @@ export function useSectionScrollMotion(...sectionRefs) {
           );
           const scaleEased = section3InRaw ** 1.9;
           scale = 0.9 + 0.1 * scaleEased;
-          const fadeInEased = section3InRaw ** 1.35;
+          const fadeInEased = easeOpacityProgress(section3InRaw);
           opacity = minOpacity + (1 - minOpacity) * fadeInEased;
           if (pageProgress >= section3InEnd) {
             scale = 1;
