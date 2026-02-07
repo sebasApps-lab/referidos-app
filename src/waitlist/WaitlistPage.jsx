@@ -7,7 +7,7 @@ import { useSectionScrollMotion } from "./hooks/useSectionScrollMotion";
 
 const FLOW_TARGET_ID = "waitlist-flow";
 
-const HOW_CARDS = [
+const HOW_CARDS_CLIENTE = [
   {
     title: "Explora promos",
     description:
@@ -22,6 +22,24 @@ const HOW_CARDS = [
     title: "Obtén beneficios",
     description:
       "La aplicacion te premia por acumular puntos, obtienes beneficios con tus puntos acumulados. Y ayudas a crecer a todo tipo de negocio.",
+  },
+];
+
+const HOW_CARDS_NEGOCIO = [
+  {
+    title: "Crea borradores de tus promociones",
+    description:
+      "Puedes crear tantas promociones como quieras, para visualizarlas y modificarlas como elijas. No hay límite.",
+  },
+  {
+    title: "Envialas a revision",
+    description:
+      "Una vez tu promo esté lista, puedes enviarla a revisión (con un simple click) y esperar su aprobación en las siguientes horas. Así de fácil.",
+  },
+  {
+    title: "Obtén beneficios",
+    description:
+      "La aplicacion te premiará por participar en la beta, permitiendote publicar las promos creadas en la beta por un tiempo, sin necesidad de ningun tipo de pago.",
   },
 ];
 
@@ -44,7 +62,7 @@ const FAQ_CLIENTE_ITEMS = [
   {
     question: "¿Como me registro en la app?",
     answer:
-      "Es muy rapido y simple, puedes continuar usando tu cuenta de Google, Facebook, etc. O registrarte con un correo y una contraseña.",
+      "Es muy rapido y simple, puedes continuar usando tu cuenta de Google, Facebook, etc. También puedes registrarte con un correo y una contraseña.",
   },
   {
     question: "¿Puedo quitar mi email de la lista?",
@@ -86,6 +104,49 @@ const FAQ_ITEMS = [
   },
 ];
 
+const FAQ_NEGOCIO_ITEMS = [
+  {
+    question: "¿Es una app?",
+    answer:
+      "Sí. Es una app instalable (PWA). La instalas desde el navegador en 5 segundos, sin APK raros ni permisos especiales fuera de los normales del sitio. Se instala con el método oficial del navegador y se actualiza automáticamente funcionando en Android, iPhone y PC (según compatibilidad del navegador).",
+  },
+  {
+    question: "¿Qué costo tiene?",
+    answer:
+      "Es completamente gratuito en la beta y la mayoría de beneficios obtenidos durante la beta se podrán usar gratis y sin ingresar ninguna información de pago en la versión pública.",
+  },
+  {
+    question: "¿Cuándo puedo empezar?",
+    answer:
+      "Solamente debes solicitar un código de registro, te tomará alrededor de 1 minuto y podrás empezar a usar la app desde este momento en su versión beta limitada. Basta con crear una cuenta y puedes acceder al panel de creación de promociones.",
+  },
+  {
+    question: "¿Como creo una cuenta en la app (registro)?",
+    answer:
+      "Es muy rapido y simple, puedes continuar usando tu cuenta de Google, Facebook, etc. También puedes registrarte con un correo y una contraseña.",
+  },
+  {
+    question: "¿Puedo borrar mi cuenta?",
+    answer:
+      "Desde el panel de perfil puedes borrar tu cuenta en cualquier momento si así lo decides. No guardaremos tu correo, ni se te enviará notificaciones o promociones una vez borres tu cuenta. Incluso con tu cuenta activa no recibirás promociones o notificaciones si no lo decidiste así.",
+  },
+  {
+    question: "¿Aun no estás seguro?",
+    answerNode: (
+      <>
+        Si necesitas ayuda o quieres más información no dudes en comunicarte con ayuda y soporte por nuestros canales de correo o whatsapp desde el panel pare negocios dentro de la app. Tambien puedes dejar tu correo y mensaje en el enlace de{" "}
+        <button
+          type="button"
+          className="text-[var(--brand-purple)] font-semibold hover:underline"
+        >
+          ayuda y soporte
+        </button>{" "}
+        si aún no descargas la aplicación.
+      </>
+    ),
+  },
+];
+
 const BUSINESS_STEPS = [
   {
     title: "Instala la APP",
@@ -116,6 +177,7 @@ export default function WaitlistPage() {
   const [uiMode, setUiMode] = useState(mode);
   const [modeAnimTick, setModeAnimTick] = useState(0);
   const pendingModeRef = useRef(null);
+  const howCardsRef = useRef([]);
   const rootRef = useRef(null);
   const sectionOneRef = useRef(null);
   const sectionTwoRef = useRef(null);
@@ -247,6 +309,55 @@ export default function WaitlistPage() {
     setModeAnimTick((value) => value + 1);
   }, [mode, uiMode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const getCards = () => howCardsRef.current.filter(Boolean);
+
+    const syncHowCardHeights = () => {
+      const cards = getCards();
+      if (!cards.length) return;
+
+      cards.forEach((card) => {
+        card.style.height = "auto";
+      });
+
+      const maxHeight = Math.max(...cards.map((card) => card.scrollHeight));
+      cards.forEach((card) => {
+        card.style.height = `${maxHeight}px`;
+      });
+    };
+
+    const rafA = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(syncHowCardHeights);
+    });
+
+    const handleResize = () => {
+      syncHowCardHeights();
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        syncHowCardHeights();
+      });
+      getCards().forEach((card) => resizeObserver.observe(card));
+    }
+
+    return () => {
+      window.cancelAnimationFrame(rafA);
+      window.removeEventListener("resize", handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      getCards().forEach((card) => {
+        card.style.height = "";
+      });
+    };
+  }, [uiMode, modeAnimTick]);
+
   const triggerBorderTrace = () => {
     if (status === "loading") return;
     if (borderTraceRafRef.current != null) {
@@ -360,8 +471,8 @@ export default function WaitlistPage() {
 
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
-  const [cardOne, cardTwo, cardThree] = HOW_CARDS;
   const isNegocioMode = uiMode === "negocio";
+  const [cardOne, cardTwo, cardThree] = isNegocioMode ? HOW_CARDS_NEGOCIO : HOW_CARDS_CLIENTE;
   const heroBadgeText = isNegocioMode
     ? "ACCESO ANTICIPADO AL PANEL DE PROMOS"
     : "RESERVA TU ACCESO ANTICIPADO";
@@ -371,8 +482,17 @@ export default function WaitlistPage() {
     ? "Una app para negocios que tienen ganas de crecer. Publica tus promociones en un espacio con alcance para atraer nuevos clientes. Llegar a nuevos clientes nunca fue tan facil y rápido. Sin ningún tipo de pagos durante el acceso anticipado."
     : "Encuentra promociones en restaurantes o negocios cerca de tí. Al invitar amigos multiplicas los puntos que recibes. Acumula puntos y obtén beneficios. Solo por canjear promociones.";
   const heroPills = isNegocioMode
-    ? ["Acceso anticipado", "Entorno simple", "Beneficios por participar", "Empieza ya"]
+    ? ["Beta limitada", "Entorno simple", "Beneficios por participar", "Empieza ya"]
     : ["Beta cerrada", "Cupos limitados", "Beneficios extra", "Reserva ya"];
+  const sectionTwoBadge = isNegocioMode
+    ? "BETA LIMITADA / ACCESO ANTICIPADO"
+    : "BETA / ACCESO ANTICIPADO";
+  const sectionTwoTitle = isNegocioMode
+    ? "Empieza a crear promociones, fácil, rápido y simple. Sin ningun tipo de costo o pago necesario."
+    : "No te quedes sin participar, registra tu correo en la lista de espera.";
+  const sectionTwoDescription = isNegocioMode
+    ? "El panel disponible en la beta te permite crear tus promociones como tu elijas y enviarlas a revisión para que queden listas para publicacion al lanzarse la versión pública de la aplicación."
+    : "Las invitaciones serán limitadas, te enviaremos la tuya por correo, participa y obtén beneficios extra.";
   const miniNavItems =
     uiMode === "cliente"
       ? [
@@ -381,12 +501,19 @@ export default function WaitlistPage() {
         ]
       : [
           { label: "Promos", target: "promos" },
-          { label: "Beta (Acceso Anticipado)", target: "beneficios" },
-          { label: "Para qué sirve?", target: "mas-informacion" },
+          { label: "BETA LIMITADA", target: "beneficios" },
+          { label: "Más información", target: "mas-informacion" },
         ];
 
   const handleSwitchToNegocio = () => {
     handleModeChange("negocio");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleSwitchToCliente = () => {
+    handleModeChange("cliente");
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -1026,7 +1153,7 @@ export default function WaitlistPage() {
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <a
-                    href="#como-funciona"
+                    href="#mas-informacion"
                     className="text-sm font-semibold text-[var(--brand-purple)] underline-offset-4 hover:underline"
                   >
                     ¿Cómo funciona?
@@ -1070,13 +1197,13 @@ export default function WaitlistPage() {
         >
           <div key={`section-two-${modeAnimKey}`} className="fade-up rounded-[36px] border border-slate-400/45 bg-white/55 p-6 shadow-xl backdrop-blur">
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-yellow)]/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6B4B00]">
-              BETA / ACCESO ANTICIPADO
+              {sectionTwoBadge}
             </span>
             <h3 className="mt-5 text-xl font-semibold text-[var(--ink)]">
-              No te quedes sin participar, registra tu correo en la lista de espera.
+              {sectionTwoTitle}
             </h3>
             <p className="mt-4 text-sm text-slate-600">
-              Las invitaciones serán limitadas, te enviaremos la tuya por correo, participa y obtén beneficios extra.
+              {sectionTwoDescription}
             </p>
 
             <div className="mt-10 mode-stack">
@@ -1084,20 +1211,20 @@ export default function WaitlistPage() {
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
-                      ¿Qué puedo hacer en prelaunch?
+                      ¿Qué puedo hacer en la beta?
                     </h4>
                     <ul className="mt-3 space-y-2">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Crear promos draft.
+                        Crear promos en borrador y previsualiza como se verán al publicarse.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Previsualizarlas.
+                        Enviar para revisión y deja tus promos listas y aprovadas.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Enviar para revisión.
+                        Solo por participar en la beta obtendrás beneficios al salir la versión pública de la aplicación.
                       </li>
                     </ul>
                   </div>
@@ -1132,20 +1259,20 @@ export default function WaitlistPage() {
                 <div className="grid gap-6 md:grid-cols-1">
                   <div className="rounded-[28px] border border-slate-100 bg-white p-6 text-sm text-slate-700 shadow-sm">
                     <h4 className="text-lg font-semibold text-[var(--ink)]">
-                      ¿Qué puedo hacer en prelaunch?
+                      ¿Qué puedo hacer en la beta?
                     </h4>
                     <ul className="mt-3 space-y-2">
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Crear promos draft.
+                        Crear promos en borrador y previsualiza como se verán al publicarse.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Previsualizarlas.
+                        Enviar para revisión y deja tus promos listas y aprovadas.
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-[var(--brand-purple)]" />
-                        Enviar para revisión.
+                        Solo por participar en la beta obtendrás beneficios al salir la versión pública de la aplicación.
                       </li>
                     </ul>
                   </div>
@@ -1154,7 +1281,12 @@ export default function WaitlistPage() {
             </div>
 
             <div id="como-funciona" className="mt-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+              <div
+                ref={(element) => {
+                  howCardsRef.current[0] = element;
+                }}
+                className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm"
+              >
                 <h4 className="text-sm font-semibold text-[var(--ink)]">
                   {cardOne.title}
                 </h4>
@@ -1165,7 +1297,12 @@ export default function WaitlistPage() {
               <span aria-hidden="true" className="hidden text-2xl font-semibold text-black md:inline-flex">
                 &gt;
               </span>
-              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+              <div
+                ref={(element) => {
+                  howCardsRef.current[1] = element;
+                }}
+                className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm"
+              >
                 <h4 className="text-sm font-semibold text-[var(--ink)]">
                   {cardTwo.title}
                 </h4>
@@ -1176,7 +1313,12 @@ export default function WaitlistPage() {
               <span aria-hidden="true" className="hidden text-2xl font-semibold text-black md:inline-flex">
                 &gt;
               </span>
-              <div className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm">
+              <div
+                ref={(element) => {
+                  howCardsRef.current[2] = element;
+                }}
+                className="flex-1 rounded-[22px] border border-slate-200 bg-white/80 p-6 text-center text-sm font-semibold text-[var(--ink)] shadow-sm"
+              >
                 <h4 className="text-sm font-semibold text-[var(--ink)]">
                   {cardThree.title}
                 </h4>
@@ -1189,10 +1331,10 @@ export default function WaitlistPage() {
           </div>
         </section>
 
-        <section ref={sectionThreeRef} className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
+        <section id="mas-informacion" ref={sectionThreeRef} className="scroll-stage mx-auto w-full max-w-6xl px-6 pb-48 pt-52">
           <div key={`section-three-${modeAnimKey}`} className="fade-up rounded-[28px] border border-slate-400/45 bg-white/85 px-6 pb-6 pt-10 shadow-lg">
-            <div className="mode-stack">
-              <div className="mode-sizer" aria-hidden="true">
+            {uiMode === "cliente" ? (
+              <div>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <h3 className="text-xl font-semibold text-[var(--ink)]">Más información</h3>
                 </div>
@@ -1220,13 +1362,23 @@ export default function WaitlistPage() {
                   </button>
                 </div>
               </div>
-
-              <div className="mode-layer mode-cliente" aria-hidden={uiMode !== "cliente"}>
+            ) : (
+              <div>
+                <div className="note-thin mb-4 text-center text-xs text-slate-800">
+                  Información válida para personas que quieren registrar un negocio y ofrecer promociones.{" "}
+                  <button
+                    type="button"
+                    onClick={handleSwitchToCliente}
+                    className="note-thin text-[var(--brand-purple)] hover:underline"
+                  >
+                    Ver sección para personas.
+                  </button>
+                </div>
                 <div className="flex flex-wrap items-baseline gap-2">
                   <h3 className="text-xl font-semibold text-[var(--ink)]">Más información</h3>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {FAQ_CLIENTE_ITEMS.map((item) => (
+                  {FAQ_NEGOCIO_ITEMS.map((item) => (
                     <div
                       key={item.question}
                       className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
@@ -1238,49 +1390,57 @@ export default function WaitlistPage() {
                     </div>
                   ))}
                 </div>
-                <div className="note-thin mt-4 text-center text-xs text-slate-800">
-                  Información válida para personas que no van a registrar un negocio, ni ofrecer promociones.{" "}
-                  <button
-                    type="button"
-                    onClick={handleSwitchToNegocio}
-                    className="note-thin text-[var(--brand-purple)] hover:underline"
-                  >
-                    Ver sección para negocios.
-                  </button>
-                </div>
               </div>
-
-              <div className="mode-layer mode-negocio" aria-hidden={uiMode !== "negocio"}>
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <h3 className="text-xl font-semibold text-[var(--ink)]">FAQ rápido</h3>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {FAQ_ITEMS.map((item) => (
-                    <div
-                      key={item.question}
-                      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm"
-                    >
-                      <p className="font-semibold text-[var(--ink)]">{item.question}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-400">{item.answer}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </section>
       </main>
 
-      <footer className="relative z-10 w-full pb-10">
-        <div className="border-t border-white/15">
-          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 pt-6 text-xs text-white/75">
-            <span>© {new Date().getFullYear()} Referidos</span>
-            <div className="flex flex-wrap gap-4">
-              <a href="/privacy" className="hover:text-white">Privacidad</a>
-              <a href="/terms" className="hover:text-white">Términos</a>
-              <a href="mailto:soporte@referidos.app" className="hover:text-white">Contacto</a>
+      <footer className="relative z-10 w-full bg-[var(--brand-purple)] pb-12 pt-6">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <div className="h-px w-full bg-gradient-to-r from-white/0 via-white/35 to-white/0" />
+
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[1.55fr_1fr_1fr_1fr]">
+            <div className="p-0 md:pl-6 lg:pl-10">
+              <div className="flex items-center gap-3">
+                <div className="text-lg font-semibold tracking-tight text-white">ReferidosAPP</div>
+                <span className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/85">
+                  BETA v0.9
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-white/75">
+                Promociones reales para clientes y panel simple para negocios en beta limitada.
+              </p>
+              <div className="mt-4 text-xs text-white/65">
+                <div>© 2026 ReferidosAPP - LATAM X</div>
+              </div>
             </div>
-            <span className="text-[10px] uppercase tracking-[0.2em]">ALPHA v0.8</span>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Información</h4>
+              <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
+                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guía de uso</a>
+                <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Legal</h4>
+              <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
+                <a href="/privacy" className="transition-colors hover:text-[var(--brand-yellow)]">Privacidad</a>
+                <a href="/terms" className="transition-colors hover:text-[var(--brand-yellow)]">Terminos</a>
+                <a href="/delete-data" className="transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Soporte</h4>
+              <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
+                <a href="/help" className="transition-colors hover:text-[var(--brand-yellow)]">Ayuda</a>
+                <a href="/support" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte</a>
+                <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Dejar un comentario</a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
