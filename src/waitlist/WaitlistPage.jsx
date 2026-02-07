@@ -27,14 +27,14 @@ const HOW_CARDS_CLIENTE = [
 
 const HOW_CARDS_NEGOCIO = [
   {
-    title: "Crea borradores de tus promociones",
+    title: "Crea promos en borrador",
     description:
       "Puedes crear tantas promociones como quieras, para visualizarlas y modificarlas como elijas. No hay límite.",
   },
   {
-    title: "Envialas a revision",
+    title: "Envia a revisión",
     description:
-      "Una vez tu promo esté lista, puedes enviarla a revisión (con un simple click) y esperar su aprobación en las siguientes horas. Así de fácil.",
+      "Una vez tu promo esté lista, puedes enviarla a revisión con un simple click y esperar su aprobación en las siguientes horas. Así de fácil.",
   },
   {
     title: "Obtén beneficios",
@@ -134,14 +134,14 @@ const FAQ_NEGOCIO_ITEMS = [
     question: "¿Aun no estás seguro?",
     answerNode: (
       <>
-        Si necesitas ayuda o quieres más información no dudes en comunicarte con ayuda y soporte por nuestros canales de correo o whatsapp desde el panel pare negocios dentro de la app. Tambien puedes dejar tu correo y mensaje en el enlace de{" "}
+        Si necesitas ayuda o quieres más información no dudes en comunicarte con ayuda y soporte por nuestros canales de correo o whatsapp desde el panel pare negocios dentro de la app. Si aún no descargas la aplicación tambien puedes dejar tu correo y mensaje en el enlace de{" "}
         <button
           type="button"
           className="text-[var(--brand-purple)] font-semibold hover:underline"
         >
           ayuda y soporte
-        </button>{" "}
-        si aún no descargas la aplicación.
+        </button>
+        .
       </>
     ),
   },
@@ -493,6 +493,9 @@ export default function WaitlistPage() {
   const sectionTwoDescription = isNegocioMode
     ? "El panel disponible en la beta te permite crear tus promociones como tu elijas y enviarlas a revisión para que queden listas para publicacion al lanzarse la versión pública de la aplicación."
     : "Las invitaciones serán limitadas, te enviaremos la tuya por correo, participa y obtén beneficios extra.";
+  const footerDescription = isNegocioMode
+    ? "Panel de creación de promos simple y sencillo, datos y métricas para entender que quieren tus clientes."
+    : "Catálogo de promociones y sistema de recompensas por canjearlas y referir.";
   const miniNavItems =
     uiMode === "cliente"
       ? [
@@ -500,10 +503,12 @@ export default function WaitlistPage() {
           { label: "Más información", target: "mas-informacion" },
         ]
       : [
-          { label: "Promos", target: "promos" },
+          { label: "Promos", target: "promos", hidden: true },
           { label: "BETA LIMITADA", target: "beneficios" },
           { label: "Más información", target: "mas-informacion" },
         ];
+  const visibleMiniNavItems = miniNavItems.filter((item) => !item.hidden);
+  const showLatamX = false;
 
   const handleSwitchToNegocio = () => {
     handleModeChange("negocio");
@@ -1103,7 +1108,7 @@ export default function WaitlistPage() {
                 </button>
               </div>
               <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-                {miniNavItems.map((item) => (
+                {visibleMiniNavItems.map((item) => (
                   item.target ? (
                     <span
                       key={`nav-base-${item.label}`}
@@ -1127,7 +1132,7 @@ export default function WaitlistPage() {
               </div>
               <div className="mini-nav-purple-slice pointer-events-none hidden absolute inset-0 md:block">
                 <div className="fade-down absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-white/90">
-                  {miniNavItems.map((item) => (
+                  {visibleMiniNavItems.map((item) => (
                     <span key={`nav-white-${item.label}`}>{item.label}</span>
                   ))}
                 </div>
@@ -1400,8 +1405,8 @@ export default function WaitlistPage() {
         <div className="mx-auto w-full max-w-6xl px-6">
           <div className="h-px w-full bg-gradient-to-r from-white/0 via-white/35 to-white/0" />
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[1.55fr_1fr_1fr_1fr]">
-            <div className="p-0 md:pl-6 lg:pl-10">
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[1.60fr_1fr_1fr_1fr]">
+            <div className="p-0 md:pl-6 lg:pl-10 md:pr-4 lg:pr-8">
               <div className="flex items-center gap-3">
                 <div className="text-lg font-semibold tracking-tight text-white">ReferidosAPP</div>
                 <span className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white/85">
@@ -1409,10 +1414,10 @@ export default function WaitlistPage() {
                 </span>
               </div>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Promociones reales para clientes y panel simple para negocios en beta limitada.
+                {footerDescription}
               </p>
               <div className="mt-4 text-xs text-white/65">
-                <div>© 2026 ReferidosAPP - LATAM X</div>
+                <div>© 2026 ReferidosAPP{showLatamX ? " - LATAM X" : ""}</div>
               </div>
             </div>
 
@@ -1434,7 +1439,7 @@ export default function WaitlistPage() {
             </div>
 
             <div>
-              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Soporte</h4>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Contacto</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
                 <a href="/help" className="transition-colors hover:text-[var(--brand-yellow)]">Ayuda</a>
                 <a href="/support" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte</a>
