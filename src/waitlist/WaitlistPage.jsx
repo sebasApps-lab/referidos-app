@@ -121,6 +121,8 @@ export default function WaitlistPage() {
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isBorderTracing, setIsBorderTracing] = useState(false);
+  const borderTraceRafRef = useRef(null);
 
   const meta = useMemo(
     () => ({
@@ -202,6 +204,32 @@ export default function WaitlistPage() {
 
   useHeroMotion(rootRef);
   useSectionScrollMotion(sectionOneRef, sectionTwoRef, sectionThreeRef);
+
+  useEffect(() => {
+    return () => {
+      if (borderTraceRafRef.current != null) {
+        window.cancelAnimationFrame(borderTraceRafRef.current);
+      }
+    };
+  }, []);
+
+  const triggerBorderTrace = () => {
+    if (status === "loading") return;
+    if (borderTraceRafRef.current != null) {
+      window.cancelAnimationFrame(borderTraceRafRef.current);
+    }
+    setIsBorderTracing(false);
+    borderTraceRafRef.current = window.requestAnimationFrame(() => {
+      setIsBorderTracing(true);
+      borderTraceRafRef.current = null;
+    });
+  };
+
+  const handleBorderTraceAnimationEnd = (event) => {
+    if (event.animationName === "borderFadeOut") {
+      setIsBorderTracing(false);
+    }
+  };
 
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);
@@ -397,7 +425,9 @@ export default function WaitlistPage() {
           <button
             type="submit"
             disabled={status === "loading"}
-            className="waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C] shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C] active:bg-[#171716] active:text-[#FFC21C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70"
+            onMouseEnter={triggerBorderTrace}
+            onFocus={triggerBorderTrace}
+            className={`waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C] shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C] active:bg-[#171716] active:text-[#FFC21C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${isBorderTracing ? "is-tracing" : ""}`}
           >
             {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
             <svg
@@ -406,7 +436,15 @@ export default function WaitlistPage() {
               viewBox="0 0 292 60"
               preserveAspectRatio="none"
             >
-              <rect x="1.5" y="1.5" width="289" height="57" rx="16" ry="16" />
+              <rect
+                x="1.5"
+                y="1.5"
+                width="289"
+                height="57"
+                rx="16"
+                ry="16"
+                onAnimationEnd={handleBorderTraceAnimationEnd}
+              />
             </svg>
           </button>
         </div>
@@ -520,8 +558,8 @@ export default function WaitlistPage() {
           }
           100% {
             opacity: 1;
-            stroke-dasharray: 716 0;
-            stroke-dashoffset: 0;
+            stroke-dasharray: 405 311;
+            stroke-dashoffset: 311;
           }
         }
         @keyframes borderFadeOut {
@@ -561,10 +599,9 @@ export default function WaitlistPage() {
           stroke-dashoffset: 716;
           opacity: 0;
         }
-        .waitlist-btn-trace:hover .waitlist-btn-outline rect,
-        .waitlist-btn-trace:focus-visible .waitlist-btn-outline rect {
+        .waitlist-btn-trace.is-tracing .waitlist-btn-outline rect {
           animation:
-            borderDrawPath 5000ms cubic-bezier(0.25, 0.85, 0.3, 1) 1 both,
+            borderDrawPath 1010ms cubic-bezier(0.25, 0.85, 0.3, 1) 1 both,
             borderFadeOut 260ms ease-out 750ms 1 both;
         }
         .hero-bg-fixed {
