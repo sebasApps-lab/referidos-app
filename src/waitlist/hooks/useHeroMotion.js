@@ -71,10 +71,15 @@ export function useHeroMotion(rootRef) {
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
       const heroHeight = baseHeight + stretch;
 
+      const shiftProgress = Math.min(
+        1,
+        Math.max(0, (virtualProgress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6
+      );
+      const shift = Math.min(maxShift, Math.max(0, shiftProgress * maxShift));
+      rootRef.current.style.setProperty("--hero-bg-shift", `${shift}px`);
+
       const headerEl = rootRef.current.querySelector('[data-mini-nav-header="true"]');
-      const headerHeight = headerEl ? headerEl.offsetHeight : 64;
-      const yTopPct = 0;
-      const yBottomPct = (Math.max(0, headerHeight) / Math.max(1, heroHeight)) * 100;
+      const heroEl = rootRef.current.querySelector(".hero-bg-fixed");
       const boundaryPoints = [
         [58, 0],
         [54, 15.2],
@@ -102,17 +107,28 @@ export function useHeroMotion(rootRef) {
         return boundaryPoints[boundaryPoints.length - 1][0];
       };
 
-      const cutTop = boundaryXAtY(yTopPct);
-      const cutBottom = boundaryXAtY(yBottomPct);
-      rootRef.current.style.setProperty("--mini-nav-cut-x-top", `${cutTop}%`);
-      rootRef.current.style.setProperty("--mini-nav-cut-x-bottom", `${cutBottom}%`);
+      if (heroEl && headerEl) {
+        const heroRect = heroEl.getBoundingClientRect();
+        const headerRect = headerEl.getBoundingClientRect();
+        const safeHeroHeight = Math.max(1, heroRect.height || heroHeight);
+        const safeHeroWidth = Math.max(1, heroRect.width || rootRef.current.clientWidth || 1);
 
-      const shiftProgress = Math.min(
-        1,
-        Math.max(0, (virtualProgress - shiftStart) / (1 - shiftStart)) ** 2.2 * 1.6
-      );
-      const shift = Math.min(maxShift, Math.max(0, shiftProgress * maxShift));
-      rootRef.current.style.setProperty("--hero-bg-shift", `${shift}px`);
+        const yTopPx = Math.max(0, headerRect.top - heroRect.top);
+        const yBottomPx = Math.max(0, Math.min(safeHeroHeight, headerRect.bottom - heroRect.top));
+        const yTopPct = (yTopPx / safeHeroHeight) * 100;
+        const yBottomPct = (yBottomPx / safeHeroHeight) * 100;
+
+        const cutTopPct = boundaryXAtY(yTopPct);
+        const cutBottomPct = boundaryXAtY(yBottomPct);
+        const cutTopPxHero = (cutTopPct / 100) * safeHeroWidth + shift;
+        const cutBottomPxHero = (cutBottomPct / 100) * safeHeroWidth + shift;
+
+        const cutTopPxHeader = cutTopPxHero + heroRect.left - headerRect.left;
+        const cutBottomPxHeader = cutBottomPxHero + heroRect.left - headerRect.left;
+
+        rootRef.current.style.setProperty("--mini-nav-cut-top-px", `${cutTopPxHeader}px`);
+        rootRef.current.style.setProperty("--mini-nav-cut-bottom-px", `${cutBottomPxHeader}px`);
+      }
     };
 
     const onScroll = () => {

@@ -438,9 +438,10 @@ export default function WaitlistPage() {
           --hero-bg-stretch: 0px;
           --hero-bg-shift: 0px;
           --mini-nav-line-width: 1.2px;
-          --mini-nav-cut-x-top: 58%;
-          --mini-nav-cut-x-bottom: 57%;
-          --mini-nav-cut-nudge: 1.2%;
+          --mini-nav-cut-top-px: 0px;
+          --mini-nav-cut-bottom-px: 0px;
+          --mini-nav-cut-nudge-px: 0px;
+          --mini-nav-cut-bottom-tweak-px: 0px;
         }
         @keyframes floaty {
           0% { transform: translateY(0px); }
@@ -521,34 +522,32 @@ export default function WaitlistPage() {
           white-space: nowrap;
         }
         .mini-nav-purple-slice {
-          transform: translateX(var(--hero-bg-shift));
           -webkit-clip-path: polygon(
             100% 0%,
             100% 100%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%,
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px)) 100%,
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px)) 0%
           );
           clip-path: polygon(
             100% 0%,
             100% 100%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%,
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px)) 100%,
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px)) 0%
           );
         }
         .mini-nav-cut-line {
           background: rgba(31, 18, 53, 0.38);
-          transform: translateX(var(--hero-bg-shift));
           -webkit-clip-path: polygon(
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%,
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 0%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 100%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px)) 0%,
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-line-width)) 0%,
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px) + var(--mini-nav-line-width)) 100%,
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px)) 100%
           );
           clip-path: polygon(
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%,
-            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 0%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 100%,
-            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px)) 0%,
+            calc(var(--mini-nav-cut-top-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-line-width)) 0%,
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px) + var(--mini-nav-line-width)) 100%,
+            calc(var(--mini-nav-cut-bottom-px) + var(--mini-nav-cut-nudge-px) + var(--mini-nav-cut-bottom-tweak-px)) 100%
           );
         }
         .hero-panel-wrap {
@@ -760,7 +759,6 @@ export default function WaitlistPage() {
               data-mini-nav-header="true"
               className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8"
             >
-              <div className="mini-nav-cut-line pointer-events-none hidden absolute inset-0 md:block" />
               <div className="fade-edge-left text-lg font-semibold tracking-tight text-[var(--ink)]">
                 ReferidosAPP
               </div>
