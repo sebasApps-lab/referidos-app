@@ -949,6 +949,32 @@ export default function WaitlistPage() {
                   </span>
                 ) : null}
               </div>
+              <div className="fade-edge-right flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => handleModeChange("cliente")}
+                  aria-pressed={uiMode === "cliente"}
+                  className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                    uiMode === "cliente"
+                      ? "bg-[var(--brand-purple)] text-white shadow"
+                      : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
+                  }`}
+                >
+                  Explorar promos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange("negocio")}
+                  aria-pressed={uiMode === "negocio"}
+                  className={`-ml-2 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
+                    uiMode === "negocio"
+                      ? "bg-[var(--brand-purple)] text-white shadow"
+                      : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
+                  }`}
+                >
+                  App para negocios
+                </button>
+              </div>
               <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
                 {miniNavItems.map((item) => (
                   item.target ? (
@@ -1017,33 +1043,6 @@ export default function WaitlistPage() {
               </div>
 
               <div className="hero-right hero-right-col flex w-full -translate-y-3 flex-col items-stretch md:items-end">
-                <div className="fade-edge-right flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
-                  <button
-                    type="button"
-                    onClick={() => handleModeChange("cliente")}
-                    aria-pressed={uiMode === "cliente"}
-                    className={`rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
-                      uiMode === "cliente"
-                        ? "bg-[var(--brand-purple)] text-white shadow"
-                        : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
-                    }`}
-                  >
-                    Explorar promos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleModeChange("negocio")}
-                    aria-pressed={uiMode === "negocio"}
-                    className={`-ml-2 rounded-full px-5 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-purple)]/60 ${
-                      uiMode === "negocio"
-                        ? "bg-[var(--brand-purple)] text-white shadow"
-                        : "bg-transparent text-[var(--brand-purple)] hover:bg-transparent"
-                    }`}
-                  >
-                    App para negocios
-                  </button>
-                </div>
-
                 <div key={`hero-right-${modeAnimKey}`} className="fade-edge-right flex w-full flex-col items-stretch md:items-end">
                 <div className="hero-panel-wrap">
                   <div className="hero-panel-sizer" aria-hidden="true">
