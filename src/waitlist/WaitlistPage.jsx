@@ -263,6 +263,18 @@ export default function WaitlistPage() {
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
   const [cardOne, cardTwo, cardThree] = HOW_CARDS;
+  const isNegocioMode = mode === "negocio";
+  const heroBadgeText = isNegocioMode
+    ? "ACCESO ANTICIPADO AL PANEL DE PROMOS"
+    : "RESERVA TU ACCESO ANTICIPADO";
+  const heroTitleLine1 = isNegocioMode ? "Gana clientes" : "Busca promociones";
+  const heroTitleLine2 = isNegocioMode ? "Publica promociones" : "Canjea y suma puntos";
+  const heroBodyText = isNegocioMode
+    ? "Una app para negocios que tienen ganas de crecer. Publica tus promociones en un espacio con alcance para atraer nuevos clientes. Llegar a nuevos clientes nunca fue tan facil y rápido. Sin ningún tipo de pagos durante el acceso anticipado."
+    : "Encuentra promociones en restaurantes o negocios cerca de tí. Al invitar amigos multiplicas los puntos que recibes. Acumula puntos y obtén beneficios. Solo por canjear promociones.";
+  const heroPills = isNegocioMode
+    ? ["Acceso anticipado", "Entorno simple", "Beneficios por participar", "Empieza ya"]
+    : ["Beta cerrada", "Cupos limitados", "Beneficios extra", "Reserva ya"];
   const miniNavItems =
     mode === "cliente"
       ? [
@@ -779,8 +791,13 @@ export default function WaitlistPage() {
               data-mini-nav-header="true"
               className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8"
             >
-              <div className="fade-edge-left text-lg font-semibold tracking-tight text-[var(--ink)]">
-                ReferidosAPP
+              <div className="fade-edge-left flex items-center gap-3 text-lg font-semibold tracking-tight text-[var(--ink)]">
+                <span>ReferidosAPP</span>
+                {isNegocioMode ? (
+                  <span className="rounded-full border border-[var(--ink)] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ink)]">
+                    negocios
+                  </span>
+                ) : null}
               </div>
               <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
                 {miniNavItems.map((item) => (
@@ -822,15 +839,14 @@ export default function WaitlistPage() {
               <div className="hero-left-col space-y-6">
                 <div className="fade-edge-left space-y-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-sm">
-                  RESERVA TU ACCESO ANTICIPADO
+                  {heroBadgeText}
                 </span>
                 <h1 className="hero-title text-4xl font-semibold leading-tight text-[var(--ink)] md:text-6xl">
-                  Busca promociones
-                  <span className="hero-subline block text-[var(--brand-purple)]">Canjea y suma puntos</span>
+                  {heroTitleLine1}
+                  <span className="hero-subline block text-[var(--brand-purple)]">{heroTitleLine2}</span>
                 </h1>
                   <p className="hero-body max-w-xl text-base leading-7 text-slate-700 md:text-lg">
-                  Encuentra promociones en restaurantes o negocios cerca de tí. Al invitar amigos multiplicas los puntos que recibes.
-                  Acumula puntos y obtén beneficios. Solo por canjear promociones.
+                  {heroBodyText}
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <a
@@ -841,10 +857,11 @@ export default function WaitlistPage() {
                   </a>
                 </div>
                 <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beta cerrada</div>
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Cupos limitados</div>
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Beneficios extra</div>
-                  <div className="rounded-full bg-white/80 px-3 py-1 shadow">Reserva ya</div>
+                  {heroPills.map((pill) => (
+                    <div key={pill} className="rounded-full bg-white/80 px-3 py-1 shadow">
+                      {pill}
+                    </div>
+                  ))}
                 </div>
                 </div>
               </div>
