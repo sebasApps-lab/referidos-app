@@ -1,6 +1,6 @@
 ﻿// src/waitlist/WaitlistPage.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { submitWaitlistSignup } from "./waitlistApi";
 import { useHeroMotion } from "./hooks/useHeroMotion";
 import { useSectionScrollMotion } from "./hooks/useSectionScrollMotion";
@@ -176,6 +176,7 @@ export default function WaitlistPage() {
   const mode = normalizeMode(searchParams.get("mode"));
   const [uiMode, setUiMode] = useState(mode);
   const [modeAnimTick, setModeAnimTick] = useState(0);
+  const [entryAnimTick, setEntryAnimTick] = useState(0);
   const pendingModeRef = useRef(null);
   const howCardsRef = useRef([]);
   const rootRef = useRef(null);
@@ -269,6 +270,15 @@ export default function WaitlistPage() {
     applyLock();
     window.addEventListener("resize", applyLock);
     return () => window.removeEventListener("resize", applyLock);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rafId = window.requestAnimationFrame(() => {
+      // Re-run entry animations once after first paint.
+      setEntryAnimTick(1);
+    });
+    return () => window.cancelAnimationFrame(rafId);
   }, []);
 
   useHeroMotion(rootRef);
@@ -536,7 +546,7 @@ export default function WaitlistPage() {
       sectionThreeRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-  const modeAnimKey = `${uiMode}-${modeAnimTick}`;
+  const modeAnimKey = `${uiMode}-${modeAnimTick}-${entryAnimTick}`;
 
   const renderBusinessPanel = () => (
     <div className="hero-panel hero-panel-negocio mt-2 w-full max-w-[360px] border-0 bg-transparent pb-6 pl-0 pr-0 pt-6 text-right text-white shadow-none md:ml-auto">
@@ -654,13 +664,13 @@ export default function WaitlistPage() {
           Al unirte aceptas recibir el correo de notificacion para poder descargar la app una vez esté disponible.
         </p>
         <p className="text-xs text-white/70">
-          <a href="/privacy" className="text-white hover:underline">
+          <Link to="/legal/es/privacidad" className="text-white hover:underline">
             Privacidad
-          </a>
+          </Link>
           <span className="mx-1">·</span>
-          <a href="/terms" className="text-white hover:underline">
+          <Link to="/legal/es/terminos" className="text-white hover:underline">
             Términos
-          </a>
+          </Link>
         </p>
 
         <div aria-live="polite" className="min-h-0">
@@ -1081,7 +1091,10 @@ export default function WaitlistPage() {
                   </span>
                 ) : null}
               </div>
-              <div className="fade-edge-right flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur">
+              <div
+                key={`header-pill-${entryAnimTick}`}
+                className="fade-edge-right flex items-center rounded-full bg-white/90 px-0.5 py-0.5 shadow-lg backdrop-blur"
+              >
                 <button
                   type="button"
                   onClick={() => handleModeChange("cliente")}
@@ -1432,9 +1445,9 @@ export default function WaitlistPage() {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Legal</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/privacy" className="transition-colors hover:text-[var(--brand-yellow)]">Privacidad</a>
-                <a href="/terms" className="transition-colors hover:text-[var(--brand-yellow)]">Terminos</a>
-                <a href="/delete-data" className="transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</a>
+                <Link to="/legal/es/privacidad" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Privacidad</Link>
+                <Link to="/legal/es/terminos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Terminos</Link>
+                <Link to="/legal/es/borrar-datos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</Link>
               </div>
             </div>
 

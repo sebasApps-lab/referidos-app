@@ -52,6 +52,7 @@ export default function AppRoutes() {
       <Route path="/bienvenido" element={<WaitlistPage />} />
       <Route path="/privacy" element={<Navigate to="/legal/es/privacy" replace />} />
       <Route path="/terms" element={<Navigate to="/legal/es/terms" replace />} />
+      <Route path="/delete-data" element={<Navigate to="/legal/es/data-deletion" replace />} />
       <Route path="/legal/:locale/:document" element={<LegalRouter />} />
 
       {/* APP ENTRY POINT */}
