@@ -263,6 +263,10 @@ export default function WaitlistPage() {
   const statusMessage = getStatusMessage(status);
   const visibleMessage = status === "error" ? errorMessage : statusMessage;
   const [cardOne, cardTwo, cardThree] = HOW_CARDS;
+  const miniNavItems =
+    mode === "cliente"
+      ? ["Beneficios", "Más información"]
+      : ["Promos", "Beta (Acceso Anticipado)", "Para qué sirve?"];
 
   const handleSwitchToNegocio = () => {
     handleModeChange("negocio");
@@ -433,6 +437,10 @@ export default function WaitlistPage() {
           --layout-max: 1440px;
           --hero-bg-stretch: 0px;
           --hero-bg-shift: 0px;
+          --mini-nav-line-width: 1.2px;
+          --mini-nav-cut-x-top: 58%;
+          --mini-nav-cut-x-bottom: 57%;
+          --mini-nav-cut-nudge: 1.2%;
         }
         @keyframes floaty {
           0% { transform: translateY(0px); }
@@ -511,6 +519,37 @@ export default function WaitlistPage() {
         }
         .hero-subline {
           white-space: nowrap;
+        }
+        .mini-nav-purple-slice {
+          transform: translateX(var(--hero-bg-shift));
+          -webkit-clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%,
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%
+          );
+          clip-path: polygon(
+            100% 0%,
+            100% 100%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%,
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%
+          );
+        }
+        .mini-nav-cut-line {
+          background: rgba(31, 18, 53, 0.38);
+          transform: translateX(var(--hero-bg-shift));
+          -webkit-clip-path: polygon(
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%,
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 0%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 100%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%
+          );
+          clip-path: polygon(
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge)) 0%,
+            calc(var(--mini-nav-cut-x-top) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 0%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge) + var(--mini-nav-line-width)) 100%,
+            calc(var(--mini-nav-cut-x-bottom) + var(--mini-nav-cut-nudge)) 100%
+          );
         }
         .hero-panel-wrap {
           position: relative;
@@ -717,23 +756,25 @@ export default function WaitlistPage() {
       <main className="relative z-10">
           <div className="relative">
           <div className="hero-content">
-            <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8">
+            <header
+              data-mini-nav-header="true"
+              className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-8"
+            >
+              <div className="mini-nav-cut-line pointer-events-none hidden absolute inset-0 md:block" />
               <div className="fade-edge-left text-lg font-semibold tracking-tight text-[var(--ink)]">
                 ReferidosAPP
               </div>
               <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
-                {mode === "cliente" ? (
-                  <>
-                    <span>Beneficios</span>
-                    <span>Más información</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Promos</span>
-                    <span>Beta (Acceso Anticipado)</span>
-                    <span>Para qué sirve?</span>
-                  </>
-                )}
+                {miniNavItems.map((item) => (
+                  <span key={`nav-base-${item}`}>{item}</span>
+                ))}
+              </div>
+              <div className="mini-nav-purple-slice pointer-events-none hidden absolute inset-0 md:block">
+                <div className="fade-down absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-white/90">
+                  {miniNavItems.map((item) => (
+                    <span key={`nav-white-${item}`}>{item}</span>
+                  ))}
+                </div>
               </div>
             </header>
 

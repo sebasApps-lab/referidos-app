@@ -69,6 +69,43 @@ export function useHeroMotion(rootRef) {
       const maxStretch = Math.max(0, doc.scrollHeight - baseHeight - 80);
       const stretch = Math.min(maxStretch, Math.max(0, virtualScrollY));
       rootRef.current.style.setProperty("--hero-bg-stretch", `${stretch}px`);
+      const heroHeight = baseHeight + stretch;
+
+      const headerEl = rootRef.current.querySelector('[data-mini-nav-header="true"]');
+      const headerHeight = headerEl ? headerEl.offsetHeight : 64;
+      const yTopPct = 0;
+      const yBottomPct = (Math.max(0, headerHeight) / Math.max(1, heroHeight)) * 100;
+      const boundaryPoints = [
+        [58, 0],
+        [54, 15.2],
+        [62, 30.4],
+        [56, 45.6],
+        [50, 58.9],
+        [60, 77.9],
+        [46, 95],
+        [38, 100],
+      ];
+
+      const boundaryXAtY = (yPct) => {
+        if (yPct <= boundaryPoints[0][1]) return boundaryPoints[0][0];
+        if (yPct >= boundaryPoints[boundaryPoints.length - 1][1]) {
+          return boundaryPoints[boundaryPoints.length - 1][0];
+        }
+        for (let i = 0; i < boundaryPoints.length - 1; i += 1) {
+          const [x1, y1] = boundaryPoints[i];
+          const [x2, y2] = boundaryPoints[i + 1];
+          if (yPct >= y1 && yPct <= y2) {
+            const t = (yPct - y1) / (y2 - y1 || 1);
+            return x1 + (x2 - x1) * t;
+          }
+        }
+        return boundaryPoints[boundaryPoints.length - 1][0];
+      };
+
+      const cutTop = boundaryXAtY(yTopPct);
+      const cutBottom = boundaryXAtY(yBottomPct);
+      rootRef.current.style.setProperty("--mini-nav-cut-x-top", `${cutTop}%`);
+      rootRef.current.style.setProperty("--mini-nav-cut-x-bottom", `${cutBottom}%`);
 
       const shiftProgress = Math.min(
         1,
