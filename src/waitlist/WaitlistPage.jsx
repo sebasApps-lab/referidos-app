@@ -397,9 +397,17 @@ export default function WaitlistPage() {
           <button
             type="submit"
             disabled={status === "loading"}
-            className="w-[288px] rounded-2xl border border-white/70 bg-white px-6 py-3 text-sm font-semibold text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] disabled:cursor-not-allowed disabled:opacity-70"
+            className="waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C] shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C] active:bg-[#171716] active:text-[#FFC21C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {status === "loading" ? "Enviando..." : "Unirse a la lista de espera"}
+            <svg
+              aria-hidden="true"
+              className="waitlist-btn-outline"
+              viewBox="0 0 292 60"
+              preserveAspectRatio="none"
+            >
+              <rect x="1.5" y="1.5" width="289" height="57" rx="16" ry="16" />
+            </svg>
           </button>
         </div>
 
@@ -501,12 +509,64 @@ export default function WaitlistPage() {
           50% { opacity: 0.7; }
           100% { opacity: 0.3; }
         }
+        @keyframes borderDrawPath {
+          0% {
+            opacity: 0;
+            stroke-dasharray: 10 716;
+            stroke-dashoffset: 716;
+          }
+          4% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 1;
+            stroke-dasharray: 716 0;
+            stroke-dashoffset: 0;
+          }
+        }
+        @keyframes borderFadeOut {
+          0% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+          }
+        }
         .floaty { animation: floaty 7s ease-in-out infinite; }
         .fade-up { animation: fadeUp 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .fade-edge-left { animation: fadeEdgeLeft 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .fade-edge-right { animation: fadeEdgeRight 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .fade-down { animation: fadeDown 0.95s cubic-bezier(0.18, 0.7, 0.22, 1) both; }
         .soft-glow { animation: shimmer 6s ease-in-out infinite; }
+        .waitlist-btn-trace {
+          position: relative;
+          overflow: visible;
+        }
+        .waitlist-btn-outline {
+          position: absolute;
+          inset: -2px;
+          pointer-events: none;
+          width: calc(100% + 4px);
+          height: calc(100% + 4px);
+          overflow: visible;
+        }
+        .waitlist-btn-outline rect {
+          fill: none;
+          stroke: rgba(255, 194, 28, 0.9);
+          stroke-width: 1.8;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          vector-effect: non-scaling-stroke;
+          stroke-dasharray: 10 716;
+          stroke-dashoffset: 716;
+          opacity: 0;
+        }
+        .waitlist-btn-trace:hover .waitlist-btn-outline rect,
+        .waitlist-btn-trace:focus-visible .waitlist-btn-outline rect {
+          animation:
+            borderDrawPath 5000ms cubic-bezier(0.25, 0.85, 0.3, 1) 1 both,
+            borderFadeOut 260ms ease-out 750ms 1 both;
+        }
         .hero-bg-fixed {
           --hero-bg-base: 1200px;
           height: calc(var(--hero-bg-base) + var(--hero-bg-stretch));
