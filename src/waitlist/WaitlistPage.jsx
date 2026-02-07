@@ -265,13 +265,33 @@ export default function WaitlistPage() {
   const [cardOne, cardTwo, cardThree] = HOW_CARDS;
   const miniNavItems =
     mode === "cliente"
-      ? ["Beneficios", "Más información"]
-      : ["Promos", "Beta (Acceso Anticipado)", "Para qué sirve?"];
+      ? [
+          { label: "Beneficios", target: "beneficios" },
+          { label: "Más información", target: "mas-informacion" },
+        ]
+      : [
+          { label: "Promos", target: "promos" },
+          { label: "Beta (Acceso Anticipado)", target: "beneficios" },
+          { label: "Para qué sirve?", target: "mas-informacion" },
+        ];
 
   const handleSwitchToNegocio = () => {
     handleModeChange("negocio");
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleMiniNavClick = (target) => {
+    if (target === "promos") {
+      return;
+    }
+    if (target === "beneficios" && sectionTwoRef.current) {
+      sectionTwoRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (target === "mas-informacion" && sectionThreeRef.current) {
+      sectionThreeRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -764,13 +784,31 @@ export default function WaitlistPage() {
               </div>
               <div className="fade-down hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 md:flex">
                 {miniNavItems.map((item) => (
-                  <span key={`nav-base-${item}`}>{item}</span>
+                  item.target ? (
+                    <span
+                      key={`nav-base-${item.label}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleMiniNavClick(item.target)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleMiniNavClick(item.target);
+                        }
+                      }}
+                      className="cursor-pointer transition-opacity hover:opacity-80"
+                    >
+                      {item.label}
+                    </span>
+                  ) : (
+                    <span key={`nav-base-${item.label}`}>{item.label}</span>
+                  )
                 ))}
               </div>
               <div className="mini-nav-purple-slice pointer-events-none hidden absolute inset-0 md:block">
                 <div className="fade-down absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-10 text-xs font-semibold uppercase tracking-[0.2em] text-white/90">
                   {miniNavItems.map((item) => (
-                    <span key={`nav-white-${item}`}>{item}</span>
+                    <span key={`nav-white-${item.label}`}>{item.label}</span>
                   ))}
                 </div>
               </div>
