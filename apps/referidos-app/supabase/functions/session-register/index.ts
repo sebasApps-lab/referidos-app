@@ -92,6 +92,27 @@ serve(async (req) => {
     );
   }
 
+  // Dedup per device: only one active session per user/device_id.
+  const { error: dedupError } = await supabaseAdmin
+    .from("user_session_devices")
+    .update({ revoked_at: nowIso })
+    .eq("user_id", auth.user.id)
+    .eq("device_id", deviceId)
+    .is("revoked_at", null)
+    .neq("session_id", sessionId);
+
+  if (dedupError) {
+    return json(
+      {
+        ok: false,
+        code: "session_device_dedup_failed",
+        message: "Could not deduplicate active device sessions",
+      },
+      500,
+      cors,
+    );
+  }
+
   const { data, error } = await supabaseAdmin
     .from("user_session_devices")
     .upsert(

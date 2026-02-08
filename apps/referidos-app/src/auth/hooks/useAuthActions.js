@@ -736,14 +736,15 @@ export default function useAuthActions({
     const fallbackToOAuth = async () => {
       try {
         await signInWithOAuth("google", { redirectTo });
+        return true;
       } catch (err) {
         setWelcomeError(err?.message || "No se pudo iniciar con Google");
+        return false;
       }
     };
 
     if (!GOOGLE_ONE_TAP_CLIENT_ID) {
-      setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
-      setWelcomeLoading(false);
+      await fallbackToOAuth();
       return;
     }
 
@@ -753,7 +754,10 @@ export default function useAuthActions({
       });
 
       if (!result || result.type !== "credential") {
-        setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
+        const redirected = await fallbackToOAuth();
+        if (!redirected) {
+          setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
+        }
         return;
       }
 
@@ -764,7 +768,10 @@ export default function useAuthActions({
 
       await bootstrapAuth({ force: true });
     } catch (err) {
-      setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
+      const redirected = await fallbackToOAuth();
+      if (!redirected) {
+        setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
+      }
     } finally {
       setWelcomeLoading(false);
     }

@@ -108,8 +108,10 @@ export async function signUpWithEmail({ email, password }) {
   }  
 }
 
-export async function signOut() {
-  await supabase.auth.signOut();
+export async function signOut({ scope = "local" } = {}) {
+  const normalizedScope = scope === "global" ? "global" : "local";
+  const { error } = await supabase.auth.signOut({ scope: normalizedScope });
+  if (error) throw error;
 }
 
 export async function deleteUserAccount(id_auth) {

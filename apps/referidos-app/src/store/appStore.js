@@ -415,7 +415,7 @@ export const useAppStore = create(
             if (isSupport) {
               await endSupportSession({ reason: "logout" });
             }
-            await signOut();
+            await signOut({ scope: "local" });
           } catch (e) {
             //opcional: log o toast
           } finally {
@@ -469,15 +469,26 @@ export const useAppStore = create(
 
           const sessionRegister = await registerCurrentSessionDevice();
           if (!sessionRegister?.ok) {
+            const errCode = String(sessionRegister?.code || "").toLowerCase();
             const errMsg =
               sessionRegister?.error ||
               sessionRegister?.message ||
               "No se pudo registrar la sesion activa";
-            try {
-              await signOut();
-            } catch {
-              // no-op
+            const mustTerminateSession = new Set([
+              "session_revoked",
+              "session_unregistered",
+              "unauthorized",
+              "missing_session_id_claim",
+            ]).has(errCode);
+
+            if (mustTerminateSession) {
+              try {
+                await signOut({ scope: "local" });
+              } catch {
+                // no-op
+              }
             }
+
             set({
               bootstrap: false,
               bootstrapError: false,
@@ -485,7 +496,12 @@ export const useAppStore = create(
               onboarding: null,
               error: errMsg,
             });
-            return { ok: false, error: errMsg };
+            return {
+              ok: false,
+              error: errMsg,
+              code: errCode || null,
+              recoverable: !mustTerminateSession,
+            };
           }
 
           const check = await runOnboardingCheck();

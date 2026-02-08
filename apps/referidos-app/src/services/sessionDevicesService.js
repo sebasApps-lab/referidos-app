@@ -22,7 +22,12 @@ async function invokeSessionFunction(name, body = {}) {
     data: { session } = {},
   } = await supabase.auth.getSession();
   if (!session?.access_token) {
-    return { ok: false, error: "no_session" };
+    return {
+      ok: false,
+      code: "no_session",
+      status: 401,
+      error: "Sesion no disponible",
+    };
   }
 
   const { data, error } = await supabase.functions.invoke(name, {
@@ -33,9 +38,59 @@ async function invokeSessionFunction(name, body = {}) {
   });
 
   if (error) {
-    return { ok: false, error: error.message || "function_invoke_failed" };
+    return await normalizeFunctionError(error);
   }
-  return data ?? { ok: false, error: "empty_response" };
+
+  if (!data || typeof data !== "object") {
+    return {
+      ok: false,
+      code: "empty_response",
+      status: 502,
+      error: "Respuesta vacia de la funcion",
+    };
+  }
+
+  if (data.ok === false) {
+    return {
+      ok: false,
+      code: data.code || "session_function_error",
+      status: data.status || 400,
+      error: data.message || data.error || "Error de sesion",
+      ...data,
+    };
+  }
+
+  return data;
+}
+
+async function normalizeFunctionError(error) {
+  let code = "function_invoke_failed";
+  let status = null;
+  let message = error?.message || "No se pudo invocar la funcion";
+  let details = null;
+
+  const response = error?.context;
+  if (response && typeof response === "object") {
+    status = typeof response.status === "number" ? response.status : null;
+    try {
+      const payload = await response.clone().json();
+      if (payload && typeof payload === "object") {
+        code = payload.code || code;
+        message = payload.message || payload.error || message;
+        details = payload.details || null;
+      }
+    } catch {
+      // no-op: keep fallback message
+    }
+  }
+
+  return {
+    ok: false,
+    code,
+    status,
+    details,
+    error: message,
+  };
 }
 
 function formatLastActive(isoDate) {
