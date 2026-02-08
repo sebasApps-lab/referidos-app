@@ -1,10 +1,11 @@
+// src/waitlist/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import WaitlistPage from "./waitlist/WaitlistPage";
-import LegalHomePage from "./waitlist/legal/LegalHomePage";
-import LegalDocPage from "./waitlist/legal/LegalDocPage";
-import "./waitlist/prelaunch.css";
+import WaitlistPage from "./WaitlistPage";
+import LegalHomePage from "./legal/LegalHomePage";
+import LegalDocPage from "./legal/LegalDocPage";
+import "./prelaunch.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

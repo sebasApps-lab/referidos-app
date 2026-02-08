@@ -1,0 +1,70 @@
+@import "tailwindcss" source("..");
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  background: #F7F4FF;
+  overscroll-behavior-y: auto;\r\n  touch-action: pan-y;
+}
+
+/* Permite que el navegador móvil oculte la URL bar automáticamente */
+html {
+  height: 100%;
+  min-height: 100%;
+}
+
+html[data-desktop-lock="true"],
+html[data-desktop-lock="true"] body {
+  overflow-x: auto !important;
+  max-width: none;
+}
+
+html[data-desktop-lock="true"] body {
+  min-width: var(--layout-min, 880px);
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+html[data-desktop-lock="true"] #root {
+  width: clamp(var(--layout-min, 880px), 100vw, var(--layout-max, 1440px));
+  min-width: var(--layout-min, 880px);
+  max-width: var(--layout-max, 1440px);
+  flex: 0 0 clamp(var(--layout-min, 880px), 100vw, var(--layout-max, 1440px));
+  margin: 0;
+}
+
+html,
+body {
+  scrollbar-color: rgba(94, 48, 165, 0.6) transparent;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: rgba(94, 48, 165, 0.6);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
