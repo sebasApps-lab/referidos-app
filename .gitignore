@@ -22,6 +22,9 @@ dist-ssr
 public/inec/*.ods
 public/inec/*.zip
 !public/inec/*.csv
+apps/referidos-app/public/inec/*.ods
+apps/referidos-app/public/inec/*.zip
+!apps/referidos-app/public/inec/*.csv
 
 # Editor directories and files
 .vscode/*
