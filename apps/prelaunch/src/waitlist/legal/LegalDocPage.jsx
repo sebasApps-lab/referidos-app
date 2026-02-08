@@ -1,25 +1,23 @@
 import React, { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import LegalContent from "../../legal/blocks/LegalContent";
-import privacyEs from "../../legal/content/es/privacy.md?raw";
-import termsEs from "../../legal/content/es/terms.md?raw";
-import dataDeletionEs from "../../legal/content/es/data-deletion.md?raw";
+import { getLegalMarkdown } from "@referidos/legal-content";
 
 const LEGAL_DOCS = {
   privacidad: {
     title: "Privacidad",
     subtitle: "Como tratamos tus datos en ReferidosAPP.",
-    markdown: privacyEs,
+    markdown: getLegalMarkdown("privacy", "es"),
   },
   terminos: {
     title: "Terminos",
     subtitle: "Condiciones de uso de la plataforma.",
-    markdown: termsEs,
+    markdown: getLegalMarkdown("terms", "es"),
   },
   "borrar-datos": {
     title: "Borrar datos",
     subtitle: "Como solicitar eliminacion de datos.",
-    markdown: dataDeletionEs,
+    markdown: getLegalMarkdown("data-deletion", "es"),
   },
 };
 

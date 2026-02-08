@@ -1,12 +1,11 @@
 import React from "react";
 import LegalLayout from "../LegalLayout";
 import LegalContent from "../blocks/LegalContent";
-import privacyEs from "../content/es/privacy.md?raw";
-import privacyEn from "../content/en/privacy.md?raw";
+import { getLegalMarkdown } from "@referidos/legal-content";
 
 const CONTENT = {
-  es: privacyEs,
-  en: privacyEn,
+  es: getLegalMarkdown("privacy", "es"),
+  en: getLegalMarkdown("privacy", "en"),
 };
 
 const TITLES = {

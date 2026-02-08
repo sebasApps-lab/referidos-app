@@ -1,16 +1,21 @@
 {
-  "name": "referidos-app",
+  "name": "referidos-system",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "dev:prelaunch": "vite --config vite.prelaunch.config.js",
-    "build": "vite build",
-    "build:prelaunch": "vite build --config vite.prelaunch.config.js",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "preview:prelaunch": "vite preview --config vite.prelaunch.config.js --outDir dist-prelaunch"
+    "dev:app": "npm run dev -w apps/referidos-app -- --host --mode remote",
+    "dev:prelaunch": "npm run dev -w apps/prelaunch -- --host --mode remote",
+    "build:app": "npm run build -w apps/referidos-app",
+    "build:prelaunch": "npm run build -w apps/prelaunch",
+    "preview:app": "npm run preview -w apps/referidos-app",
+    "preview:prelaunch": "npm run preview -w apps/prelaunch",
+    "lint": "npm run lint -ws --if-present",
+    "test": "npm run test -ws --if-present"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",

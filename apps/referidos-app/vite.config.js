@@ -2,8 +2,22 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  envDir: path.resolve(__dirname, '../..'),
+  resolve: {
+    alias: {
+      '@referidos/legal-content': path.resolve(
+        __dirname,
+        '../../packages/legal-content/src/index.js'
+      ),
+      '@referidos/support-sdk': path.resolve(__dirname, '../../packages/support-sdk/src'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -37,6 +51,9 @@ export default defineConfig({
   ],
   server: {
     host: true,
+    fs: {
+      allow: ['../..'],
+    },
     // Allow ngrok (or similar) HTTPS tunnels to reach the dev server.
     allowedHosts: [
       'indissolubly-preluxurious-harmony.ngrok-free.dev',
