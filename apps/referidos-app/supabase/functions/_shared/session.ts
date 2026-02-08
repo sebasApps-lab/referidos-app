@@ -1,0 +1,224 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL");
+const SUPABASE_PUBLISHABLE_KEY =
+  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+  Deno.env.get("SUPABASE_ANON_KEY") ??
+  Deno.env.get("PUBLISHABLE_KEY");
+const SUPABASE_SECRET_KEY =
+  Deno.env.get("SUPABASE_SECRET_KEY") ??
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+  Deno.env.get("SECRET_KEY");
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || !SUPABASE_SECRET_KEY) {
+  throw new Error(
+    "Missing Supabase env vars: SUPABASE_URL/URL, SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY/PUBLISHABLE_KEY, SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY/SECRET_KEY",
+  );
+}
+
+export const supabasePublic = createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+);
+export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+
+export const DEVICE_ID_MIN_LEN = 8;
+export const DEVICE_ID_MAX_LEN = 128;
+export const LABEL_MAX_LEN = 80;
+
+type JwtPayload = {
+  sub?: string;
+  session_id?: string;
+  [key: string]: unknown;
+};
+
+export function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+export function json(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...headers },
+  });
+}
+
+export function sanitizeLabel(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, LABEL_MAX_LEN);
+}
+
+export function sanitizePlatform(input: unknown): string {
+  if (typeof input !== "string") return "web";
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return "web";
+  return trimmed.slice(0, 32);
+}
+
+export function sanitizeDeviceId(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (
+    trimmed.length < DEVICE_ID_MIN_LEN || trimmed.length > DEVICE_ID_MAX_LEN
+  ) {
+    return null;
+  }
+  return trimmed;
+}
+
+function decodeJwtPayload(token: string): JwtPayload | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  const payloadSegment = parts[1];
+  const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4 ? "=".repeat(4 - (base64.length % 4)) : "";
+  try {
+    const raw = atob(base64 + pad);
+    return JSON.parse(raw) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function getTokenFromRequest(req: Request): string | null {
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace("Bearer ", "").trim();
+  return token || null;
+}
+
+export function getSessionIdFromToken(token: string): string | null {
+  const payload = decodeJwtPayload(token);
+  const sid = payload?.session_id;
+  if (typeof sid !== "string") return null;
+  const trimmed = sid.trim();
+  return trimmed || null;
+}
+
+export async function getAuthedUser(req: Request, cors: Record<string, string>) {
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    return {
+      ok: false as const,
+      response: json(
+        { ok: false, code: "unauthorized", message: "Missing bearer token" },
+        401,
+        cors,
+      ),
+    };
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabasePublic.auth.getUser(token);
+  if (error || !user) {
+    return {
+      ok: false as const,
+      response: json(
+        { ok: false, code: "unauthorized", message: "Invalid auth token" },
+        401,
+        cors,
+      ),
+    };
+  }
+
+  return {
+    ok: true as const,
+    token,
+    user,
+  };
+}
+
+export async function assertCurrentSessionRegisteredAndActive(
+  userId: string,
+  sessionId: string,
+  cors: Record<string, string>,
+) {
+  const { data, error } = await supabaseAdmin
+    .from("user_session_devices")
+    .select("id, revoked_at")
+    .eq("user_id", userId)
+    .eq("session_id", sessionId)
+    .maybeSingle();
+
+  if (error) {
+    return {
+      ok: false as const,
+      response: json(
+        {
+          ok: false,
+          code: "session_lookup_failed",
+          message: "Could not validate current session",
+        },
+        500,
+        cors,
+      ),
+    };
+  }
+
+  if (!data) {
+    return {
+      ok: false as const,
+      response: json(
+        {
+          ok: false,
+          code: "session_unregistered",
+          message: "Session is not registered",
+        },
+        401,
+        cors,
+      ),
+    };
+  }
+
+  if (data.revoked_at) {
+    return {
+      ok: false as const,
+      response: json(
+        {
+          ok: false,
+          code: "session_revoked",
+          message: "Session has been revoked",
+        },
+        401,
+        cors,
+      ),
+    };
+  }
+
+  return { ok: true as const };
+}
+
+export async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hashBytes = new Uint8Array(digest);
+  return [...hashBytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function hashUserAgent(req: Request): Promise<string | null> {
+  const ua = req.headers.get("user-agent")?.trim();
+  if (!ua) return null;
+  return await sha256Hex(ua);
+}
+
+export async function pruneSessions(userId: string) {
+  try {
+    await supabaseAdmin.rpc("prune_user_session_devices", { p_user_id: userId });
+  } catch {
+    // Best-effort retention cleanup; session flow must continue.
+  }
+}

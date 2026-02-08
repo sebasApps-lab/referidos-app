@@ -17,6 +17,7 @@ import {
 import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
+import { registerCurrentSessionDevice } from "../services/sessionDevicesService";
 import { supabase } from "../lib/supabaseClient";
 import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secureStorageService";
 import { useCacheStore } from "../cache/cacheStore";
@@ -464,6 +465,27 @@ export const useAppStore = create(
               onboarding: null,
             });
             return { ok: true, usuario: null };
+          }
+
+          const sessionRegister = await registerCurrentSessionDevice();
+          if (!sessionRegister?.ok) {
+            const errMsg =
+              sessionRegister?.error ||
+              sessionRegister?.message ||
+              "No se pudo registrar la sesion activa";
+            try {
+              await signOut();
+            } catch {
+              // no-op
+            }
+            set({
+              bootstrap: false,
+              bootstrapError: false,
+              usuario: null,
+              onboarding: null,
+              error: errMsg,
+            });
+            return { ok: false, error: errMsg };
           }
 
           const check = await runOnboardingCheck();

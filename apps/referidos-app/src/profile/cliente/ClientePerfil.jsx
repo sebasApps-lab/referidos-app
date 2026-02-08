@@ -36,7 +36,6 @@ import {
   getAvatarSrc,
   getPlanFallback,
   getRoleLabel,
-  getSessionListFallback,
   getTierMeta,
   getTierProgress,
 } from "../../cliente/services/clienteUI";
@@ -94,6 +93,11 @@ import VerificationCard from "../shared/blocks/VerificationCard";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
 import {
+  listCurrentUserSessions,
+  revokeAllSessions,
+  revokeSessionById,
+} from "../../services/sessionDevicesService";
+import {
   deleteBiometricToken,
   deletePinHash,
   generatePinSalt,
@@ -104,10 +108,14 @@ import {
   savePinHash,
 } from "../../services/secureStorageService";
 
-const DEVICE_ICON = {
-  Movil: Smartphone,
-  Laptop,
-  Tablet,
+const getDeviceIcon = (session) => {
+  const raw = `${session?.device || ""} ${session?.platform || ""}`.toLowerCase();
+  if (raw.includes("movil") || raw.includes("android") || raw.includes("ios")) {
+    return Smartphone;
+  }
+  if (raw.includes("tablet")) return Tablet;
+  if (raw.includes("pwa")) return Monitor;
+  return Laptop;
 };
 let accessInfoDismissed = false;
 
@@ -139,7 +147,9 @@ export default function ClientePerfil() {
   const showSearchDock = profileView === "tabs";
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
-  const [sessions, setSessions] = useState(getSessionListFallback());
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState(null);
   const twoFASms = false;
   const {
     loading: mfaLoading,
@@ -152,9 +162,55 @@ export default function ClientePerfil() {
   const [aliasStatus, setAliasStatus] = useState(null);
   const [helpView, setHelpView] = useState("menu");
 
-  const handleCloseAllSessions = useCallback(() => {
-    setSessions((prev) => prev.filter((session) => session.current));
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    const result = await listCurrentUserSessions();
+    if (!result?.ok) {
+      setSessionsError(result?.error || "No se pudieron cargar las sesiones.");
+      setSessionsLoading(false);
+      return;
+    }
+    setSessions(result.sessions || []);
+    setSessionsLoading(false);
   }, []);
+
+  const handleCloseSession = useCallback(
+    async (session) => {
+      if (!session?.sessionId) return;
+      setSessionsLoading(true);
+      setSessionsError(null);
+      const result = await revokeSessionById(session.sessionId);
+      if (!result?.ok) {
+        setSessionsError(result?.error || "No se pudo cerrar la sesion.");
+        setSessionsLoading(false);
+        return;
+      }
+      if (result?.current_session_revoked) {
+        await logout();
+        return;
+      }
+      await loadSessions();
+    },
+    [loadSessions, logout],
+  );
+
+  const handleCloseAllSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    const result = await revokeAllSessions();
+    if (!result?.ok) {
+      setSessionsError(result?.error || "No se pudieron cerrar las sesiones.");
+      setSessionsLoading(false);
+      return;
+    }
+    await logout();
+  }, [logout]);
+
+  useEffect(() => {
+    if (profileView !== "tabs" || profileTab !== "sessions") return;
+    loadSessions();
+  }, [loadSessions, profileTab, profileView]);
 
   const SessionsPanel = useCallback(
     () => (
@@ -166,19 +222,50 @@ export default function ClientePerfil() {
             key="sessions-list"
             items={sessions}
             renderLeading={(session) => {
-              const Icon = DEVICE_ICON[session.device] || Laptop;
+              const Icon = getDeviceIcon(session);
               return <Icon size={18} />;
             }}
             getPrimaryText={(session) => session.device}
             getSecondaryText={(session) =>
               `${session.location} - ${session.lastActive}`
             }
+            renderTrailing={(session) =>
+              session.current ? (
+                <span className="rounded-xl bg-[#F3EEFF] px-2 py-1 text-[10px] font-semibold text-[#5E30A5]">
+                  Actual
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleCloseSession(session)}
+                  className="rounded-xl border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  Cerrar
+                </button>
+              )}
           />,
+          sessionsLoading ? (
+            <div
+              key="sessions-loading"
+              className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-[11px] text-slate-500 text-center"
+            >
+              Cargando sesiones...
+            </div>
+          ) : null,
+          sessionsError ? (
+            <div
+              key="sessions-error"
+              className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-[11px] text-red-500 text-center"
+            >
+              {sessionsError}
+            </div>
+          ) : null,
         ]}
         footer={
           <button
             type="button"
             onClick={handleCloseAllSessions}
+            disabled={sessionsLoading}
             className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs font-semibold text-red-600 transition hover:bg-red-100"
           >
             <div className="flex items-center gap-2">
@@ -188,7 +275,7 @@ export default function ClientePerfil() {
               <div>
                 <div>Cerrar todas</div>
                 <div className="mt-1 text-[11px] font-normal text-red-500">
-                  Esto cerra sesion en el resto de dispositivos, menos en el
+                  Esto cierra sesion en todos los dispositivos, incluido el
                   actual.
                 </div>
               </div>
@@ -197,7 +284,13 @@ export default function ClientePerfil() {
         }
       />
     ),
-    [sessions, handleCloseAllSessions]
+    [
+      handleCloseAllSessions,
+      handleCloseSession,
+      sessions,
+      sessionsError,
+      sessionsLoading,
+    ]
   );
 
   const aliasConfig = useMemo(
