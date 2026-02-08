@@ -3,10 +3,12 @@ import React from "react";
 export default function Sessions({
   title,
   subtitle,
+  subtitleAction,
   blocks = [],
   footer,
 }) {
   const contentBlocks = React.Children.toArray(blocks);
+  const hasSubtitleRow = Boolean(subtitle) || Boolean(subtitleAction);
 
   return (
     <section className="relative rounded-[30px] border border-[#E9E2F7] bg-white px-6 pb-6 pt-6 space-y-5">
@@ -15,9 +17,10 @@ export default function Sessions({
           {title}
         </span>
       </div>
-      {subtitle ? (
-        <div className="mt-1">
-          <p className="text-xs text-slate-500 text-center">{subtitle}</p>
+      {hasSubtitleRow ? (
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">{subtitle}</p>
+          {subtitleAction}
         </div>
       ) : null}
 

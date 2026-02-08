@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Smartphone,
   Tablet,
+  RefreshCcw,
   TriangleAlert,
   Shield,
   UserCircle,
@@ -217,6 +218,21 @@ export default function ClientePerfil() {
       <Sessions
         title="Sesiones y dispositivos"
         subtitle="Controla los accesos activos en tu cuenta."
+        subtitleAction={
+          <button
+            type="button"
+            className="rounded-xl border border-[#E9E2F7] bg-white p-2 text-slate-500 transition hover:text-[#5E30A5] disabled:opacity-60"
+            title="Refrescar sesiones"
+            onClick={loadSessions}
+            disabled={sessionsLoading}
+            aria-label="Refrescar sesiones"
+          >
+            <RefreshCcw
+              size={16}
+              className={sessionsLoading ? "animate-spin" : undefined}
+            />
+          </button>
+        }
         blocks={[
           <SessionsList
             key="sessions-list"
@@ -244,7 +260,7 @@ export default function ClientePerfil() {
                 </button>
               )}
           />,
-          sessionsLoading ? (
+          sessionsLoading && sessions.length === 0 ? (
             <div
               key="sessions-loading"
               className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-[11px] text-slate-500 text-center"

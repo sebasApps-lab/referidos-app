@@ -20,6 +20,7 @@ import {
   Sparkles,
   ShieldCheck,
   Smartphone,
+  RefreshCcw,
   TriangleAlert,
   Shield,
   Tablet,
@@ -215,6 +216,21 @@ export default function NegocioPerfil() {
         <Sessions
           title="Sesiones de cuenta propietario"
           subtitle="Controla los accesos activos en tu cuenta."
+          subtitleAction={
+            <button
+              type="button"
+              className="rounded-xl border border-[#E9E2F7] bg-white p-2 text-slate-500 transition hover:text-[#5E30A5] disabled:opacity-60"
+              title="Refrescar sesiones"
+              onClick={loadOwnerSessions}
+              disabled={sessionsLoading}
+              aria-label="Refrescar sesiones"
+            >
+              <RefreshCcw
+                size={16}
+                className={sessionsLoading ? "animate-spin" : undefined}
+              />
+            </button>
+          }
           blocks={[
             <SessionsList
               key="owner-sessions"
@@ -242,7 +258,7 @@ export default function NegocioPerfil() {
                   </button>
                 )}
             />,
-            sessionsLoading ? (
+            sessionsLoading && ownerSessions.length === 0 ? (
               <div
                 key="sessions-loading"
                 className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 text-[11px] text-slate-500 text-center"
