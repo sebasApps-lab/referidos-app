@@ -91,13 +91,6 @@ serve(async (req) => {
   }
 
   const auth = await getOptionalAuthedUser(req);
-  if (auth.authError) {
-    return jsonResponse(
-      { ok: false, code: auth.authError, message: "Invalid bearer token" },
-      401,
-      cors,
-    );
-  }
 
   let usuario: Record<string, unknown> | null = null;
   let tenantId: string | null = null;

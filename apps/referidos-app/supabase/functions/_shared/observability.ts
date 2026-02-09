@@ -1,3 +1,4 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { supabaseAdmin, supabasePublic } from "./support.ts";
 
 export { supabaseAdmin, supabasePublic };
@@ -284,7 +285,8 @@ export function extractRequestIds(req: Request) {
 
 export function getTokenFromRequest(req: Request): string | null {
   const authHeader = req.headers.get("authorization") ?? "";
-  const token = authHeader.replace("Bearer ", "").trim();
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  const token = match?.[1]?.trim() || "";
   return token || null;
 }
 
@@ -293,14 +295,45 @@ export async function getOptionalAuthedUser(req: Request) {
   if (!token) {
     return { token: null, authUser: null, authError: null as string | null };
   }
-  const {
-    data: { user },
-    error,
-  } = await supabasePublic.auth.getUser(token);
-  if (error || !user) {
-    return { token, authUser: null, authError: "unauthorized_token" };
+  let requestOrigin: string | null = null;
+  try {
+    requestOrigin = new URL(req.url).origin;
+  } catch {
+    requestOrigin = null;
   }
-  return { token, authUser: user, authError: null as string | null };
+  const authProbeUrls = Array.from(new Set([
+    requestOrigin,
+    Deno.env.get("SUPABASE_URL"),
+    Deno.env.get("URL"),
+  ].filter((value): value is string => Boolean(value && value.length > 0))));
+  if (!authProbeUrls.length) {
+    return { token, authUser: null, authError: null as string | null };
+  }
+  const headerApiKey = req.headers.get("apikey")?.trim() || null;
+  const authProbeKeys = Array.from(new Set([
+    headerApiKey,
+    Deno.env.get("SUPABASE_ANON_KEY"),
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY"),
+    Deno.env.get("PUBLISHABLE_KEY"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    Deno.env.get("SUPABASE_SECRET_KEY"),
+    Deno.env.get("SECRET_KEY"),
+  ].filter((value): value is string => Boolean(value && value.length > 0))));
+
+  for (const url of authProbeUrls) {
+    for (const key of authProbeKeys) {
+      const probeClient = createClient(url, key);
+      const {
+        data: { user },
+        error,
+      } = await probeClient.auth.getUser(token);
+      if (!error && user) {
+        return { token, authUser: user, authError: null as string | null };
+      }
+    }
+  }
+
+  return { token, authUser: null, authError: null as string | null };
 }
 
 export async function getUsuarioByAuthId(authId: string) {
