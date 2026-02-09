@@ -1,0 +1,15 @@
+{
+  "name": "@referidos/mobile-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./clients/createSupabaseMobileClient": "./src/clients/createSupabaseMobileClient.js",
+    "./createMobileApi": "./src/createMobileApi.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.84.0",
+    "@referidos/mobile-domain": "0.0.0"
+  }
+}

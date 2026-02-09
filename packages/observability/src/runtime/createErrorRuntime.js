@@ -58,6 +58,7 @@ export function createErrorRuntime({
   observabilityClient,
   policyRuntime,
   appConfig = {},
+  captureUnhandled = true,
 } = {}) {
   if (!observabilityClient) {
     throw new Error("createErrorRuntime requires observabilityClient");
@@ -69,6 +70,7 @@ export function createErrorRuntime({
   const state = {
     initialized: false,
     enabled: true,
+    cleanupUnhandled: null,
     appConfig: {
       appId: appConfig.appId || null,
       tenantHint: appConfig.tenantHint || null,
@@ -80,6 +82,32 @@ export function createErrorRuntime({
     if (state.initialized) return;
     state.initialized = true;
     observabilityClient.init();
+    if (captureUnhandled && typeof window !== "undefined") {
+      const onError = (event) => {
+        void reportError(event?.error || event?.message || "window_error", {
+          code: "unknown_error",
+          context: {
+            source: "window_error",
+            route: window.location?.pathname || null,
+          },
+        });
+      };
+      const onRejection = (event) => {
+        void reportError(event?.reason || "unhandled_rejection", {
+          code: "unknown_error",
+          context: {
+            source: "unhandled_rejection",
+            route: window.location?.pathname || null,
+          },
+        });
+      };
+      window.addEventListener("error", onError);
+      window.addEventListener("unhandledrejection", onRejection);
+      state.cleanupUnhandled = () => {
+        window.removeEventListener("error", onError);
+        window.removeEventListener("unhandledrejection", onRejection);
+      };
+    }
   }
 
   function setEnabled(value) {

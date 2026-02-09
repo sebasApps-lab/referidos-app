@@ -44,6 +44,7 @@ if (!globalScope[OBS_SINGLETON_KEY]) {
     tenantHint: DEFAULT_TENANT_HINT,
     appId: DEFAULT_APP_ID,
     source: "web",
+    captureUnhandled: false,
     env: {
       ...importEnv,
       VITE_APP_ID: DEFAULT_APP_ID,
@@ -152,6 +153,15 @@ export const logBreadcrumb = (message, context = {}) => {
 export const logError = (error, context = {}) => {
   if (!loggerEnabled) return;
   runtime.logError(error, context || {});
+};
+
+export const reportError = async (error, payload = {}) => {
+  if (!loggerEnabled) return null;
+  return await runtime.reportError(error, payload || {});
+};
+
+export const subscribeErrorEvents = (listener) => {
+  return runtime.subscribeErrors(listener);
 };
 
 export const flushLogs = async () => {

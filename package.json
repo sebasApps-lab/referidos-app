@@ -10,6 +10,8 @@
   "scripts": {
     "dev:app": "npm run dev -w apps/referidos-app -- --host --mode remote",
     "dev:prelaunch": "npm run dev -w apps/prelaunch -- --host --mode remote",
+    "android:guardrail": "node tooling/guardrails/verify-android-scope.mjs",
+    "android:guardrail:print": "node tooling/guardrails/verify-android-scope.mjs --print",
     "build:app": "npm run build -w apps/referidos-app",
     "build:prelaunch": "npm run build -w apps/prelaunch",
     "build:app:release": "npm run build:app && node tooling/observability/upload-sourcemaps.mjs --app referidos-app",

@@ -1,5 +1,5 @@
 import React from "react";
-import { logError } from "../../services/loggingClient";
+import { logError, reportError } from "../../services/loggingClient";
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,8 +13,15 @@ class AppErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     logError(error, {
-      source: "react_error_boundary",
+      source: "react_error_boundary_log_only",
       component_stack: info?.componentStack || null,
+    });
+    void reportError(error, {
+      code: "unknown_error",
+      context: {
+        source: "react_error_boundary",
+        component_stack: info?.componentStack || null,
+      },
     });
   }
 

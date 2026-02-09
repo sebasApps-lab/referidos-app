@@ -56,6 +56,8 @@ export function createObservabilityClient(options = {}) {
     env = {},
     enabled = true,
     source = "web",
+    captureUnhandled = true,
+    captureNetworkBreadcrumbs = true,
   } = options;
 
   const release = buildReleaseFromEnv(env);
@@ -327,8 +329,10 @@ export function createObservabilityClient(options = {}) {
     if (state.initialized) return () => {};
     state.initialized = true;
     loadQueue();
-    const cleanupGlobal = installGlobalHandlers();
-    const cleanupNetwork = installNetworkBreadcrumbs();
+    const cleanupGlobal = captureUnhandled ? installGlobalHandlers() : () => {};
+    const cleanupNetwork = captureNetworkBreadcrumbs
+      ? installNetworkBreadcrumbs()
+      : () => {};
     if (typeof window !== "undefined") {
       window.addEventListener("online", flush);
       document.addEventListener("visibilitychange", () => {

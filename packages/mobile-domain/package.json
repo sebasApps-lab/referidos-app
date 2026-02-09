@@ -1,0 +1,14 @@
+{
+  "name": "@referidos/mobile-domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./auth/authSteps": "./src/auth/authSteps.js",
+    "./auth/authRoles": "./src/auth/authRoles.js",
+    "./validators": "./src/validators/index.js",
+    "./normalizers/text": "./src/normalizers/text.js",
+    "./catalogs/businessCategories": "./src/catalogs/businessCategories.js"
+  }
+}

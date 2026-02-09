@@ -46,6 +46,11 @@ function safeObject(value: unknown): Record<string, unknown> {
   return {};
 }
 
+function normalizeErrorCode(value: string | null) {
+  const next = safeString(value)?.toLowerCase() || "unknown_error";
+  return next || "unknown_error";
+}
+
 function issueTitleForEvent({
   errorName,
   errorCode,
@@ -208,10 +213,11 @@ serve(async (req) => {
 
     const route = safeString((scrubbedContext as Record<string, unknown>).route);
     const errorName = safeString(errorObject.name);
-    const errorCode =
+    const rawErrorCode =
       safeString(errorObject.code) ||
       safeString(item.error_code) ||
       safeString((scrubbedContext as Record<string, unknown>).error_code);
+    const errorCode = normalizeErrorCode(rawErrorCode);
     const stackRawSource =
       safeString(errorObject.stack) ||
       safeString((scrubbedContext as Record<string, unknown>).stack);
@@ -352,6 +358,17 @@ serve(async (req) => {
         last_release: appVersion,
       })
       .eq("id", issueId);
+
+    await supabaseAdmin.rpc("obs_upsert_error_catalog", {
+      p_tenant_id: tenantId,
+      p_error_code: errorCode,
+      p_event_id: insertedEvent.id,
+      p_source_hint: source,
+      p_sample_message: message,
+      p_sample_route: route,
+      p_sample_context: scrubbedContext,
+      p_seen_at: occurredAt,
+    });
 
     issuesTouched.add(issueId);
     inserted += 1;

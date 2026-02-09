@@ -81,10 +81,24 @@ export function createPolicyRuntime() {
       };
     }
 
-    if (TRANSIENT_CODES.has(errorCode) || errorCode === OBS_ERROR_CODES.UNKNOWN) {
-      const budget = consumeBudget(
-        retryBudget,
-        `retry:${k}`,
+  if (errorCode === OBS_ERROR_CODES.UNKNOWN) {
+    return {
+      ui: {
+        type: "modal",
+        severity: "warning",
+        message_key: errorCode,
+        show: onceEvery(modalOnce, `modal:${k}`, MODAL_ONCE_WINDOW_MS),
+      },
+      auth: { signOut: "none", authoritative: false },
+      retry: { allowed: false, backoff_ms: 0 },
+      uam: { degrade_to: null, sensitive_only: true },
+    };
+  }
+
+  if (TRANSIENT_CODES.has(errorCode)) {
+    const budget = consumeBudget(
+      retryBudget,
+      `retry:${k}`,
         RETRY_BUDGET_WINDOW_MS,
         RETRY_BUDGET_MAX,
       );

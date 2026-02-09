@@ -1,0 +1,15 @@
+{
+  "name": "@referidos/mobile-security",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./storage": "./src/storage/secureStorageService.js",
+    "./biometrics": "./src/biometrics/biometricService.js",
+    "./pin": "./src/pin/pinPolicy.js"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.0"
+  }
+}

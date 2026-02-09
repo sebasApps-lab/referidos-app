@@ -22,7 +22,7 @@ import {
   beginPolicyAction,
   endPolicyAction,
   evaluateErrorPolicy,
-  logError,
+  reportError,
 } from "../services/loggingClient";
 import { supabase } from "../lib/supabaseClient";
 import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secureStorageService";
@@ -587,10 +587,13 @@ export const useAppStore = create(
                 });
               }
 
-              logError(new Error(errMsg), {
-                source: "bootstrap_session_register_failed",
-                error_code: errCode || "session_register_failed",
-                recoverable: !mustTerminateSession,
+              void reportError(new Error(errMsg), {
+                code: errCode || "session_register_failed",
+                context: {
+                  source: "bootstrap_session_register_failed",
+                  error_code: errCode || "session_register_failed",
+                  recoverable: !mustTerminateSession,
+                },
               });
 
               set({

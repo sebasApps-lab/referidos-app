@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import AdminTopbar from "./AdminTopbar";
+import AdminRuntimeErrorModalHost from "../observability/AdminRuntimeErrorModalHost";
 
 export default function AdminLayout({ children, title, subtitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -14,6 +15,7 @@ export default function AdminLayout({ children, title, subtitle }) {
 
   return (
     <div className="min-h-screen bg-[#F6F2FB] text-slate-700">
+      <AdminRuntimeErrorModalHost />
       <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="lg:pl-64">
