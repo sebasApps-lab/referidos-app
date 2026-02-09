@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS public.obs_events (
   session_id text,
   ip_hash text,
   app_id text,
-  user_id text,
+  user_id uuid,
   auth_user_id uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -363,7 +363,7 @@ AS $$
   SELECT coalesce(public.current_usuario_role() = 'soporte', false);
 $$;
 
-CREATE OR REPLACE FUNCTION public.obs_support_can_access_user(p_user_id text)
+CREATE OR REPLACE FUNCTION public.obs_support_can_access_user(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -388,7 +388,7 @@ GRANT EXECUTE ON FUNCTION public.current_usuario_tenant_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.current_usuario_role() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.obs_is_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.obs_is_support() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.obs_support_can_access_user(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.obs_support_can_access_user(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.obs_upsert_issue(uuid, text, text, text, timestamptz, text) TO service_role;
 
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;

@@ -19,7 +19,29 @@ ALTER TABLE public.obs_events
   ADD COLUMN IF NOT EXISTS symbolicated_at timestamptz;
 
 ALTER TABLE public.obs_events
-  ADD COLUMN IF NOT EXISTS symbolicated_by text;
+  ADD COLUMN IF NOT EXISTS symbolicated_by uuid;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'obs_events'
+      AND column_name = 'symbolicated_by'
+      AND data_type = 'text'
+  ) THEN
+    ALTER TABLE public.obs_events
+      ALTER COLUMN symbolicated_by TYPE uuid
+      USING (
+        CASE
+          WHEN symbolicated_by ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+            THEN symbolicated_by::uuid
+          ELSE NULL
+        END
+      );
+  END IF;
+END $$;
 
 ALTER TABLE public.obs_events
   ADD COLUMN IF NOT EXISTS symbolication_release text;
