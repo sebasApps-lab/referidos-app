@@ -14,6 +14,10 @@ export default defineConfig({
         __dirname,
         "../../packages/legal-content/src/index.js"
       ),
+      "@referidos/observability": path.resolve(
+        __dirname,
+        "../../packages/observability/src/index.js"
+      ),
     },
   },
   plugins: [react(), tailwindcss()],
@@ -28,4 +32,3 @@ export default defineConfig({
     ],
   },
 });
-

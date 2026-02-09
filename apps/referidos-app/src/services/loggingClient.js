@@ -1,16 +1,25 @@
+import {
+  OBS_ERROR_CODES,
+  createObservabilityClient,
+  createPolicyRuntime,
+  normalizeErrorCode,
+} from "@referidos/observability";
 import { supabase } from "../lib/supabaseClient";
 
-const LOG_QUEUE_KEY = "referidos:log-queue";
-const LOG_SESSION_KEY = "referidos:log-session";
-const MAX_QUEUE = 200;
-const MAX_BATCH = 20;
-const FLUSH_INTERVAL_MS = 8000;
-const MAX_PER_MINUTE = 40;
-const PERFORMANCE_SAMPLE_RATE = 0.2;
-const DEDUPE_WINDOW_MS = 2 * 60 * 1000;
+const importEnv = import.meta.env || {};
+const DEFAULT_TENANT_HINT = importEnv.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
+const DEFAULT_APP_ID = importEnv.VITE_APP_ID || "referidos-app";
+const DEFAULT_ENV = importEnv.MODE || importEnv.VITE_ENV || "development";
+const DEFAULT_VERSION =
+  importEnv.VITE_APP_VERSION ||
+  importEnv.VITE_RELEASE ||
+  importEnv.VITE_COMMIT_SHA ||
+  "dev";
+const DEFAULT_BUILD_ID =
+  importEnv.VITE_BUILD_ID || importEnv.VITE_COMMIT_SHA || "";
 
-const ALLOWED_LEVELS = new Set(["info", "warn", "error"]);
-const ALLOWED_CATEGORIES = new Set([
+const LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug"]);
+const LOG_CATEGORIES = new Set([
   "auth",
   "onboarding",
   "scanner",
@@ -19,171 +28,129 @@ const ALLOWED_CATEGORIES = new Set([
   "network",
   "ui_flow",
   "performance",
+  "security",
+  "audit",
 ]);
 
-let initialized = false;
-let enabled = true;
-let queue = [];
-let flushTimer = null;
-let baseContext = {};
-let rateWindowStart = 0;
-let rateCount = 0;
-const dedupeMap = new Map();
+const OBS_SINGLETON_KEY = "__referidos_observability_client__";
+const POLICY_SINGLETON_KEY = "__referidos_observability_policy__";
 
-const getSessionId = () => {
-  if (typeof sessionStorage === "undefined") return null;
-  const existing = sessionStorage.getItem(LOG_SESSION_KEY);
-  if (existing) return existing;
-  const next =
-    (window.crypto?.randomUUID && window.crypto.randomUUID()) ||
-    `sess_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-  sessionStorage.setItem(LOG_SESSION_KEY, next);
-  return next;
-};
-
-const persistQueue = () => {
-  try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(LOG_QUEUE_KEY, JSON.stringify(queue));
-  } catch {
-    // no-op
-  }
-};
-
-const loadQueue = () => {
-  try {
-    if (typeof localStorage === "undefined") return;
-    const raw = localStorage.getItem(LOG_QUEUE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      queue = parsed.slice(0, MAX_QUEUE);
-    }
-  } catch {
-    // no-op
-  }
-};
-
-const rateLimitExceeded = () => {
-  const now = Date.now();
-  if (now - rateWindowStart > 60 * 1000) {
-    rateWindowStart = now;
-    rateCount = 0;
-  }
-  if (rateCount >= MAX_PER_MINUTE) return true;
-  rateCount += 1;
-  return false;
-};
-
-const fingerprintKey = ({ category, message, route, stack }) =>
-  `${category}|${message}|${route || ""}|${stack || ""}`;
-
-const shouldDedupe = (key) => {
-  const now = Date.now();
-  const last = dedupeMap.get(key);
-  if (last && now - last < DEDUPE_WINDOW_MS) {
-    return true;
-  }
-  dedupeMap.set(key, now);
-  return false;
-};
-
-const sanitizeMessage = (value) => {
-  if (!value) return "";
-  let next = String(value);
-  next = next.replace(/bearer\s+[a-z0-9\-_\.]+/gi, "bearer [redacted]");
-  next = next.replace(/(access|refresh)_token\"?\s*:\s*\"[^\"]+\"/gi, "$1_token\":\"[redacted]\"");
-  next = next.replace(/authorization\"?\s*:\s*\"[^\"]+\"/gi, "authorization\":\"[redacted]\"");
-  next = next.replace(/cookie\"?\s*:\s*\"[^\"]+\"/gi, "cookie\":\"[redacted]\"");
-  return next;
-};
-
-const buildNetworkLabel = () => {
-  if (typeof navigator === "undefined") return null;
-  const online = navigator.onLine ? "online" : "offline";
-  const effective = navigator.connection?.effectiveType || "unknown";
-  return `${online}:${effective}`;
-};
-
-const enqueue = (event) => {
-  queue.push(event);
-  if (queue.length > MAX_QUEUE) {
-    queue = queue.slice(queue.length - MAX_QUEUE);
-  }
-  persistQueue();
-  scheduleFlush();
-};
-
-const scheduleFlush = () => {
-  if (flushTimer) return;
-  flushTimer = setTimeout(() => {
-    flushTimer = null;
-    flush();
-  }, FLUSH_INTERVAL_MS);
-};
-
-const flush = async () => {
-  if (!enabled) return;
-  if (!queue.length) return;
-  if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-  const batch = queue.slice(0, MAX_BATCH);
-  queue = queue.slice(MAX_BATCH);
-  persistQueue();
-
-  const { error } = await supabase.functions.invoke("support-log-event", {
-    body: { events: batch },
+const globalScope = globalThis;
+if (!globalScope[OBS_SINGLETON_KEY]) {
+  globalScope[OBS_SINGLETON_KEY] = createObservabilityClient({
+    supabase,
+    endpoint: "obs-ingest",
+    policyEndpoint: "obs-policy",
+    tenantHint: DEFAULT_TENANT_HINT,
+    appId: DEFAULT_APP_ID,
+    source: "web",
+    env: {
+      ...importEnv,
+      VITE_APP_ID: DEFAULT_APP_ID,
+      VITE_APP_VERSION: DEFAULT_VERSION,
+      VITE_BUILD_ID: DEFAULT_BUILD_ID,
+      MODE: DEFAULT_ENV,
+    },
   });
+}
+if (!globalScope[POLICY_SINGLETON_KEY]) {
+  globalScope[POLICY_SINGLETON_KEY] = createPolicyRuntime();
+}
 
-  if (error) {
-    queue = batch.concat(queue);
-    persistQueue();
-    return;
-  }
+const observabilityClient = globalScope[OBS_SINGLETON_KEY];
+const policyRuntime = globalScope[POLICY_SINGLETON_KEY];
 
-  if (queue.length) {
-    scheduleFlush();
+let initialized = false;
+let releaseRegistered = false;
+let loggerEnabled = true;
+
+const registerReleaseOnce = async () => {
+  if (releaseRegistered) return;
+  releaseRegistered = true;
+  try {
+    await supabase.functions.invoke("obs-release", {
+      body: {
+        tenant_hint: DEFAULT_TENANT_HINT,
+        app_id: DEFAULT_APP_ID,
+        app_version: DEFAULT_VERSION,
+        build_id: DEFAULT_BUILD_ID,
+        env: DEFAULT_ENV,
+      },
+    });
+  } catch {
+    // Best-effort release registration.
   }
+};
+
+const sanitizeLevel = (value) => {
+  const next = typeof value === "string" ? value.toLowerCase() : "info";
+  return LOG_LEVELS.has(next) ? next : "info";
+};
+
+const sanitizeCategory = (value) => {
+  const next = typeof value === "string" ? value.toLowerCase() : "ui_flow";
+  return LOG_CATEGORIES.has(next) ? next : "ui_flow";
+};
+
+const normalizedErrorCodeFrom = (payload = {}) => {
+  const contextCode = payload?.context?.error_code;
+  const explicitCode = payload?.errorCode || payload?.code;
+  return normalizeErrorCode(explicitCode || contextCode);
+};
+
+const mergePolicy = (remoteAction, localAction) => {
+  if (!remoteAction || typeof remoteAction !== "object") return localAction;
+  const merged = {
+    ui: {
+      ...(localAction.ui || {}),
+      ...((remoteAction.ui && typeof remoteAction.ui === "object") ? remoteAction.ui : {}),
+    },
+    auth: {
+      ...(localAction.auth || {}),
+      ...((remoteAction.auth && typeof remoteAction.auth === "object") ? remoteAction.auth : {}),
+    },
+    retry: {
+      ...(localAction.retry || {}),
+      ...((remoteAction.retry && typeof remoteAction.retry === "object") ? remoteAction.retry : {}),
+    },
+    uam: {
+      ...(localAction.uam || {}),
+      ...((remoteAction.uam && typeof remoteAction.uam === "object") ? remoteAction.uam : {}),
+    },
+  };
+
+  if (localAction.auth?.signOut === "none") {
+    merged.auth.signOut = "none";
+  }
+  if (localAction.retry?.allowed === false) {
+    merged.retry.allowed = false;
+    merged.retry.backoff_ms = 0;
+  }
+  merged.ui.show = Boolean(localAction.ui?.show);
+  return merged;
 };
 
 export const initLogger = () => {
   if (initialized) return;
   initialized = true;
-  loadQueue();
-  const sessionId = getSessionId();
-  baseContext = {
-    ...baseContext,
-    session_id: sessionId,
-    device: typeof navigator !== "undefined" ? navigator.userAgent : null,
-    network: buildNetworkLabel(),
-  };
-
-  if (typeof window !== "undefined") {
-    window.addEventListener("online", flush);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
-        flush();
-      }
-    });
-  }
+  observabilityClient.init();
+  observabilityClient.setEnabled(loggerEnabled);
+  void registerReleaseOnce();
 };
 
 export const setLoggerEnabled = (value) => {
-  enabled = Boolean(value);
+  loggerEnabled = Boolean(value);
+  observabilityClient.setEnabled(loggerEnabled);
 };
 
 export const setLoggerUser = ({ role } = {}) => {
-  baseContext = {
-    ...baseContext,
+  observabilityClient.setContext({
     role: role || null,
-  };
+  });
 };
 
-export const setLoggerContext = (partial) => {
-  baseContext = {
-    ...baseContext,
-    ...partial,
-  };
+export const setLoggerContext = (partial = {}) => {
+  observabilityClient.setContext(partial || {});
 };
 
 export const logEvent = ({
@@ -193,62 +160,62 @@ export const logEvent = ({
   context = {},
   context_extra = {},
 }) => {
-  if (!enabled) return;
-  if (!ALLOWED_LEVELS.has(level)) return;
-  if (!ALLOWED_CATEGORIES.has(category)) return;
-
-  if (category === "performance" && Math.random() > PERFORMANCE_SAMPLE_RATE) {
-    return;
-  }
-
-  if (rateLimitExceeded()) return;
-
-  const sanitized = sanitizeMessage(message);
-  if (!sanitized) return;
-  const stack = context?.stack ? String(context.stack).split("\n")[0] : "";
-  const route = context?.route || baseContext.route;
-  const key = fingerprintKey({
-    category,
-    message: sanitized.toLowerCase(),
-    route,
-    stack,
-  });
-  if (shouldDedupe(key)) return;
-
-  enqueue({
-    level,
-    category,
-    message: sanitized,
-    context: {
-      ...baseContext,
-      ...context,
-      network: buildNetworkLabel(),
-    },
-    context_extra,
-  });
+  if (!loggerEnabled) return;
+  const safeLevel = sanitizeLevel(level);
+  const safeCategory = sanitizeCategory(category);
+  observabilityClient.captureMessage(
+    safeLevel,
+    message || "",
+    { ...(context || {}), category: safeCategory },
+    context_extra || {},
+  );
 };
 
 export const logBreadcrumb = (message, context = {}) => {
-  logEvent({
-    level: "info",
-    category: "ui_flow",
-    message,
-    context,
-    context_extra: { type: "breadcrumb" },
-  });
+  observabilityClient.addBreadcrumb(message, context || {});
 };
 
 export const logError = (error, context = {}) => {
-  const message = error?.message || String(error || "unknown_error");
-  logEvent({
-    level: "error",
-    category: "ui_flow",
-    message,
-    context: {
-      ...context,
-      stack: error?.stack || context?.stack,
-    },
-  });
+  if (!loggerEnabled) return;
+  observabilityClient.captureException(error, context || {});
 };
 
-export const flushLogs = flush;
+export const flushLogs = async () => {
+  return await observabilityClient.flush();
+};
+
+export const evaluateErrorPolicy = async (payload = {}) => {
+  const errorCode = normalizedErrorCodeFrom(payload);
+  const localPolicy = policyRuntime.decideLocal({
+    errorCode,
+    fingerprint: payload.fingerprint || null,
+    route: payload.route || payload?.context?.route || null,
+  });
+
+  const remote = await observabilityClient.fetchPolicy({
+    tenant_hint: DEFAULT_TENANT_HINT,
+    app_id: DEFAULT_APP_ID,
+    error_code: errorCode,
+    fingerprint: payload.fingerprint || null,
+    route: payload.route || payload?.context?.route || null,
+    role: payload.role || payload?.context?.role || null,
+    context: payload.context || {},
+  });
+
+  const merged = mergePolicy(remote?.ok ? remote.action : null, localPolicy);
+  return {
+    ok: true,
+    code: errorCode,
+    policy: merged,
+    source: remote?.ok ? "remote+local" : "local",
+    remoteError: remote?.ok ? null : remote?.code || OBS_ERROR_CODES.POLICY_UNAVAILABLE,
+  };
+};
+
+export const beginPolicyAction = (actionKey) => {
+  return policyRuntime.beginFlight(actionKey);
+};
+
+export const endPolicyAction = (actionKey) => {
+  policyRuntime.endFlight(actionKey);
+};

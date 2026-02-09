@@ -7,6 +7,7 @@ import AppRoutes from "./routes";
 import ModalProvider from "./modals/ModalProvider";
 import useBootstrapAuth from "./hooks/useBootstrapAuth";
 import useAppLogger from "./hooks/useAppLogger";
+import AppErrorBoundary from "./components/errors/AppErrorBoundary";
 
 function PwaGuardWrapper({ children }) {
   const usuario = useAppStore((s) => s.usuario);
@@ -38,13 +39,13 @@ export default function App() {
   useAppLogger();
 
   return (
-    <>
+    <AppErrorBoundary>
       <ModalProvider />
       <PwaGuardWrapper>
         <Suspense fallback={<div className="p-4">Cargando...</div>}>
           <AppRoutes />
         </Suspense>
       </PwaGuardWrapper>
-    </>
+    </AppErrorBoundary>
   );
 }

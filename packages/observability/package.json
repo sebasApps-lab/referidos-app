@@ -1,0 +1,14 @@
+{
+  "name": "@referidos/observability",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./schema": "./src/schema/envelope.js",
+    "./error-codes": "./src/schema/errorCodes.js",
+    "./client": "./src/client/createObservabilityClient.js",
+    "./policy": "./src/policy/uxPolicy.js",
+    "./utils/scrub": "./src/utils/scrub.js"
+  }
+}

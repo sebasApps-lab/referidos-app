@@ -4,7 +4,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import WaitlistPage from "./waitlist/WaitlistPage";
 import LegalHomePage from "./waitlist/legal/LegalHomePage";
 import LegalDocPage from "./waitlist/legal/LegalDocPage";
+import { initPrelaunchObservability } from "./observability/prelaunchObservability";
 import "./waitlist/prelaunch.css";
+
+initPrelaunchObservability();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

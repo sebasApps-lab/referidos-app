@@ -18,6 +18,12 @@ import { addComentario } from "../services/commentService";
 import { handleError } from "../utils/errorUtils";
 import { runOnboardingCheck } from "../services/onboardingClient";
 import { registerCurrentSessionDevice } from "../services/sessionDevicesService";
+import {
+  beginPolicyAction,
+  endPolicyAction,
+  evaluateErrorPolicy,
+  logError,
+} from "../services/loggingClient";
 import { supabase } from "../lib/supabaseClient";
 import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secureStorageService";
 import { useCacheStore } from "../cache/cacheStore";
@@ -41,6 +47,10 @@ const SECURITY_LEVEL_ORDER = {
 
 const UNLOCK_LOCAL_TTL_MS = 10 * 60 * 1000;
 const REAUTH_SENSITIVE_TTL_MS = 5 * 60 * 1000;
+const SESSION_BOOTSTRAP_ACTION_KEY = "bootstrap:session-register";
+const SESSION_POLICY_RETRY_CAP = 3;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createRandomBuffer = (size) => {
   const data = new Uint8Array(size);
@@ -447,6 +457,8 @@ export const useAppStore = create(
       //---------------------
       bootstrapAuth: async ({ force = false } = {}) => {
         try {
+          const previousUser = get().usuario ?? null;
+          const previousOnboarding = get().onboarding ?? null;
           set({
             bootstrap: true,
             bootstrapError: false,
@@ -467,19 +479,83 @@ export const useAppStore = create(
             return { ok: true, usuario: null };
           }
 
-          const sessionRegister = await registerCurrentSessionDevice();
+          let sessionRegister = { ok: false };
+          const canStart = beginPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
+          if (!canStart) {
+            set({
+              bootstrap: false,
+              bootstrapError: true,
+              error: "Validando sesion activa...",
+            });
+            return {
+              ok: false,
+              code: "session_register_in_flight",
+              error: "Validacion de sesion en progreso",
+              recoverable: true,
+            };
+          }
+
+          try {
+            let attempts = 0;
+            while (attempts < SESSION_POLICY_RETRY_CAP) {
+              sessionRegister = await registerCurrentSessionDevice();
+              if (sessionRegister?.ok) break;
+
+              const errCode = String(sessionRegister?.code || "").toLowerCase();
+              const policyEval = await evaluateErrorPolicy({
+                errorCode: errCode || "session_register_failed",
+                route: "/app",
+                context: {
+                  flow: "bootstrap_auth",
+                  flow_step: "session_register",
+                  role: get()?.usuario?.role || null,
+                },
+                actionKey: SESSION_BOOTSTRAP_ACTION_KEY,
+              });
+              const policy = policyEval?.policy || {};
+
+              if (policy?.ui?.show) {
+                const modalApi = useModalStore.getState();
+                modalApi.openModal("ConfirmAction", {
+                  title: "Problema de conexion",
+                  message:
+                    "No pudimos validar la sesion en este momento. Reintentaremos automaticamente.",
+                  confirmLabel: "Entendido",
+                  cancelLabel: "Cerrar",
+                });
+              }
+
+              if (policy?.retry?.allowed) {
+                attempts += 1;
+                await sleep(Math.max(250, Number(policy?.retry?.backoff_ms || 0)));
+                continue;
+              }
+
+              break;
+            }
+          } finally {
+            endPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
+          }
+
           if (!sessionRegister?.ok) {
             const errCode = String(sessionRegister?.code || "").toLowerCase();
             const errMsg =
               sessionRegister?.error ||
               sessionRegister?.message ||
               "No se pudo registrar la sesion activa";
-            const mustTerminateSession = new Set([
-              "session_revoked",
-              "session_unregistered",
-              "unauthorized",
-              "missing_session_id_claim",
-            ]).has(errCode);
+            const policyEval = await evaluateErrorPolicy({
+              errorCode: errCode || "session_register_failed",
+              route: "/app",
+              context: {
+                flow: "bootstrap_auth",
+                flow_step: "session_register",
+                role: get()?.usuario?.role || null,
+              },
+              actionKey: SESSION_BOOTSTRAP_ACTION_KEY,
+            });
+            const policy = policyEval?.policy || {};
+            const mustTerminateSession =
+              policy?.auth?.signOut === "local" || policy?.auth?.signOut === "global";
 
             if (mustTerminateSession) {
               try {
@@ -489,11 +565,38 @@ export const useAppStore = create(
               }
             }
 
+            if (policy?.uam?.degrade_to === SECURITY_LEVELS.REAUTH_SENSITIVE) {
+              get().security.setRules({
+                transfer_points: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                redeem_qr: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                update_profile: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                admin_sensitive_action: SECURITY_LEVELS.REAUTH_SENSITIVE,
+              });
+            }
+
+            if (policy?.ui?.show) {
+              const modalApi = useModalStore.getState();
+              modalApi.openModal("ConfirmAction", {
+                title: mustTerminateSession ? "Sesion expirada" : "No se pudo validar la sesion",
+                message: mustTerminateSession
+                  ? "Tu sesion ya no es valida en este dispositivo. Vuelve a iniciar sesion."
+                  : "Hubo un problema temporal al validar tu sesion. Intenta nuevamente.",
+                confirmLabel: "Entendido",
+                cancelLabel: "Cerrar",
+              });
+            }
+
+            logError(new Error(errMsg), {
+              source: "bootstrap_session_register_failed",
+              error_code: errCode || "session_register_failed",
+              recoverable: !mustTerminateSession,
+            });
+
             set({
               bootstrap: false,
-              bootstrapError: false,
-              usuario: null,
-              onboarding: null,
+              bootstrapError: !mustTerminateSession,
+              usuario: mustTerminateSession ? null : previousUser,
+              onboarding: mustTerminateSession ? null : previousOnboarding,
               error: errMsg,
             });
             return {

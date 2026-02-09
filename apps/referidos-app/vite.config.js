@@ -15,6 +15,10 @@ export default defineConfig({
         __dirname,
         '../../packages/legal-content/src/index.js'
       ),
+      '@referidos/observability': path.resolve(
+        __dirname,
+        '../../packages/observability/src/index.js'
+      ),
       '@referidos/support-sdk': path.resolve(__dirname, '../../packages/support-sdk/src'),
     },
   },

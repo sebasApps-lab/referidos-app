@@ -4,7 +4,6 @@ import { useAppStore } from "../store/appStore";
 import {
   initLogger,
   logBreadcrumb,
-  logError,
   setLoggerContext,
   setLoggerEnabled,
   setLoggerUser,
@@ -50,24 +49,4 @@ export default function useAppLogger() {
     logBreadcrumb(`NAVIGATE ${pathname}`, { route: pathname });
   }, [location.pathname, onboarding?.current_step]);
 
-  useEffect(() => {
-    const handleError = (event) => {
-      logError(event?.error || event?.message, {
-        route: location.pathname,
-        source: "window_error",
-      });
-    };
-    const handleRejection = (event) => {
-      logError(event?.reason || "unhandled_rejection", {
-        route: location.pathname,
-        source: "unhandled_rejection",
-      });
-    };
-    window.addEventListener("error", handleError);
-    window.addEventListener("unhandledrejection", handleRejection);
-    return () => {
-      window.removeEventListener("error", handleError);
-      window.removeEventListener("unhandledrejection", handleRejection);
-    };
-  }, [location.pathname]);
 }

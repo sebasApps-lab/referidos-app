@@ -3,6 +3,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AlertTriangle,
+  Activity,
   BarChart3,
   FileText,
   LayoutGrid,
@@ -40,6 +41,7 @@ const NAV_GROUPS = [
     title: "Sistema",
     items: [
       { label: "Logs", to: "/admin/logs", Icon: FileText },
+      { label: "Observability", to: "/admin/observability", Icon: Activity },
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
       { label: "Sistema", to: "/admin/sistema", Icon: Settings },
       { label: "Asesores", to: "/admin/asesores", Icon: Users },
