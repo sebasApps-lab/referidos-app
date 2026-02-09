@@ -1,4 +1,8 @@
-import { createObservabilityClient } from "@referidos/observability";
+import {
+  createErrorRuntime,
+  createObservabilityClient,
+  createPolicyRuntime,
+} from "@referidos/observability";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -6,6 +10,7 @@ const TENANT_HINT = import.meta.env.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
 const APP_ID = import.meta.env.VITE_APP_ID || "prelaunch";
 
 let client = null;
+let runtime = null;
 let initialized = false;
 
 function createSupabaseInvokeAdapter() {
@@ -38,7 +43,7 @@ function createSupabaseInvokeAdapter() {
 }
 
 export function initPrelaunchObservability() {
-  if (initialized) return client;
+  if (initialized) return runtime;
   initialized = true;
 
   const adapter = createSupabaseInvokeAdapter();
@@ -53,17 +58,27 @@ export function initPrelaunchObservability() {
     source: "web",
     env: import.meta.env,
   });
+  runtime = createErrorRuntime({
+    observabilityClient: client,
+    policyRuntime: createPolicyRuntime(),
+    appConfig: {
+      appId: APP_ID,
+      tenantHint: TENANT_HINT,
+      source: "web",
+    },
+  });
 
-  client.init();
-  client.setContext({
+  runtime.init();
+  runtime.setContext({
     route: window.location.pathname,
     flow: "prelaunch",
     flow_step: "landing",
   });
-  client.captureMessage("info", "prelaunch_loaded", {
-    route: window.location.pathname,
-    source: "prelaunch_boot",
+  runtime.logEvent({
+    level: "info",
+    message: "prelaunch_loaded",
+    context: { route: window.location.pathname, source: "prelaunch_boot" },
   });
 
-  return client;
+  return runtime;
 }

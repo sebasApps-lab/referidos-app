@@ -9,6 +9,8 @@
     "./error-codes": "./src/schema/errorCodes.js",
     "./client": "./src/client/createObservabilityClient.js",
     "./policy": "./src/policy/uxPolicy.js",
+    "./runtime": "./src/runtime/createErrorRuntime.js",
+    "./error-bus": "./src/runtime/errorBus.js",
     "./utils/scrub": "./src/utils/scrub.js"
   }
 }

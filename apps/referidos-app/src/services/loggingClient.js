@@ -1,8 +1,7 @@
 import {
-  OBS_ERROR_CODES,
+  createErrorRuntime,
   createObservabilityClient,
   createPolicyRuntime,
-  normalizeErrorCode,
 } from "@referidos/observability";
 import { supabase } from "../lib/supabaseClient";
 
@@ -34,6 +33,7 @@ const LOG_CATEGORIES = new Set([
 
 const OBS_SINGLETON_KEY = "__referidos_observability_client__";
 const POLICY_SINGLETON_KEY = "__referidos_observability_policy__";
+const RUNTIME_SINGLETON_KEY = "__referidos_observability_runtime__";
 
 const globalScope = globalThis;
 if (!globalScope[OBS_SINGLETON_KEY]) {
@@ -56,9 +56,20 @@ if (!globalScope[OBS_SINGLETON_KEY]) {
 if (!globalScope[POLICY_SINGLETON_KEY]) {
   globalScope[POLICY_SINGLETON_KEY] = createPolicyRuntime();
 }
+if (!globalScope[RUNTIME_SINGLETON_KEY]) {
+  globalScope[RUNTIME_SINGLETON_KEY] = createErrorRuntime({
+    observabilityClient: globalScope[OBS_SINGLETON_KEY],
+    policyRuntime: globalScope[POLICY_SINGLETON_KEY],
+    appConfig: {
+      appId: DEFAULT_APP_ID,
+      tenantHint: DEFAULT_TENANT_HINT,
+      source: "web",
+    },
+  });
+}
 
 const observabilityClient = globalScope[OBS_SINGLETON_KEY];
-const policyRuntime = globalScope[POLICY_SINGLETON_KEY];
+const runtime = globalScope[RUNTIME_SINGLETON_KEY];
 
 let initialized = false;
 let releaseRegistered = false;
@@ -92,65 +103,27 @@ const sanitizeCategory = (value) => {
   return LOG_CATEGORIES.has(next) ? next : "ui_flow";
 };
 
-const normalizedErrorCodeFrom = (payload = {}) => {
-  const contextCode = payload?.context?.error_code;
-  const explicitCode = payload?.errorCode || payload?.code;
-  return normalizeErrorCode(explicitCode || contextCode);
-};
-
-const mergePolicy = (remoteAction, localAction) => {
-  if (!remoteAction || typeof remoteAction !== "object") return localAction;
-  const merged = {
-    ui: {
-      ...(localAction.ui || {}),
-      ...((remoteAction.ui && typeof remoteAction.ui === "object") ? remoteAction.ui : {}),
-    },
-    auth: {
-      ...(localAction.auth || {}),
-      ...((remoteAction.auth && typeof remoteAction.auth === "object") ? remoteAction.auth : {}),
-    },
-    retry: {
-      ...(localAction.retry || {}),
-      ...((remoteAction.retry && typeof remoteAction.retry === "object") ? remoteAction.retry : {}),
-    },
-    uam: {
-      ...(localAction.uam || {}),
-      ...((remoteAction.uam && typeof remoteAction.uam === "object") ? remoteAction.uam : {}),
-    },
-  };
-
-  if (localAction.auth?.signOut === "none") {
-    merged.auth.signOut = "none";
-  }
-  if (localAction.retry?.allowed === false) {
-    merged.retry.allowed = false;
-    merged.retry.backoff_ms = 0;
-  }
-  merged.ui.show = Boolean(localAction.ui?.show);
-  return merged;
-};
-
 export const initLogger = () => {
   if (initialized) return;
   initialized = true;
-  observabilityClient.init();
-  observabilityClient.setEnabled(loggerEnabled);
+  runtime.init();
+  runtime.setEnabled(loggerEnabled);
   void registerReleaseOnce();
 };
 
 export const setLoggerEnabled = (value) => {
   loggerEnabled = Boolean(value);
-  observabilityClient.setEnabled(loggerEnabled);
+  runtime.setEnabled(loggerEnabled);
 };
 
 export const setLoggerUser = ({ role } = {}) => {
-  observabilityClient.setContext({
+  runtime.setContext({
     role: role || null,
   });
 };
 
 export const setLoggerContext = (partial = {}) => {
-  observabilityClient.setContext(partial || {});
+  runtime.setContext(partial || {});
 };
 
 export const logEvent = ({
@@ -163,59 +136,36 @@ export const logEvent = ({
   if (!loggerEnabled) return;
   const safeLevel = sanitizeLevel(level);
   const safeCategory = sanitizeCategory(category);
-  observabilityClient.captureMessage(
-    safeLevel,
-    message || "",
-    { ...(context || {}), category: safeCategory },
-    context_extra || {},
-  );
+  runtime.logEvent({
+    level: safeLevel,
+    category: safeCategory,
+    message: message || "",
+    context,
+    context_extra,
+  });
 };
 
 export const logBreadcrumb = (message, context = {}) => {
-  observabilityClient.addBreadcrumb(message, context || {});
+  runtime.addBreadcrumb(message, context || {});
 };
 
 export const logError = (error, context = {}) => {
   if (!loggerEnabled) return;
-  observabilityClient.captureException(error, context || {});
+  runtime.logError(error, context || {});
 };
 
 export const flushLogs = async () => {
-  return await observabilityClient.flush();
+  return await runtime.flush();
 };
 
 export const evaluateErrorPolicy = async (payload = {}) => {
-  const errorCode = normalizedErrorCodeFrom(payload);
-  const localPolicy = policyRuntime.decideLocal({
-    errorCode,
-    fingerprint: payload.fingerprint || null,
-    route: payload.route || payload?.context?.route || null,
-  });
-
-  const remote = await observabilityClient.fetchPolicy({
-    tenant_hint: DEFAULT_TENANT_HINT,
-    app_id: DEFAULT_APP_ID,
-    error_code: errorCode,
-    fingerprint: payload.fingerprint || null,
-    route: payload.route || payload?.context?.route || null,
-    role: payload.role || payload?.context?.role || null,
-    context: payload.context || {},
-  });
-
-  const merged = mergePolicy(remote?.ok ? remote.action : null, localPolicy);
-  return {
-    ok: true,
-    code: errorCode,
-    policy: merged,
-    source: remote?.ok ? "remote+local" : "local",
-    remoteError: remote?.ok ? null : remote?.code || OBS_ERROR_CODES.POLICY_UNAVAILABLE,
-  };
+  return await runtime.evaluatePolicy(payload);
 };
 
 export const beginPolicyAction = (actionKey) => {
-  return policyRuntime.beginFlight(actionKey);
+  return runtime.beginPolicyAction(actionKey);
 };
 
 export const endPolicyAction = (actionKey) => {
-  policyRuntime.endFlight(actionKey);
+  runtime.endPolicyAction(actionKey);
 };

@@ -32,6 +32,7 @@ import { useModalStore } from "../modals/modalStore";
 let promosRefreshTimer = null;
 let promosVisibilityHandler = null;
 let promosAutoRefreshActive = false;
+let bootstrapInFlightPromise = null;
 
 const SECURITY_LEVELS = {
   NONE: "none",
@@ -456,52 +457,93 @@ export const useAppStore = create(
       // BOOTSTRAP AUTH
       //---------------------
       bootstrapAuth: async ({ force = false } = {}) => {
-        try {
-          const previousUser = get().usuario ?? null;
-          const previousOnboarding = get().onboarding ?? null;
-          set({
-            bootstrap: true,
-            bootstrapError: false,
-            usuario: undefined,
-            onboarding: undefined,
-            error: null,
-          });
+        if (bootstrapInFlightPromise) {
+          return await bootstrapInFlightPromise;
+        }
 
-          const { data: { session } = {} } = await supabase.auth.getSession();
-          //Sin sesi??n
-          if (!session?.access_token) {
-            set({
-              bootstrap: false,
-              bootstrapError: false,
-              usuario: null,
-              onboarding: null,
-            });
-            return { ok: true, usuario: null };
-          }
-
-          let sessionRegister = { ok: false };
-          const canStart = beginPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
-          if (!canStart) {
-            set({
-              bootstrap: false,
-              bootstrapError: true,
-              error: "Validando sesion activa...",
-            });
-            return {
-              ok: false,
-              code: "session_register_in_flight",
-              error: "Validacion de sesion en progreso",
-              recoverable: true,
-            };
-          }
-
+        bootstrapInFlightPromise = (async () => {
           try {
-            let attempts = 0;
-            while (attempts < SESSION_POLICY_RETRY_CAP) {
-              sessionRegister = await registerCurrentSessionDevice();
-              if (sessionRegister?.ok) break;
+            const previousUser = get().usuario ?? null;
+            const previousOnboarding = get().onboarding ?? null;
+            set({
+              bootstrap: true,
+              bootstrapError: false,
+              usuario: undefined,
+              onboarding: undefined,
+              error: null,
+            });
 
+            const { data: { session } = {} } = await supabase.auth.getSession();
+            //Sin sesi??n
+            if (!session?.access_token) {
+              set({
+                bootstrap: false,
+                bootstrapError: false,
+                usuario: null,
+                onboarding: null,
+              });
+              return { ok: true, usuario: null };
+            }
+
+            let sessionRegister = { ok: false };
+            const canStart = beginPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
+            if (!canStart) {
+              return {
+                ok: false,
+                code: "session_register_in_flight",
+                error: "Validacion de sesion en progreso",
+                recoverable: true,
+              };
+            }
+
+            try {
+              let attempts = 0;
+              while (attempts < SESSION_POLICY_RETRY_CAP) {
+                sessionRegister = await registerCurrentSessionDevice();
+                if (sessionRegister?.ok) break;
+
+                const errCode = String(sessionRegister?.code || "").toLowerCase();
+                const policyEval = await evaluateErrorPolicy({
+                  errorCode: errCode || "session_register_failed",
+                  route: "/app",
+                  context: {
+                    flow: "bootstrap_auth",
+                    flow_step: "session_register",
+                    role: get()?.usuario?.role || null,
+                  },
+                  actionKey: SESSION_BOOTSTRAP_ACTION_KEY,
+                });
+                const policy = policyEval?.policy || {};
+
+                if (policy?.ui?.show) {
+                  const modalApi = useModalStore.getState();
+                  modalApi.openModal("ConfirmAction", {
+                    title: "Problema de conexion",
+                    message:
+                      "No pudimos validar la sesion en este momento. Reintentaremos automaticamente.",
+                    confirmLabel: "Entendido",
+                    cancelLabel: "Cerrar",
+                  });
+                }
+
+                if (policy?.retry?.allowed) {
+                  attempts += 1;
+                  await sleep(Math.max(250, Number(policy?.retry?.backoff_ms || 0)));
+                  continue;
+                }
+
+                break;
+              }
+            } finally {
+              endPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
+            }
+
+            if (!sessionRegister?.ok) {
               const errCode = String(sessionRegister?.code || "").toLowerCase();
+              const errMsg =
+                sessionRegister?.error ||
+                sessionRegister?.message ||
+                "No se pudo registrar la sesion activa";
               const policyEval = await evaluateErrorPolicy({
                 errorCode: errCode || "session_register_failed",
                 route: "/app",
@@ -513,137 +555,103 @@ export const useAppStore = create(
                 actionKey: SESSION_BOOTSTRAP_ACTION_KEY,
               });
               const policy = policyEval?.policy || {};
+              const mustTerminateSession =
+                policy?.auth?.signOut === "local" || policy?.auth?.signOut === "global";
+
+              if (mustTerminateSession) {
+                try {
+                  await signOut({ scope: "local" });
+                } catch {
+                  // no-op
+                }
+              }
+
+              if (policy?.uam?.degrade_to === SECURITY_LEVELS.REAUTH_SENSITIVE) {
+                get().security.setRules({
+                  transfer_points: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                  redeem_qr: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                  update_profile: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                  admin_sensitive_action: SECURITY_LEVELS.REAUTH_SENSITIVE,
+                });
+              }
 
               if (policy?.ui?.show) {
                 const modalApi = useModalStore.getState();
                 modalApi.openModal("ConfirmAction", {
-                  title: "Problema de conexion",
-                  message:
-                    "No pudimos validar la sesion en este momento. Reintentaremos automaticamente.",
+                  title: mustTerminateSession ? "Sesion expirada" : "No se pudo validar la sesion",
+                  message: mustTerminateSession
+                    ? "Tu sesion ya no es valida en este dispositivo. Vuelve a iniciar sesion."
+                    : "Hubo un problema temporal al validar tu sesion. Intenta nuevamente.",
                   confirmLabel: "Entendido",
                   cancelLabel: "Cerrar",
                 });
               }
 
-              if (policy?.retry?.allowed) {
-                attempts += 1;
-                await sleep(Math.max(250, Number(policy?.retry?.backoff_ms || 0)));
-                continue;
-              }
-
-              break;
-            }
-          } finally {
-            endPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
-          }
-
-          if (!sessionRegister?.ok) {
-            const errCode = String(sessionRegister?.code || "").toLowerCase();
-            const errMsg =
-              sessionRegister?.error ||
-              sessionRegister?.message ||
-              "No se pudo registrar la sesion activa";
-            const policyEval = await evaluateErrorPolicy({
-              errorCode: errCode || "session_register_failed",
-              route: "/app",
-              context: {
-                flow: "bootstrap_auth",
-                flow_step: "session_register",
-                role: get()?.usuario?.role || null,
-              },
-              actionKey: SESSION_BOOTSTRAP_ACTION_KEY,
-            });
-            const policy = policyEval?.policy || {};
-            const mustTerminateSession =
-              policy?.auth?.signOut === "local" || policy?.auth?.signOut === "global";
-
-            if (mustTerminateSession) {
-              try {
-                await signOut({ scope: "local" });
-              } catch {
-                // no-op
-              }
-            }
-
-            if (policy?.uam?.degrade_to === SECURITY_LEVELS.REAUTH_SENSITIVE) {
-              get().security.setRules({
-                transfer_points: SECURITY_LEVELS.REAUTH_SENSITIVE,
-                redeem_qr: SECURITY_LEVELS.REAUTH_SENSITIVE,
-                update_profile: SECURITY_LEVELS.REAUTH_SENSITIVE,
-                admin_sensitive_action: SECURITY_LEVELS.REAUTH_SENSITIVE,
+              logError(new Error(errMsg), {
+                source: "bootstrap_session_register_failed",
+                error_code: errCode || "session_register_failed",
+                recoverable: !mustTerminateSession,
               });
-            }
 
-            if (policy?.ui?.show) {
-              const modalApi = useModalStore.getState();
-              modalApi.openModal("ConfirmAction", {
-                title: mustTerminateSession ? "Sesion expirada" : "No se pudo validar la sesion",
-                message: mustTerminateSession
-                  ? "Tu sesion ya no es valida en este dispositivo. Vuelve a iniciar sesion."
-                  : "Hubo un problema temporal al validar tu sesion. Intenta nuevamente.",
-                confirmLabel: "Entendido",
-                cancelLabel: "Cerrar",
+              set({
+                bootstrap: false,
+                bootstrapError: !mustTerminateSession,
+                usuario: mustTerminateSession ? null : previousUser,
+                onboarding: mustTerminateSession ? null : previousOnboarding,
+                error: errMsg,
               });
+              return {
+                ok: false,
+                error: errMsg,
+                code: errCode || null,
+                recoverable: !mustTerminateSession,
+              };
             }
 
-            logError(new Error(errMsg), {
-              source: "bootstrap_session_register_failed",
-              error_code: errCode || "session_register_failed",
-              recoverable: !mustTerminateSession,
-            });
+            const check = await runOnboardingCheck();
+            if (!check?.ok) {
+              const errMsg = check?.error || "No se pudo ejecutar onboarding";
+              set({
+                bootstrap: false,
+                bootstrapError: false,
+                usuario: null,
+                onboarding: check ?? null,
+                error: errMsg,
+              });
+              return { ok: false, error: errMsg };
+            }
 
-            set({
-              bootstrap: false,
-              bootstrapError: !mustTerminateSession,
-              usuario: mustTerminateSession ? null : previousUser,
-              onboarding: mustTerminateSession ? null : previousOnboarding,
-              error: errMsg,
-            });
-            return {
-              ok: false,
-              error: errMsg,
-              code: errCode || null,
-              recoverable: !mustTerminateSession,
-            };
-          }
-
-          const check = await runOnboardingCheck();
-          if (!check?.ok) {
-            const errMsg = check?.error || "No se pudo ejecutar onboarding";
+            const nextUser = check?.usuario ?? null;
+            const emailConfirmed = Boolean(check?.email_confirmed);
+            const currentVerifiedAt = get().emailVerifiedSessionAt;
+            const nextVerifiedAt =
+              emailConfirmed && !currentVerifiedAt ? Date.now() : currentVerifiedAt;
             set({
               bootstrap: false,
               bootstrapError: false,
-              usuario: null,
-              onboarding: check ?? null,
-              error: errMsg,
+              usuario: nextUser,
+              onboarding: check,
+              emailVerifiedSessionAt: nextVerifiedAt,
             });
-            return { ok: false, error: errMsg };
+
+            return { ok: true, usuario: nextUser };
+          } catch (error) {
+            const message = handleError(error);
+            set({
+              bootstrap: false,
+              bootstrapError: true,
+              usuario: null,
+              onboarding: null,
+              error: message,
+            });
+            return { ok: false, error: message };
           }
+        })();
 
-          const nextUser = check?.usuario ?? null;
-          const emailConfirmed = Boolean(check?.email_confirmed);
-          const currentVerifiedAt = get().emailVerifiedSessionAt;
-          const nextVerifiedAt =
-            emailConfirmed && !currentVerifiedAt ? Date.now() : currentVerifiedAt;
-          set({
-            bootstrap: false,
-            bootstrapError: false,
-            usuario: nextUser,
-            onboarding: check,
-            emailVerifiedSessionAt: nextVerifiedAt,
-          });
-
-          return { ok: true, usuario: nextUser };
-        } catch (error) {
-          const message = handleError(error);
-          set({
-            bootstrap: false,
-            bootstrapError: true,
-            usuario: null,
-            onboarding: null,
-            error: message,
-          });
-          return { ok: false, error: message };
+        try {
+          return await bootstrapInFlightPromise;
+        } finally {
+          bootstrapInFlightPromise = null;
         }
       },
       //--------------------

@@ -12,3 +12,5 @@ export {
 } from "./schema/errorCodes.js";
 export { createPolicyRuntime } from "./policy/uxPolicy.js";
 export { scrubString, scrubUnknown } from "./utils/scrub.js";
+export { createErrorRuntime } from "./runtime/createErrorRuntime.js";
+export { errorBus } from "./runtime/errorBus.js";

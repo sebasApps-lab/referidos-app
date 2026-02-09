@@ -42,13 +42,6 @@ export default function AppGate({ publicElement = null }) {
   const validateAttemptedRef = useRef(false);
   const [validatePending, setValidatePending] = useState(false);
 
-  useEffect(() => {
-    // 1) Resolver session + onboarding si aun no existe
-    if (typeof usuario === "undefined") {
-      bootstrapAuth({ force: false });
-    }
-  }, [usuario, bootstrapAuth]);
-
   const onboardingError = onboarding && onboarding.ok === false;
   const shouldReset = bootstrapError || onboardingError;
 
