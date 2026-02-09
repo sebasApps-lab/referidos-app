@@ -10,6 +10,7 @@
     "./pin": "./src/pin/pinPolicy.js"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.1.0"
+    "@referidos/security-core": "0.0.0",
+    "@referidos/platform-rn": "0.0.0"
   }
 }

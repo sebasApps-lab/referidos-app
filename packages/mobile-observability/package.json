@@ -8,6 +8,6 @@
     "./client": "./src/createMobileObservabilityClient.js"
   },
   "dependencies": {
-    "@referidos/mobile-api": "0.0.0"
+    "@referidos/observability-sdk": "0.0.0"
   }
 }

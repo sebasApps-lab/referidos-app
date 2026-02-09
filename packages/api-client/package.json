@@ -1,0 +1,17 @@
+{
+  "name": "@referidos/api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./clients/createSupabaseClient": "./src/clients/createSupabaseMobileClient.js",
+    "./clients/createSupabaseMobileClient": "./src/clients/createSupabaseMobileClient.js",
+    "./createApiClient": "./src/createMobileApi.js",
+    "./createMobileApi": "./src/createMobileApi.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.84.0",
+    "@referidos/domain": "0.0.0"
+  }
+}

@@ -1,1 +1,1 @@
-export * from "./createMobileObservabilityClient.js";
+export * from "@referidos/observability-sdk";

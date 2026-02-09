@@ -1,3 +1,2 @@
-export * from "./storage/secureStorageService.js";
-export * from "./biometrics/biometricService.js";
-export * from "./pin/pinPolicy.js";
+export * from "@referidos/platform-rn";
+export * from "@referidos/security-core";

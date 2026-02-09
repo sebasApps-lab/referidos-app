@@ -1,0 +1,14 @@
+{
+  "name": "@referidos/observability-sdk",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/createMobileObservabilityClient.js",
+    "./createObservabilityClient": "./src/createMobileObservabilityClient.js"
+  },
+  "dependencies": {
+    "@referidos/api-client": "0.0.0"
+  }
+}

@@ -11,5 +11,8 @@
     "./validators": "./src/validators/index.js",
     "./normalizers/text": "./src/normalizers/text.js",
     "./catalogs/businessCategories": "./src/catalogs/businessCategories.js"
+  },
+  "dependencies": {
+    "@referidos/domain": "0.0.0"
   }
 }
