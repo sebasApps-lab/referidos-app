@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
+import { OBS_ERROR_CODES } from "@referidos/observability";
 import { supabase } from "../../lib/supabaseClient";
 import Badge from "../../components/ui/Badge";
 import Table from "../../components/ui/Table";
@@ -9,6 +10,44 @@ const STATUS_VARIANT = {
   defined: "bg-emerald-100 text-emerald-700",
   ignored: "bg-slate-100 text-slate-700",
 };
+
+const EXTRA_KNOWN_CODES = [
+  "method_not_allowed",
+  "empty_batch",
+  "invalid_message",
+  "invalid_body",
+  "invalid_action",
+  "profile_not_found",
+  "tenant_missing",
+  "issue_upsert_failed",
+  "event_insert_failed",
+  "event_not_found",
+  "issue_not_found",
+  "unauthorized",
+];
+
+const KNOWN_CODES = Array.from(
+  new Set([...Object.values(OBS_ERROR_CODES), ...EXTRA_KNOWN_CODES]),
+).sort();
+
+function buildFallbackRows() {
+  const now = new Date().toISOString();
+  return KNOWN_CODES.map((code) => ({
+    id: `seed-${code}`,
+    error_code: code,
+    status: "defined",
+    count_total: 0,
+    source_hint: "seed",
+    sample_message: "Catalog seed",
+    sample_route: null,
+    sample_context: {
+      category: "catalog_seed",
+      description: "Codigo sembrado desde contrato de observability.",
+    },
+    first_seen_at: now,
+    last_seen_at: now,
+  }));
+}
 
 function formatDate(iso) {
   if (!iso) return "-";
@@ -35,17 +74,18 @@ export default function ErrorCatalogTable() {
     const { data, error: fetchError } = await supabase
       .from("obs_error_catalog")
       .select(
-        "id, error_code, status, count_total, source_hint, sample_message, sample_route, first_seen_at, last_seen_at",
+        "id, error_code, status, count_total, source_hint, sample_message, sample_route, sample_context, first_seen_at, last_seen_at",
       )
       .order("last_seen_at", { ascending: false })
       .limit(250);
     setLoading(false);
     if (fetchError) {
-      setRows([]);
+      setRows(buildFallbackRows());
       setError(fetchError.message || "No se pudo cargar catalogo");
       return;
     }
-    setRows(Array.isArray(data) ? data : []);
+    const next = Array.isArray(data) ? data : [];
+    setRows(next.length ? next : buildFallbackRows());
   };
 
   useEffect(() => {
@@ -60,11 +100,15 @@ export default function ErrorCatalogTable() {
       const status = String(row.status || "").toLowerCase();
       const message = String(row.sample_message || "").toLowerCase();
       const route = String(row.sample_route || "").toLowerCase();
+      const category = String(row.sample_context?.category || "").toLowerCase();
+      const description = String(row.sample_context?.description || "").toLowerCase();
       return (
         code.includes(term) ||
         status.includes(term) ||
         message.includes(term) ||
-        route.includes(term)
+        route.includes(term) ||
+        category.includes(term) ||
+        description.includes(term)
       );
     });
   }, [rows, query]);
@@ -106,6 +150,7 @@ export default function ErrorCatalogTable() {
           { key: "code", label: "Error code" },
           { key: "status", label: "Estado" },
           { key: "count", label: "Total" },
+          { key: "category", label: "Categoria" },
           { key: "source", label: "Source" },
           { key: "last", label: "Ultimo visto", hideOnMobile: true },
           { key: "sample", label: "Muestra", hideOnMobile: true },
@@ -123,12 +168,17 @@ export default function ErrorCatalogTable() {
               </Badge>
             </td>
             <td className="px-4 py-3 text-slate-700">{row.count_total}</td>
+            <td className="px-4 py-3 text-slate-600">
+              {row.sample_context?.category || "-"}
+            </td>
             <td className="px-4 py-3 text-slate-600">{row.source_hint || "-"}</td>
             <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
               {formatDate(row.last_seen_at)}
             </td>
             <td className="hidden max-w-[420px] px-4 py-3 text-xs text-slate-500 md:table-cell">
-              <div className="line-clamp-2">{row.sample_message || "-"}</div>
+              <div className="line-clamp-2">
+                {row.sample_context?.description || row.sample_message || "-"}
+              </div>
             </td>
           </tr>
         ))}
@@ -136,4 +186,3 @@ export default function ErrorCatalogTable() {
     </div>
   );
 }
-
