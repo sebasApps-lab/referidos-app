@@ -7,6 +7,7 @@
     ".": "./src/index.js",
     "./auth/authSteps": "./src/auth/authSteps.js",
     "./auth/authRoles": "./src/auth/authRoles.js",
+    "./auth/flowRules": "./src/auth/flowRules.js",
     "./validators": "./src/validators/index.js",
     "./normalizers/text": "./src/normalizers/text.js",
     "./catalogs/businessCategories": "./src/catalogs/businessCategories.js"

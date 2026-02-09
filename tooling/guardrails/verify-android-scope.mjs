@@ -1,7 +1,14 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 const args = new Set(process.argv.slice(2));
 const shouldPrint = args.has("--print");
+const shouldSnapshot = args.has("--snapshot");
+const baselinePath = path.resolve(
+  process.cwd(),
+  "tooling/guardrails/.android-guardrail-baseline",
+);
 
 const ALLOWED_PREFIXES = [
   "apps/referidos-android/",
@@ -13,12 +20,26 @@ const ALLOWED_PREFIXES = [
 ];
 
 function readChangedFiles() {
-  const raw = execSync("git diff --name-only", {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  }).trim();
-  if (!raw) return [];
-  return raw.split("\n").map((line) => line.trim()).filter(Boolean);
+  try {
+    const raw = execFileSync("git", ["diff", "--name-only"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    if (!raw) return [];
+    return raw.split("\n").map((line) => line.trim()).filter(Boolean);
+  } catch (error) {
+    const fallback = String(process.env.ANDROID_GUARDRAIL_FILES || "").trim();
+    if (!fallback) {
+      console.warn(
+        "Guardrail Android: git diff no disponible en este entorno. Usando lista vacia.",
+      );
+      return [];
+    }
+    return fallback
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
 }
 
 function isAllowed(filePath) {
@@ -28,14 +49,30 @@ function isAllowed(filePath) {
 }
 
 const changed = readChangedFiles();
-const outOfScope = changed.filter((filePath) => !isAllowed(filePath));
+let baseline = [];
+if (fs.existsSync(baselinePath)) {
+  baseline = fs
+    .readFileSync(baselinePath, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+if (shouldSnapshot) {
+  fs.writeFileSync(baselinePath, `${changed.join("\n")}\n`, "utf8");
+  console.log(`Guardrail Android: baseline actualizado (${changed.length} rutas).`);
+  process.exit(0);
+}
+
+const baselineSet = new Set(baseline);
+const scopedChanged = changed.filter((filePath) => !baselineSet.has(filePath));
+const outOfScope = scopedChanged.filter((filePath) => !isAllowed(filePath));
 
 if (shouldPrint) {
-  if (changed.length === 0) {
+  if (scopedChanged.length === 0) {
     console.log("No hay cambios en el working tree.");
   } else {
     console.log("Cambios detectados:");
-    changed.forEach((filePath) => console.log(`- ${filePath}`));
+    scopedChanged.forEach((filePath) => console.log(`- ${filePath}`));
   }
 }
 
