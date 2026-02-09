@@ -53,6 +53,9 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    sourcemap: "hidden",
+  },
   server: {
     host: true,
     fs: {

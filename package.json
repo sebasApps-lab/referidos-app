@@ -12,6 +12,8 @@
     "dev:prelaunch": "npm run dev -w apps/prelaunch -- --host --mode remote",
     "build:app": "npm run build -w apps/referidos-app",
     "build:prelaunch": "npm run build -w apps/prelaunch",
+    "build:app:release": "npm run build:app && node tooling/observability/upload-sourcemaps.mjs --app referidos-app",
+    "build:prelaunch:release": "npm run build:prelaunch && node tooling/observability/upload-sourcemaps.mjs --app prelaunch",
     "preview:app": "npm run preview -w apps/referidos-app",
     "preview:prelaunch": "npm run preview -w apps/prelaunch",
     "lint": "npm run lint -ws --if-present",

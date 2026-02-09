@@ -21,9 +21,11 @@ import {
   normalizeTimestamp,
   parseStackPreview,
   parseUserAgentSummary,
+  parseStackFramesRaw,
   resolveTenantIdByHint,
   resolveTenantIdByOrigin,
   scrubUnknown,
+  sanitizeStackRaw,
   sha256Hex,
   shouldSample,
   supabaseAdmin,
@@ -217,9 +219,14 @@ serve(async (req) => {
       safeString(errorObject.code) ||
       safeString(item.error_code) ||
       safeString((scrubbedContext as Record<string, unknown>).error_code);
+    const stackRawSource =
+      safeString(errorObject.stack) ||
+      safeString((scrubbedContext as Record<string, unknown>).stack);
+    const stackRaw = sanitizeStackRaw(stackRawSource);
     const stackPreview =
-      parseStackPreview(errorObject.stack) ||
+      parseStackPreview(stackRawSource) ||
       parseStackPreview((scrubbedContext as Record<string, unknown>).stack);
+    const stackFramesRaw = parseStackFramesRaw(stackRawSource);
 
     const fingerprint =
       safeString(item.fingerprint) ||
@@ -312,6 +319,8 @@ serve(async (req) => {
         message,
         error_code: errorCode,
         stack_preview: stackPreview,
+        stack_raw: stackRaw,
+        stack_frames_raw: stackFramesRaw,
         fingerprint,
         context: {
           ...(scrubbedContext as Record<string, unknown>),

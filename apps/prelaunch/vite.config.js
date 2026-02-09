@@ -21,6 +21,9 @@ export default defineConfig({
     },
   },
   plugins: [react(), tailwindcss()],
+  build: {
+    sourcemap: "hidden",
+  },
   server: {
     host: true,
     fs: {

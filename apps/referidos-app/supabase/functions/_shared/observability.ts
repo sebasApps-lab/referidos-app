@@ -9,6 +9,8 @@ export const OBS_MAX_BREADCRUMBS = 50;
 export const OBS_DEDUPE_WINDOW_MS = 2 * 60 * 1000;
 export const OBS_RATE_USER_PER_MIN = 120;
 export const OBS_RATE_IP_PER_MIN = 240;
+export const OBS_MAX_STACK_RAW_LEN = 20_000;
+export const OBS_MAX_STACK_FRAMES = 120;
 
 export const ALLOWED_LEVELS = new Set([
   "fatal",
@@ -142,6 +144,73 @@ export function parseStackPreview(value: unknown): string | null {
   const first = value.split("\n")[0]?.trim();
   if (!first) return null;
   return truncateText(scrubString(first), 700);
+}
+
+export function sanitizeStackRaw(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return truncateText(scrubString(trimmed), OBS_MAX_STACK_RAW_LEN);
+}
+
+function parseFrameFromLine(line: string) {
+  const cleaned = line.trim();
+
+  // Chrome/Node: at fn (file:line:column)
+  let match = cleaned.match(/^at\s+(.*?)\s+\((.+):(\d+):(\d+)\)$/i);
+  if (match) {
+    return {
+      function: match[1] || null,
+      file: match[2] || null,
+      line: Number(match[3]),
+      column: Number(match[4]),
+      raw: cleaned,
+    };
+  }
+
+  // Chrome/Node: at file:line:column
+  match = cleaned.match(/^at\s+(.+):(\d+):(\d+)$/i);
+  if (match) {
+    return {
+      function: null,
+      file: match[1] || null,
+      line: Number(match[2]),
+      column: Number(match[3]),
+      raw: cleaned,
+    };
+  }
+
+  // Firefox/Safari: fn@file:line:column
+  match = cleaned.match(/^(.*?)@(.+):(\d+):(\d+)$/i);
+  if (match) {
+    return {
+      function: match[1] || null,
+      file: match[2] || null,
+      line: Number(match[3]),
+      column: Number(match[4]),
+      raw: cleaned,
+    };
+  }
+
+  return {
+    function: null,
+    file: null,
+    line: null,
+    column: null,
+    raw: cleaned,
+  };
+}
+
+export function parseStackFramesRaw(value: unknown) {
+  const stack = sanitizeStackRaw(value);
+  if (!stack) return [];
+
+  return stack
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, OBS_MAX_STACK_FRAMES)
+    .map((line) => parseFrameFromLine(scrubString(line)));
 }
 
 export function normalizeTimestamp(value: unknown): string {

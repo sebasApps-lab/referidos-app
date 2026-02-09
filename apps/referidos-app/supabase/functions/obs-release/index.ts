@@ -16,6 +16,28 @@ function safeString(value: unknown): string | null {
   return trimmed || null;
 }
 
+function safeObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function mergeMeta(
+  base: Record<string, unknown>,
+  next: Record<string, unknown>,
+) {
+  const merged: Record<string, unknown> = { ...base, ...next };
+
+  const baseSourcemaps = safeObject(base.sourcemaps);
+  const nextSourcemaps = safeObject(next.sourcemaps);
+  if (Object.keys(baseSourcemaps).length || Object.keys(nextSourcemaps).length) {
+    merged.sourcemaps = { ...baseSourcemaps, ...nextSourcemaps };
+  }
+
+  return merged;
+}
+
 serve(async (req) => {
   const cors = corsHeaders(req.headers.get("origin"));
 
@@ -83,7 +105,24 @@ serve(async (req) => {
 
   const buildId = safeString(body.build_id) || "";
   const env = safeString(body.env) || "";
-  const meta = scrubUnknown(body.meta || {});
+  const incomingMeta = scrubUnknown(body.meta || {});
+  const safeIncomingMeta = safeObject(incomingMeta);
+
+  const { data: existingRelease } = await supabaseAdmin
+    .from("obs_releases")
+    .select("id, meta")
+    .eq("tenant_id", tenantId)
+    .eq("app_id", appId)
+    .eq("app_version", appVersion)
+    .eq("build_id", buildId)
+    .eq("env", env)
+    .limit(1)
+    .maybeSingle();
+
+  const mergedMeta = mergeMeta(
+    safeObject(existingRelease?.meta),
+    safeIncomingMeta,
+  );
 
   const { data, error } = await supabaseAdmin
     .from("obs_releases")
@@ -94,7 +133,7 @@ serve(async (req) => {
         app_version: appVersion,
         build_id: buildId,
         env,
-        meta,
+        meta: mergedMeta,
       },
       {
         onConflict: "tenant_id,app_id,app_version,build_id,env",
