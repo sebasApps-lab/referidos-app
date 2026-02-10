@@ -20,6 +20,52 @@ const ORIGIN_FILTERS = [
   { id: "anonymous", label: "Anonimos" },
 ];
 
+function normalizeThreadRow(thread) {
+  return {
+    ...thread,
+    request_origin: thread?.request_origin || "registered",
+    origin_source: thread?.origin_source || "app",
+    contact_display: thread?.contact_display || null,
+    anon_public_id: thread?.anon_public_id || null,
+  };
+}
+
+async function loadInboxRows({ isAdmin, usuarioId }) {
+  let inboxQuery = supabase
+    .from("support_threads_inbox")
+    .select(
+      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, contact_display, anon_public_id"
+    )
+    .order("created_at", { ascending: false });
+
+  if (!isAdmin) {
+    inboxQuery = inboxQuery.or(
+      `assigned_agent_id.eq.${usuarioId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${usuarioId}`
+    );
+  }
+
+  const inboxResult = await inboxQuery;
+  if (!inboxResult.error) {
+    return (inboxResult.data || []).map(normalizeThreadRow);
+  }
+
+  let legacyQuery = supabase
+    .from("support_threads")
+    .select(
+      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id"
+    )
+    .order("created_at", { ascending: false });
+
+  if (!isAdmin) {
+    legacyQuery = legacyQuery.or(
+      `assigned_agent_id.eq.${usuarioId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${usuarioId}`
+    );
+  }
+
+  const legacyResult = await legacyQuery;
+  return (legacyResult.data || []).map(normalizeThreadRow);
+}
+
 export default function SupportInbox({ isAdmin = false, basePath = "/soporte" }) {
   const usuario = useAppStore((s) => s.usuario);
   const navigate = useNavigate();
@@ -41,20 +87,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     const loadThreads = async () => {
       if (!usuario) return;
       setLoading(true);
-      let query = supabase
-        .from("support_threads_inbox")
-        .select(
-          "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, contact_display, anon_public_id"
-        )
-        .order("created_at", { ascending: false });
-      if (!isAdmin) {
-        query = query.or(
-          `assigned_agent_id.eq.${usuario.id},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${usuario.id}`
-        );
-      }
-      const { data } = await query;
+      const rows = await loadInboxRows({ isAdmin, usuarioId: usuario.id });
       if (!active) return;
-      setThreads(data || []);
+      setThreads(rows);
       setLoading(false);
     };
     loadThreads();

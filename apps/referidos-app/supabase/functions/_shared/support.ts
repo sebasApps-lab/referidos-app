@@ -4,17 +4,17 @@ export const supabaseUrl =
   Deno.env.get("SUPABASE_URL") ??
   Deno.env.get("URL");
 export const publishableKey =
-  Deno.env.get("SUPABASE_ANON_KEY") ??
   Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+  Deno.env.get("SUPABASE_ANON_KEY") ??
   Deno.env.get("PUBLISHABLE_KEY");
 export const secretKey =
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
   Deno.env.get("SUPABASE_SECRET_KEY") ??
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
   Deno.env.get("SECRET_KEY");
 
 if (!supabaseUrl || !publishableKey || !secretKey) {
   throw new Error(
-    "Missing Supabase env vars: SUPABASE_URL/URL, SUPABASE_ANON_KEY/SUPABASE_PUBLISHABLE_KEY/PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SECRET_KEY/SECRET_KEY"
+    "Missing Supabase env vars: SUPABASE_URL/URL, SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY/PUBLISHABLE_KEY, SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY/SECRET_KEY"
   );
 }
 

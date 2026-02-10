@@ -9,6 +9,16 @@ import {
 } from "../supportClient";
 import { SUPPORT_MACROS } from "../data/supportMacros";
 
+function normalizeThreadRow(thread) {
+  if (!thread) return null;
+  return {
+    ...thread,
+    request_origin: thread.request_origin || "registered",
+    origin_source: thread.origin_source || "app",
+    anon_profile: thread.anon_profile || null,
+  };
+}
+
 export default function SupportTicket() {
   const { threadId } = useParams();
   const [thread, setThread] = useState(null);
@@ -29,13 +39,23 @@ export default function SupportTicket() {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data: threadData } = await supabase
+      const enrichedResult = await supabase
         .from("support_threads")
         .select(
           "*, anon_profile:anon_support_profiles(id, public_id, display_name, contact_channel, contact_value)"
         )
         .eq("public_id", threadId)
         .maybeSingle();
+
+      let threadData = enrichedResult.data || null;
+      if (enrichedResult.error) {
+        const legacyResult = await supabase
+          .from("support_threads")
+          .select("*")
+          .eq("public_id", threadId)
+          .maybeSingle();
+        threadData = legacyResult.data || null;
+      }
 
       if (!threadData?.id) {
         if (!active) return;
@@ -71,7 +91,7 @@ export default function SupportTicket() {
       }
 
       if (!active) return;
-      setThread(threadData);
+      setThread(normalizeThreadRow(threadData));
       setEvents(eventData || []);
       setNotes(noteData || []);
       setLogs(logData);

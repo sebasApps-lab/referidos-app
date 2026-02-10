@@ -36,3 +36,12 @@ apps/referidos-app/public/inec/*.zip
 *.njsproj
 *.sln
 *.sw?
+
+# Android RN local build/cache artifacts
+/.gradle-local/
+/.android-local/
+apps/referidos-android/android/.gradle/
+apps/referidos-android/android/build/
+apps/referidos-android/android/app/build/
+apps/referidos-android/android/app/.cxx/
+apps/referidos-android/android/local.properties
