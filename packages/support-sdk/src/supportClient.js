@@ -13,6 +13,32 @@ export async function createSupportThread(payload) {
   return { ok: true, data };
 }
 
+export async function createAnonymousSupportThread(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-create-anon-thread",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function getAnonymousSupportThreadStatus(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-anon-thread-status",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
 export async function assignSupportThread(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-assign-thread",
@@ -168,6 +194,17 @@ export async function createSupportAdminUser(payload) {
 export async function cancelSupportThread(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-cancel-thread",
+    { body: payload }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function linkAnonymousThreadToUser(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-link-anon-to-user",
     { body: payload }
   );
   if (error) {

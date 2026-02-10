@@ -10,6 +10,13 @@ import {
 import { AUTH_ROLES, AUTH_STEPS, BUSINESS_CATEGORIES } from "@referidos/domain";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import { useAuthEngine } from "./hooks/useAuthEngine";
+import AddressStepBlock from "./blocks/AddressStepBlock";
+import OwnerProfileStepBlock from "./blocks/OwnerProfileStepBlock";
+import BusinessDataStepBlock from "./blocks/BusinessDataStepBlock";
+import AccountVerifyPromptStepBlock from "./blocks/AccountVerifyPromptStepBlock";
+import BusinessVerifyStepBlock from "./blocks/BusinessVerifyStepBlock";
+import VerifyEmailStepBlock from "./blocks/VerifyEmailStepBlock";
+import AccountVerifyMethodStepBlock from "./blocks/AccountVerifyMethodStepBlock";
 
 export default function AuthFlowScreen() {
   const engine = useAuthEngine();
@@ -131,214 +138,130 @@ export default function AuthFlowScreen() {
 
         {engine.step === AUTH_STEPS.USER_PROFILE && (
           <Card title="Datos del propietario">
-            <LabeledInput label="Nombres" value={engine.nombre} onChangeText={engine.setNombre} />
-            <LabeledInput
-              label="Apellidos"
-              value={engine.apellido}
-              onChangeText={engine.setApellido}
-            />
-            <LabeledInput
-              label="Genero"
-              value={engine.genero}
-              onChangeText={engine.setGenero}
-            />
-            <LabeledInput
-              label="Fecha nacimiento (DDMMAAAA)"
-              value={engine.fechaNacimiento}
-              onChangeText={engine.setFechaNacimiento}
-              keyboardType="number-pad"
-            />
-            <PrimaryButton
-              label="Guardar y continuar"
-              onPress={engine.submitOwnerProfile}
+            <OwnerProfileStepBlock
+              nombre={engine.nombre}
+              apellido={engine.apellido}
+              genero={engine.genero}
+              fechaNacimiento={engine.fechaNacimiento}
               loading={engine.loading}
+              onNombreChange={engine.setNombre}
+              onApellidoChange={engine.setApellido}
+              onGeneroChange={engine.setGenero}
+              onFechaNacimientoChange={engine.setFechaNacimiento}
+              onSubmit={engine.submitOwnerProfile}
             />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.BUSINESS_DATA && (
           <Card title="Datos del negocio">
-            <LabeledInput
-              label="Nombre negocio"
-              value={engine.nombreNegocio}
-              onChangeText={engine.setNombreNegocio}
-            />
-            <LabeledInput label="RUC (opcional)" value={engine.ruc} onChangeText={engine.setRuc} />
-            <Text style={styles.label}>Categoria</Text>
-            <View style={styles.grid}>
-              {BUSINESS_CATEGORIES.slice(0, 8).map((item) => (
-                <RoleButton
-                  key={item.id}
-                  label={item.label}
-                  selected={engine.categoriaNegocio === item.label}
-                  onPress={() => engine.setCategoriaNegocio(item.label)}
-                />
-              ))}
-            </View>
-            <PrimaryButton
-              label="Guardar negocio"
-              onPress={engine.submitBusinessData}
+            <BusinessDataStepBlock
+              nombreNegocio={engine.nombreNegocio}
+              categoriaNegocio={engine.categoriaNegocio}
+              ruc={engine.ruc}
+              categories={BUSINESS_CATEGORIES.slice(0, 12)}
               loading={engine.loading}
+              onNombreNegocioChange={engine.setNombreNegocio}
+              onCategoriaChange={engine.setCategoriaNegocio}
+              onRucChange={engine.setRuc}
+              onSubmit={engine.submitBusinessData}
             />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.USER_ADDRESS && (
           <Card title="Direccion">
-            <LabeledInput label="Calles" value={engine.calles} onChangeText={engine.setCalles} />
-            <LabeledInput label="Ciudad" value={engine.ciudad} onChangeText={engine.setCiudad} />
-            <LabeledInput label="Sector" value={engine.sector} onChangeText={engine.setSector} />
-            <LabeledInput
-              label="Provincia ID"
-              value={engine.provinciaId}
-              onChangeText={engine.setProvinciaId}
-            />
-            <LabeledInput
-              label="Canton ID"
-              value={engine.cantonId}
-              onChangeText={engine.setCantonId}
-            />
-            <LabeledInput
-              label="Parroquia ID"
-              value={engine.parroquiaId}
-              onChangeText={engine.setParroquiaId}
-            />
-            <LabeledInput
-              label="Parroquia texto"
-              value={engine.parroquia}
-              onChangeText={engine.setParroquia}
-            />
-            <LabeledInput
-              label="Latitud"
-              value={engine.lat}
-              onChangeText={engine.setLat}
-              keyboardType="decimal-pad"
-            />
-            <LabeledInput
-              label="Longitud"
-              value={engine.lng}
-              onChangeText={engine.setLng}
-              keyboardType="decimal-pad"
-            />
-            {engine.role === AUTH_ROLES.NEGOCIO ? (
-              <RoleButton
-                label={engine.isSucursalPrincipal ? "Sucursal principal" : "Sucursal secundaria"}
-                selected={engine.isSucursalPrincipal}
-                onPress={() => engine.setIsSucursalPrincipal(!engine.isSucursalPrincipal)}
-              />
-            ) : null}
-            <PrimaryButton
-              label="Guardar direccion"
-              onPress={engine.submitAddressData}
+            <AddressStepBlock
+              role={engine.role}
               loading={engine.loading}
+              value={{
+                calles: engine.calles,
+                ciudad: engine.ciudad,
+                sector: engine.sector,
+                provinciaId: engine.provinciaId,
+                cantonId: engine.cantonId,
+                parroquiaId: engine.parroquiaId,
+                parroquia: engine.parroquia,
+                lat: engine.lat,
+                lng: engine.lng,
+                isSucursalPrincipal: engine.isSucursalPrincipal,
+              }}
+              onChange={{
+                setCalles: engine.setCalles,
+                setCiudad: engine.setCiudad,
+                setSector: engine.setSector,
+                setProvinciaId: engine.setProvinciaId,
+                setCantonId: engine.setCantonId,
+                setParroquiaId: engine.setParroquiaId,
+                setParroquia: engine.setParroquia,
+                setLat: engine.setLat,
+                setLng: engine.setLng,
+                setIsSucursalPrincipal: engine.setIsSucursalPrincipal,
+                setHorarios: engine.setHorarios,
+              }}
+              onSubmit={engine.submitAddressData}
+              showError={engine.setError}
             />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.ACCOUNT_VERIFY_PROMPT && (
           <Card title="Paso 1 de 2">
-            <Text style={styles.helper}>
-              Es opcional, pero te permite aprovechar mas la app.
-            </Text>
-            <PrimaryButton label="Verificar ahora" onPress={engine.startVerification} />
-            <SecondaryButton label="Verificar mas tarde" onPress={engine.skipVerification} />
+            <AccountVerifyPromptStepBlock
+              onVerifyNow={engine.startVerification}
+              onSkip={engine.skipVerification}
+            />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.BUSINESS_VERIFY && (
           <Card title="Verifica tu negocio">
-            <LabeledInput
-              label="RUC"
-              value={engine.ruc}
-              onChangeText={engine.setRuc}
-              keyboardType="number-pad"
-            />
-            <LabeledInput
-              label="Telefono"
-              value={engine.telefono}
-              onChangeText={engine.setTelefono}
-              keyboardType="phone-pad"
-            />
-            <PrimaryButton
-              label="Continuar"
-              onPress={async () => {
+            <BusinessVerifyStepBlock
+              ruc={engine.ruc}
+              telefono={engine.telefono}
+              loading={engine.loading}
+              onRucChange={engine.setRuc}
+              onTelefonoChange={engine.setTelefono}
+              onContinue={async () => {
                 const ok = await engine.submitBusinessVerificationData();
                 if (!ok) return;
                 await engine.refreshOnboarding();
               }}
+              onSkip={engine.skipVerification}
             />
-            <SecondaryButton label="Verificar mas tarde" onPress={engine.skipVerification} />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.VERIFY_EMAIL && (
           <Card title="Verifica tu correo">
-            <Text style={styles.helper}>
-              Correo actual: {engine.onboarding?.usuario?.email || engine.email || "(sin correo)"}
-            </Text>
-            <PrimaryButton
-              label="Enviar correo"
-              onPress={engine.sendVerificationEmail}
+            <VerifyEmailStepBlock
+              emailText={engine.onboarding?.usuario?.email || engine.email || "(sin correo)"}
+              emailConfirmed={emailConfirmed}
               loading={engine.loading}
+              onSendEmail={engine.sendVerificationEmail}
+              onRefresh={engine.refreshOnboarding}
+              onSkip={engine.skipVerification}
             />
-            <SecondaryButton
-              label="Revisar estado"
-              onPress={engine.refreshOnboarding}
-            />
-            <SecondaryButton label="Verificar mas tarde" onPress={engine.skipVerification} />
           </Card>
         )}
 
         {engine.step === AUTH_STEPS.ACCOUNT_VERIFY_METHOD && (
           <Card title="Paso 2 de 2">
-            {showPasswordSetup ? (
-              <>
-                <Text style={styles.helper}>Asegura tu cuenta agregando una contrasena.</Text>
-                {hasPassword ? (
-                  <Text style={styles.okText}>Contrasena ya configurada.</Text>
-                ) : (
-                  <>
-                    <LabeledInput
-                      label="Nueva contrasena"
-                      value={newPassword}
-                      onChangeText={setNewPassword}
-                      secureTextEntry
-                    />
-                    <LabeledInput
-                      label="Confirmar contrasena"
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      secureTextEntry
-                    />
-                    <PrimaryButton
-                      label="Guardar contrasena"
-                      onPress={() => engine.savePassword(newPassword, confirmPassword)}
-                      loading={engine.loading}
-                    />
-                  </>
-                )}
-              </>
-            ) : null}
-
-            {showEmailVerification ? (
-              <>
-                <Text style={styles.helper}>
-                  {emailConfirmed
-                    ? "Tu correo ya fue confirmado con exito."
-                    : "Debes confirmar tu correo para finalizar."}
-                </Text>
-                {!emailConfirmed ? (
-                  <PrimaryButton
-                    label="Enviar correo"
-                    onPress={engine.sendVerificationEmail}
-                    loading={engine.loading}
-                  />
-                ) : null}
-              </>
-            ) : null}
-
-            <PrimaryButton label="Finalizar" onPress={engine.finalizeVerification} />
-            <SecondaryButton label="Verificar mas tarde" onPress={engine.skipVerification} />
+            <AccountVerifyMethodStepBlock
+              showPasswordSetup={showPasswordSetup}
+              showEmailVerification={showEmailVerification}
+              hasPassword={hasPassword}
+              emailConfirmed={emailConfirmed}
+              newPassword={newPassword}
+              confirmPassword={confirmPassword}
+              loading={engine.loading}
+              onNewPasswordChange={setNewPassword}
+              onConfirmPasswordChange={setConfirmPassword}
+              onSavePassword={() => engine.savePassword(newPassword, confirmPassword)}
+              onSendEmail={engine.sendVerificationEmail}
+              onFinalize={engine.finalizeVerification}
+              onSkip={engine.skipVerification}
+            />
           </Card>
         )}
 

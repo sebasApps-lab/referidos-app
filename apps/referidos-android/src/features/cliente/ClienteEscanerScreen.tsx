@@ -5,6 +5,7 @@ import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import NativeQrScannerBlock from "@features/scanner/NativeQrScannerBlock";
 import {
   fetchCurrentUserRow,
   fetchQrHistoryByClientId,
@@ -42,14 +43,15 @@ export default function ClienteEscanerScreen() {
     loadRecent();
   }, [loadRecent]);
 
-  const handleValidatePreview = useCallback(async () => {
+  const handleValidatePreview = useCallback(async (incomingCode?: string) => {
     setMessage("");
     setMessageError("");
-    const clean = manualCode.trim();
+    const clean = String(incomingCode ?? manualCode).trim();
     if (clean.length < 6) {
       setMessageError("Ingresa un codigo valido (minimo 6 caracteres).");
       return;
     }
+    setManualCode(clean);
 
     await observability.track({
       level: "info",
@@ -72,6 +74,12 @@ export default function ClienteEscanerScreen() {
   return (
     <ScreenScaffold title="Escaner cliente" subtitle="Flujo base listo para migracion de camara nativa">
       <ScrollView contentContainerStyle={styles.content}>
+        <NativeQrScannerBlock
+          onDetected={(code) => {
+            void handleValidatePreview(code);
+          }}
+        />
+
         <SectionCard title="Ingreso manual de codigo">
           <Text style={styles.helper}>
             Puedes validar el flujo escribiendo un codigo. El escaneo por camara se conecta en la fase 8.
@@ -83,7 +91,7 @@ export default function ClienteEscanerScreen() {
             placeholder="Ej: QR-XXXX-XXXX"
             autoCapitalize="characters"
           />
-          <Pressable onPress={handleValidatePreview} style={styles.primaryButton}>
+          <Pressable onPress={() => { void handleValidatePreview(); }} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Validar previsualizacion</Text>
           </Pressable>
           {message ? <Text style={styles.ok}>{message}</Text> : null}

@@ -3,10 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import SupportGate from "./SupportGate";
-import {
-  assignSupportThread,
-  startAdminSupportSession,
-} from "../supportClient";
+import { assignSupportThread, startAdminSupportSession } from "../supportClient";
 
 const STATUS_GROUPS = [
   { id: "new", label: "Nuevos" },
@@ -17,15 +14,23 @@ const STATUS_GROUPS = [
   { id: "closed", label: "Resueltos" },
 ];
 
+const ORIGIN_FILTERS = [
+  { id: "all", label: "Todos" },
+  { id: "registered", label: "Registrados" },
+  { id: "anonymous", label: "Anonimos" },
+];
+
 export default function SupportInbox({ isAdmin = false, basePath = "/soporte" }) {
   const usuario = useAppStore((s) => s.usuario);
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState("new");
+  const [activeOrigin, setActiveOrigin] = useState("all");
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
+
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
       timeZone: "America/Guayaquil",
@@ -37,9 +42,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       if (!usuario) return;
       setLoading(true);
       let query = supabase
-        .from("support_threads")
+        .from("support_threads_inbox")
         .select(
-          "public_id, category, severity, status, summary, created_at, assigned_agent_id, user_public_id"
+          "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, contact_display, anon_public_id"
         )
         .order("created_at", { ascending: false });
       if (!isAdmin) {
@@ -82,9 +87,15 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   }, [usuario?.id]);
 
   const filtered = useMemo(
-    () => threads.filter((t) => t.status === activeStatus),
-    [activeStatus, threads]
+    () =>
+      threads.filter((thread) => {
+        if (thread.status !== activeStatus) return false;
+        if (activeOrigin === "all") return true;
+        return thread.request_origin === activeOrigin;
+      }),
+    [activeOrigin, activeStatus, threads]
   );
+
   const hasActive = useMemo(() => {
     if (!usuario) return false;
     return threads.some(
@@ -120,7 +131,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     }
     setThreads((prev) =>
       prev.map((item) =>
-        item.public_id === publicId ? { ...item, status: "assigned" } : item
+        item.public_id === publicId
+          ? { ...item, status: "assigned", assigned_agent_id: usuario?.id || null }
+          : item
       )
     );
   };
@@ -135,7 +148,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
           Inbox de tickets
         </h1>
         <p className="text-sm text-slate-500">
-          Gestiona tickets segun su estado y prioridad.
+          Gestiona tickets segun su estado, origen y prioridad.
         </p>
         {sessionError ? (
           <div className="text-xs text-red-500">{sessionError}</div>
@@ -155,6 +168,23 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
             }`}
           >
             {status.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {ORIGIN_FILTERS.map((origin) => (
+          <button
+            key={origin.id}
+            type="button"
+            onClick={() => setActiveOrigin(origin.id)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+              activeOrigin === origin.id
+                ? "bg-[#2F1A55] text-white"
+                : "bg-white text-[#2F1A55] border border-[#E9E2F7]"
+            }`}
+          >
+            {origin.label}
           </button>
         ))}
       </div>
@@ -181,10 +211,34 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
               <div className="text-sm font-semibold text-[#2F1A55]">
                 {thread.summary || `Ticket ${thread.public_id}`}
               </div>
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                <span
+                  className={`rounded-full px-2 py-1 ${
+                    thread.request_origin === "anonymous"
+                      ? "bg-[#FFF7E6] text-[#B46B00]"
+                      : "bg-[#EAF7F0] text-[#1B7F4B]"
+                  }`}
+                >
+                  {thread.request_origin === "anonymous" ? "Anonimo" : "Registrado"}
+                </span>
+                {thread.origin_source ? (
+                  <span className="rounded-full bg-[#F0EBFF] px-2 py-1 text-[#5E30A5]">
+                    {thread.origin_source}
+                  </span>
+                ) : null}
+              </div>
               <div className="text-[11px] text-slate-400">
-                {thread.user_public_id} •{" "}
+                {thread.request_origin === "anonymous"
+                  ? thread.anon_public_id || thread.user_public_id
+                  : thread.user_public_id}
+                {" - "}
                 {formatDateTime(thread.created_at)}
               </div>
+              {thread.request_origin === "anonymous" && thread.contact_display ? (
+                <div className="text-[11px] text-slate-500">
+                  Contacto: {thread.contact_display}
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"

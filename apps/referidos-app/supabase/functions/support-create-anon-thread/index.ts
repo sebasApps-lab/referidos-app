@@ -1,0 +1,319 @@
+import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
+import {
+  CATEGORY_LABELS,
+  buildSupportMessage,
+  corsHeaders,
+  jsonResponse,
+  safeTrim,
+  supabaseAdmin,
+} from "../_shared/support.ts";
+
+const SUPPORT_PHONE = (Deno.env.get("SUPPORT_WHATSAPP_PHONE") || "593995705833")
+  .replace(/\D/g, "");
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_IP = 6;
+const RATE_LIMIT_MAX_CONTACT = 3;
+const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
+const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
+
+function getClientIp(req: Request) {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    ""
+  ).trim();
+}
+
+async function sha256(value: string) {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function normalizeEmail(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  return normalized;
+}
+
+function normalizeWhatsapp(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 16) return null;
+  return digits;
+}
+
+function createTrackingToken() {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+async function issueTrackingToken(threadId: string) {
+  const token = createTrackingToken();
+  const tokenHash = await sha256(token);
+  await supabaseAdmin
+    .from("support_threads")
+    .update({
+      anon_tracking_token_hash: tokenHash,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", threadId);
+  return token;
+}
+
+serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const cors = corsHeaders(origin);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: cors });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, cors);
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const honeypot = safeTrim(body.honeypot, 120);
+  if (honeypot) {
+    return jsonResponse({ ok: true, spam: true }, 200, cors);
+  }
+
+  const channel = body.channel === "email" ? "email" : "whatsapp";
+  const summary = safeTrim(body.summary, 240);
+  const rawContact = safeTrim(body.contact, 120);
+  const category = Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, body.category)
+    ? body.category
+    : "sugerencia";
+  const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
+  const sourceRoute = safeTrim(body.source_route, 140) || null;
+  const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
+  const clientRequestId = safeTrim(body.client_request_id, 64) || null;
+  const displayName = safeTrim(body.display_name, 80) || null;
+  const contextInput =
+    typeof body.context === "object" && body.context ? body.context : {};
+
+  if (!summary) {
+    return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
+  }
+  if (!rawContact) {
+    return jsonResponse({ ok: false, error: "missing_contact" }, 400, cors);
+  }
+
+  const contactValue = channel === "email"
+    ? normalizeEmail(rawContact)
+    : normalizeWhatsapp(rawContact);
+  if (!contactValue) {
+    return jsonResponse({ ok: false, error: "invalid_contact" }, 400, cors);
+  }
+
+  const ip = getClientIp(req);
+  const ipHash = ip ? await sha256(ip) : null;
+  const contactHash = await sha256(`${channel}:${contactValue}`);
+  const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+
+  if (ipHash) {
+    const { count: ipCount } = await supabaseAdmin
+      .from("support_threads")
+      .select("id", { count: "exact", head: true })
+      .eq("request_origin", "anonymous")
+      .gte("created_at", since)
+      .contains("context", { ip_hash: ipHash });
+    if ((ipCount || 0) >= RATE_LIMIT_MAX_IP) {
+      return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
+    }
+  }
+
+  const profilePayload = {
+    contact_channel: channel,
+    contact_value: contactValue,
+    display_name: displayName,
+    meta: {
+      last_origin_source: originSource,
+      last_source_route: sourceRoute,
+      contact_hash: contactHash,
+    },
+    last_seen_at: new Date().toISOString(),
+  };
+
+  const { data: anonProfile, error: profileErr } = await supabaseAdmin
+    .from("anon_support_profiles")
+    .upsert(profilePayload, {
+      onConflict: "contact_channel,contact_value",
+    })
+    .select("id, public_id, contact_channel, contact_value, display_name")
+    .single();
+
+  if (profileErr || !anonProfile) {
+    return jsonResponse({ ok: false, error: "anon_profile_failed" }, 500, cors);
+  }
+
+  const { count: recentContactCount } = await supabaseAdmin
+    .from("support_threads")
+    .select("id", { count: "exact", head: true })
+    .eq("request_origin", "anonymous")
+    .eq("anon_profile_id", anonProfile.id)
+    .gte("created_at", since);
+  if ((recentContactCount || 0) >= RATE_LIMIT_MAX_CONTACT) {
+    return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
+  }
+
+  if (clientRequestId) {
+    const { data: existingByRequest } = await supabaseAdmin
+      .from("support_threads")
+      .select("id, public_id, status, wa_link, wa_message_text")
+      .eq("request_origin", "anonymous")
+      .eq("anon_profile_id", anonProfile.id)
+      .eq("client_request_id", clientRequestId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingByRequest?.id) {
+      const trackingToken = await issueTrackingToken(existingByRequest.id);
+      return jsonResponse(
+        {
+          ok: true,
+          reused: true,
+          thread_public_id: existingByRequest.public_id,
+          anon_public_id: anonProfile.public_id,
+          status: existingByRequest.status,
+          wa_link: existingByRequest.wa_link,
+          wa_message_text: existingByRequest.wa_message_text,
+          tracking_token: trackingToken,
+        },
+        200,
+        cors,
+      );
+    }
+  }
+
+  const { data: activeThread } = await supabaseAdmin
+    .from("support_threads")
+    .select("id, public_id, status, wa_link, wa_message_text")
+    .eq("request_origin", "anonymous")
+    .eq("anon_profile_id", anonProfile.id)
+    .in("status", ACTIVE_STATUSES)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (activeThread?.id) {
+    const trackingToken = await issueTrackingToken(activeThread.id);
+    return jsonResponse(
+      {
+        ok: true,
+        reused: true,
+        thread_public_id: activeThread.public_id,
+        anon_public_id: anonProfile.public_id,
+        status: activeThread.status,
+        wa_link: activeThread.wa_link,
+        wa_message_text: activeThread.wa_message_text,
+        tracking_token: trackingToken,
+      },
+      200,
+      cors,
+    );
+  }
+
+  const categoryLabel = CATEGORY_LABELS[category] ?? "Soporte";
+  const context = {
+    ...contextInput,
+    source_route: sourceRoute,
+    origin_source: originSource,
+    contact_channel: channel,
+    ip_hash: ipHash,
+    contact_hash: contactHash,
+  };
+
+  const trackingToken = createTrackingToken();
+  const trackingTokenHash = await sha256(trackingToken);
+
+  const { data: insertedThread, error: insertErr } = await supabaseAdmin
+    .from("support_threads")
+    .insert({
+      user_id: null,
+      user_public_id: anonProfile.public_id,
+      category,
+      severity,
+      status: "new",
+      summary,
+      context,
+      assigned_agent_id: null,
+      assigned_agent_phone: null,
+      created_by_user_id: null,
+      created_by_agent_id: null,
+      irregular: false,
+      personal_queue: false,
+      wa_message_text: null,
+      wa_link: null,
+      suggested_contact_name: displayName || anonProfile.public_id,
+      suggested_tags: ["anonymous", category, severity, channel],
+      resolution: null,
+      root_cause: null,
+      closed_at: null,
+      client_request_id: clientRequestId,
+      request_origin: "anonymous",
+      anon_profile_id: anonProfile.id,
+      origin_source: originSource,
+      is_anonymous: true,
+      anon_tracking_token_hash: trackingTokenHash,
+    })
+    .select("id, public_id, status")
+    .single();
+
+  if (insertErr || !insertedThread) {
+    return jsonResponse({ ok: false, error: "thread_create_failed" }, 500, cors);
+  }
+
+  const finalizedMessage = buildSupportMessage({
+    userPublicId: anonProfile.public_id,
+    threadPublicId: insertedThread.public_id,
+    categoryLabel,
+    summary,
+    context: {
+      ...context,
+      contact: contactValue,
+    },
+  });
+
+  const waLink = channel === "whatsapp"
+    ? `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(finalizedMessage)}`
+    : null;
+
+  await supabaseAdmin
+    .from("support_threads")
+    .update({
+      wa_message_text: channel === "whatsapp" ? finalizedMessage : null,
+      wa_link: waLink,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", insertedThread.id);
+
+  await supabaseAdmin.from("support_thread_events").insert({
+    thread_id: insertedThread.id,
+    event_type: "created",
+    actor_role: "anonymous",
+    actor_id: null,
+    details: {
+      origin_source: originSource,
+      channel,
+      source_route: sourceRoute,
+    },
+  });
+
+  return jsonResponse(
+    {
+      ok: true,
+      reused: false,
+      thread_public_id: insertedThread.public_id,
+      anon_public_id: anonProfile.public_id,
+      status: insertedThread.status,
+      wa_link: waLink,
+      wa_message_text: channel === "whatsapp" ? finalizedMessage : null,
+      tracking_token: trackingToken,
+      channel,
+    },
+    200,
+    cors,
+  );
+});

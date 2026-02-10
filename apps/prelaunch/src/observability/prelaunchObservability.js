@@ -5,7 +5,9 @@ import {
 } from "@referidos/observability";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TENANT_HINT = import.meta.env.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
 const APP_ID = import.meta.env.VITE_APP_ID || "prelaunch";
 
@@ -14,7 +16,7 @@ let runtime = null;
 let initialized = false;
 
 function createSupabaseInvokeAdapter() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
   return {
     functions: {
       invoke: async (fnName, options = {}) => {
@@ -22,8 +24,8 @@ function createSupabaseInvokeAdapter() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify(options.body || {}),
         });

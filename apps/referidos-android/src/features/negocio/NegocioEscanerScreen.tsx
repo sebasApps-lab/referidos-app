@@ -5,6 +5,7 @@ import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { observability, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import NativeQrScannerBlock from "@features/scanner/NativeQrScannerBlock";
 import {
   fetchBusinessByUserId,
   fetchCurrentUserRow,
@@ -49,14 +50,15 @@ export default function NegocioEscanerScreen() {
     loadRecent();
   }, [loadRecent]);
 
-  const handlePreview = useCallback(async () => {
+  const handlePreview = useCallback(async (incomingCode?: string) => {
     setMessage("");
     setError("");
-    const clean = manualCode.trim();
+    const clean = String(incomingCode ?? manualCode).trim();
     if (clean.length < 6) {
       setError("Ingresa un codigo valido para previsualizar.");
       return;
     }
+    setManualCode(clean);
 
     await observability.track({
       level: "info",
@@ -73,6 +75,12 @@ export default function NegocioEscanerScreen() {
   return (
     <ScreenScaffold title="Escaner negocio" subtitle="Preview manual y movimientos recientes">
       <ScrollView contentContainerStyle={styles.content}>
+        <NativeQrScannerBlock
+          onDetected={(code) => {
+            void handlePreview(code);
+          }}
+        />
+
         <SectionCard title="Validacion manual">
           <Text style={styles.helper}>
             Usa este bloque para validar flujo mientras se conecta el escaner nativo.
@@ -84,7 +92,7 @@ export default function NegocioEscanerScreen() {
             placeholder="Ej: QR-ABCD-1234"
             autoCapitalize="characters"
           />
-          <Pressable onPress={handlePreview} style={styles.primaryButton}>
+          <Pressable onPress={() => { void handlePreview(); }} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Validar previsualizacion</Text>
           </Pressable>
           {message ? <Text style={styles.ok}>{message}</Text> : null}

@@ -20,6 +20,7 @@ export default function SupportTicket() {
   const [resolution, setResolution] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
+
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
       timeZone: "America/Guayaquil",
@@ -30,30 +31,50 @@ export default function SupportTicket() {
     const load = async () => {
       const { data: threadData } = await supabase
         .from("support_threads")
-        .select("*")
+        .select(
+          "*, anon_profile:anon_support_profiles(id, public_id, display_name, contact_channel, contact_value)"
+        )
         .eq("public_id", threadId)
         .maybeSingle();
-      const { data: eventData } = await supabase
-        .from("support_thread_events")
-        .select("event_type, actor_role, actor_id, details, created_at")
-        .eq("thread_id", threadData?.id ?? "")
-        .order("created_at", { ascending: false });
-      const { data: noteData } = await supabase
-        .from("support_thread_notes")
-        .select("id, body, created_at, author_id")
-        .eq("thread_id", threadData?.id ?? "")
-        .order("created_at", { ascending: false });
-      const { data: logData } = await supabase
-        .from("support_user_logs")
-        .select("level, category, message, created_at")
-        .eq("user_id", threadData?.user_id ?? "")
-        .order("created_at", { ascending: false })
-        .limit(50);
+
+      if (!threadData?.id) {
+        if (!active) return;
+        setThread(null);
+        setEvents([]);
+        setNotes([]);
+        setLogs([]);
+        return;
+      }
+
+      const [{ data: eventData }, { data: noteData }] = await Promise.all([
+        supabase
+          .from("support_thread_events")
+          .select("event_type, actor_role, actor_id, details, created_at")
+          .eq("thread_id", threadData.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("support_thread_notes")
+          .select("id, body, created_at, author_id")
+          .eq("thread_id", threadData.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      let logData = [];
+      if (threadData.user_id) {
+        const logsResponse = await supabase
+          .from("support_user_logs")
+          .select("level, category, message, created_at")
+          .eq("user_id", threadData.user_id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        logData = logsResponse.data || [];
+      }
+
       if (!active) return;
       setThread(threadData);
       setEvents(eventData || []);
       setNotes(noteData || []);
-      setLogs(logData || []);
+      setLogs(logData);
     };
     load();
     return () => {
@@ -83,10 +104,7 @@ export default function SupportTicket() {
       body: noteDraft.trim(),
     });
     if (result.ok) {
-      setNotes((prev) => [
-        { ...result.data.note, body: noteDraft.trim() },
-        ...prev,
-      ]);
+      setNotes((prev) => [{ ...result.data.note, body: noteDraft.trim() }, ...prev]);
       setNoteDraft("");
     }
   };
@@ -126,9 +144,23 @@ export default function SupportTicket() {
         <h1 className="text-2xl font-extrabold text-[#2F1A55]">
           {thread.summary || "Detalle de ticket"}
         </h1>
-        <p className="text-sm text-slate-500">
-          Estado actual: {thread.status}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          <span>Estado actual: {thread.status}</span>
+          <span
+            className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+              thread.request_origin === "anonymous"
+                ? "bg-[#FFF7E6] text-[#B46B00]"
+                : "bg-[#EAF7F0] text-[#1B7F4B]"
+            }`}
+          >
+            {thread.request_origin === "anonymous" ? "Anonimo" : "Registrado"}
+          </span>
+          {thread.origin_source ? (
+            <span className="rounded-full bg-[#F0EBFF] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#5E30A5]">
+              {thread.origin_source}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -138,6 +170,22 @@ export default function SupportTicket() {
             <pre className="whitespace-pre-wrap text-xs text-slate-600 bg-[#FAF8FF] rounded-2xl p-3 border border-[#E9E2F7]">
               {JSON.stringify(thread.context || {}, null, 2)}
             </pre>
+            {thread.request_origin === "anonymous" && thread.anon_profile ? (
+              <div className="rounded-2xl border border-[#F5E1B5] bg-[#FFF9ED] p-3 text-xs text-[#8A5A00] space-y-1">
+                <div>
+                  Perfil anonimo: {thread.anon_profile.public_id}
+                </div>
+                {thread.anon_profile.display_name ? (
+                  <div>Nombre: {thread.anon_profile.display_name}</div>
+                ) : null}
+                <div>
+                  Canal: {thread.anon_profile.contact_channel || "N/A"}
+                </div>
+                <div>
+                  Contacto: {thread.anon_profile.contact_value || "N/A"}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -221,24 +269,29 @@ export default function SupportTicket() {
             <div className="text-sm font-semibold text-[#2F1A55]">
               Logs del usuario
             </div>
-            {logs.length === 0 ? (
-              <div className="text-xs text-slate-500">
-                No hay logs recientes.
-              </div>
-            ) : (
-              <div className="space-y-2 text-xs text-slate-600">
-                {logs.map((log, index) => (
-                  <div
-                    key={`${log.category}-${index}`}
-                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
-                  >
-                    <div className="text-[11px] text-slate-400">
-                      {log.level} • {log.category} •{" "}
-                      {formatDateTime(log.created_at)}
+            {thread.user_id ? (
+              logs.length === 0 ? (
+                <div className="text-xs text-slate-500">
+                  No hay logs recientes.
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs text-slate-600">
+                  {logs.map((log, index) => (
+                    <div
+                      key={`${log.category}-${index}`}
+                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
+                    >
+                      <div className="text-[11px] text-slate-400">
+                        {log.level} - {log.category} - {formatDateTime(log.created_at)}
+                      </div>
+                      <div className="mt-1">{log.message}</div>
                     </div>
-                    <div className="mt-1">{log.message}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="text-xs text-slate-500">
+                Ticket anonimo: no hay logs de sesion autenticada.
               </div>
             )}
           </div>

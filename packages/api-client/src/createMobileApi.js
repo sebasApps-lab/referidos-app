@@ -34,6 +34,11 @@ export function createMobileApi(supabase) {
       denyAdminSession: (payload) => support.denyAdminSupportSession(supabase, payload),
       createAdminUser: (payload) => support.createSupportAdminUser(supabase, payload),
       cancelThread: (payload) => support.cancelSupportThread(supabase, payload),
+      anonymous: {
+        createThread: (payload) => support.createAnonymousSupportThread(supabase, payload),
+        getThreadStatus: (payload) => support.getAnonymousSupportThreadStatus(supabase, payload),
+        linkToUser: (payload) => support.linkAnonymousThreadToUser(supabase, payload),
+      },
     },
     logs: {
       logEvent: (payload) => logEvent(supabase, payload),

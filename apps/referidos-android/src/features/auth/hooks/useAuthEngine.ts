@@ -53,6 +53,13 @@ function calculateAge(isoDate: string | null) {
   return age;
 }
 
+function fromIsoBirthdate(isoDate: string | null) {
+  const text = String(isoDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
+  const [year, month, day] = text.split("-");
+  return `${day}${month}${year}`;
+}
+
 async function getCurrentUserRow() {
   const { data: { session } = {} } = await supabase.auth.getSession();
   const authUserId = session?.user?.id;
@@ -101,6 +108,7 @@ export function useAuthEngine() {
   const [telefono, setTelefono] = useState("");
 
   const [isSucursalPrincipal, setIsSucursalPrincipal] = useState(true);
+  const [horarios, setHorarios] = useState<any>(DEFAULT_HORARIOS);
   const [calles, setCalles] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [sector, setSector] = useState("");
@@ -112,6 +120,78 @@ export function useAuthEngine() {
   const [lng, setLng] = useState("");
 
   const roleFromOnboarding = onboarding?.usuario?.role || role || null;
+
+  useEffect(() => {
+    if (!onboarding?.ok) return;
+
+    const usuarioRow = onboarding?.usuario || {};
+    const negocioRow = onboarding?.negocio || {};
+    const sucursalRow = onboarding?.sucursal || onboarding?.branch || {};
+    const addressRow =
+      onboarding?.address ||
+      onboarding?.direccion ||
+      sucursalRow?.direccion ||
+      sucursalRow?.address ||
+      {};
+
+    if (!email && usuarioRow?.email) setEmail(String(usuarioRow.email));
+    if (!nombre && usuarioRow?.nombre) setNombre(String(usuarioRow.nombre));
+    if (!apellido && usuarioRow?.apellido) setApellido(String(usuarioRow.apellido));
+    if ((genero === "no_especificar" || !genero) && usuarioRow?.genero) {
+      setGenero(String(usuarioRow.genero));
+    }
+    if (!fechaNacimiento && usuarioRow?.fecha_nacimiento) {
+      setFechaNacimiento(fromIsoBirthdate(String(usuarioRow.fecha_nacimiento)));
+    }
+    if (!telefono && usuarioRow?.telefono) setTelefono(String(usuarioRow.telefono));
+
+    if (!nombreNegocio && negocioRow?.nombre) setNombreNegocio(String(negocioRow.nombre));
+    if (!categoriaNegocio && negocioRow?.categoria) {
+      setCategoriaNegocio(String(negocioRow.categoria));
+    }
+    if (!ruc && negocioRow?.ruc) setRuc(String(negocioRow.ruc));
+
+    if (!calles && addressRow?.calles) setCalles(String(addressRow.calles));
+    if (!ciudad && addressRow?.ciudad) setCiudad(String(addressRow.ciudad));
+    if (!sector && addressRow?.sector) setSector(String(addressRow.sector));
+    if (!provinciaId && addressRow?.provincia_id) {
+      setProvinciaId(String(addressRow.provincia_id));
+    }
+    if (!cantonId && addressRow?.canton_id) setCantonId(String(addressRow.canton_id));
+    if (!parroquiaId && addressRow?.parroquia_id) {
+      setParroquiaId(String(addressRow.parroquia_id));
+    }
+    if (!parroquia && addressRow?.parroquia) setParroquia(String(addressRow.parroquia));
+    if (!lat && Number.isFinite(Number(addressRow?.lat))) setLat(String(addressRow.lat));
+    if (!lng && Number.isFinite(Number(addressRow?.lng))) setLng(String(addressRow.lng));
+
+    if (typeof sucursalRow?.tipo === "string") {
+      setIsSucursalPrincipal(String(sucursalRow.tipo) === "principal");
+    }
+    if (sucursalRow?.horarios) {
+      setHorarios(sucursalRow.horarios);
+    }
+  }, [
+    onboarding,
+    apellido,
+    calles,
+    cantonId,
+    categoriaNegocio,
+    ciudad,
+    email,
+    fechaNacimiento,
+    genero,
+    lat,
+    lng,
+    nombre,
+    nombreNegocio,
+    parroquia,
+    parroquiaId,
+    provinciaId,
+    ruc,
+    sector,
+    telefono,
+  ]);
 
   const shouldAutoValidateRegistration = useMemo(() => {
     if (allowAccess) return false;
@@ -515,7 +595,7 @@ export function useAuthEngine() {
       negocioid: negocio.id,
       direccion_id: direccionId,
       tipo: isSucursalPrincipal ? "principal" : "sucursal",
-      horarios: DEFAULT_HORARIOS,
+      horarios: horarios || DEFAULT_HORARIOS,
       status: sucursal?.status || "draft",
     };
 
@@ -557,6 +637,7 @@ export function useAuthEngine() {
     cantonId,
     ciudad,
     isSucursalPrincipal,
+    horarios,
     lat,
     lng,
     parroquia,
@@ -779,6 +860,7 @@ export function useAuthEngine() {
     setStep,
     loading,
     error,
+    setError,
     info,
     onboarding,
     role: roleFromOnboarding,
@@ -810,6 +892,8 @@ export function useAuthEngine() {
     setTelefono,
     isSucursalPrincipal,
     setIsSucursalPrincipal,
+    horarios,
+    setHorarios,
     calles,
     setCalles,
     ciudad,

@@ -1,7 +1,9 @@
 // src/waitlist/waitlistApi.js
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export async function submitWaitlistSignup({
   email,
@@ -10,7 +12,7 @@ export async function submitWaitlistSignup({
   consentVersion = "privacy_v1",
   honeypot = "",
 } = {}) {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     return { ok: false, error: "missing_env" };
   }
 
@@ -31,8 +33,8 @@ export async function submitWaitlistSignup({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify(payload),
   });

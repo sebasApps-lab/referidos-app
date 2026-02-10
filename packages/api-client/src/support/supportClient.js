@@ -4,6 +4,16 @@ async function invokeSupport(supabase, fnName, payload = {}) {
   return invokeWithSession(supabase, fnName, { body: payload });
 }
 
+async function invokeSupportPublic(supabase, fnName, payload = {}) {
+  const { data, error } = await supabase.functions.invoke(fnName, {
+    body: payload,
+  });
+  if (error) {
+    return { ok: false, error: error.message || String(error) };
+  }
+  return { ok: true, data: data ?? null };
+}
+
 export async function createSupportThread(supabase, payload) {
   return invokeSupport(supabase, "support-create-thread", payload);
 }
@@ -62,4 +72,16 @@ export async function createSupportAdminUser(supabase, payload = {}) {
 
 export async function cancelSupportThread(supabase, payload = {}) {
   return invokeSupport(supabase, "support-cancel-thread", payload);
+}
+
+export async function createAnonymousSupportThread(supabase, payload = {}) {
+  return invokeSupportPublic(supabase, "support-create-anon-thread", payload);
+}
+
+export async function getAnonymousSupportThreadStatus(supabase, payload = {}) {
+  return invokeSupportPublic(supabase, "support-anon-thread-status", payload);
+}
+
+export async function linkAnonymousThreadToUser(supabase, payload = {}) {
+  return invokeSupport(supabase, "support-link-anon-to-user", payload);
 }
