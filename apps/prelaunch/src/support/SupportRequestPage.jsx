@@ -29,7 +29,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
   const title = isChat ? "Chat de soporte" : "Soporte por correo";
   const subtitle = isChat
-    ? "Crea un ticket anonimo y abre WhatsApp para hablar con soporte."
+    ? "No dudes en escribirnos con cualquier duda o pregunta que tengas."
     : "Crea un ticket anonimo y te responderemos por correo.";
   const contactLabel = isChat ? "Numero de WhatsApp" : "Correo";
   const contactPlaceholder = isChat ? "593999999999" : "tu@email.com";
@@ -124,11 +124,14 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   return (
     <div className="min-h-screen bg-[#F9F6FF] text-slate-700">
       <main className="mx-auto w-full max-w-3xl px-6 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <Link to="/" className="text-sm font-semibold text-[#5E30A5] hover:underline">
+        <div className="mb-8 grid grid-cols-3 items-center">
+          <Link to="/" className="justify-self-start text-sm font-semibold text-[#5E30A5] hover:underline">
             Volver al inicio
           </Link>
-          <div className="text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
+          <div className="justify-self-center text-center text-2xl font-extrabold text-[#2F1A55]">
+            {isChat ? "Ayuda y Soporte" : title}
+          </div>
+          <div className="justify-self-end text-xs uppercase tracking-[0.2em] text-[#5E30A5]/70">
             Prelaunch
           </div>
         </div>
