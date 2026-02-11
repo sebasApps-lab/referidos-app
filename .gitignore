@@ -45,3 +45,8 @@ apps/referidos-android/android/build/
 apps/referidos-android/android/app/build/
 apps/referidos-android/android/app/.cxx/
 apps/referidos-android/android/local.properties
+apps/referidos-android/android/.kotlin/
+apps/referidos-android/env.json
+apps/referidos-android/env.local.json
+/.npm-cache-local/
+apps/referidos-android/.npm-cache-local/
