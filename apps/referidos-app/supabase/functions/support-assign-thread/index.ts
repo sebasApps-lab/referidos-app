@@ -7,6 +7,8 @@ import {
   supabaseAdmin,
 } from "../_shared/support.ts";
 
+const DEFAULT_SUPPORT_PHONE = "593995705833";
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -100,7 +102,8 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "thread_not_found" }, 404, cors);
   }
 
-  const supportPhone = agentProfile?.support_phone ?? null;
+  const supportPhone = (agentProfile?.support_phone || DEFAULT_SUPPORT_PHONE)
+    .replace(/\D/g, "");
   const updateResponse = await supabaseAdmin
     .from("support_threads")
     .update({

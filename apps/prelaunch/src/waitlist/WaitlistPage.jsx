@@ -1473,8 +1473,8 @@ export default function WaitlistPage() {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Contacto</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/help" className="transition-colors hover:text-[var(--brand-yellow)]">Chat de soporte</a>
-                <a href="/support" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte por correo</a>
+                <a href="/soporte-chat" className="transition-colors hover:text-[var(--brand-yellow)]">Chat de soporte</a>
+                <a href="/soporte-correo" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte por correo</a>
                 <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Dejar un comentario</a>
               </div>
             </div>

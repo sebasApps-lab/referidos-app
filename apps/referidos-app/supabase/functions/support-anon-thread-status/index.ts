@@ -82,6 +82,7 @@ serve(async (req) => {
               public_id: thread.anon_profile.public_id,
               display_name: thread.anon_profile.display_name,
               contact_channel: thread.anon_profile.contact_channel,
+              contact_value: thread.anon_profile.contact_value,
               contact_masked: maskContact(
                 thread.anon_profile.contact_channel,
                 thread.anon_profile.contact_value,

@@ -8,8 +8,6 @@ import {
   supabaseAdmin,
 } from "../_shared/support.ts";
 
-const SUPPORT_PHONE = (Deno.env.get("SUPPORT_WHATSAPP_PHONE") || "593995705833")
-  .replace(/\D/g, "");
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
@@ -31,12 +29,6 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-
-function normalizeEmail(value: string) {
-  const normalized = value.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
-  return normalized;
 }
 
 function normalizeWhatsapp(value: string) {
@@ -62,6 +54,29 @@ async function issueTrackingToken(threadId: string) {
   return token;
 }
 
+async function cancelAnonymousThread(threadId: string, reason: string) {
+  const nowIso = new Date().toISOString();
+
+  await supabaseAdmin
+    .from("support_threads")
+    .update({
+      status: "cancelled",
+      cancelled_at: nowIso,
+      cancelled_by: null,
+      updated_at: nowIso,
+    })
+    .eq("id", threadId)
+    .in("status", ACTIVE_STATUSES);
+
+  await supabaseAdmin.from("support_thread_events").insert({
+    thread_id: threadId,
+    event_type: "cancelled",
+    actor_role: "anonymous",
+    actor_id: null,
+    details: { reason },
+  });
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -79,7 +94,8 @@ serve(async (req) => {
     return jsonResponse({ ok: true, spam: true }, 200, cors);
   }
 
-  const channel = body.channel === "email" ? "email" : "whatsapp";
+  const requestedChannel = body.channel === "email" ? "email" : "whatsapp";
+  const channel = "whatsapp";
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
   const category = Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, body.category)
@@ -90,6 +106,8 @@ serve(async (req) => {
   const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
   const displayName = safeTrim(body.display_name, 80) || null;
+  const errorOnActive = body.error_on_active === true;
+  const replaceExisting = body.replace_existing === true;
   const contextInput =
     typeof body.context === "object" && body.context ? body.context : {};
 
@@ -97,14 +115,12 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
   }
   if (!rawContact) {
-    return jsonResponse({ ok: false, error: "missing_contact" }, 400, cors);
+    return jsonResponse({ ok: false, error: "missing_whatsapp" }, 400, cors);
   }
 
-  const contactValue = channel === "email"
-    ? normalizeEmail(rawContact)
-    : normalizeWhatsapp(rawContact);
+  const contactValue = normalizeWhatsapp(rawContact);
   if (!contactValue) {
-    return jsonResponse({ ok: false, error: "invalid_contact" }, 400, cors);
+    return jsonResponse({ ok: false, error: "invalid_whatsapp" }, 400, cors);
   }
 
   const ip = getClientIp(req);
@@ -125,7 +141,7 @@ serve(async (req) => {
   }
 
   const profilePayload = {
-    contact_channel: channel,
+    contact_channel: "whatsapp",
     contact_value: contactValue,
     display_name: displayName,
     meta: {
@@ -198,19 +214,65 @@ serve(async (req) => {
     .maybeSingle();
 
   if (activeThread?.id) {
-    const trackingToken = await issueTrackingToken(activeThread.id);
+    if (errorOnActive && !replaceExisting) {
+      const trackingToken = await issueTrackingToken(activeThread.id);
+      return jsonResponse(
+        {
+          ok: false,
+          error: "active_ticket_exists",
+          thread_public_id: activeThread.public_id,
+          anon_public_id: anonProfile.public_id,
+          status: activeThread.status,
+          tracking_token: trackingToken,
+        },
+        409,
+        cors,
+      );
+    }
+
+    if (replaceExisting) {
+      await cancelAnonymousThread(activeThread.id, "replace_with_new");
+    } else {
+      const trackingToken = await issueTrackingToken(activeThread.id);
+      return jsonResponse(
+        {
+          ok: true,
+          reused: true,
+          thread_public_id: activeThread.public_id,
+          anon_public_id: anonProfile.public_id,
+          status: activeThread.status,
+          wa_link: activeThread.wa_link,
+          wa_message_text: activeThread.wa_message_text,
+          tracking_token: trackingToken,
+        },
+        200,
+        cors,
+      );
+    }
+  }
+
+  const { data: activeAfterReplace } = await supabaseAdmin
+    .from("support_threads")
+    .select("id, public_id, status")
+    .eq("request_origin", "anonymous")
+    .eq("anon_profile_id", anonProfile.id)
+    .in("status", ACTIVE_STATUSES)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (activeAfterReplace?.id) {
+    const trackingToken = await issueTrackingToken(activeAfterReplace.id);
     return jsonResponse(
       {
-        ok: true,
-        reused: true,
-        thread_public_id: activeThread.public_id,
+        ok: false,
+        error: "active_ticket_exists",
+        thread_public_id: activeAfterReplace.public_id,
         anon_public_id: anonProfile.public_id,
-        status: activeThread.status,
-        wa_link: activeThread.wa_link,
-        wa_message_text: activeThread.wa_message_text,
+        status: activeAfterReplace.status,
         tracking_token: trackingToken,
       },
-      200,
+      409,
       cors,
     );
   }
@@ -221,6 +283,7 @@ serve(async (req) => {
     source_route: sourceRoute,
     origin_source: originSource,
     contact_channel: channel,
+    requested_channel: requestedChannel,
     ip_hash: ipHash,
     contact_hash: contactHash,
   };
@@ -247,7 +310,7 @@ serve(async (req) => {
       wa_message_text: null,
       wa_link: null,
       suggested_contact_name: displayName || anonProfile.public_id,
-      suggested_tags: ["anonymous", category, severity, channel],
+      suggested_tags: ["anonymous", category, severity, channel, requestedChannel],
       resolution: null,
       root_cause: null,
       closed_at: null,
@@ -276,14 +339,13 @@ serve(async (req) => {
     },
   });
 
-  const waLink = channel === "whatsapp"
-    ? `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(finalizedMessage)}`
-    : null;
+  // For anonymous flow we only expose wa_link once a real advisor is assigned.
+  const waLink = null;
 
   await supabaseAdmin
     .from("support_threads")
     .update({
-      wa_message_text: channel === "whatsapp" ? finalizedMessage : null,
+      wa_message_text: finalizedMessage,
       wa_link: waLink,
       updated_at: new Date().toISOString(),
     })
@@ -297,6 +359,7 @@ serve(async (req) => {
     details: {
       origin_source: originSource,
       channel,
+      requested_channel: requestedChannel,
       source_route: sourceRoute,
     },
   });
@@ -309,9 +372,10 @@ serve(async (req) => {
       anon_public_id: anonProfile.public_id,
       status: insertedThread.status,
       wa_link: waLink,
-      wa_message_text: channel === "whatsapp" ? finalizedMessage : null,
+      wa_message_text: finalizedMessage,
       tracking_token: trackingToken,
       channel,
+      requested_channel: requestedChannel,
     },
     200,
     cors,

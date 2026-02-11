@@ -20,7 +20,11 @@ async function invokePublicFunction(fnName, payload = {}) {
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    return { ok: false, error: data?.error || data?.message || `http_${response.status}` };
+    return {
+      ok: false,
+      error: data?.error || data?.message || `http_${response.status}`,
+      data,
+    };
   }
   return { ok: true, data };
 }
@@ -31,4 +35,8 @@ export function createAnonymousSupportThread(payload = {}) {
 
 export function getAnonymousSupportThreadStatus(payload = {}) {
   return invokePublicFunction("support-anon-thread-status", payload);
+}
+
+export function cancelAnonymousSupportThread(payload = {}) {
+  return invokePublicFunction("support-anon-cancel-thread", payload);
 }
