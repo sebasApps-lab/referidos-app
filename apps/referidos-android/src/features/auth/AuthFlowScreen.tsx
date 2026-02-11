@@ -30,6 +30,12 @@ export default function AuthFlowScreen() {
   const provider = engine.onboarding?.provider || "email";
   const emailConfirmed = Boolean(engine.onboarding?.email_confirmed);
   const hasPassword = Boolean(engine.onboarding?.usuario?.has_password);
+  const hasMfa = Boolean(
+    engine.onboarding?.usuario?.mfa_totp_enabled ||
+      engine.onboarding?.usuario?.mfa_method ||
+      engine.onboarding?.usuario?.mfa_primary_method ||
+      engine.onboarding?.usuario?.mfa_enrolled_at,
+  );
   const isOauthPrimary = provider !== "email";
   const hasEmailProvider = providers.includes("email");
   const showPasswordSetup = isOauthPrimary;
@@ -49,12 +55,34 @@ export default function AuthFlowScreen() {
               Inicia sesion o crea cuenta para continuar.
             </Text>
             <PrimaryButton
+              label="Continuar con Google"
+              onPress={() => engine.startOAuth("google")}
+              loading={engine.loading}
+            />
+            <PrimaryButton
               label="Iniciar sesion"
               onPress={() => engine.setStep(AUTH_STEPS.EMAIL_LOGIN)}
             />
             <SecondaryButton
               label="Crear cuenta"
               onPress={() => engine.setStep(AUTH_STEPS.EMAIL_REGISTER)}
+            />
+          </Card>
+        )}
+
+        {engine.step === AUTH_STEPS.OAUTH_CALLBACK && (
+          <Card title="Procesando acceso">
+            <Text style={styles.helper}>
+              Estamos completando el inicio de sesion con tu proveedor.
+            </Text>
+            <PrimaryButton
+              label="Reintentar"
+              onPress={engine.refreshOnboarding}
+              loading={engine.loading}
+            />
+            <SecondaryButton
+              label="Volver"
+              onPress={() => engine.setStep(AUTH_STEPS.WELCOME)}
             />
           </Card>
         )}
@@ -251,6 +279,7 @@ export default function AuthFlowScreen() {
               showPasswordSetup={showPasswordSetup}
               showEmailVerification={showEmailVerification}
               hasPassword={hasPassword}
+              hasMfa={hasMfa}
               emailConfirmed={emailConfirmed}
               newPassword={newPassword}
               confirmPassword={confirmPassword}

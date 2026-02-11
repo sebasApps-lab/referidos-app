@@ -13,6 +13,7 @@
     "android:guardrail": "node tooling/guardrails/verify-android-scope.mjs",
     "android:guardrail:print": "node tooling/guardrails/verify-android-scope.mjs --print",
     "android:phase1:health": "node tooling/android/phase1-runtime-health.mjs",
+    "android:phase2:auth-check": "node tooling/android/phase2-auth-parity-check.mjs",
     "android:metro": "node tooling/android/start-android-metro.mjs",
     "android:run": "npm run android -w @apps/referidos-android -- --port 8081 --no-packager",
     "android:gradle:tasks": "cmd.exe /c scripts\\run_android_gradle_tasks.cmd",

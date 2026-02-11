@@ -5,6 +5,7 @@ type Props = {
   showPasswordSetup: boolean;
   showEmailVerification: boolean;
   hasPassword: boolean;
+  hasMfa: boolean;
   emailConfirmed: boolean;
   newPassword: string;
   confirmPassword: string;
@@ -21,6 +22,7 @@ export default function AccountVerifyMethodStepBlock({
   showPasswordSetup,
   showEmailVerification,
   hasPassword,
+  hasMfa,
   emailConfirmed,
   newPassword,
   confirmPassword,
@@ -32,13 +34,22 @@ export default function AccountVerifyMethodStepBlock({
   onFinalize,
   onSkip,
 }: Props) {
+  const canFinalize = (() => {
+    if (showEmailVerification && !emailConfirmed) return false;
+    if (showPasswordSetup && !hasPassword && !hasMfa) return false;
+    return true;
+  })();
+
   return (
     <View style={styles.container}>
       {showPasswordSetup ? (
         <>
           <Text style={styles.helper}>Asegura tu cuenta agregando una contrasena.</Text>
-          {hasPassword ? (
-            <Text style={styles.okText}>Contrasena ya configurada.</Text>
+          {hasPassword || hasMfa ? (
+            <>
+              {hasPassword ? <Text style={styles.okText}>Contrasena ya configurada.</Text> : null}
+              {hasMfa ? <Text style={styles.okText}>MFA ya configurado.</Text> : null}
+            </>
           ) : (
             <>
               <Text style={styles.label}>Nueva contrasena</Text>
@@ -58,6 +69,9 @@ export default function AccountVerifyMethodStepBlock({
               <Pressable onPress={onSavePassword} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
                 <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Guardar contrasena"}</Text>
               </Pressable>
+              <Text style={styles.pendingInfo}>
+                MFA se activara en la siguiente fase de seguridad mobile.
+              </Text>
             </>
           )}
         </>
@@ -78,7 +92,7 @@ export default function AccountVerifyMethodStepBlock({
         </>
       ) : null}
 
-      <Pressable onPress={onFinalize} style={styles.primaryButton}>
+      <Pressable onPress={onFinalize} disabled={!canFinalize} style={[styles.primaryButton, !canFinalize && styles.primaryButtonDisabled]}>
         <Text style={styles.primaryButtonText}>Finalizar</Text>
       </Pressable>
       <Pressable onPress={onSkip} style={styles.secondaryButton}>
@@ -101,6 +115,11 @@ const styles = StyleSheet.create({
     color: "#047857",
     fontWeight: "600",
     fontSize: 13,
+  },
+  pendingInfo: {
+    color: "#6B7280",
+    fontSize: 12,
+    lineHeight: 18,
   },
   label: {
     color: "#374151",
@@ -141,4 +160,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
-

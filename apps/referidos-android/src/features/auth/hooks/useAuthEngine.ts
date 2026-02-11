@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Linking } from "react-native";
 import {
   AUTH_ROLES,
   AUTH_STEPS,
+  buildBirthdateISO,
+  formatBirthdateForInput,
+  getUserProfileStatus,
+  isPhoneValidForCountry,
+  parsePhoneWithCountry,
   resolveRegistrationStep,
   resolveVerificationStep,
+  toStoragePhone,
   validateEmail,
   validateRucFromCedula,
 } from "@referidos/domain";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import { MOBILE_ENV } from "@shared/constants/env";
 
 const DEFAULT_HORARIOS = {
   semanal: {
@@ -23,41 +31,33 @@ const DEFAULT_HORARIOS = {
   excepciones: [],
 };
 
-function normalizePhoneValue(value: string) {
-  return String(value || "").replace(/[^\d+]/g, "").trim();
-}
+function parseAuthCallbackParams(url: string) {
+  const safeUrl = String(url || "").trim();
+  if (!safeUrl) return null;
 
-function toIsoBirthdate(input: string) {
-  const clean = String(input || "").replace(/\D/g, "");
-  if (clean.length !== 8) return null;
-  const day = Number(clean.slice(0, 2));
-  const month = Number(clean.slice(2, 4));
-  const year = Number(clean.slice(4, 8));
-  if (!day || !month || !year) return null;
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  return `${year.toString().padStart(4, "0")}-${month
-    .toString()
-    .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-}
+  const hashIndex = safeUrl.indexOf("#");
+  const queryIndex = safeUrl.indexOf("?");
+  const queryText =
+    queryIndex >= 0
+      ? safeUrl.slice(queryIndex + 1, hashIndex >= 0 ? hashIndex : undefined)
+      : "";
+  const hashText = hashIndex >= 0 ? safeUrl.slice(hashIndex + 1) : "";
+  const query = new URLSearchParams(queryText);
+  const hash = new URLSearchParams(hashText);
 
-function calculateAge(isoDate: string | null) {
-  if (!isoDate) return null;
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return null;
-  const now = new Date();
-  let age = now.getUTCFullYear() - date.getUTCFullYear();
-  const monthDelta = now.getUTCMonth() - date.getUTCMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < date.getUTCDate())) {
-    age -= 1;
-  }
-  return age;
-}
+  const code = query.get("code") || hash.get("code");
+  const accessToken =
+    query.get("access_token") || hash.get("access_token");
+  const refreshToken =
+    query.get("refresh_token") || hash.get("refresh_token");
+  const error =
+    query.get("error_description") ||
+    hash.get("error_description") ||
+    query.get("error") ||
+    hash.get("error");
 
-function fromIsoBirthdate(isoDate: string | null) {
-  const text = String(isoDate || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
-  const [year, month, day] = text.split("-");
-  return `${day}${month}${year}`;
+  if (!code && !accessToken && !refreshToken && !error) return null;
+  return { code, accessToken, refreshToken, error };
 }
 
 async function getCurrentUserRow() {
@@ -118,8 +118,65 @@ export function useAuthEngine() {
   const [parroquia, setParroquia] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const handledOAuthUrlsRef = useRef<Set<string>>(new Set());
 
   const roleFromOnboarding = onboarding?.usuario?.role || role || null;
+
+  const completeOAuthCallback = useCallback(
+    async (url: string) => {
+      const parsed = parseAuthCallbackParams(url);
+      if (!parsed) return false;
+
+      if (handledOAuthUrlsRef.current.has(url)) return true;
+      handledOAuthUrlsRef.current.add(url);
+
+      setStep(AUTH_STEPS.OAUTH_CALLBACK);
+      setLoading(true);
+      setError("");
+      setInfo("");
+
+      try {
+        if (parsed.error) {
+          setError(parsed.error);
+          return true;
+        }
+
+        if (parsed.code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+            parsed.code,
+          );
+          if (exchangeError) {
+            setError(exchangeError.message || "No se pudo completar OAuth.");
+            return true;
+          }
+          await bootstrapAuth();
+          return true;
+        }
+
+        if (parsed.accessToken && parsed.refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: parsed.accessToken,
+            refresh_token: parsed.refreshToken,
+          });
+          if (sessionError) {
+            setError(sessionError.message || "No se pudo recuperar la sesion OAuth.");
+            return true;
+          }
+          await bootstrapAuth();
+          return true;
+        }
+
+        setError("Callback OAuth incompleto.");
+        return true;
+      } catch (err: any) {
+        setError(String(err?.message || err || "oauth_callback_failed"));
+        return true;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [bootstrapAuth],
+  );
 
   useEffect(() => {
     if (!onboarding?.ok) return;
@@ -141,7 +198,7 @@ export function useAuthEngine() {
       setGenero(String(usuarioRow.genero));
     }
     if (!fechaNacimiento && usuarioRow?.fecha_nacimiento) {
-      setFechaNacimiento(fromIsoBirthdate(String(usuarioRow.fecha_nacimiento)));
+      setFechaNacimiento(formatBirthdateForInput(String(usuarioRow.fecha_nacimiento)));
     }
     if (!telefono && usuarioRow?.telefono) setTelefono(String(usuarioRow.telefono));
 
@@ -251,6 +308,32 @@ export function useAuthEngine() {
     };
   }, [bootstrapAuth, shouldAutoValidateRegistration]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleInitialUrl = async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        if (!isMounted || !initialUrl) return;
+        await completeOAuthCallback(initialUrl);
+      } catch {
+        // no-op
+      }
+    };
+
+    handleInitialUrl();
+
+    const subscription = Linking.addEventListener("url", (event) => {
+      if (!event?.url) return;
+      void completeOAuthCallback(event.url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, [completeOAuthCallback]);
+
   const submitLogin = useCallback(async () => {
     setError("");
     setInfo("");
@@ -312,6 +395,52 @@ export function useAuthEngine() {
     return true;
   }, [bootstrapAuth, email, password, passwordConfirm]);
 
+  const startOAuth = useCallback(
+    async (
+      provider: "google" | "apple" | "facebook" | "discord" | "twitter" = "google",
+    ) => {
+      setError("");
+      setInfo("");
+      setLoading(true);
+      setStep(AUTH_STEPS.OAUTH_CALLBACK);
+      try {
+        const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: MOBILE_ENV.AUTH_REDIRECT_URL,
+            skipBrowserRedirect: true,
+          },
+        });
+        if (oauthError) {
+          setError(oauthError.message || "No se pudo iniciar OAuth.");
+          setStep(AUTH_STEPS.WELCOME);
+          return false;
+        }
+        if (!data?.url) {
+          setError("No se pudo generar URL de autenticacion OAuth.");
+          setStep(AUTH_STEPS.WELCOME);
+          return false;
+        }
+        const canOpen = await Linking.canOpenURL(data.url);
+        if (!canOpen) {
+          setError("No se pudo abrir el proveedor OAuth en este dispositivo.");
+          setStep(AUTH_STEPS.WELCOME);
+          return false;
+        }
+        await Linking.openURL(data.url);
+        setInfo("Completando OAuth...");
+        return true;
+      } catch (err: any) {
+        setError(String(err?.message || err || "oauth_start_failed"));
+        setStep(AUTH_STEPS.WELCOME);
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const submitRoleSelection = useCallback(async (roleValue: string) => {
     setError("");
     setInfo("");
@@ -371,15 +500,21 @@ export function useAuthEngine() {
   const submitOwnerProfile = useCallback(async () => {
     setError("");
     setInfo("");
-    const isoBirth = toIsoBirthdate(fechaNacimiento);
     const minAge = roleFromOnboarding === AUTH_ROLES.CLIENTE ? 16 : 18;
-    const age = calculateAge(isoBirth);
-
-    if (!nombre.trim()) return setError("Ingresa nombre"), false;
-    if (!apellido.trim()) return setError("Ingresa apellido"), false;
-    if (!genero.trim()) return setError("Selecciona genero"), false;
-    if (!isoBirth || age === null) return setError("Fecha de nacimiento invalida"), false;
-    if (age < minAge) {
+    const status = getUserProfileStatus({
+      nombre,
+      apellido,
+      genero,
+      fechaNacimiento,
+      minAge,
+    });
+    if (!status.nombre.trim()) return setError("Ingresa nombre"), false;
+    if (!status.apellido.trim()) return setError("Ingresa apellido"), false;
+    if (!status.genero.trim()) return setError("Selecciona genero"), false;
+    if (!status.birthStatus.isValid) {
+      return setError("Fecha de nacimiento invalida"), false;
+    }
+    if (status.birthStatus.isUnderage) {
       setError(
         roleFromOnboarding === AUTH_ROLES.NEGOCIO
           ? "Debes ser mayor de edad para administrar un negocio"
@@ -387,6 +522,8 @@ export function useAuthEngine() {
       );
       return false;
     }
+    const isoBirth = buildBirthdateISO(fechaNacimiento);
+    if (!isoBirth) return setError("Fecha de nacimiento invalida"), false;
 
     const current = await getCurrentUserRow();
     if (!current.ok) {
@@ -396,9 +533,9 @@ export function useAuthEngine() {
 
     setLoading(true);
     const payload = {
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      genero: genero.trim(),
+      nombre: status.nombre.trim(),
+      apellido: status.apellido.trim(),
+      genero: status.genero.trim(),
       fecha_nacimiento: isoBirth,
       ...(current.data.role === "cliente" ? { cliente_profile_skipped: false } : {}),
     };
@@ -717,15 +854,16 @@ export function useAuthEngine() {
     setError("");
     setInfo("");
 
-    const normalizedPhone = normalizePhoneValue(telefono);
-    if (!normalizedPhone) {
+    const parsedPhone = parsePhoneWithCountry(telefono);
+    if (!parsedPhone.digits) {
       setError("Ingresa telefono");
       return false;
     }
-    if (normalizedPhone.replace(/\D/g, "").length < 6) {
+    if (!isPhoneValidForCountry(parsedPhone.code, parsedPhone.digits)) {
       setError("Telefono invalido");
       return false;
     }
+    const normalizedPhone = toStoragePhone(parsedPhone.code, parsedPhone.digits);
     if (ruc && !validateRucFromCedula(ruc)) {
       setError("RUC invalido");
       return false;
@@ -833,6 +971,15 @@ export function useAuthEngine() {
 
     const providers = Array.isArray(latest.providers) ? latest.providers : [];
     const primaryProvider = latest.provider || "email";
+    const latestUser = latest.usuario || {};
+    const latestHasPassword = Boolean(latestUser.has_password);
+    const latestHasMfa = Boolean(
+      latestUser.mfa_totp_enabled ||
+        latestUser.mfa_method ||
+        latestUser.mfa_primary_method ||
+        latestUser.mfa_enrolled_at,
+    );
+    const isOauthPrimary = primaryProvider !== "email";
     const isEmailOnly =
       primaryProvider === "email" &&
       providers.length <= 1 &&
@@ -840,6 +987,10 @@ export function useAuthEngine() {
 
     if (isEmailOnly && !latest.email_confirmed) {
       setError("Tu correo aun no ha sido confirmado.");
+      return false;
+    }
+    if (isOauthPrimary && !latestHasPassword && !latestHasMfa) {
+      setError("Agrega contrasena o MFA para finalizar.");
       return false;
     }
 
@@ -914,6 +1065,7 @@ export function useAuthEngine() {
     setLng,
     submitLogin,
     submitRegister,
+    startOAuth,
     submitRoleSelection,
     submitOwnerProfile,
     submitBusinessData,

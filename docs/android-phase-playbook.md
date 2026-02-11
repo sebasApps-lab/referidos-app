@@ -44,100 +44,53 @@
 
 ---
 
-## Phase 1 - Platform Stability and Build Determinism
-**Goal:** RN app boots reliably (device + emulator) with deterministic dependency/runtime resolution.
+## Phase 1 - Closed
+**Status:** completed.
 
-### 1.1 Dependency resolution hardening
-- [ ] Pin and validate a single runtime copy for `react` and `react-native`.
-- [ ] Pin and validate a single type source for React in RN TypeScript (`@types/react`) to avoid cross-workspace JSX type conflicts.
-- [ ] Ensure navigation stack resolves coherently:
-- [ ] `@react-navigation/native`
-- [ ] `@react-navigation/native-stack`
-- [ ] `@react-navigation/bottom-tabs`
-- [ ] `@react-navigation/elements`
-- [ ] `@react-navigation/core`
-- [ ] `@react-navigation/routers`
-- [ ] Ensure only one effective copy for native modules:
-- [ ] `react-native-safe-area-context`
-- [ ] `react-native-screens`
-- [ ] `react-native-gesture-handler`
-- [ ] Verify Metro resolution and Android autolinking point to the same module sources for the native-critical packages.
-- [ ] Audit `autolinking.json` for all native deps used by RN app and remove mixed-source duplicates where they produce runtime conflicts.
-- [ ] Add a dependency health check command/script (`npm ls` based) and define failure criteria for duplicate critical runtime packages.
-
-### 1.2 Runtime env and bootstrap
-- [ ] Validate env loading order in RN (`env.json` + runtime env fallback).
-- [ ] Define secure env workflow for RN (template file committed, local secrets ignored) and remove accidental secret drift from tracked files.
-- [ ] Validate `SUPABASE_URL` and `SUPABASE_ANON_KEY` parse and bootstrap without Hermes URL/polyfill errors.
-- [ ] Ensure bootstrap state can reach `email-login` without redbox.
-
-### 1.3 Tooling and runbook
-- [ ] Standardize dev commands (one canonical flow for Metro + install/run).
-- [ ] Add explicit troubleshooting section for:
-- [ ] Metro cache reset,
-- [ ] port collisions,
-- [ ] duplicate module/view registration,
-- [ ] Gradle lock/daemon hangs.
-- [ ] Ensure `.gitignore` excludes Android build/cache artifacts and local SDK/gradle cache dirs.
-
-### 1.4 Verification
-- [ ] Cold start on physical device.
-- [ ] Cold start on emulator.
-- [ ] Re-open app after killing process.
-- [ ] `assembleDebug` builds clean.
-- [ ] no runtime crash on initial screen.
-
-**DoD Phase 1**
-- App launches consistently to login screen on device and emulator.
-- No `Invalid hook call`, no `RNCSafeAreaView` duplicate registration, no navigation provider undefined errors.
+### Phase 1 closure evidence
+- Runtime/dependency health check is green: `npm run android:phase1:health`.
+- Android debug build is deterministic: `npm run android:assemble:debug`.
+- Cold start + reopen after process kill validated on:
+- physical device
+- emulator
+- App reaches login without initial redbox/runtime crash.
 
 ---
 
-## Phase 2 - Auth and Onboarding Parity (1:1 behavior)
-**Goal:** same entry decisions, same step fallback logic, same outcomes as PWA.
+## Phase 2 - Closed
+**Status:** completed.
 
-### 2.1 Auth entry and bootstrap state machine
-- [ ] Mirror PWA auth bootstrap sequence in RN store.
-- [ ] Preserve reason-based routing (`allowAccess` + `reasons`) from onboarding.
-- [ ] Preserve role routing behavior (`cliente`, `negocio`, `admin`, `soporte`).
-- [ ] Preserve soporte/admin onboarding bypass rules where applicable (no unintended fallthrough to registro/account-verify steps).
-
-### 2.2 Login/register flows
-- [ ] Welcome screen parity.
-- [ ] Email login flow parity (validation + loading + errors + success route).
-- [ ] Register flow parity.
-- [ ] OAuth callback parity.
-
-### 2.3 Onboarding steps parity
-- [ ] Owner step parity.
-- [ ] Business data + category parity.
-- [ ] Business address step parity (2-screen behavior, prefill, validation order).
-- [ ] Business verify step parity.
-- [ ] Account verify prompt parity.
-- [ ] Account verify step parity (screen 1 + screen 2 behavior by provider).
-- [ ] Email verify / method / ready parity.
-
-### 2.4 Provider-conditional behavior
-- [ ] Provider `email` path parity.
-- [ ] Provider `oauth` path parity.
-- [ ] Password add/update behavior parity where applicable.
-- [ ] MFA add flow parity (or explicit defer note if backend/app scope excludes it).
-- [ ] Finalization and verification status transitions parity.
-
-### 2.5 Validation parity
-- [ ] Phone formatting/parsing parity.
-- [ ] RUC validation parity.
-- [ ] Name/date/gender rules parity.
-- [ ] Error reason mapping parity (same fallback step for same missing data).
-
-### 2.6 Verification
-- [ ] Test matrix for new user (cliente).
-- [ ] Test matrix for new user (negocio).
-- [ ] Existing user with partial registration.
-- [ ] Existing verified user direct access.
-
-**DoD Phase 2**
-- For identical backend state, RN and PWA land on the same step and produce same outcome.
+### Phase 2 closure evidence
+- PWA source behaviors mirrored (references):
+  - `apps/referidos-app/src/auth/hooks/useAuthFlow.js`
+  - `apps/referidos-app/src/auth/hooks/useAuthActions.js`
+  - `apps/referidos-app/src/auth/steps/OAuthCallbackStep.jsx`
+  - `apps/referidos-app/src/auth/steps/UserProfileStep.jsx`
+  - `apps/referidos-app/src/auth/steps/BusinessDataStep.jsx`
+  - `apps/referidos-app/src/auth/steps/UserAddressStep.jsx`
+  - `apps/referidos-app/src/auth/steps/BusinessVerifyStep.jsx`
+  - `apps/referidos-app/src/auth/steps/AccountVerifyPrompt.jsx`
+  - `apps/referidos-app/src/auth/steps/AccountVerifyMethodStep.jsx`
+  - `apps/referidos-app/src/auth/steps/EmailVerifyStep.jsx`
+- Auth bootstrap/routing parity implemented in RN auth engine:
+  - `apps/referidos-android/src/features/auth/hooks/useAuthEngine.ts`
+  - `packages/domain/src/auth/flowRules.js`
+- Login/register/OAuth callback parity implemented:
+  - `apps/referidos-android/src/features/auth/AuthFlowScreen.tsx`
+  - `apps/referidos-android/src/features/auth/hooks/useAuthEngine.ts`
+  - `apps/referidos-android/android/app/src/main/AndroidManifest.xml`
+  - `apps/referidos-android/src/shared/constants/env.ts`
+- Onboarding/auth-step parity blocks wired:
+  - owner/business/address/business-verify/account-verify/email-verify/method/ready
+  - `apps/referidos-android/src/features/auth/blocks/*`
+- Validation parity moved to shared domain and consumed by RN:
+  - `packages/domain/src/normalizers/userProfile.js`
+  - `packages/domain/src/normalizers/phone.js`
+- Automated verification matrix is green:
+  - `npm run android:phase2:auth-check` -> `Phase 2 auth/onboarding parity logic checks: OK`
+  - covers new cliente, new negocio, partial registration, verified direct access, support/admin bypass.
+- RN compile verification is green:
+  - `npm run typecheck -w @apps/referidos-android` -> success.
 
 ---
 
@@ -344,5 +297,5 @@
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 1 - Platform Stability and Build Determinism`
-- Next review trigger: when all `Phase 1` tasks are either `[x]` or explicitly deferred.
+- Active phase: `Phase 3 - App Shell, Navigation, UI System, and Tab Cache`
+- Next review trigger: when `Phase 3` DoD is met with verification evidence.

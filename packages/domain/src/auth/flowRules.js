@@ -74,6 +74,9 @@ export function resolveRegistrationStep({ onboarding, role }) {
 
 export function resolveVerificationStep({ onboarding, role }) {
   if (!onboarding?.allowAccess) return null;
+  if (role !== "cliente" && role !== "negocio") {
+    return AUTH_STEPS.PENDING;
+  }
 
   const status = onboarding?.verification_status || "unverified";
   const emailConfirmed = Boolean(onboarding?.email_confirmed);

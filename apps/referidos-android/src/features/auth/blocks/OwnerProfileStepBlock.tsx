@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { formatBirthdateInput, normalizeUserName } from "@referidos/domain";
 
 const GENDER_OPTIONS = [
   { value: "femenino", label: "Femenino" },
@@ -7,23 +8,6 @@ const GENDER_OPTIONS = [
   { value: "no_binario", label: "No-binario" },
   { value: "no_especificar", label: "Prefiero no especificar" },
 ];
-
-function formatBirthInput(value: string) {
-  const clean = String(value || "").replace(/\D/g, "").slice(0, 8);
-  if (clean.length <= 2) return clean;
-  if (clean.length <= 4) return `${clean.slice(0, 2)}/${clean.slice(2)}`;
-  return `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4)}`;
-}
-
-function normalizeBirthInput(value: string) {
-  return String(value || "").replace(/\D/g, "").slice(0, 8);
-}
-
-function sanitizePersonName(value: string) {
-  return String(value || "")
-    .replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, "")
-    .slice(0, 26);
-}
 
 type Props = {
   nombre: string;
@@ -55,18 +39,18 @@ export default function OwnerProfileStepBlock({
       <FieldLabel text="Nombre(s)" />
       <TextInput
         value={nombre}
-        onChangeText={(text) => onNombreChange(sanitizePersonName(text))}
+        onChangeText={(text) => onNombreChange(normalizeUserName(text))}
         style={styles.input}
       />
 
       <FieldLabel text="Apellido(s)" />
       <TextInput
         value={apellido}
-        onChangeText={(text) => onApellidoChange(sanitizePersonName(text))}
+        onChangeText={(text) => onApellidoChange(normalizeUserName(text))}
         style={styles.input}
       />
 
-      <FieldLabel text="¿Con qué genero te identificas?" />
+      <FieldLabel text="Con que genero te identificas?" />
       <View style={styles.genderWrap}>
         {GENDER_OPTIONS.map((item) => (
           <Pressable
@@ -74,23 +58,34 @@ export default function OwnerProfileStepBlock({
             onPress={() => onGeneroChange(item.value)}
             style={[styles.roleChip, genero === item.value && styles.roleChipSelected]}
           >
-            <Text style={[styles.roleChipText, genero === item.value && styles.roleChipTextSelected]}>
+            <Text
+              style={[
+                styles.roleChipText,
+                genero === item.value && styles.roleChipTextSelected,
+              ]}
+            >
               {item.label}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      <FieldLabel text="¿Cuando naciste? (DD/MM/AAAA)" />
+      <FieldLabel text="Cuando naciste? (DD/MM/AAAA)" />
       <TextInput
-        value={formatBirthInput(fechaNacimiento)}
-        onChangeText={(text) => onFechaNacimientoChange(normalizeBirthInput(text))}
+        value={formatBirthdateInput(fechaNacimiento)}
+        onChangeText={(text) => onFechaNacimientoChange(formatBirthdateInput(text))}
         style={styles.input}
         keyboardType="number-pad"
       />
 
-      <Pressable onPress={onSubmit} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Guardar y continuar"}</Text>
+      <Pressable
+        onPress={onSubmit}
+        disabled={loading}
+        style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+      >
+        <Text style={styles.primaryButtonText}>
+          {loading ? "Cargando..." : "Guardar y continuar"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -158,4 +153,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-

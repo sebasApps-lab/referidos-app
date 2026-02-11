@@ -19,6 +19,7 @@ function normalizeValue(value: unknown) {
 const FILE_SUPABASE_URL = normalizeValue(FILE_ENV.SUPABASE_URL);
 const FILE_SUPABASE_ANON_KEY = normalizeValue(FILE_ENV.SUPABASE_ANON_KEY);
 const FILE_APP_VERSION = normalizeValue(FILE_ENV.APP_VERSION);
+const FILE_AUTH_REDIRECT_URL = normalizeValue(FILE_ENV.AUTH_REDIRECT_URL);
 
 const RUNTIME_SUPABASE_URL = normalizeValue(
   process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
@@ -29,12 +30,19 @@ const RUNTIME_SUPABASE_ANON_KEY = normalizeValue(
 const RUNTIME_APP_VERSION = normalizeValue(
   process.env.EXPO_PUBLIC_APP_VERSION || process.env.APP_VERSION,
 );
+const RUNTIME_AUTH_REDIRECT_URL = normalizeValue(
+  process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL || process.env.AUTH_REDIRECT_URL,
+);
 
 export const MOBILE_ENV = {
   // Prefer local env.json in React Native CLI to avoid stale shell env overriding.
   SUPABASE_URL: FILE_SUPABASE_URL || RUNTIME_SUPABASE_URL || "",
   SUPABASE_ANON_KEY: FILE_SUPABASE_ANON_KEY || RUNTIME_SUPABASE_ANON_KEY || "",
   APP_VERSION: FILE_APP_VERSION || RUNTIME_APP_VERSION || "0.0.0-mobile",
+  AUTH_REDIRECT_URL:
+    FILE_AUTH_REDIRECT_URL ||
+    RUNTIME_AUTH_REDIRECT_URL ||
+    "referidosandroid://auth/callback",
 };
 
 export function assertMobileEnv() {
@@ -45,6 +53,13 @@ export function assertMobileEnv() {
   if (!/^https?:\/\/[^/\s]+/i.test(MOBILE_ENV.SUPABASE_URL)) {
     throw new Error(
       `Invalid SUPABASE_URL for referidos-android: "${MOBILE_ENV.SUPABASE_URL}"`,
+    );
+  }
+  if (
+    !/^[a-z][a-z0-9+.-]*:\/\/[^/\s]+/i.test(MOBILE_ENV.AUTH_REDIRECT_URL)
+  ) {
+    throw new Error(
+      `Invalid AUTH_REDIRECT_URL for referidos-android: "${MOBILE_ENV.AUTH_REDIRECT_URL}"`,
     );
   }
 }
