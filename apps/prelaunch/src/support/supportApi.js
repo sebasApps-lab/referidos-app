@@ -33,10 +33,6 @@ export function createAnonymousSupportThread(payload = {}) {
   return invokePublicFunction("support-create-anon-thread", payload);
 }
 
-export function getAnonymousSupportThreadStatus(payload = {}) {
-  return invokePublicFunction("support-anon-thread-status", payload);
-}
-
 export function cancelAnonymousSupportThread(payload = {}) {
   return invokePublicFunction("support-anon-cancel-thread", payload);
 }

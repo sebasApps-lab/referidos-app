@@ -1,47 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   cancelAnonymousSupportThread,
   createAnonymousSupportThread,
-  getAnonymousSupportThreadStatus,
 } from "./supportApi";
 
 const CATEGORIES = [
-  { id: "acceso", label: "Acceso / Cuenta" },
-  { id: "qr", label: "QR / Escaner" },
-  { id: "promos", label: "Promociones" },
-  { id: "negocios_sucursales", label: "Negocios / Sucursales" },
-  { id: "bug_performance", label: "Bug / Rendimiento" },
+  { id: "acceso", label: "Pregunta o inquietud" },
+  { id: "bug_performance", label: "Ayuda o soporte" },
   { id: "sugerencia", label: "Sugerencia" },
+  { id: "borrar_correo_waitlist", label: "Borrar correo de lista de espera" },
 ];
 
-const STORAGE_KEY = "prelaunch_anon_support_last";
+const DEFAULT_CATEGORY = "acceso";
 const SUMMARY_MAX = 240;
-const SHOW_LEGACY_STATUS_BUTTON = false;
-const ACTIVE_CHAT_STATUSES = new Set(["assigned", "in_progress", "waiting_user"]);
+const ECUADOR_PREFIX = "593";
+const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
 
-function normalizeWhatsapp(value) {
-  const digits = (value || "").replace(/\D/g, "");
-  if (digits.length < 8 || digits.length > 16) return null;
+function normalizeWhatsappLocal(value) {
+  let digits = (value || "").replace(/\D/g, "");
+  if (digits.startsWith(ECUADOR_PREFIX)) {
+    digits = digits.slice(ECUADOR_PREFIX.length);
+  }
+  if (digits.length < 8 || digits.length > 10) return null;
   return digits;
 }
 
-function readStoredTicket() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function persistStoredTicket(payload) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    // no-op
-  }
+function normalizeEmail(value) {
+  const normalized = (value || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  return normalized;
 }
 
 function SupportModal({
@@ -53,6 +41,7 @@ function SupportModal({
   onConfirm,
   onCancel,
   confirmDisabled = false,
+  children = null,
 }) {
   if (!open) return null;
 
@@ -61,6 +50,7 @@ function SupportModal({
       <div className="w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
         <div className="text-base font-semibold text-[#2F1A55]">{title}</div>
         <div className="mt-3 text-sm text-slate-600">{body}</div>
+        {children ? <div className="mt-4">{children}</div> : null}
         <div className="mt-5 flex gap-3">
           {cancelLabel ? (
             <button
@@ -90,74 +80,52 @@ function SupportModal({
 export default function SupportRequestPage({ channel = "whatsapp" }) {
   const isChatRoute = channel === "whatsapp";
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const path = location.pathname.toLowerCase();
-  const activeTab = path === "/soporte-ticket"
-    ? "ticket"
-    : path === "/soporte-correo"
-    ? "email"
-    : path === "/soporte-chat"
-    ? "chat"
-    : searchParams.get("tab") === "ticket"
-    ? "ticket"
-    : isChatRoute
-    ? "chat"
-    : "email";
+  const activeTab = path === "/soporte-correo" ? "email" : isChatRoute ? "chat" : "email";
+  const requestedCategory = (searchParams.get("tipo") || "").trim().toLowerCase();
+  const categoryFromQuery = CATEGORIES.some((item) => item.id === requestedCategory)
+    ? requestedCategory
+    : DEFAULT_CATEGORY;
 
   const [contact, setContact] = useState("");
   const [summary, setSummary] = useState("");
-  const [category, setCategory] = useState("sugerencia");
+  const [category, setCategory] = useState(categoryFromQuery);
   const [submitting, setSubmitting] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [storedTicket, setStoredTicket] = useState(null);
-  const [statusResult, setStatusResult] = useState(null);
   const [error, setError] = useState("");
+  const [createdTicket, setCreatedTicket] = useState(null);
+  const [ticketCopied, setTicketCopied] = useState(false);
   const [saveTicketModalOpen, setSaveTicketModalOpen] = useState(false);
   const [replacePrompt, setReplacePrompt] = useState(null);
   const [replaceLoading, setReplaceLoading] = useState(false);
   const summaryRef = useRef(null);
 
-  const isTicketTab = activeTab === "ticket";
   const isChatTab = activeTab === "chat";
   const isEmailTab = activeTab === "email";
   const selectedChannel = isEmailTab ? "email" : "whatsapp";
-  const currentTicket = result || storedTicket;
 
-  const subtitle = isChatTab
-    ? "No dudes en escribirnos con cualquier duda o pregunta que tengas."
-    : isEmailTab
-    ? "Comparte tu caso y te responderemos por correo."
-    : "Consulta el estado actual de tu ticket y vuelve cuando lo necesites.";
-
-  const contactLabel = "Numero de WhatsApp";
-  const contactPlaceholder = "593999999999";
-  const normalizedWhatsapp = useMemo(() => normalizeWhatsapp(contact), [contact]);
-
-  const canSubmit = useMemo(
-    () => Boolean(normalizedWhatsapp) && summary.trim().length > 4 && !submitting,
-    [normalizedWhatsapp, submitting, summary],
+  const contactLabel = selectedChannel === "email" ? "Correo electronico" : "Numero de WhatsApp";
+  const contactPlaceholder = selectedChannel === "email" ? "tu@email.com" : "99 7773231";
+  const normalizedWhatsappLocal = useMemo(() => normalizeWhatsappLocal(contact), [contact]);
+  const normalizedWhatsapp = useMemo(
+    () => (normalizedWhatsappLocal ? `${ECUADOR_PREFIX}${normalizedWhatsappLocal}` : null),
+    [normalizedWhatsappLocal],
+  );
+  const normalizedEmail = useMemo(() => normalizeEmail(contact), [contact]);
+  const normalizedContact = useMemo(
+    () => (selectedChannel === "email" ? normalizedEmail : normalizedWhatsapp),
+    [normalizedEmail, normalizedWhatsapp, selectedChannel],
   );
 
-  const ticketDetails = useMemo(() => {
-    if (!currentTicket) return null;
-    if (!statusResult) return null;
-    if (statusResult.public_id !== currentTicket.thread_public_id) return null;
-    return statusResult;
-  }, [currentTicket, statusResult]);
+  const canSubmit = useMemo(
+    () => Boolean(normalizedContact) && !submitting,
+    [normalizedContact, submitting],
+  );
 
-  const ticketStatus = ticketDetails?.status || currentTicket?.status || null;
-  const anonymousWhatsapp =
-    ticketDetails?.anon_profile?.contact_value ||
-    currentTicket?.contact ||
-    null;
-  const canOpenWhatsapp = Boolean(ticketDetails?.wa_link) && ACTIVE_CHAT_STATUSES.has(ticketStatus);
-
-  const openTicketTab = useCallback(() => {
-    navigate("/soporte-ticket");
-  }, [navigate]);
+  const subtitle = isChatTab
+    ? "Selecciona tu tipo de inquietud y crea el ticket para recibir ayuda. Te responderemos por nuestro canal de whatsapp al numero que ingreses."
+    : "Selecciona tu tipo de inquietud y crea el ticket para recibir ayuda. Te responderemos al correo electronico que ingreses.";
 
   const resizeSummaryInput = useCallback(() => {
     const node = summaryRef.current;
@@ -166,57 +134,43 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     node.style.height = `${Math.max(node.scrollHeight, 104)}px`;
   }, []);
 
-  const handleCheckStatus = useCallback(async (silent = false, baseTicket = null) => {
-    const base = baseTicket || result || storedTicket || readStoredTicket();
-    if (!base?.thread_public_id || !base?.tracking_token) {
-      if (!silent) setError("No hay ticket para consultar.");
-      return;
-    }
-
-    setStatusLoading(true);
-    if (!silent) setError("");
-
-    const response = await getAnonymousSupportThreadStatus({
-      thread_public_id: base.thread_public_id,
-      tracking_token: base.tracking_token,
-    });
-
-    setStatusLoading(false);
-    if (!response.ok || !response.data?.ok) {
-      if (!silent) {
-        setError(response.error || response.data?.error || "No se pudo consultar el ticket.");
-      }
-      return;
-    }
-
-    setStatusResult(response.data.thread);
-  }, [result, storedTicket]);
-
   useEffect(() => {
-    setStoredTicket(readStoredTicket());
-  }, []);
-
-  useEffect(() => {
-    if (isTicketTab && currentTicket?.thread_public_id && !ticketDetails && !statusLoading) {
-      void handleCheckStatus(true);
-    }
-  }, [currentTicket?.thread_public_id, handleCheckStatus, isTicketTab, statusLoading, ticketDetails]);
+    setCategory(categoryFromQuery);
+  }, [categoryFromQuery]);
 
   useEffect(() => {
     resizeSummaryInput();
-  }, [resizeSummaryInput, summary, isTicketTab]);
+  }, [resizeSummaryInput, summary]);
+
+  const copyTicketNumber = useCallback(async (ticketNumber) => {
+    if (!ticketNumber) return;
+    try {
+      await navigator.clipboard.writeText(ticketNumber);
+    } catch {
+      const hidden = document.createElement("textarea");
+      hidden.value = ticketNumber;
+      hidden.style.position = "fixed";
+      hidden.style.opacity = "0";
+      document.body.appendChild(hidden);
+      hidden.focus();
+      hidden.select();
+      document.execCommand("copy");
+      document.body.removeChild(hidden);
+    }
+    setTicketCopied(true);
+    window.setTimeout(() => setTicketCopied(false), 1600);
+  }, []);
 
   async function submitConversation() {
-    if (!canSubmit || isTicketTab) return;
+    if (!canSubmit) return;
 
     setSubmitting(true);
     setError("");
-    setStatusResult(null);
 
     const payload = {
-      channel: "whatsapp",
-      contact: normalizedWhatsapp,
-      summary: summary.trim(),
+      channel: selectedChannel,
+      contact: normalizedContact,
+      summary: summary.trim() || "Sin descripcion adicional.",
       category,
       severity: "s2",
       origin_source: "prelaunch",
@@ -251,23 +205,13 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
     const created = {
       thread_public_id: response.data.thread_public_id,
-      tracking_token: response.data.tracking_token,
-      wa_link: response.data.wa_link || null,
-      wa_message_text: response.data.wa_message_text || null,
-      status: response.data.status || "new",
       channel: selectedChannel,
-      contact: normalizedWhatsapp,
-      category,
-      summary: summary.trim(),
-      created_at: new Date().toISOString(),
     };
 
-    setResult(created);
-    setStoredTicket(created);
-    persistStoredTicket(created);
-    openTicketTab();
+    setCreatedTicket(created);
+    setTicketCopied(false);
     setSaveTicketModalOpen(true);
-    void handleCheckStatus(true, created);
+    void copyTicketNumber(created.thread_public_id);
   }
 
   async function handleReplaceTicket() {
@@ -294,7 +238,13 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9F6FF] text-slate-700 flex flex-col">
+    <div
+      className="min-h-screen bg-[#F9F6FF] text-slate-700 flex flex-col"
+      style={{
+        "--brand-purple": "#5E30A5",
+        "--brand-yellow": "#FFC21C",
+      }}
+    >
       <main className="mx-auto w-full max-w-3xl px-6 py-10 flex-1">
         <header className="mb-8 grid grid-cols-3 items-center">
           <Link to="/" className="justify-self-start text-lg font-semibold hover:opacity-85">
@@ -309,69 +259,88 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         </header>
 
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 shadow-sm overflow-visible">
-          <div className="-mx-2 flex w-[calc(100%+1rem)] items-end justify-between gap-2 overflow-visible whitespace-nowrap bg-transparent px-2 md:-mx-3 md:w-[calc(100%+1.5rem)] md:gap-4 md:px-3">
-            <Link
-              to="/soporte-chat"
-              className={`bg-transparent px-3 pt-0 pb-2 text-center text-2xl font-semibold leading-none whitespace-nowrap ${
-                isChatTab
-                  ? "text-[#2F1A55]"
-                  : "text-slate-300"
-              }`}
-            >
-              Chat de soporte
-            </Link>
+          <div className="-mx-2 grid w-[calc(100%+1rem)] grid-cols-[1fr_auto_1fr] items-end gap-2 overflow-visible whitespace-nowrap bg-transparent px-2 md:-mx-3 md:w-[calc(100%+1.5rem)] md:gap-4 md:px-3">
+            <div className="flex w-full justify-center">
+              <Link
+                to="/soporte-chat"
+                className={`bg-transparent px-3 pt-0 pb-2 text-center text-2xl font-semibold leading-none whitespace-nowrap ${
+                  isChatTab
+                    ? "text-[#2F1A55]"
+                    : "text-slate-300"
+                }`}
+              >
+                Chat de soporte
+              </Link>
+            </div>
             <div className="h-7 w-px shrink-0 self-end bg-[#D3C8E8] shadow-[0_0_10px_rgba(211,200,232,0.95)]" />
-            <Link
-              to="/soporte-correo"
-              className={`bg-transparent px-3 pt-0 pb-2 text-center text-2xl font-semibold leading-none whitespace-nowrap ${
-                isEmailTab
-                  ? "text-[#2F1A55]"
-                  : "text-slate-300"
-              }`}
-            >
-              Soporte por correo
-            </Link>
-            <div className="h-7 w-px shrink-0 self-end bg-[#D3C8E8] shadow-[0_0_10px_rgba(211,200,232,0.95)]" />
-            <button
-              type="button"
-              onClick={openTicketTab}
-              className={`bg-transparent px-3 pt-0 pb-2 text-center text-2xl font-semibold leading-none whitespace-nowrap ${
-                isTicketTab
-                  ? "text-[#2F1A55]"
-                  : "text-slate-300"
-              }`}
-            >
-              Mi ticket
-            </button>
+            <div className="flex w-full justify-center">
+              <Link
+                to="/soporte-correo"
+                className={`bg-transparent px-3 pt-0 pb-2 text-center text-2xl font-semibold leading-none whitespace-nowrap ${
+                  isEmailTab
+                    ? "text-[#2F1A55]"
+                    : "text-slate-300"
+                }`}
+              >
+                Soporte por correo
+              </Link>
+            </div>
           </div>
 
           <div className="mt-5">
             <p className="text-sm text-slate-500">{subtitle}</p>
           </div>
 
-          {!isTicketTab ? (
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submitConversation();
-              }}
-            >
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitConversation();
+            }}
+          >
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#2F1A55]">
                   {contactLabel}
                 </label>
-                <input
-                  value={contact}
-                  onChange={(event) => setContact(event.target.value)}
-                  placeholder={contactPlaceholder}
-                  className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
-                />
+                {isEmailTab ? (
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={contact}
+                    onChange={(event) => setContact(event.target.value)}
+                    placeholder={contactPlaceholder}
+                    className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
+                  />
+                ) : (
+                  <div className="w-full overflow-hidden rounded-2xl border border-[#E9E2F7] focus-within:border-[#5E30A5]">
+                    <div className="flex items-center">
+                      <div className="flex shrink-0 items-center gap-2 px-3 py-3">
+                        <img
+                          src={ECUADOR_FLAG_SVG_URL}
+                          alt="Bandera de Ecuador"
+                          className="h-4 w-6 rounded-[2px] object-cover"
+                          loading="lazy"
+                        />
+                        <span className="text-sm font-semibold text-slate-600">+593</span>
+                      </div>
+                      <div className="h-6 w-px bg-[#E9E2F7]" />
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel-national"
+                        value={contact}
+                        onChange={(event) => setContact(event.target.value)}
+                        placeholder={contactPlaceholder}
+                        className="w-full bg-transparent px-3 py-3 text-sm outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#2F1A55]">
-                  Categoria
+                  Tipo de inquietud
                 </label>
                 <select
                   value={category}
@@ -388,7 +357,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#2F1A55]">
-                  Descripcion
+                  Descripcion <span className="font-normal text-slate-400">(opcional)</span>
                 </label>
                 <textarea
                   ref={summaryRef}
@@ -396,12 +365,13 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                   onChange={(event) => setSummary(event.target.value)}
                   rows={4}
                   maxLength={SUMMARY_MAX}
-                  placeholder="Describe tu pregunta o inquietud."
+                  placeholder="Describe tu pregunta o inquietud de manera detallada para una atencion mas eficiente."
                   className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5] resize-none overflow-hidden"
                 />
                 <div className="text-[11px] text-slate-400 text-right">
                   {summary.length}/{SUMMARY_MAX}
                 </div>
+                <p className="text-xs text-slate-500">El tiempo de respuesta es de 6-48h.</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -412,62 +382,10 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                     canSubmit ? "bg-[#5E30A5] hover:bg-[#4A2486]" : "bg-[#C9B6E8]"
                   }`}
                 >
-                  {submitting ? "Iniciando..." : "Iniciar conversacion"}
+                  {submitting ? "Creando ticket..." : "Crear ticket de soporte"}
                 </button>
-                {SHOW_LEGACY_STATUS_BUTTON ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleCheckStatus(false)}
-                    disabled={statusLoading}
-                    className="rounded-2xl border border-[#E9E2F7] px-5 py-3 text-sm font-semibold text-[#5E30A5]"
-                  >
-                    {statusLoading ? "Consultando..." : "Consultar estado"}
-                  </button>
-                ) : null}
               </div>
-            </form>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {!currentTicket ? (
-                <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 text-sm text-slate-600">
-                  <div className="font-semibold text-[#2F1A55]">Estado</div>
-                  <div className="mt-2">No tienes tickets.</div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4 space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-semibold text-[#2F1A55]">Estado de tu ticket</div>
-                    <button
-                      type="button"
-                      onClick={() => void handleCheckStatus(false)}
-                      disabled={statusLoading}
-                      className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]"
-                    >
-                      {statusLoading ? "Actualizando..." : "Refresh"}
-                    </button>
-                  </div>
-                  <div>Ticket: {currentTicket.thread_public_id}</div>
-                  <div>Estado: {ticketStatus || "new"}</div>
-                  <div>Categoria: {ticketDetails?.category || currentTicket.category || "-"}</div>
-                  <div>
-                    Numero de WhatsApp registrado: {anonymousWhatsapp || "-"}
-                  </div>
-                  {ticketDetails?.resolution ? (
-                    <div>Resolucion: {ticketDetails.resolution}</div>
-                  ) : null}
-                  {canOpenWhatsapp ? (
-                    <button
-                      type="button"
-                      onClick={() => window.open(ticketDetails.wa_link, "_blank", "noopener,noreferrer")}
-                      className="rounded-xl bg-[#25D366] px-4 py-2 text-xs font-semibold text-white"
-                    >
-                      Abrir WhatsApp
-                    </button>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          )}
+          </form>
 
           {error ? (
             <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
@@ -477,7 +395,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         </div>
       </main>
 
-      <footer className="relative z-10 w-full bg-[#2F1A55] pb-12 pt-6">
+      <footer className="relative z-10 w-full bg-[var(--brand-purple)] pb-12 pt-6">
         <div className="mx-auto w-full max-w-6xl px-6">
           <div className="h-px w-full bg-gradient-to-r from-white/0 via-white/35 to-white/0" />
 
@@ -490,17 +408,17 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 </span>
               </div>
               <p className="mt-2 text-sm leading-6 text-white/75">
-                Catalogo de promociones y sistema de recompensas por canjearlas y referir.
+                Catálogo de promociones y sistema de recompensas por canjearlas y referir.
               </p>
               <div className="mt-4 text-xs text-white/65">
-                <div>(c) 2026 ReferidosAPP</div>
+                <div>© 2026 ReferidosAPP</div>
               </div>
             </div>
 
             <div>
-              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Informacion</h4>
+              <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Información</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guia de uso</a>
+                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guía de uso</a>
                 <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
               </div>
             </div>
@@ -519,7 +437,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
                 <a href="/soporte-chat" className="transition-colors hover:text-[var(--brand-yellow)]">Chat de soporte</a>
                 <a href="/soporte-correo" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte por correo</a>
-                <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Dejar un comentario</a>
+                <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Comentarios y sugerencias</a>
               </div>
             </div>
           </div>
@@ -528,13 +446,29 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
       <SupportModal
         open={saveTicketModalOpen}
-        title="Guarda tu numero de ticket"
-        body={currentTicket?.thread_public_id
-          ? `Te recomendamos guardar este numero para volver al chat cuando lo necesites: ${currentTicket.thread_public_id}`
-          : "Te recomendamos guardar tu numero de ticket para volver al chat cuando lo necesites."}
-        confirmLabel="Entendido"
+        title="Ticket creado"
+        body={
+          createdTicket?.channel === "email"
+            ? "Un asesor te escribira al correo electronico que proporcionaste."
+            : "Un asesor te escribira por nuestro canal de whatsapp al numero que proporcionaste."
+        }
+        confirmLabel="Cerrar"
         onConfirm={() => setSaveTicketModalOpen(false)}
-      />
+      >
+        <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] p-3 text-center">
+          <div className="text-xs text-slate-500">Numero de ticket</div>
+          <div className="mt-1 text-base font-semibold text-[#2F1A55]">
+            {createdTicket?.thread_public_id || "-"}
+          </div>
+          <button
+            type="button"
+            onClick={() => void copyTicketNumber(createdTicket?.thread_public_id || "")}
+            className="mt-3 rounded-lg border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+          >
+            {ticketCopied ? "Numero copiado" : "Copiar numero"}
+          </button>
+        </div>
+      </SupportModal>
 
       <SupportModal
         open={Boolean(replacePrompt)}

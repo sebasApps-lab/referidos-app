@@ -116,5 +116,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   reporte_abuso: "Reporte de abuso",
   bug_performance: "Bug / rendimiento",
   sugerencia: "Sugerencia",
+  borrar_correo_waitlist: "Borrar correo de lista de espera",
   tier_beneficios: "Tier / beneficios",
 };

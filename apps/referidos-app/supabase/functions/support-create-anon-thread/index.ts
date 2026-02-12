@@ -37,6 +37,12 @@ function normalizeWhatsapp(value: string) {
   return digits;
 }
 
+function normalizeEmail(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  return normalized;
+}
+
 function createTrackingToken() {
   return crypto.randomUUID().replace(/-/g, "");
 }
@@ -95,7 +101,7 @@ serve(async (req) => {
   }
 
   const requestedChannel = body.channel === "email" ? "email" : "whatsapp";
-  const channel = "whatsapp";
+  const channel = requestedChannel;
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
   const category = Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, body.category)
@@ -115,12 +121,14 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
   }
   if (!rawContact) {
-    return jsonResponse({ ok: false, error: "missing_whatsapp" }, 400, cors);
+    return jsonResponse({ ok: false, error: "missing_contact" }, 400, cors);
   }
 
-  const contactValue = normalizeWhatsapp(rawContact);
+  const contactValue = channel === "email"
+    ? normalizeEmail(rawContact)
+    : normalizeWhatsapp(rawContact);
   if (!contactValue) {
-    return jsonResponse({ ok: false, error: "invalid_whatsapp" }, 400, cors);
+    return jsonResponse({ ok: false, error: "invalid_contact" }, 400, cors);
   }
 
   const ip = getClientIp(req);
@@ -141,7 +149,7 @@ serve(async (req) => {
   }
 
   const profilePayload = {
-    contact_channel: "whatsapp",
+    contact_channel: channel,
     contact_value: contactValue,
     display_name: displayName,
     meta: {
@@ -341,11 +349,12 @@ serve(async (req) => {
 
   // For anonymous flow we only expose wa_link once a real advisor is assigned.
   const waLink = null;
+  const waMessageText = channel === "whatsapp" ? finalizedMessage : null;
 
   await supabaseAdmin
     .from("support_threads")
     .update({
-      wa_message_text: finalizedMessage,
+      wa_message_text: waMessageText,
       wa_link: waLink,
       updated_at: new Date().toISOString(),
     })
@@ -372,7 +381,7 @@ serve(async (req) => {
       anon_public_id: anonProfile.public_id,
       status: insertedThread.status,
       wa_link: waLink,
-      wa_message_text: finalizedMessage,
+      wa_message_text: waMessageText,
       tracking_token: trackingToken,
       channel,
       requested_channel: requestedChannel,

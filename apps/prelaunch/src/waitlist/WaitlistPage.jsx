@@ -69,12 +69,12 @@ const FAQ_CLIENTE_ITEMS = [
     answerNode: (
       <>
         Tu email se borrará automaticamente de la lista una vez te enviemos la invitación cuando inicie el acceso anticipado. Pero si deseas borrarlo y no recibir la notificación con tu invitación, puedes hacerlo facilmente contactando con{" "}
-        <button
-          type="button"
+        <a
+          href="/soporte-chat?tipo=borrar_correo_waitlist"
           className="text-[var(--brand-purple)] font-semibold hover:underline"
         >
           ayuda y soporte
-        </button>
+        </a>
         .
       </>
     ),
@@ -135,12 +135,12 @@ const FAQ_NEGOCIO_ITEMS = [
     answerNode: (
       <>
         Si necesitas ayuda o quieres más información no dudes en comunicarte con ayuda y soporte por nuestros canales de correo o whatsapp desde el panel pare negocios dentro de la app. Si aún no descargas la aplicación tambien puedes dejar tu correo y mensaje en el enlace de{" "}
-        <button
-          type="button"
+        <a
+          href="/soporte-chat"
           className="text-[var(--brand-purple)] font-semibold hover:underline"
         >
           ayuda y soporte
-        </button>
+        </a>
         .
       </>
     ),
@@ -1475,7 +1475,7 @@ export default function WaitlistPage() {
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
                 <a href="/soporte-chat" className="transition-colors hover:text-[var(--brand-yellow)]">Chat de soporte</a>
                 <a href="/soporte-correo" className="transition-colors hover:text-[var(--brand-yellow)]">Soporte por correo</a>
-                <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Dejar un comentario</a>
+                <a href="/feedback" className="transition-colors hover:text-[var(--brand-yellow)]">Comentarios y sugerencias</a>
               </div>
             </div>
           </div>
