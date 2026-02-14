@@ -30,6 +30,7 @@ export default function AdminSupportAgents() {
   const [timeFromEditingMap, setTimeFromEditingMap] = useState({});
   const [timeUntilEditingMap, setTimeUntilEditingMap] = useState({});
   const [refreshingMap, setRefreshingMap] = useState({});
+  const [globalRefreshing, setGlobalRefreshing] = useState(false);
   const [actionLoadingMap, setActionLoadingMap] = useState({});
   const [createForm, setCreateForm] = useState({
     nombre: "",
@@ -438,6 +439,18 @@ export default function AdminSupportAgents() {
     setRefreshingMap((prev) => ({ ...prev, [userId]: false }));
   };
 
+  const refreshAllAgents = async () => {
+    if (globalRefreshing) return;
+    setGlobalRefreshing(true);
+    try {
+      await loadAgents();
+    } finally {
+      if (mountedRef.current) {
+        setGlobalRefreshing(false);
+      }
+    }
+  };
+
   useEffect(() => {
     mountedRef.current = true;
     loadAgents();
@@ -661,6 +674,24 @@ export default function AdminSupportAgents() {
         </div>
 
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-[#2F1A55]">
+              Estado de asesores
+            </div>
+            <button
+              type="button"
+              onClick={refreshAllAgents}
+              disabled={loading || globalRefreshing}
+              className="rounded-full border border-[#E9E2F7] p-2 text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Refrescar todos los asesores"
+              aria-label="Refrescar todos los asesores"
+            >
+              <RefreshCw
+                size={14}
+                className={loading || globalRefreshing ? "animate-spin" : ""}
+              />
+            </button>
+          </div>
           {loading ? (
             <div className="text-sm text-slate-500">Cargando asesores...</div>
           ) : agents.length === 0 ? (

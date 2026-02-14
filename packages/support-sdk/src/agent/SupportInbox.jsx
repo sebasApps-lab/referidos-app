@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import SupportGate from "./SupportGate";
@@ -76,6 +77,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -96,7 +98,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     return () => {
       active = false;
     };
-  }, [isAdmin, usuario]);
+  }, [isAdmin, refreshNonce, usuario]);
 
   useEffect(() => {
     let active = true;
@@ -176,12 +178,29 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const content = (
     <div className="space-y-6">
       <div className="space-y-2">
-        <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
-          Soporte
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
+              Soporte
+            </div>
+            <h1 className="text-2xl font-extrabold text-[#2F1A55]">
+              Inbox de tickets
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRefreshNonce((prev) => prev + 1)}
+            disabled={loading || sessionLoading}
+            className="rounded-full border border-[#E9E2F7] p-2 text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+            title="Refrescar tickets"
+            aria-label="Refrescar tickets"
+          >
+            <RefreshCw
+              size={16}
+              className={loading || sessionLoading ? "animate-spin" : ""}
+            />
+          </button>
         </div>
-        <h1 className="text-2xl font-extrabold text-[#2F1A55]">
-          Inbox de tickets
-        </h1>
         <p className="text-sm text-slate-500">
           Gestiona tickets segun su estado, origen y prioridad.
         </p>
@@ -213,10 +232,10 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
             key={origin.id}
             type="button"
             onClick={() => setActiveOrigin(origin.id)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition outline-none focus:outline-none focus-visible:outline-none ${
               activeOrigin === origin.id
-                ? "bg-[#2F1A55] text-white"
-                : "bg-white text-[#2F1A55] border border-[#E9E2F7]"
+                ? "border-[#2F1A55] bg-[#2F1A55] text-[#D1D5DB]"
+                : "border-[#E9E2F7] bg-white text-[#D1D5DB]"
             }`}
           >
             {origin.label}
