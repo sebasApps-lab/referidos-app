@@ -22,6 +22,8 @@ import SupportIrregular from "@referidos/support-sdk/agent/SupportIrregular";
 import AdminSupportDesk from "./admin/support/AdminSupportDesk";
 import AdminSupportAgents from "./admin/support/AdminSupportAgents";
 import AdminSupportTicket from "./admin/support/AdminSupportTicket";
+import AdminSupportTicketsPanel from "./admin/support/AdminSupportTicketsPanel";
+import AdminSupportCatalogPanel from "./admin/support/AdminSupportCatalogPanel";
 
 // Lazy pages
 const AuthEntry = lazy(() => import("./pages/AuthEntry"));
@@ -222,6 +224,26 @@ export default function AppRoutes() {
           <RequireAuth>
             <RequireRole role="admin">
               <AdminSupportDesk />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/soporte/panel-tickets"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportTicketsPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/soporte/catalogo"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
             </RequireRole>
           </RequireAuth>
         }

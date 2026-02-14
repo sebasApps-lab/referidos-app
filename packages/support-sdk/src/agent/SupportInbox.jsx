@@ -232,10 +232,10 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
             key={origin.id}
             type="button"
             onClick={() => setActiveOrigin(origin.id)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition outline-none focus:outline-none focus-visible:outline-none ${
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
               activeOrigin === origin.id
-                ? "border-[#2F1A55] bg-[#2F1A55] text-[#D1D5DB]"
-                : "border-[#E9E2F7] bg-white text-[#D1D5DB]"
+                ? "bg-[#2F1A55] text-[#E9D8FF]"
+                : "bg-white text-[#2F1A55] border border-[#E9E2F7]"
             }`}
           >
             {origin.label}

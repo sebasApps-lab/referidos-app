@@ -7,6 +7,7 @@ import {
   BarChart3,
   FileText,
   LayoutGrid,
+  Layers3,
   QrCode,
   Settings,
   ShieldCheck,
@@ -35,6 +36,8 @@ const NAV_GROUPS = [
       { label: "QRs", to: "/admin/qrs", Icon: QrCode },
       { label: "Reportes", to: "/admin/reportes", Icon: AlertTriangle },
       { label: "Soporte", to: "/admin/soporte", Icon: ShieldCheck },
+      { label: "Panel Tickets", to: "/admin/soporte/panel-tickets", Icon: Layers3 },
+      { label: "Catalogo Soporte", to: "/admin/soporte/catalogo", Icon: FileText },
     ],
   },
   {
