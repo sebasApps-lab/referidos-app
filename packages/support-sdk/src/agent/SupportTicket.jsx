@@ -80,14 +80,39 @@ export default function SupportTicket() {
       ]);
 
       let logData = [];
-      if (threadData.user_id) {
-        const logsResponse = await supabase
-          .from("support_user_logs")
-          .select("level, category, message, created_at")
-          .eq("user_id", threadData.user_id)
-          .order("created_at", { ascending: false })
-          .limit(50);
-        logData = logsResponse.data || [];
+      const [threadLogsResponse, userLogsResponse] = await Promise.all([
+        threadData.id
+          ? supabase
+            .from("support_log_events")
+            .select("id, level, category, message, occurred_at, created_at, route, screen")
+            .eq("thread_id", threadData.id)
+            .order("occurred_at", { ascending: false })
+            .limit(50)
+          : Promise.resolve({ data: [] }),
+        threadData.user_id
+          ? supabase
+            .from("support_log_events")
+            .select("id, level, category, message, occurred_at, created_at, route, screen")
+            .eq("user_id", threadData.user_id)
+            .order("occurred_at", { ascending: false })
+            .limit(50)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const mergedLogs = [
+        ...(threadLogsResponse?.data || []),
+        ...(userLogsResponse?.data || []),
+      ];
+      if (mergedLogs.length) {
+        const deduped = Array.from(
+          new Map(mergedLogs.map((logItem) => [logItem.id, logItem])).values()
+        );
+        deduped.sort((a, b) => {
+          const aTs = new Date(a.occurred_at || a.created_at || 0).getTime();
+          const bTs = new Date(b.occurred_at || b.created_at || 0).getTime();
+          return bTs - aTs;
+        });
+        logData = deduped.slice(0, 50);
       }
 
       if (!active) return;
@@ -287,31 +312,33 @@ export default function SupportTicket() {
 
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
             <div className="text-sm font-semibold text-[#2F1A55]">
-              Logs del usuario
+              Logs de soporte
             </div>
-            {thread.user_id ? (
-              logs.length === 0 ? (
-                <div className="text-xs text-slate-500">
-                  No hay logs recientes.
-                </div>
-              ) : (
-                <div className="space-y-2 text-xs text-slate-600">
-                  {logs.map((log, index) => (
-                    <div
-                      key={`${log.category}-${index}`}
-                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
-                    >
-                      <div className="text-[11px] text-slate-400">
-                        {log.level} - {log.category} - {formatDateTime(log.created_at)}
-                      </div>
-                      <div className="mt-1">{log.message}</div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
+            {logs.length === 0 ? (
               <div className="text-xs text-slate-500">
-                Ticket anonimo: no hay logs de sesion autenticada.
+                No hay logs recientes.
+              </div>
+            ) : (
+              <div className="space-y-2 text-xs text-slate-600">
+                {logs.map((log, index) => (
+                  <div
+                    key={`${log.id || log.category}-${index}`}
+                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
+                  >
+                    <div className="text-[11px] text-slate-400">
+                      {log.level} - {log.category} -{" "}
+                      {formatDateTime(log.occurred_at || log.created_at)}
+                    </div>
+                    <div className="mt-1">{log.message}</div>
+                    {log.route || log.screen ? (
+                      <div className="mt-1 text-[11px] text-slate-400">
+                        {log.route ? `Ruta: ${log.route}` : null}
+                        {log.route && log.screen ? " | " : null}
+                        {log.screen ? `Pantalla: ${log.screen}` : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             )}
           </div>

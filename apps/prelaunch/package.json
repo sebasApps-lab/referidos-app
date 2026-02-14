@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@referidos/api-client": "*",
     "@referidos/observability": "*",
     "@referidos/legal-content": "*"
   }

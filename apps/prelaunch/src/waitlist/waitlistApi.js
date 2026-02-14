@@ -1,9 +1,5 @@
 // src/waitlist/waitlistApi.js
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { getDefaultUtm, getPrelaunchClient } from "../services/prelaunchSystem";
 
 export async function submitWaitlistSignup({
   email,
@@ -12,7 +8,8 @@ export async function submitWaitlistSignup({
   consentVersion = "privacy_v1",
   honeypot = "",
 } = {}) {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  const prelaunchClient = getPrelaunchClient();
+  if (!prelaunchClient) {
     return { ok: false, error: "missing_env" };
   }
 
@@ -21,28 +18,21 @@ export async function submitWaitlistSignup({
     return { ok: false, error: "invalid_email" };
   }
 
-  const payload = {
+  const roleIntent =
+    role === "negocio_interest" || role === "negocio" ? "negocio" : "cliente";
+
+  const response = await prelaunchClient.waitlist.submit({
     email: normalizedEmail,
-    role,
+    role_intent: roleIntent,
     source,
     consent_version: consentVersion,
     honeypot,
-  };
-
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/waitlist-signup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify(payload),
+    utm: getDefaultUtm(),
   });
 
   if (!response.ok) {
-    return { ok: false, error: `http_${response.status}` };
+    return { ok: false, error: response.error || "request_failed" };
   }
 
-  const data = await response.json().catch(() => null);
-  return data ?? { ok: false, error: "empty_response" };
+  return response.data ?? { ok: false, error: "empty_response" };
 }

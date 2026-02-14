@@ -22,12 +22,13 @@ import {
   parseStackPreview,
   parseUserAgentSummary,
   parseStackFramesRaw,
+  retentionExpiresAtIso,
   resolveTenantIdByHint,
   resolveTenantIdByOrigin,
   scrubUnknown,
   sanitizeStackRaw,
   sha256Hex,
-  shouldSample,
+  classifyRetentionTier,
   supabaseAdmin,
 } from "../_shared/observability.ts";
 
@@ -49,6 +50,32 @@ function safeObject(value: unknown): Record<string, unknown> {
 function normalizeErrorCode(value: string | null) {
   const next = safeString(value)?.toLowerCase() || "unknown_error";
   return next || "unknown_error";
+}
+
+function normalizeDomain(value: unknown) {
+  return safeString(value)?.toLowerCase() === "support" ? "support" : "observability";
+}
+
+function normalizeSupportCategory(value: unknown): string | null {
+  const category = safeString(value)?.toLowerCase() || null;
+  return category ? category.slice(0, 80) : null;
+}
+
+function parseUuid(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      .test(trimmed)
+  ) {
+    return trimmed.toLowerCase();
+  }
+  return null;
+}
+
+function normalizeFingerprintMessage(value: string) {
+  return value.toLowerCase().replace(/\d+/g, "0").replace(/\s+/g, " ").trim();
 }
 
 function issueTitleForEvent({
@@ -189,16 +216,21 @@ serve(async (req) => {
     const item = rawEvents[index] || {};
     const eventType = normalizeEventType(item.event_type || item.type);
     const level = normalizeLevel(item.level);
-    if (!shouldSample(level, eventType)) {
-      skipped += 1;
-      continue;
-    }
 
     const source = normalizeSource(item.source);
     const occurredAt = normalizeTimestamp(item.timestamp || item.occurred_at);
     const scrubbedContext = scrubUnknown(safeObject(item.context));
     const scrubbedExtras = scrubUnknown(item.extras || item.context_extra || {});
+    const supportContextExtra =
+      scrubbedExtras && typeof scrubbedExtras === "object" && !Array.isArray(scrubbedExtras)
+        ? scrubbedExtras
+        : {};
     const breadcrumbs = normalizeBreadcrumbs(item.breadcrumbs);
+    const eventDomain = normalizeDomain(
+      item.event_domain || (scrubbedContext as Record<string, unknown>).event_domain,
+    );
+    const retentionTier = classifyRetentionTier(level, eventType);
+    const retentionExpiresAt = retentionExpiresAtIso(occurredAt, retentionTier);
 
     const errorObject = safeObject(item.error);
     const message =
@@ -227,7 +259,32 @@ serve(async (req) => {
       parseStackPreview((scrubbedContext as Record<string, unknown>).stack);
     const stackFramesRaw = parseStackFramesRaw(stackRawSource);
 
-    const fingerprint =
+    const supportCategory = normalizeSupportCategory(
+      item.category || (scrubbedContext as Record<string, unknown>).category,
+    );
+    const supportThreadId = parseUuid(
+      item.thread_id ||
+        item.ticket_id ||
+        (scrubbedContext as Record<string, unknown>).thread_id ||
+        (scrubbedContext as Record<string, unknown>).ticket_id,
+    );
+    const supportRoute =
+      safeString(item.route) ||
+      safeString((scrubbedContext as Record<string, unknown>).route);
+    const supportScreen =
+      safeString(item.screen) ||
+      safeString((scrubbedContext as Record<string, unknown>).screen);
+    const supportFlow =
+      safeString(item.flow) ||
+      safeString((scrubbedContext as Record<string, unknown>).flow);
+    const supportFlowStep =
+      safeString(item.flow_step) ||
+      safeString((scrubbedContext as Record<string, unknown>).flow_step);
+    const supportReceivedAt = normalizeTimestamp(
+      item.received_at || item.created_at || occurredAt,
+    );
+
+    let fingerprint =
       safeString(item.fingerprint) ||
       (await buildFingerprint({
         errorName,
@@ -237,6 +294,23 @@ serve(async (req) => {
         message,
         eventType,
       }));
+    if (eventDomain === "support") {
+      const supportUserRef = String(usuario?.id || auth.authUser?.id || "anonymous");
+      const supportThreadRef = supportThreadId || "no_thread";
+      const supportCategoryRef = supportCategory || "uncategorized";
+      const supportRouteRef = supportRoute || route || "no_route";
+      const normalizedMessage = normalizeFingerprintMessage(message);
+      fingerprint = await sha256Hex(
+        [
+          "support",
+          supportUserRef,
+          supportThreadRef,
+          supportCategoryRef,
+          supportRouteRef,
+          normalizedMessage,
+        ].join("|"),
+      );
+    }
 
     if (await hasRecentDuplicate(tenantId, fingerprint, dedupeAgoIso)) {
       skipped += 1;
@@ -281,29 +355,33 @@ serve(async (req) => {
       safeString(item.session_id) ||
       safeString((scrubbedContext as Record<string, unknown>).session_id);
 
-    const title = issueTitleForEvent({
-      errorName,
-      errorCode,
-      message,
-      eventType,
-    });
+    let issueId: string | null = null;
+    if (eventDomain !== "support") {
+      const title = issueTitleForEvent({
+        errorName,
+        errorCode,
+        message,
+        eventType,
+      });
 
-    const { data: issueId, error: issueErr } = await supabaseAdmin.rpc(
-      "obs_upsert_issue",
-      {
-        p_tenant_id: tenantId,
-        p_fingerprint: fingerprint,
-        p_title: title,
-        p_level: level,
-        p_occurred_at: occurredAt,
-        p_last_release: appVersion,
-      },
-    );
+      const { data: resolvedIssueId, error: issueErr } = await supabaseAdmin.rpc(
+        "obs_upsert_issue",
+        {
+          p_tenant_id: tenantId,
+          p_fingerprint: fingerprint,
+          p_title: title,
+          p_level: level,
+          p_occurred_at: occurredAt,
+          p_last_release: appVersion,
+        },
+      );
 
-    if (issueErr || !issueId) {
-      skipped += 1;
-      errors.push({ index, code: "issue_upsert_failed" });
-      continue;
+      if (issueErr || !resolvedIssueId) {
+        skipped += 1;
+        errors.push({ index, code: "issue_upsert_failed" });
+        continue;
+      }
+      issueId = resolvedIssueId;
     }
 
     const { data: insertedEvent, error: insertErr } = await supabaseAdmin
@@ -340,6 +418,17 @@ serve(async (req) => {
         app_id: appId,
         user_id: usuario?.id || null,
         auth_user_id: auth.authUser?.id || null,
+        event_domain: eventDomain,
+        support_category: supportCategory,
+        support_thread_id: supportThreadId,
+        support_route: supportRoute,
+        support_screen: supportScreen,
+        support_flow: supportFlow,
+        support_flow_step: supportFlowStep,
+        support_context_extra: supportContextExtra,
+        support_received_at: supportReceivedAt,
+        retention_tier: retentionTier,
+        retention_expires_at: retentionExpiresAt,
       })
       .select("id")
       .single();
@@ -350,27 +439,30 @@ serve(async (req) => {
       continue;
     }
 
-    await supabaseAdmin
-      .from("obs_issues")
-      .update({
-        last_event_id: insertedEvent.id,
-        last_seen_at: occurredAt,
-        last_release: appVersion,
-      })
-      .eq("id", issueId);
+    if (eventDomain !== "support" && issueId) {
+      await supabaseAdmin
+        .from("obs_issues")
+        .update({
+          last_event_id: insertedEvent.id,
+          last_seen_at: occurredAt,
+          last_release: appVersion,
+        })
+        .eq("id", issueId);
 
-    await supabaseAdmin.rpc("obs_upsert_error_catalog", {
-      p_tenant_id: tenantId,
-      p_error_code: errorCode,
-      p_event_id: insertedEvent.id,
-      p_source_hint: source,
-      p_sample_message: message,
-      p_sample_route: route,
-      p_sample_context: scrubbedContext,
-      p_seen_at: occurredAt,
-    });
+      await supabaseAdmin.rpc("obs_upsert_error_catalog", {
+        p_tenant_id: tenantId,
+        p_error_code: errorCode,
+        p_event_id: insertedEvent.id,
+        p_source_hint: source,
+        p_sample_message: message,
+        p_sample_route: route,
+        p_sample_context: scrubbedContext,
+        p_seen_at: occurredAt,
+      });
 
-    issuesTouched.add(issueId);
+      issuesTouched.add(issueId);
+    }
+
     inserted += 1;
   }
 

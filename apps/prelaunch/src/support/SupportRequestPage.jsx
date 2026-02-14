@@ -4,6 +4,7 @@ import {
   cancelAnonymousSupportThread,
   createAnonymousSupportThread,
 } from "./supportApi";
+import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
 
 const CATEGORIES = [
   { id: "acceso", label: "Pregunta o inquietud" },
@@ -139,6 +140,16 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   }, [categoryFromQuery]);
 
   useEffect(() => {
+    void ingestPrelaunchEvent("page_view", {
+      path: location.pathname,
+      props: {
+        page: "support",
+        channel: selectedChannel,
+      },
+    });
+  }, [location.pathname, selectedChannel]);
+
+  useEffect(() => {
     resizeSummaryInput();
   }, [resizeSummaryInput, summary]);
 
@@ -212,6 +223,14 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     setTicketCopied(false);
     setSaveTicketModalOpen(true);
     void copyTicketNumber(created.thread_public_id);
+    void ingestPrelaunchEvent("support_ticket_created", {
+      path: location.pathname,
+      props: {
+        channel: selectedChannel,
+        category,
+        thread_public_id: created.thread_public_id,
+      },
+    });
   }
 
   async function handleReplaceTicket() {
@@ -245,7 +264,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         "--brand-yellow": "#FFC21C",
       }}
     >
-      <main className="mx-auto w-full max-w-3xl px-6 py-10 flex-1">
+      <main className="mx-auto w-full max-w-3xl px-6 pt-10 pb-32 flex-1">
         <header className="mb-8 grid grid-cols-3 items-center">
           <Link to="/" className="justify-self-start text-lg font-semibold hover:opacity-85">
             ReferidosAPP

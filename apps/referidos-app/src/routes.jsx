@@ -40,6 +40,7 @@ const AdminObservability = lazy(() => import("./pages/admin/AdminObservability")
 const AdminDevErrors = lazy(() => import("./pages/admin/AdminDevErrors"));
 const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
+const AdminPrelaunchAnalytics = lazy(() => import("./pages/admin/AdminPrelaunchAnalytics"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 
@@ -181,6 +182,16 @@ export default function AppRoutes() {
           <RequireAuth>
             <RequireRole role="admin">
               <AdminSistema />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/prelaunch-analytics"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminPrelaunchAnalytics />
             </RequireRole>
           </RequireAuth>
         }

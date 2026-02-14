@@ -12,6 +12,8 @@ export const OBS_RATE_USER_PER_MIN = 120;
 export const OBS_RATE_IP_PER_MIN = 240;
 export const OBS_MAX_STACK_RAW_LEN = 20_000;
 export const OBS_MAX_STACK_FRAMES = 120;
+export const OBS_RETENTION_LONG_DAYS = 30;
+export const OBS_RETENTION_SHORT_DAYS = 7;
 
 export const ALLOWED_LEVELS = new Set([
   "fatal",
@@ -448,6 +450,22 @@ export function shouldSample(level: string, eventType: string) {
   if (eventType === "performance") return random <= 0.03;
   if (level === "info") return random <= 0.15;
   return random <= 0.08;
+}
+
+export function classifyRetentionTier(level: string, eventType: string) {
+  return shouldSample(level, eventType) ? "long" : "short";
+}
+
+export function retentionExpiresAtIso(
+  occurredAtIso: string,
+  retentionTier: "long" | "short",
+) {
+  const parsed = new Date(occurredAtIso);
+  const base = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const days = retentionTier === "long"
+    ? OBS_RETENTION_LONG_DAYS
+    : OBS_RETENTION_SHORT_DAYS;
+  return new Date(base.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export function normalizeBreadcrumbs(input: unknown) {

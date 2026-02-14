@@ -8,7 +8,10 @@
     "./clients/createSupabaseClient": "./src/clients/createSupabaseMobileClient.js",
     "./clients/createSupabaseMobileClient": "./src/clients/createSupabaseMobileClient.js",
     "./createApiClient": "./src/createMobileApi.js",
-    "./createMobileApi": "./src/createMobileApi.js"
+    "./createMobileApi": "./src/createMobileApi.js",
+    "./prelaunch": "./src/prelaunch/index.js",
+    "./prelaunch/anonIdentity": "./src/prelaunch/anonIdentity.js",
+    "./prelaunch/createPrelaunchClient": "./src/prelaunch/createPrelaunchClient.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",

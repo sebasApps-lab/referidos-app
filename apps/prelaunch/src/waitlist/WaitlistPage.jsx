@@ -4,6 +4,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { submitWaitlistSignup } from "./waitlistApi";
 import { useHeroMotion } from "./hooks/useHeroMotion";
 import { useSectionScrollMotion } from "./hooks/useSectionScrollMotion";
+import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
 
 const FLOW_TARGET_ID = "waitlist-flow";
 
@@ -281,6 +282,13 @@ export default function WaitlistPage() {
     return () => window.cancelAnimationFrame(rafId);
   }, []);
 
+  useEffect(() => {
+    void ingestPrelaunchEvent("page_view", {
+      path: location.pathname,
+      props: { page: "waitlist", mode: uiMode },
+    });
+  }, [location.pathname, uiMode]);
+
   useHeroMotion(rootRef);
   useSectionScrollMotion(sectionOneRef, sectionTwoRef, sectionThreeRef);
 
@@ -431,6 +439,10 @@ export default function WaitlistPage() {
       setSearchParams(nextParams, { replace: true });
     }
     trackEvent(normalized === "cliente" ? "select_mode_cliente" : "select_mode_negocio");
+    void ingestPrelaunchEvent("cta_toggle_role", {
+      path: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { role_intent: normalized === "negocio" ? "negocio" : "cliente" },
+    });
   };
 
 
@@ -472,11 +484,19 @@ export default function WaitlistPage() {
     if (result.already) {
       setStatus("already");
       trackEvent("waitlist_submit", { already: true });
+      void ingestPrelaunchEvent("waitlist_submit", {
+        path: typeof window !== "undefined" ? window.location.pathname : "/",
+        props: { already: true, role_intent: uiMode === "negocio" ? "negocio" : "cliente" },
+      });
       return;
     }
 
     setStatus("success");
     trackEvent("waitlist_submit", { already: false });
+    void ingestPrelaunchEvent("waitlist_submit", {
+      path: typeof window !== "undefined" ? window.location.pathname : "/",
+      props: { already: false, role_intent: uiMode === "negocio" ? "negocio" : "cliente" },
+    });
   };
 
   const statusMessage = getStatusMessage(status);
@@ -540,6 +560,10 @@ export default function WaitlistPage() {
     }
     if (target === "beneficios" && sectionTwoRef.current) {
       sectionTwoRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      void ingestPrelaunchEvent("cta_waitlist_open", {
+        path: typeof window !== "undefined" ? window.location.pathname : "/",
+        props: { target: "beneficios" },
+      });
       return;
     }
     if (target === "mas-informacion" && sectionThreeRef.current) {
@@ -601,7 +625,13 @@ export default function WaitlistPage() {
       <div className="mt-6 flex flex-col items-center gap-2 text-center">
         <a
           href="/app"
-          onClick={() => trackEvent("open_pwa_click")}
+          onClick={() => {
+            trackEvent("open_pwa_click");
+            void ingestPrelaunchEvent("download_click", {
+              path: typeof window !== "undefined" ? window.location.pathname : "/",
+              props: { role_intent: "negocio", target: "/app" },
+            });
+          }}
           className="w-[288px] translate-x-2 rounded-2xl border border-white/70 bg-white px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-black shadow-md shadow-purple-900/20 transition-transform hover:-translate-y-0.5 hover:border-[var(--brand-yellow)]/80 hover:bg-[var(--brand-yellow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1"
         >
           Descargar panel para negocio

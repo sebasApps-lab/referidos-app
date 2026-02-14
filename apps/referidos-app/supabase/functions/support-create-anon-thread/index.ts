@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
   CATEGORY_LABELS,
   buildSupportMessage,
@@ -13,6 +13,9 @@ const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
 const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
+const DEFAULT_APP_CHANNEL = "prelaunch_web";
+const UA_PEPPER = Deno.env.get("PRELAUNCH_UA_PEPPER") || "prelaunch_ua_pepper_v1";
+const IP_RISK_PEPPER = Deno.env.get("PRELAUNCH_IP_RISK_PEPPER") || "prelaunch_ip_risk_pepper_v1";
 
 function getClientIp(req: Request) {
   return (
@@ -31,6 +34,11 @@ async function sha256(value: string) {
     .join("");
 }
 
+async function buildIpRiskId(ip: string) {
+  const daySalt = new Date().toISOString().slice(0, 10);
+  return sha256(`${IP_RISK_PEPPER}|${daySalt}|${ip}`);
+}
+
 function normalizeWhatsapp(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 16) return null;
@@ -41,6 +49,19 @@ function normalizeEmail(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   return normalized;
+}
+
+function parseUuid(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      .test(trimmed)
+  ) {
+    return trimmed.toLowerCase();
+  }
+  return null;
 }
 
 function createTrackingToken() {
@@ -110,6 +131,9 @@ serve(async (req) => {
   const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
   const sourceRoute = safeTrim(body.source_route, 140) || null;
   const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
+  const appChannel = safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL;
+  const anonId = parseUuid(body.anon_id);
+  const visitSessionId = parseUuid(body.visit_session_id);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
   const displayName = safeTrim(body.display_name, 80) || null;
   const errorOnActive = body.error_on_active === true;
@@ -132,17 +156,19 @@ serve(async (req) => {
   }
 
   const ip = getClientIp(req);
-  const ipHash = ip ? await sha256(ip) : null;
+  const ipRiskId = ip ? await buildIpRiskId(ip) : null;
+  const uaRaw = req.headers.get("user-agent") || "";
+  const uaHash = uaRaw ? await sha256(`${UA_PEPPER}|${uaRaw}`) : null;
   const contactHash = await sha256(`${channel}:${contactValue}`);
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 
-  if (ipHash) {
+  if (ipRiskId) {
     const { count: ipCount } = await supabaseAdmin
       .from("support_threads")
       .select("id", { count: "exact", head: true })
       .eq("request_origin", "anonymous")
       .gte("created_at", since)
-      .contains("context", { ip_hash: ipHash });
+      .contains("context", { ip_risk_id: ipRiskId });
     if ((ipCount || 0) >= RATE_LIMIT_MAX_IP) {
       return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
     }
@@ -155,6 +181,7 @@ serve(async (req) => {
     meta: {
       last_origin_source: originSource,
       last_source_route: sourceRoute,
+      last_app_channel: appChannel,
       contact_hash: contactHash,
     },
     last_seen_at: new Date().toISOString(),
@@ -290,10 +317,14 @@ serve(async (req) => {
     ...contextInput,
     source_route: sourceRoute,
     origin_source: originSource,
+    app_channel: appChannel,
     contact_channel: channel,
     requested_channel: requestedChannel,
-    ip_hash: ipHash,
+    ip_risk_id: ipRiskId,
+    ua_hash: uaHash,
     contact_hash: contactHash,
+    anon_id: anonId,
+    visit_session_id: visitSessionId,
   };
 
   const trackingToken = createTrackingToken();
@@ -318,7 +349,7 @@ serve(async (req) => {
       wa_message_text: null,
       wa_link: null,
       suggested_contact_name: displayName || anonProfile.public_id,
-      suggested_tags: ["anonymous", category, severity, channel, requestedChannel],
+      suggested_tags: ["anonymous", category, severity, channel, requestedChannel, appChannel],
       resolution: null,
       root_cause: null,
       closed_at: null,
@@ -326,6 +357,11 @@ serve(async (req) => {
       request_origin: "anonymous",
       anon_profile_id: anonProfile.id,
       origin_source: originSource,
+      app_channel: appChannel,
+      anon_id: anonId,
+      visit_session_id: visitSessionId,
+      ua_hash: uaHash,
+      ip_risk_id: ipRiskId,
       is_anonymous: true,
       anon_tracking_token_hash: trackingTokenHash,
     })
@@ -367,6 +403,7 @@ serve(async (req) => {
     actor_id: null,
     details: {
       origin_source: originSource,
+      app_channel: appChannel,
       channel,
       requested_channel: requestedChannel,
       source_route: sourceRoute,
