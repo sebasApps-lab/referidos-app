@@ -234,7 +234,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
             onClick={() => setActiveOrigin(origin.id)}
             className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
               activeOrigin === origin.id
-                ? "bg-[#2F1A55] text-[#E9D8FF]"
+                ? "bg-[#2F1A55] text-white"
                 : "bg-white text-[#2F1A55] border border-[#E9E2F7]"
             }`}
           >
