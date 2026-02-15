@@ -15,6 +15,7 @@ import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
+import AccessSecurityPanel from "./components/AccessSecurityPanel";
 import {
   fetchBusinessByUserId,
   fetchCurrentUserRow,
@@ -295,6 +296,12 @@ export default function NegocioPerfilScreen() {
                 <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
               </Pressable>
             </View>
+            <AccessSecurityPanel
+              usuario={usuario}
+              onReload={async () => {
+                await refreshAll();
+              }}
+            />
           </SectionCard>
         ) : null}
 

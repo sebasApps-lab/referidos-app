@@ -3,6 +3,11 @@ import { runValidateRegistration } from "./auth/registration.js";
 import { searchAddresses } from "./address/search.js";
 import { reverseGeocode } from "./address/reverse.js";
 import { getGpsFallbackLocation, saveGpsFallbackLocation } from "./address/gpsFallback.js";
+import {
+  fetchCantonesByProvincia,
+  fetchParroquiasByCanton,
+  fetchProvincias,
+} from "./address/territory.js";
 import * as support from "./support/supportClient.js";
 import { logEvent } from "./logs/logEvent.js";
 
@@ -17,6 +22,9 @@ export function createMobileApi(supabase) {
       reverse: (lat, lng, options) => reverseGeocode(supabase, lat, lng, options),
       saveGpsFallback: (payload) => saveGpsFallbackLocation(supabase, payload),
       getGpsFallback: () => getGpsFallbackLocation(supabase),
+      fetchProvincias: () => fetchProvincias(supabase),
+      fetchCantones: (provinciaId) => fetchCantonesByProvincia(supabase, provinciaId),
+      fetchParroquias: (cantonId) => fetchParroquiasByCanton(supabase, cantonId),
     },
     support: {
       createThread: (payload) => support.createSupportThread(supabase, payload),

@@ -17,6 +17,7 @@
     "android:phase3:shell-check": "node tooling/android/phase3-shell-check.mjs",
     "android:phase4:cliente-check": "node tooling/android/phase4-cliente-check.mjs",
     "android:phase5:negocio-check": "node tooling/android/phase5-negocio-check.mjs",
+    "android:phase6:native-check": "node tooling/android/phase6-native-check.mjs",
     "android:metro": "node tooling/android/start-android-metro.mjs",
     "android:run": "npm run android -w @apps/referidos-android -- --port 8081 --no-packager",
     "android:gradle:tasks": "cmd.exe /c scripts\\run_android_gradle_tasks.cmd",

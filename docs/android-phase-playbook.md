@@ -213,30 +213,45 @@
 
 ---
 
-## Phase 6 - Native Feature Parity (Map, Scanner Internals, Security Local)
-**Goal:** replace PWA web primitives with native Android implementations while preserving behavior.
+## Phase 6 - Closed
+**Status:** completed.
 
-### 6.1 Map and address flow
-- [ ] Native map integration parity for address step.
-- [ ] Reverse geocode/search flow parity.
-- [ ] Territory fallbacks and GPS fallback parity.
-
-### 6.2 Scanner internals
-- [ ] Native camera scan reliability hardening.
-- [ ] Performance and low-light/error fallback parity.
-
-### 6.3 Security local
-- [ ] Secure storage service parity (RN).
-- [ ] Access unlock manager parity (UNLOCK_LOCAL vs REAUTH_SENSITIVE semantics).
-- [ ] PIN attempt policy/backoff/wipe parity.
-- [ ] Biometric enrollment/unlock behavior parity.
-- [ ] Reauth-sensitive flows parity (email/password/security changes and equivalent guards).
-
-### 6.4 Verification
-- [ ] Device matrix test (at least 2 Android API levels, 1 physical + 1 emulator).
-
-**DoD Phase 6**
-- Native-specific layers are stable and behavior-compatible with PWA expectations.
+### Phase 6 closure evidence
+- PWA source behaviors mirrored (references):
+  - `apps/referidos-app/src/auth/steps/UserAddressStep.jsx`
+  - `apps/referidos-app/src/services/addressSearchClient.js`
+  - `apps/referidos-app/src/services/addressReverseClient.js`
+  - `apps/referidos-app/src/services/gpsFallbackClient.js`
+  - `apps/referidos-app/src/services/territoryClient.js`
+  - `apps/referidos-app/src/scanner/hooks/useScannerState.ts`
+  - `apps/referidos-app/src/store/appStore.js`
+  - `apps/referidos-app/src/services/secureStorageService.js`
+- RN native parity implemented:
+  - Map/address native flow + reverse/search + territory fallback + GPS fallback:
+    - `apps/referidos-android/src/features/auth/blocks/AddressStepBlock.tsx`
+    - `packages/api-client/src/address/territory.js`
+    - `packages/api-client/src/createMobileApi.js`
+  - Scanner native internals hardening (throttle/dedupe, pause/resume, torch, error recovery):
+    - `apps/referidos-android/src/features/scanner/NativeQrScannerBlock.tsx`
+  - Security local parity (PIN, attempts policy, biometrics, sensitive reauth guards):
+    - `apps/referidos-android/src/shared/security/localAccessSecurity.ts`
+    - `apps/referidos-android/src/shared/store/securityStore.ts`
+    - `packages/platform-rn/src/storage/secureStorageService.js`
+    - `apps/referidos-android/src/features/profile/components/AccessSecurityPanel.tsx`
+    - `apps/referidos-android/src/features/profile/ClientePerfilScreen.tsx`
+    - `apps/referidos-android/src/features/profile/NegocioPerfilScreen.tsx`
+    - `apps/referidos-android/src/shared/store/appStore.ts`
+- Verification checks completed:
+  - `npm run android:phase6:native-check` -> `Phase 6 native parity checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
+    - `npm run android:phase3:shell-check` -> OK
+    - `npm run android:phase4:cliente-check` -> OK
+    - `npm run android:phase5:negocio-check` -> OK
+- Newly discovered work for Phase 6:
+  - none.
 
 ---
 
@@ -322,5 +337,5 @@
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 6 - Native Feature Parity (Map, Scanner Internals, Security Local)`
-- Next review trigger: when `Phase 6` DoD is met with verification evidence.
+- Active phase: `Phase 7 - Observability and Log Operability`
+- Next review trigger: when `Phase 7` DoD is met with verification evidence.

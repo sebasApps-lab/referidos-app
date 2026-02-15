@@ -50,6 +50,10 @@ export async function deletePinHash(userId) {
   await AsyncStorage.removeItem(namespace(userId, "pin_hash"));
 }
 
+export async function clearPinAttemptState(userId) {
+  await AsyncStorage.removeItem(namespace(userId, "pin_attempts"));
+}
+
 export async function saveDeviceSecret(userId, payload) {
   await setJson(namespace(userId, "device_secret"), payload);
   return { ok: true };
@@ -90,7 +94,7 @@ export async function clearUserSecurityMaterial(userId) {
   await deleteBiometricToken(userId);
   await deletePinHash(userId);
   await deleteDeviceSecret(userId);
-  await AsyncStorage.removeItem(namespace(userId, "pin_attempts"));
+  await clearPinAttemptState(userId);
 }
 
 export function generatePinSalt() {

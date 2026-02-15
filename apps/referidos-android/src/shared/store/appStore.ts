@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { useModalStore } from "@shared/store/modalStore";
 import { useShellStore } from "@shared/store/shellStore";
+import { useSecurityStore } from "@shared/store/securityStore";
+import { buildAccessMethodsFromUser, AccessMethods } from "@shared/security/localAccessSecurity";
 
 export type AppRole = "cliente" | "negocio" | "admin" | "soporte" | null;
 export type BootStatus = "idle" | "loading" | "ready" | "error";
@@ -15,9 +17,11 @@ type AppState = {
   reasons: string[];
   onboarding: any | null;
   justCompletedRegistration: boolean;
+  accessMethods: AccessMethods;
   bootstrapAuth: () => Promise<void>;
   forceRoleForDebug: (role: AppRole) => void;
   setJustCompletedRegistration: (value: boolean) => void;
+  setAccessMethods: (methods: Partial<AccessMethods>) => void;
   signOut: () => Promise<void>;
 };
 
@@ -39,6 +43,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   reasons: [],
   onboarding: null,
   justCompletedRegistration: false,
+  accessMethods: {
+    fingerprint: false,
+    pin: false,
+    password: false,
+  },
 
   bootstrapAuth: async () => {
     set({ bootStatus: "loading", bootError: null });
@@ -47,6 +56,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!session?.access_token) {
         useShellStore.getState().clearSessionCache();
         useModalStore.getState().reset();
+        useSecurityStore.getState().reset();
         set({
           bootStatus: "ready",
           onboarding: null,
@@ -54,6 +64,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           allowAccess: false,
           requiresVerificationFlow: false,
           reasons: [],
+          accessMethods: {
+            fingerprint: false,
+            pin: false,
+            password: false,
+          },
         });
         return;
       }
@@ -68,6 +83,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           allowAccess: false,
           requiresVerificationFlow: false,
           reasons: [],
+          accessMethods: {
+            fingerprint: false,
+            pin: false,
+            password: false,
+          },
         });
         return;
       }
@@ -82,6 +102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         Boolean(onboarding?.allowAccess) &&
         (resolvedRole === "cliente" || resolvedRole === "negocio") &&
         (verificationStatus === "unverified" || verificationStatus === "in_progress");
+      const accessMethods = buildAccessMethodsFromUser(onboarding?.usuario || {});
 
       set({
         bootStatus: "ready",
@@ -90,6 +111,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         allowAccess: Boolean(onboarding?.allowAccess),
         requiresVerificationFlow,
         reasons: Array.isArray(onboarding?.reasons) ? onboarding.reasons : [],
+        accessMethods,
         bootError: null,
       });
     } catch (error: any) {
@@ -114,10 +136,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ justCompletedRegistration: value });
   },
 
+  setAccessMethods: (methods) => {
+    set((state) => ({
+      accessMethods: {
+        ...state.accessMethods,
+        ...methods,
+      },
+    }));
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
     useShellStore.getState().clearSessionCache();
     useModalStore.getState().reset();
+    useSecurityStore.getState().reset();
     set({
       bootStatus: "ready",
       bootError: null,
@@ -127,6 +159,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       reasons: [],
       onboarding: null,
       justCompletedRegistration: false,
+      accessMethods: {
+        fingerprint: false,
+        pin: false,
+        password: false,
+      },
     });
   },
 }));
