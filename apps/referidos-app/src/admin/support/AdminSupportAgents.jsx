@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Pencil, RefreshCw, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Pencil, RefreshCw, Users, X } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -44,6 +44,10 @@ export default function AdminSupportAgents() {
   const [createResult, setCreateResult] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const mountedRef = useRef(true);
+  const authorizedAgentsCount = useMemo(
+    () => agents.filter((agent) => agent.authorized_for_work && !agent.blocked).length,
+    [agents]
+  );
 
   const formatTime = (value) => {
     if (!value) return "";
@@ -671,6 +675,19 @@ export default function AdminSupportAgents() {
               </button>
             </>
           ) : null}
+        </div>
+
+        <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.12em] text-slate-400">
+                <span>Agentes autorizados</span>
+                <Users size={14} className="text-[#5E30A5]" />
+              </div>
+              <div className="mt-2 text-xl font-extrabold text-[#2F1A55]">{authorizedAgentsCount}</div>
+              <div className="mt-1 text-xs text-slate-500">Asesores habilitados para atencion.</div>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-6 space-y-4">

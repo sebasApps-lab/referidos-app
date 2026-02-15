@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   Clock3,
   Layers3,
@@ -27,7 +29,30 @@ const STATUS_LABEL = {
   closed: "Cerrado",
   cancelled: "Cancelado",
 };
+const MACRO_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
+const MACRO_STATUS_LABEL = {
+  ...STATUS_LABEL,
+  sin_estado: "Sin estado",
+};
+const CATALOG_GROUP_OPTIONS = [
+  { id: "categoria", label: "categoria" },
+  { id: "estado", label: "estado" },
+  { id: "rol", label: "rol" },
+];
 const SEV_RANK = { s0: 0, s1: 1, s2: 2, s3: 3 };
+const statusRank = (status) => {
+  const idx = MACRO_STATUS_ORDER.indexOf(status);
+  return idx === -1 ? MACRO_STATUS_ORDER.length + 1 : idx;
+};
+const roleLabel = (role) => {
+  if (!role) return "sin_rol";
+  return role;
+};
+const roleRank = (role) => {
+  const base = ["cliente", "negocio", "soporte", "admin", "sin_rol"];
+  const idx = base.indexOf(role);
+  return idx === -1 ? base.length + 1 : idx;
+};
 
 const fmt = (v) => {
   if (!v) return "-";
@@ -71,12 +96,15 @@ function Metric({ title, value, hint, icon: Icon }) {
   );
 }
 
-function Card({ title, subtitle, children }) {
+function Card({ title, subtitle, headerRight, children }) {
   return (
     <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-      <div>
-        <div className="text-sm font-semibold text-[#2F1A55]">{title}</div>
-        {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-[#2F1A55]">{title}</div>
+          {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+        {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
       </div>
       {children}
     </div>
@@ -97,17 +125,17 @@ export default function AdminSupportControlPanel({
   const [events, setEvents] = useState([]);
   const [inbox, setInbox] = useState([]);
   const [macros, setMacros] = useState([]);
-  const [profiles, setProfiles] = useState([]);
-  const [sessions, setSessions] = useState([]);
   const [usersById, setUsersById] = useState({});
   const [selectedPublicId, setSelectedPublicId] = useState(null);
+  const [catalogGroupBy, setCatalogGroupBy] = useState("categoria");
+  const [expandedCatalogGroups, setExpandedCatalogGroups] = useState({});
 
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     else setLoading(true);
     setError("");
     try {
-      const [tRes, eRes, iRes, mRes, pRes, sRes] = await Promise.all([
+      const [tRes, eRes, iRes, mRes] = await Promise.all([
         supabase
           .from("support_threads")
           .select(
@@ -130,15 +158,6 @@ export default function AdminSupportControlPanel({
           .select("id, title, body, category, status, audience, active, created_at")
           .order("created_at", { ascending: false })
           .limit(600),
-        supabase
-          .from("support_agent_profiles")
-          .select("user_id, authorized_for_work, blocked, max_active_tickets, authorized_from, authorized_until")
-          .limit(250),
-        supabase
-          .from("support_agent_sessions")
-          .select("id, agent_id, start_at, last_seen_at")
-          .is("end_at", null)
-          .limit(250),
       ]);
 
       const nextThreads = (tRes.data || []).map((t) => ({
@@ -149,16 +168,12 @@ export default function AdminSupportControlPanel({
       const nextEvents = eRes.data || [];
       const nextInbox = iRes.data || [];
       const nextMacros = mRes.data?.length ? mRes.data : SUPPORT_MACROS.map((m) => ({ ...m, active: true }));
-      const nextProfiles = pRes.data || [];
-      const nextSessions = sRes.data || [];
 
       const ids = Array.from(
         new Set(
           [
             ...nextThreads.map((t) => t.assigned_agent_id),
             ...nextEvents.map((e) => e.actor_id),
-            ...nextProfiles.map((p) => p.user_id),
-            ...nextSessions.map((s) => s.agent_id),
           ].filter(Boolean)
         )
       );
@@ -174,16 +189,20 @@ export default function AdminSupportControlPanel({
         }, {});
       }
 
-      if (tRes.error || eRes.error || pRes.error) {
-        setError(tRes.error?.message || eRes.error?.message || pRes.error?.message || "Error de carga");
+      if (tRes.error || eRes.error || mRes.error || iRes.error) {
+        setError(
+          tRes.error?.message ||
+          eRes.error?.message ||
+          mRes.error?.message ||
+          iRes.error?.message ||
+          "Error de carga"
+        );
       }
 
       setThreads(nextThreads);
       setEvents(nextEvents);
       setInbox(nextInbox);
       setMacros(nextMacros);
-      setProfiles(nextProfiles);
-      setSessions(nextSessions);
       setUsersById(users);
     } catch (err) {
       setError(err?.message || "Error de carga");
@@ -199,6 +218,7 @@ export default function AdminSupportControlPanel({
 
   const activePanel = lockedPanel || panel;
   const view = viewByPanel[activePanel] || "basic";
+  const isCatalogLocked = lockedPanel === "catalogo";
 
   const inboxByPublic = useMemo(
     () => inbox.reduce((acc, r) => ((acc[r.public_id] = r), acc), {}),
@@ -306,9 +326,17 @@ export default function AdminSupportControlPanel({
 
     const macrosByCat = {};
     macros.forEach((m) => {
-      if (!m.category || m.active === false) return;
-      macrosByCat[m.category] = (macrosByCat[m.category] || 0) + 1;
+      if (m.active === false) return;
+      const key = m.category || "general";
+      macrosByCat[key] = (macrosByCat[key] || 0) + 1;
     });
+    const configCategories = [
+      {
+        id: "general",
+        label: "General",
+      },
+      ...SUPPORT_CATEGORIES,
+    ];
 
     const top = (obj, n = 6) =>
       Object.entries(obj)
@@ -352,37 +380,140 @@ export default function AdminSupportControlPanel({
       },
       audit: events.slice(0, 25),
       config: {
-        categories: SUPPORT_CATEGORIES.length,
+        categories: configCategories.length,
         macros: macros.filter((m) => m.active !== false).length,
-        categoriesNoMacro: SUPPORT_CATEGORIES.filter((c) => !macrosByCat[c.id]),
-        authorizedAgents: profiles.filter((p) => p.authorized_for_work && !p.blocked).length,
-        blockedAgents: profiles.filter((p) => p.blocked).length,
-        sessions: sessions.length,
+        categoriesNoMacro: configCategories.filter((c) => !macrosByCat[c.id]),
       },
     };
-  }, [threads, events, macros, profiles, sessions, activeTickets, usersById, eventsByThread, inboxByPublic]);
+  }, [threads, events, macros, activeTickets, usersById, eventsByThread, inboxByPublic]);
+
+  const catalogMacros = useMemo(
+    () =>
+      (macros.length ? macros : SUPPORT_MACROS).map((m) => ({
+        ...m,
+        category: m.category || "general",
+        status: m.status || "sin_estado",
+      })),
+    [macros]
+  );
 
   const categoriesStats = useMemo(() => {
     const total = {};
     const active = {};
     const macroCount = {};
+    const macroByCategoryStatus = {};
+    const macroListByCategory = {};
+    const roleSetByCategory = {};
+
     threads.forEach((t) => {
-      total[t.category] = (total[t.category] || 0) + 1;
+      const key = t.category || "general";
+      total[key] = (total[key] || 0) + 1;
     });
     activeTickets.forEach((t) => {
-      active[t.category] = (active[t.category] || 0) + 1;
+      const key = t.category || "general";
+      active[key] = (active[key] || 0) + 1;
     });
-    macros.forEach((m) => {
-      if (!m.category || m.active === false) return;
-      macroCount[m.category] = (macroCount[m.category] || 0) + 1;
+    catalogMacros.forEach((m) => {
+      const cat = m.category || "general";
+      const status = m.status || "sin_estado";
+      if (m.active !== false) {
+        macroCount[cat] = (macroCount[cat] || 0) + 1;
+      }
+      if (!macroByCategoryStatus[cat]) macroByCategoryStatus[cat] = {};
+      if (!macroByCategoryStatus[cat][status]) macroByCategoryStatus[cat][status] = [];
+      macroByCategoryStatus[cat][status].push(m);
+      if (!macroListByCategory[cat]) macroListByCategory[cat] = [];
+      macroListByCategory[cat].push(m);
+      if (!roleSetByCategory[cat]) roleSetByCategory[cat] = new Set();
+      const audiences = Array.isArray(m.audience) && m.audience.length ? m.audience : ["sin_rol"];
+      audiences.forEach((role) => roleSetByCategory[cat].add(roleLabel(role)));
     });
-    return SUPPORT_CATEGORIES.map((c) => ({
+
+    const baseCategories = [
+      {
+        id: "general",
+        label: "General",
+        description: "Consultas generales sin categoria especifica.",
+        roles: ["cliente", "negocio"],
+      },
+      ...SUPPORT_CATEGORIES,
+    ];
+    const known = new Set(baseCategories.map((c) => c.id));
+    const extraIds = Array.from(
+      new Set([...Object.keys(total), ...Object.keys(active), ...Object.keys(macroCount), ...Object.keys(macroByCategoryStatus)])
+    ).filter((id) => id && !known.has(id));
+    const extraCategories = extraIds.map((id) => ({
+      id,
+      label: id,
+      description: "Categoria detectada en datos.",
+      roles: [],
+    }));
+
+    return [...baseCategories, ...extraCategories].map((c) => ({
       ...c,
       total: total[c.id] || 0,
       active: active[c.id] || 0,
       macros: macroCount[c.id] || 0,
+      macrosByStatus: macroByCategoryStatus[c.id] || {},
+      macrosList: macroListByCategory[c.id] || [],
+      rolesWithMacros: Array.from(roleSetByCategory[c.id] || []).sort((a, b) => roleRank(a) - roleRank(b)),
     }));
-  }, [threads, activeTickets, macros]);
+  }, [threads, activeTickets, catalogMacros]);
+
+  const catalogMacroSummary = useMemo(() => {
+    const categoriesCovered = new Set(catalogMacros.map((m) => m.category || "general")).size;
+    return {
+      total: catalogMacros.length,
+      active: catalogMacros.filter((m) => m.active !== false).length,
+      covered: categoriesCovered,
+    };
+  }, [catalogMacros]);
+
+  const groupedByStatus = useMemo(() => {
+    const groups = {};
+    catalogMacros.forEach((m) => {
+      const status = m.status || "sin_estado";
+      if (!groups[status]) groups[status] = [];
+      groups[status].push(m);
+    });
+    return Object.entries(groups)
+      .sort((a, b) => {
+        const diff = statusRank(a[0]) - statusRank(b[0]);
+        return diff !== 0 ? diff : a[0].localeCompare(b[0]);
+      })
+      .map(([status, list]) => ({
+        id: status,
+        label: MACRO_STATUS_LABEL[status] || status,
+        list,
+      }));
+  }, [catalogMacros]);
+
+  const groupedByRole = useMemo(() => {
+    const groups = {};
+    catalogMacros.forEach((m) => {
+      const audiences = Array.isArray(m.audience) && m.audience.length ? m.audience : ["sin_rol"];
+      audiences.forEach((role) => {
+        const key = roleLabel(role);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(m);
+      });
+    });
+    return Object.entries(groups)
+      .sort((a, b) => {
+        const diff = roleRank(a[0]) - roleRank(b[0]);
+        return diff !== 0 ? diff : a[0].localeCompare(b[0]);
+      })
+      .map(([role, list]) => ({
+        id: role,
+        label: role,
+        list,
+      }));
+  }, [catalogMacros]);
+
+  const formatMacroRoles = useCallback((audience) => {
+    const roles = Array.isArray(audience) && audience.length ? audience.map((r) => roleLabel(r)) : ["sin_rol"];
+    return roles.join(", ");
+  }, []);
 
   const visitedFlow = useMemo(() => {
     if (!selected) return new Set();
@@ -402,7 +533,7 @@ export default function AdminSupportControlPanel({
     return v;
   }, [selected, selectedTimeline]);
 
-  const renderAdvanced = () => (
+  const renderAdvancedTickets = () => (
     <div className="space-y-5">
       <Card title="SLA y tiempos" subtitle="Tiempos de respuesta, cola y resolucion.">
         <div className="grid gap-3 md:grid-cols-4">
@@ -523,106 +654,146 @@ export default function AdminSupportControlPanel({
         </div>
       </Card>
 
-      <Card title="Configuracion operativa" subtitle="Cobertura y estado del equipo.">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Metric icon={Settings2} title="Categorias" value={metrics.config.categories} />
-          <Metric icon={CheckCircle2} title="Macros activas" value={metrics.config.macros} />
-          <Metric icon={Users} title="Agentes autorizados" value={metrics.config.authorizedAgents} />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
-            Sesiones activas: <strong>{metrics.config.sessions}</strong> | Bloqueados:{" "}
-            <strong>{metrics.config.blockedAgents}</strong>
-          </div>
-          <div className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
-            Sin macros:{" "}
-            <strong>
-              {metrics.config.categoriesNoMacro.length
-                ? metrics.config.categoriesNoMacro.map((c) => c.label).join(", ")
-                : "Cobertura completa"}
-            </strong>
-          </div>
-        </div>
-      </Card>
+    </div>
+  );
+
+  const renderCatalogMacroCard = (m, key) => (
+    <div
+      key={key}
+      className="rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="font-semibold text-[#2F1A55]">{m.title}</div>
+        <div className="text-slate-500">{m.active === false ? "Inactiva" : "Activa"}</div>
+      </div>
+      <div className="mt-1 text-[11px] text-slate-500">
+        Categoria: {m.category || "general"} | Estado: {m.status || "sin_estado"} | Roles: {formatMacroRoles(m.audience)}
+      </div>
+      <div className="mt-1 text-xs text-slate-600">{short(m.body, 220)}</div>
     </div>
   );
 
   return (
     <AdminLayout title={title} subtitle={subtitle}>
       <div className="space-y-6">
-        <Card
-          title={lockedPanel === "tickets" ? "Panel Tickets" : lockedPanel === "catalogo" ? "Catalogo de soporte" : "Control de tickets"}
-          subtitle={
-            lockedPanel
-              ? "Vista basica (default) y avanzada."
-              : "Panel Tickets y Catalogo con vista basica (default) y avanzada."
-          }
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {lockedPanel ? <div /> : (
+        {isCatalogLocked ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: "tickets", label: "Panel Tickets" },
-                  { id: "catalogo", label: "Catalogo" },
-                ].map((p) => (
+                  { id: "basic", label: "Basica" },
+                  { id: "advanced", label: "Avanzada" },
+                ].map((v) => (
                   <button
-                    key={p.id}
+                    key={v.id}
                     type="button"
-                    onClick={() => {
-                      setPanel(p.id);
-                      setSelectedPublicId(null);
-                    }}
+                    onClick={() =>
+                      setViewByPanel((prev) => ({
+                        ...prev,
+                        [activePanel]: v.id,
+                      }))
+                    }
                     className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      activePanel === p.id
-                        ? "border-[#5E30A5] bg-[#5E30A5] text-white"
-                        : "border-[#E9E2F7] bg-white text-[#5E30A5]"
+                      view === v.id
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
                     }`}
                   >
-                    {p.label}
+                    {v.label}
                   </button>
                 ))}
               </div>
-            )}
-            <button
-              type="button"
-              onClick={() => load(true)}
-              disabled={loading || refreshing}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
-            >
-              <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
-              Refrescar
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: "basic", label: "Basica" },
-              { id: "advanced", label: "Avanzada" },
-            ].map((v) => (
               <button
-                key={v.id}
                 type="button"
-                onClick={() =>
-                  setViewByPanel((prev) => ({
-                    ...prev,
-                    [activePanel]: v.id,
-                  }))
-                }
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  view === v.id
-                    ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                    : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                }`}
+                onClick={() => load(true)}
+                disabled={loading || refreshing}
+                aria-label="Refrescar"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E9E2F7] text-[#5E30A5] disabled:opacity-60"
               >
-                {v.label}
+                <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
               </button>
-            ))}
-          </div>
-          {error ? (
-            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-              {error}
             </div>
-          ) : null}
-        </Card>
+            {error ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {error}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <Card
+            title={lockedPanel === "tickets" ? "Panel Tickets" : "Control de tickets"}
+            subtitle={
+              lockedPanel
+                ? "Vista basica (default) y avanzada."
+                : "Panel Tickets y Catalogo con vista basica (default) y avanzada."
+            }
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {lockedPanel ? <div /> : (
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "tickets", label: "Panel Tickets" },
+                    { id: "catalogo", label: "Catalogo" },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setPanel(p.id);
+                        setSelectedPublicId(null);
+                      }}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        activePanel === p.id
+                          ? "border-[#5E30A5] bg-[#5E30A5] text-white"
+                          : "border-[#E9E2F7] bg-white text-[#5E30A5]"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => load(true)}
+                disabled={loading || refreshing}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
+              >
+                <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
+                Refrescar
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "basic", label: "Basica" },
+                { id: "advanced", label: "Avanzada" },
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() =>
+                    setViewByPanel((prev) => ({
+                      ...prev,
+                      [activePanel]: v.id,
+                    }))
+                  }
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    view === v.id
+                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                      : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            {error ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {error}
+              </div>
+            ) : null}
+          </Card>
+        )}
 
         {loading ? (
           <Card title="Cargando..." subtitle="Obteniendo datos de soporte." />
@@ -734,41 +905,217 @@ export default function AdminSupportControlPanel({
           )
         ) : (
           <div className="space-y-5">
-            <Card title="Categorias del sistema de soporte" subtitle="Cobertura y volumen por categoria.">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {categoriesStats.map((c) => (
-                  <div key={c.id} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm">
-                    <div className="font-semibold text-[#2F1A55]">{c.label}</div>
-                    <div className="text-xs text-slate-500">{c.description}</div>
-                    <div className="mt-1 text-[11px] text-slate-600">
-                      Total: {c.total} | Activos: {c.active} | Macros: {c.macros}
-                    </div>
-                  </div>
-                ))}
+            <Card
+              title="Configuracion operativa"
+              subtitle="Cobertura y estado del sistema de catalogo."
+              headerRight={
+                <div className="text-xs text-slate-500">
+                  Sin macros:{" "}
+                  <strong>
+                    {metrics.config.categoriesNoMacro.length
+                      ? metrics.config.categoriesNoMacro.map((c) => c.label).join(", ")
+                      : "Cobertura completa"}
+                  </strong>
+                </div>
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                <Metric icon={Settings2} title="Macros totales" value={catalogMacroSummary.total} />
+                <Metric icon={CheckCircle2} title="Macros activas" value={catalogMacroSummary.active} />
+                <Metric icon={Users} title="Categorias cubiertas" value={catalogMacroSummary.covered} />
               </div>
             </Card>
-            <Card title="Plantillas de mensajes (macros)" subtitle="Vista operativa de plantillas.">
-              <div className="grid gap-3 md:grid-cols-3">
-                <Metric title="Macros totales" value={macros.length} />
-                <Metric title="Macros activas" value={macros.filter((m) => m.active !== false).length} />
-                <Metric title="Categorias cubiertas" value={new Set(macros.map((m) => m.category).filter(Boolean)).size} />
-              </div>
-              <div className="space-y-2">
-                {(macros.length ? macros : SUPPORT_MACROS).slice(0, 80).map((m) => (
-                  <div key={m.id} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="font-semibold text-[#2F1A55]">{m.title}</div>
-                      <div className="text-slate-500">{m.category || "general"} | {m.status || "-"}</div>
-                    </div>
-                    <div className="mt-1 text-xs text-slate-600">{short(m.body, 180)}</div>
-                  </div>
-                ))}
+            <Card
+              title="Categorias y catalogo de macros"
+              subtitle="Cobertura, volumen y macros agrupadas."
+              headerRight={
+                <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+                  <span className="text-slate-500">Agrupar por:</span>
+                  {CATALOG_GROUP_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setCatalogGroupBy(opt.id);
+                        setExpandedCatalogGroups({});
+                      }}
+                      className={`rounded-full border px-3 py-1 font-semibold ${
+                        catalogGroupBy === opt.id
+                          ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                          : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              }
+            >
+              <div className="space-y-3">
+                {catalogGroupBy === "categoria"
+                  ? categoriesStats.map((c) => {
+                      const groupKey = `cat:${c.id}`;
+                      const isExpanded = !!expandedCatalogGroups[groupKey];
+                      const groupedStatuses = Object.entries(c.macrosByStatus || {}).sort((a, b) => {
+                        const diff = statusRank(a[0]) - statusRank(b[0]);
+                        return diff !== 0 ? diff : a[0].localeCompare(b[0]);
+                      });
+                      return (
+                        <div key={groupKey} className="overflow-hidden rounded-2xl border border-[#EFE9FA] bg-[#FCFBFF]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCatalogGroups((prev) => ({
+                                ...prev,
+                                [groupKey]: !prev[groupKey],
+                              }))
+                            }
+                            className="flex w-full flex-col gap-3 px-4 py-3 text-left md:flex-row md:items-center md:justify-between"
+                          >
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-[#2F1A55]">{c.label}</span>
+                                <span className="text-xs text-slate-400">({c.id})</span>
+                              </div>
+                              <div className="text-xs text-slate-500">{c.description}</div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1">
+                                Total: <strong>{c.total}</strong>
+                              </span>
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1">
+                                Activos: <strong>{c.active}</strong>
+                              </span>
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1">
+                                Macros: <strong>{c.macros}</strong>
+                              </span>
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1">
+                                Roles: <strong>{c.rolesWithMacros.length ? c.rolesWithMacros.join(", ") : "-"}</strong>
+                              </span>
+                            </div>
+                            <div className="shrink-0 text-[#5E30A5]">
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                          </button>
+                          {isExpanded ? (
+                            <div className="space-y-3 border-t border-[#EFE9FA] px-4 py-3">
+                              {groupedStatuses.length ? (
+                                groupedStatuses.map(([status, list]) => (
+                                  <div key={`${groupKey}-${status}`} className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2">
+                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                      <div className="font-semibold text-[#2F1A55]">
+                                        {MACRO_STATUS_LABEL[status] || status}
+                                        <span className="ml-1 text-slate-400">({status})</span>
+                                      </div>
+                                      <div className="text-slate-500">
+                                        Macros: <strong>{list.length}</strong>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {list.map((m) => renderCatalogMacroCard(m, `${groupKey}-${status}-${m.id}`))}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2 text-xs text-slate-500">
+                                  Sin macros para esta categoria.
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  : null}
+
+                {catalogGroupBy === "estado"
+                  ? groupedByStatus.map((group) => {
+                      const groupKey = `status:${group.id}`;
+                      const isExpanded = !!expandedCatalogGroups[groupKey];
+                      return (
+                        <div key={groupKey} className="overflow-hidden rounded-2xl border border-[#EFE9FA] bg-[#FCFBFF]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCatalogGroups((prev) => ({
+                                ...prev,
+                                [groupKey]: !prev[groupKey],
+                              }))
+                            }
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                          >
+                            <div>
+                              <div className="text-sm font-semibold text-[#2F1A55]">
+                                {group.label}
+                                <span className="ml-1 text-xs text-slate-400">({group.id})</span>
+                              </div>
+                              <div className="text-xs text-slate-500">Macros agrupadas por estado objetivo.</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                                Macros: <strong>{group.list.length}</strong>
+                              </span>
+                              <div className="text-[#5E30A5]">
+                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </div>
+                            </div>
+                          </button>
+                          {isExpanded ? (
+                            <div className="space-y-2 border-t border-[#EFE9FA] px-4 py-3">
+                              {group.list.map((m) => renderCatalogMacroCard(m, `${groupKey}-${m.id}`))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  : null}
+
+                {catalogGroupBy === "rol"
+                  ? groupedByRole.map((group) => {
+                      const groupKey = `role:${group.id}`;
+                      const isExpanded = !!expandedCatalogGroups[groupKey];
+                      return (
+                        <div key={groupKey} className="overflow-hidden rounded-2xl border border-[#EFE9FA] bg-[#FCFBFF]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCatalogGroups((prev) => ({
+                                ...prev,
+                                [groupKey]: !prev[groupKey],
+                              }))
+                            }
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                          >
+                            <div>
+                              <div className="text-sm font-semibold text-[#2F1A55]">{group.label}</div>
+                              <div className="text-xs text-slate-500">Macros agrupadas por rol de atencion.</div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="rounded-full border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                                Macros: <strong>{group.list.length}</strong>
+                              </span>
+                              <div className="text-[#5E30A5]">
+                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </div>
+                            </div>
+                          </button>
+                          {isExpanded ? (
+                            <div className="space-y-2 border-t border-[#EFE9FA] px-4 py-3">
+                              {group.list.map((m) => renderCatalogMacroCard(m, `${groupKey}-${m.id}`))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  : null}
               </div>
             </Card>
           </div>
         )}
 
-        {view === "advanced" && !loading ? renderAdvanced() : null}
+        {view === "advanced" && !loading && activePanel === "tickets"
+          ? renderAdvancedTickets()
+          : null}
       </div>
     </AdminLayout>
   );
