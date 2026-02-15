@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "baselineVersion": "0.5.0",
+  "globalIgnore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.git/**",
+    "**/.gradle-local/**",
+    "**/.android-local/**",
+    "**/.npm-cache-local/**",
+    "**/.vscode/**",
+    "**/.temp/**",
+    "**/*.log"
+  ],
+  "docOnlyGlobs": [
+    "docs/**",
+    "**/*.md",
+    ".github/**",
+    "README.md",
+    "contexto.ai.codex.md"
+  ],
+  "products": [
+    {
+      "productKey": "referidos_app",
+      "displayName": "Referidos App",
+      "roots": [
+        "apps/referidos-app/src",
+        "apps/referidos-app/supabase/functions",
+        "apps/referidos-app/supabase/migrations",
+        "packages/support-sdk/src",
+        "packages/observability/src",
+        "packages/legal-content/src",
+        "packages/platform-web/src",
+        "packages/security-core/src",
+        "packages/domain/src",
+        "packages/api-client/src"
+      ],
+      "contractGlobs": [
+        "packages/support-sdk/src/**",
+        "packages/api-client/src/**",
+        "apps/referidos-app/supabase/functions/**",
+        "apps/referidos-app/src/lib/supabaseClient.js"
+      ],
+      "minorGlobs": [
+        "apps/referidos-app/src/cliente/**",
+        "apps/referidos-app/src/negocio/**",
+        "apps/referidos-app/src/admin/**"
+      ],
+      "logicalComponents": [
+        {
+          "componentKey": "referidos_app.system.auth",
+          "componentType": "system",
+          "displayName": "Auth y acceso",
+          "globs": [
+            "apps/referidos-app/src/pages/AuthEntry*",
+            "apps/referidos-app/src/auth/**",
+            "apps/referidos-app/src/router/**"
+          ]
+        },
+        {
+          "componentKey": "referidos_app.system.support",
+          "componentType": "system",
+          "displayName": "Soporte e inbox",
+          "globs": [
+            "apps/referidos-app/src/admin/support/**",
+            "packages/support-sdk/src/**",
+            "apps/referidos-app/supabase/functions/support-*/**",
+            "apps/referidos-app/supabase/migrations/*support*"
+          ]
+        },
+        {
+          "componentKey": "referidos_app.system.observability",
+          "componentType": "system",
+          "displayName": "Observability",
+          "globs": [
+            "apps/referidos-app/src/admin/observability/**",
+            "packages/observability/src/**",
+            "apps/referidos-app/supabase/functions/obs-*/**",
+            "apps/referidos-app/supabase/migrations/*observability*",
+            "apps/referidos-app/supabase/migrations/*obs_*"
+          ]
+        },
+        {
+          "componentKey": "referidos_app.api.supabase_edge",
+          "componentType": "api",
+          "displayName": "Edge Functions Referidos",
+          "globs": [
+            "apps/referidos-app/supabase/functions/**"
+          ]
+        },
+        {
+          "componentKey": "referidos_app.db.schema",
+          "componentType": "db_migration",
+          "displayName": "Migraciones DB Referidos",
+          "globs": [
+            "apps/referidos-app/supabase/migrations/**"
+          ]
+        }
+      ]
+    },
+    {
+      "productKey": "prelaunch_web",
+      "displayName": "Prelaunch Web",
+      "roots": [
+        "apps/prelaunch/src",
+        "packages/api-client/src",
+        "packages/legal-content/src",
+        "packages/observability/src"
+      ],
+      "contractGlobs": [
+        "packages/api-client/src/**"
+      ],
+      "minorGlobs": [
+        "apps/prelaunch/src/**"
+      ],
+      "logicalComponents": [
+        {
+          "componentKey": "prelaunch_web.system.waitlist",
+          "componentType": "system",
+          "displayName": "Waitlist y conversion",
+          "globs": [
+            "apps/prelaunch/src/**waitlist*",
+            "apps/prelaunch/src/**"
+          ]
+        },
+        {
+          "componentKey": "prelaunch_web.system.support",
+          "componentType": "system",
+          "displayName": "Soporte anonimo prelaunch",
+          "globs": [
+            "apps/prelaunch/src/**/*support*",
+            "packages/api-client/src/support/**"
+          ]
+        },
+        {
+          "componentKey": "prelaunch_web.system.analytics",
+          "componentType": "system",
+          "displayName": "Analytics y antifraude prelaunch",
+          "globs": [
+            "apps/prelaunch/src/**/*analytics*",
+            "packages/api-client/src/prelaunch/**",
+            "apps/referidos-app/supabase/functions/prelaunch-*/**",
+            "apps/referidos-app/supabase/migrations/*prelaunch*"
+          ]
+        },
+        {
+          "componentKey": "prelaunch_web.api.client",
+          "componentType": "api",
+          "displayName": "API Client compartido",
+          "globs": [
+            "packages/api-client/src/**"
+          ]
+        }
+      ]
+    },
+    {
+      "productKey": "android_app",
+      "displayName": "Android App",
+      "roots": [
+        "apps/referidos-android/src",
+        "apps/referidos-android/android",
+        "apps/referidos-android/index.js",
+        "apps/referidos-android/App.tsx",
+        "packages/api-client/src",
+        "packages/observability-sdk/src",
+        "packages/platform-rn/src",
+        "packages/domain/src",
+        "packages/security-core/src"
+      ],
+      "contractGlobs": [
+        "packages/api-client/src/**",
+        "packages/platform-rn/src/**",
+        "packages/security-core/src/**"
+      ],
+      "minorGlobs": [
+        "apps/referidos-android/src/**",
+        "apps/referidos-android/App.tsx"
+      ],
+      "logicalComponents": [
+        {
+          "componentKey": "android_app.system.auth",
+          "componentType": "system",
+          "displayName": "Auth Android",
+          "globs": [
+            "apps/referidos-android/src/**/*auth*",
+            "apps/referidos-android/src/**/*session*"
+          ]
+        },
+        {
+          "componentKey": "android_app.system.support",
+          "componentType": "system",
+          "displayName": "Soporte Android",
+          "globs": [
+            "apps/referidos-android/src/**/*support*",
+            "packages/api-client/src/support/**"
+          ]
+        },
+        {
+          "componentKey": "android_app.system.scanner",
+          "componentType": "system",
+          "displayName": "Scanner QR Android",
+          "globs": [
+            "apps/referidos-android/src/**/*scan*",
+            "apps/referidos-android/src/**/*qr*"
+          ]
+        },
+        {
+          "componentKey": "android_app.api.client",
+          "componentType": "api",
+          "displayName": "API Client Android",
+          "globs": [
+            "packages/api-client/src/**",
+            "apps/referidos-android/src/**"
+          ]
+        },
+        {
+          "componentKey": "android_app.sdk.observability",
+          "componentType": "sdk_package",
+          "displayName": "Observability SDK Android",
+          "globs": [
+            "packages/observability-sdk/src/**"
+          ]
+        }
+      ]
+    }
+  ]
+}

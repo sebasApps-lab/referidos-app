@@ -1,0 +1,45 @@
+name: Versioning Release Dev
+
+on:
+  push:
+    branches:
+      - dev
+      - develop
+  workflow_dispatch:
+
+jobs:
+  release-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Detect versioning changeset
+        env:
+          VERSIONING_BASE_REF: HEAD~1
+          VERSIONING_HEAD_REF: HEAD
+          VERSIONING_STRICT_MAJOR_ACK: "0"
+        run: |
+          node tooling/versioning/detect-changes.mjs \
+            --output "versioning/out/changeset.json"
+
+      - name: Apply changeset and create dev release
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VERSIONING_TARGET_ENV: dev
+          VERSIONING_INPUT: versioning/out/changeset.json
+          VERSIONING_CREATE_RELEASE: "1"
+          VERSIONING_RELEASE_STATUS: validated
+        run: |
+          node tooling/versioning/apply-changeset.mjs

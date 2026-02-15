@@ -1,0 +1,68 @@
+name: Versioning Record Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: "Producto"
+        required: true
+        type: choice
+        options:
+          - referidos_app
+          - prelaunch_web
+          - android_app
+      env:
+        description: "Entorno"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      semver:
+        description: "Version semver (ej: 0.5.3)"
+        required: true
+        type: string
+      deployment_id:
+        description: "ID del deployment CI/CD"
+        required: true
+        type: string
+      status:
+        description: "Estado deployment"
+        required: true
+        type: choice
+        options:
+          - success
+          - failed
+      logs_url:
+        description: "URL logs (opcional)"
+        required: false
+        type: string
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Record deployment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          node tooling/versioning/record-deployment.mjs \
+            --product "${{ inputs.product }}" \
+            --env "${{ inputs.env }}" \
+            --semver "${{ inputs.semver }}" \
+            --deployment-id "${{ inputs.deployment_id }}" \
+            --status "${{ inputs.status }}" \
+            --logs-url "${{ inputs.logs_url }}"

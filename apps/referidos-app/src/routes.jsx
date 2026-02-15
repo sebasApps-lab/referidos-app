@@ -43,6 +43,8 @@ const AdminDevErrors = lazy(() => import("./pages/admin/AdminDevErrors"));
 const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
 const AdminPrelaunchAnalytics = lazy(() => import("./pages/admin/AdminPrelaunchAnalytics"));
+const AdminVersioningOverview = lazy(() => import("./pages/admin/AdminVersioningOverview"));
+const AdminVersioningReleases = lazy(() => import("./pages/admin/AdminVersioningReleases"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 
@@ -214,6 +216,26 @@ export default function AppRoutes() {
           <RequireAuth>
             <RequireRole role="admin">
               <AdminDevErrors />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/versionado/global"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminVersioningOverview />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/versionado/detalle"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminVersioningReleases />
             </RequireRole>
           </RequireAuth>
         }

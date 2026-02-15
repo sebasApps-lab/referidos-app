@@ -1,16 +1,31 @@
-# React + Vite
+# referidos-system
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Monorepo de Referidos con apps hermanas:
 
-Currently, two official plugins are available:
+- PWA principal: `apps/referidos-app`
+- Prelaunch web: `apps/prelaunch`
+- Android app: `apps/referidos-android`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Tambien contiene paquetes compartidos en `packages/*`, migraciones/funciones en Supabase, y tooling de CI/CD/versionado.
 
-## React Compiler
+## Documentacion
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Indice general:
 
-## Expanding the ESLint configuration
+- `docs/README.md`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Seccion principal del sistema:
+
+- `docs/referidos-system/README.md`
+
+Secciones por app hermana:
+
+- `apps/referidos-app/docs/README.md`
+- `apps/prelaunch/docs/README.md`
+- `apps/referidos-android/docs/README.md`
+
+## Reglas rapidas
+
+1. Ejecuta comandos de versionado desde la raiz del repo.
+2. No subas secret keys al repo.
+3. Usa el flujo de versionado documentado antes de promover releases.

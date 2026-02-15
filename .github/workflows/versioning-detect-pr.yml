@@ -1,0 +1,34 @@
+name: Versioning Detect (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Detect versioning changeset
+        env:
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          node tooling/versioning/detect-changes.mjs \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.sha }}" \
+            --output "versioning/out/changeset.json"
+
+      - name: Upload changeset artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: versioning-changeset
+          path: versioning/out/changeset.json
