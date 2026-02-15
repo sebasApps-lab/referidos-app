@@ -16,11 +16,14 @@ import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
 import {
-  fetchSupportTicketsPublic,
+  fetchCurrentUserRow,
+  fetchSupportTicketsByUserPublicId,
   formatDateTime,
   readFirst,
   toDisplayStatus,
 } from "@shared/services/entityQueries";
+
+type ProfileTab = "cuenta" | "seguridad" | "ayuda";
 
 function generateClientRequestId() {
   return `rn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -33,6 +36,7 @@ export default function ClientePerfilScreen() {
   const openConfirm = useModalStore((state) => state.openConfirm);
   const openAlert = useModalStore((state) => state.openAlert);
   const openPicker = useModalStore((state) => state.openPicker);
+  const [profileTab, setProfileTab] = useState<ProfileTab>("cuenta");
   const [category, setCategory] = useState("acceso");
   const [summary, setSummary] = useState("");
   const [creating, setCreating] = useState(false);
@@ -40,6 +44,8 @@ export default function ClientePerfilScreen() {
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [tickets, setTickets] = useState<any[]>([]);
   const [error, setError] = useState("");
+  const [ticketsError, setTicketsError] = useState("");
+  const [ticketOwnerPublicId, setTicketOwnerPublicId] = useState("");
 
   const usuario = onboarding?.usuario || null;
   const visibleCategories = useMemo(
@@ -56,10 +62,38 @@ export default function ClientePerfilScreen() {
 
   const loadTickets = useCallback(async () => {
     setTicketsLoading(true);
-    const result = await fetchSupportTicketsPublic(supabase, 20);
-    setTickets(result.ok ? result.data : []);
+    setTicketsError("");
+
+    let ownerPublicId = String(
+      readFirst(onboarding?.usuario, ["public_id", "user_public_id", "publicId"], ""),
+    ).trim();
+    if (!ownerPublicId) {
+      const current = await fetchCurrentUserRow(supabase);
+      if (current.ok && current.data) {
+        ownerPublicId = String(readFirst(current.data, ["public_id"], "")).trim();
+      }
+    }
+
+    if (!ownerPublicId) {
+      setTicketOwnerPublicId("");
+      setTickets([]);
+      setTicketsError("No se pudo resolver el usuario propietario de los tickets.");
+      setTicketsLoading(false);
+      return;
+    }
+
+    setTicketOwnerPublicId(ownerPublicId);
+    const result = await fetchSupportTicketsByUserPublicId(supabase, ownerPublicId, 20);
+    if (!result.ok) {
+      setTickets([]);
+      setTicketsError(result.error || "No se pudo cargar tus tickets.");
+      setTicketsLoading(false);
+      return;
+    }
+
+    setTickets(result.data);
     setTicketsLoading(false);
-  }, []);
+  }, [onboarding?.usuario]);
 
   useEffect(() => {
     loadTickets();
@@ -135,123 +169,215 @@ export default function ClientePerfilScreen() {
     await Linking.openURL(link);
   }, [created?.waLink, created?.wa_link]);
 
+  const handleOpenSupportEmail = useCallback(async () => {
+    try {
+      await Linking.openURL("mailto:soporte@referidosapp.ec");
+    } catch {
+      openAlert({
+        title: "No se pudo abrir correo",
+        message: "Intenta enviar correo a soporte@referidosapp.ec desde tu app de correo.",
+        tone: "warning",
+      });
+    }
+  }, [openAlert]);
+
+  const handleOpenFaq = useCallback(() => {
+    openAlert({
+      title: "Preguntas frecuentes",
+      message: "La seccion FAQ completa se incorpora en una fase posterior. Ya puedes usar soporte por chat o correo.",
+      tone: "warning",
+    });
+  }, [openAlert]);
+
+  const verificationStatus = String(
+    readFirst(onboarding, ["verification_status"], "sin_verificacion"),
+  );
+  const emailConfirmed = Boolean(readFirst(onboarding, ["email_confirmed"], false));
+
   return (
-    <ScreenScaffold title="Perfil cliente" subtitle="Cuenta, soporte y acciones base">
+    <ScreenScaffold title="Perfil cliente" subtitle="Cuenta, seguridad y ayuda">
       <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard title="Cuenta">
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Nombre:</Text>
-            <Text style={styles.infoValue}>
-              {readFirst(usuario, ["nombre", "apodo", "alias"], "sin nombre")}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Correo:</Text>
-            <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Estado:</Text>
-            <Text style={styles.infoValue}>
-              {onboarding?.allowAccess ? "activo" : "pendiente"}
-            </Text>
-          </View>
-          <View style={styles.actionsRow}>
-            <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>Refrescar</Text>
-            </Pressable>
-            <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-              <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-            </Pressable>
-          </View>
-        </SectionCard>
-
-        <SectionCard title="Chatear con soporte" subtitle="Pre-routing y apertura de WhatsApp">
-          <View style={styles.categoryPickerRow}>
-            <Text style={styles.categoryLabel}>
-              Categoria actual:{" "}
-              {visibleCategories.find((item) => item.id === category)?.label || "sin categoria"}
-            </Text>
-            <Pressable onPress={openCategoryPicker} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>Seleccionar</Text>
-            </Pressable>
-          </View>
-          <View style={styles.chipWrap}>
-            {visibleCategories.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => setCategory(item.id)}
-                style={[styles.chip, category === item.id && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, category === item.id && styles.chipTextSelected]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <TextInput
-            value={summary}
-            onChangeText={setSummary}
-            placeholder="Describe tu caso"
-            style={styles.input}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable
-            onPress={handleCreateTicket}
-            disabled={creating}
-            style={[styles.primaryBtn, creating && styles.primaryBtnDisabled]}
-          >
-            <Text style={styles.primaryBtnText}>
-              {creating ? "Creando..." : "Crear ticket"}
-            </Text>
-          </Pressable>
-
-          {created?.wa_link ? (
-            <View style={styles.ticketCreatedWrap}>
-              <Text style={styles.ticketCreatedTitle}>
-                Ticket: {readFirst(created, ["thread_public_id", "public_id"], "creado")}
+        <View style={styles.tabRow}>
+          {(["cuenta", "seguridad", "ayuda"] as ProfileTab[]).map((tab) => (
+            <Pressable
+              key={tab}
+              onPress={() => setProfileTab(tab)}
+              style={[styles.tabChip, profileTab === tab && styles.tabChipActive]}
+            >
+              <Text style={[styles.tabChipText, profileTab === tab && styles.tabChipTextActive]}>
+                {tab}
               </Text>
-              <Pressable onPress={handleOpenWhatsapp} style={styles.whatsappBtn}>
-                <Text style={styles.whatsappBtnText}>Abrir WhatsApp</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {profileTab === "cuenta" ? (
+          <SectionCard title="Cuenta">
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Nombre:</Text>
+              <Text style={styles.infoValue}>
+                {readFirst(usuario, ["nombre", "apodo", "alias"], "sin nombre")}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Correo:</Text>
+              <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Estado:</Text>
+              <Text style={styles.infoValue}>
+                {onboarding?.allowAccess ? "activo" : "pendiente"}
+              </Text>
+            </View>
+            <View style={styles.actionsRow}>
+              <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
+                <Text style={styles.secondaryBtnText}>Refrescar</Text>
+              </Pressable>
+              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
               </Pressable>
             </View>
-          ) : null}
-        </SectionCard>
+          </SectionCard>
+        ) : null}
 
-        <SectionCard
-          title="Mis tickets"
-          right={
-            <Pressable onPress={loadTickets} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>Recargar</Text>
-            </Pressable>
-          }
-        >
-          {ticketsLoading ? <BlockSkeleton lines={5} compact /> : null}
-          {!ticketsLoading && tickets.length === 0 ? (
-            <Text style={styles.emptyText}>No hay tickets registrados.</Text>
-          ) : null}
-          {!ticketsLoading
-            ? tickets.map((ticket, index) => (
-                <View key={`${readFirst(ticket, ["public_id", "id"], index)}-${index}`} style={styles.ticketItem}>
-                  <View style={styles.ticketTop}>
-                    <Text style={styles.ticketCode}>
-                      {readFirst(ticket, ["public_id"], "TKT")}
+        {profileTab === "seguridad" ? (
+          <SectionCard title="Acceso y seguridad" subtitle="Estado de acceso aplicable en RN">
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Rol:</Text>
+              <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "cliente"))}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Verificacion:</Text>
+              <Text style={styles.infoValue}>{verificationStatus}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email:</Text>
+              <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Acceso:</Text>
+              <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
+            </View>
+            <View style={styles.actionsRow}>
+              <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
+                <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
+              </Pressable>
+              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {profileTab === "ayuda" ? (
+          <>
+            <SectionCard title="Ayuda">
+              <View style={styles.actionsRow}>
+                <Pressable onPress={handleOpenFaq} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Preguntas frecuentes</Text>
+                </Pressable>
+                <Pressable onPress={handleOpenSupportEmail} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Soporte por correo</Text>
+                </Pressable>
+              </View>
+            </SectionCard>
+
+            <SectionCard title="Chatear con soporte" subtitle="Crear ticket y abrir WhatsApp">
+              <View style={styles.categoryPickerRow}>
+                <Text style={styles.categoryLabel}>
+                  Categoria actual:{" "}
+                  {visibleCategories.find((item) => item.id === category)?.label || "sin categoria"}
+                </Text>
+                <Pressable onPress={openCategoryPicker} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Seleccionar</Text>
+                </Pressable>
+              </View>
+              <View style={styles.chipWrap}>
+                {visibleCategories.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setCategory(item.id)}
+                    style={[styles.chip, category === item.id && styles.chipSelected]}
+                  >
+                    <Text style={[styles.chipText, category === item.id && styles.chipTextSelected]}>
+                      {item.label}
                     </Text>
-                    <Text style={styles.ticketStatus}>
-                      {toDisplayStatus(readFirst(ticket, ["status"], "new"))}
-                    </Text>
-                  </View>
-                  <Text style={styles.ticketSummary} numberOfLines={2}>
-                    {readFirst(ticket, ["summary", "resolution"], "Sin resumen")}
+                  </Pressable>
+                ))}
+              </View>
+
+              <TextInput
+                value={summary}
+                onChangeText={setSummary}
+                placeholder="Describe tu caso"
+                style={styles.input}
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+
+              <Pressable
+                onPress={handleCreateTicket}
+                disabled={creating}
+                style={[styles.primaryBtn, creating && styles.primaryBtnDisabled]}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {creating ? "Creando..." : "Crear ticket"}
+                </Text>
+              </Pressable>
+
+              {created?.wa_link ? (
+                <View style={styles.ticketCreatedWrap}>
+                  <Text style={styles.ticketCreatedTitle}>
+                    Ticket: {readFirst(created, ["thread_public_id", "public_id"], "creado")}
                   </Text>
-                  <Text style={styles.ticketDate}>
-                    {formatDateTime(readFirst(ticket, ["created_at"], null))}
-                  </Text>
+                  <Pressable onPress={handleOpenWhatsapp} style={styles.whatsappBtn}>
+                    <Text style={styles.whatsappBtnText}>Abrir WhatsApp</Text>
+                  </Pressable>
                 </View>
-              ))
-            : null}
-        </SectionCard>
+              ) : null}
+            </SectionCard>
+
+            <SectionCard
+              title="Mis tickets"
+              subtitle="Solo tickets del usuario autenticado"
+              right={
+                <Pressable onPress={loadTickets} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Recargar</Text>
+                </Pressable>
+              }
+            >
+              {ticketOwnerPublicId ? (
+                <Text style={styles.scopeText}>Owner: {ticketOwnerPublicId}</Text>
+              ) : null}
+              {ticketsLoading ? <BlockSkeleton lines={5} compact /> : null}
+              {!ticketsLoading && ticketsError ? (
+                <Text style={styles.error}>{ticketsError}</Text>
+              ) : null}
+              {!ticketsLoading && !ticketsError && tickets.length === 0 ? (
+                <Text style={styles.emptyText}>No hay tickets registrados.</Text>
+              ) : null}
+              {!ticketsLoading && !ticketsError
+                ? tickets.map((ticket, index) => (
+                    <View key={`${readFirst(ticket, ["public_id", "id"], index)}-${index}`} style={styles.ticketItem}>
+                      <View style={styles.ticketTop}>
+                        <Text style={styles.ticketCode}>
+                          {readFirst(ticket, ["public_id"], "TKT")}
+                        </Text>
+                        <Text style={styles.ticketStatus}>
+                          {toDisplayStatus(readFirst(ticket, ["status"], "new"))}
+                        </Text>
+                      </View>
+                      <Text style={styles.ticketSummary} numberOfLines={2}>
+                        {readFirst(ticket, ["summary", "resolution"], "Sin resumen")}
+                      </Text>
+                      <Text style={styles.ticketDate}>
+                        {formatDateTime(readFirst(ticket, ["created_at"], null))}
+                      </Text>
+                    </View>
+                  ))
+                : null}
+            </SectionCard>
+          </>
+        ) : null}
       </ScrollView>
     </ScreenScaffold>
   );
@@ -261,6 +387,33 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 20,
+  },
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 2,
+  },
+  tabChip: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  tabChipActive: {
+    borderColor: "#6D28D9",
+    backgroundColor: "#F5F3FF",
+  },
+  tabChipText: {
+    textTransform: "uppercase",
+    color: "#6B7280",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  tabChipTextActive: {
+    color: "#5B21B6",
   },
   categoryPickerRow: {
     flexDirection: "row",
@@ -278,7 +431,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoLabel: {
-    width: 70,
+    width: 90,
     color: "#6B7280",
     fontSize: 12,
   },
@@ -325,6 +478,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   outlineBtnText: {
     color: "#374151",
@@ -393,6 +548,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 12,
+  },
+  scopeText: {
+    color: "#64748B",
+    fontSize: 11,
   },
   emptyText: {
     color: "#6B7280",

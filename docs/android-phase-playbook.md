@@ -135,64 +135,81 @@
 
 ---
 
-## Phase 4 - Cliente Feature Parity
-**Goal:** cliente can complete core journeys with same behavior and guardrails as PWA.
+## Phase 4 - Closed
+**Status:** completed.
 
-### 4.1 Cliente Inicio
-- [ ] Data cards parity.
-- [ ] Empty/loading/error states parity.
-- [ ] Actions and deeplinks parity.
-
-### 4.2 Cliente Escaner/QR
-- [ ] Camera permission flow parity.
-- [ ] Scan success/failure handling parity.
-- [ ] Manual fallback input parity.
-
-### 4.3 Cliente Historial
-- [ ] List and filters parity.
-- [ ] Status chips/labels parity.
-- [ ] Details navigation parity.
-
-### 4.4 Cliente Perfil
-- [ ] Profile tabs parity.
-- [ ] Access/security tab behavior parity where applicable in RN scope.
-- [ ] Help section parity (including SupportChat entry point behavior).
-- [ ] "Mis tickets" must show only user-owned tickets (not global/public list), with backend/RLS-compatible query path.
-
-### 4.5 Verification
-- [ ] End-to-end cliente smoke tests across all tabs.
-
-**DoD Phase 4**
-- Cliente journeys available in PWA are functionally equivalent in RN.
+### Phase 4 closure evidence
+- PWA source behaviors mirrored (references):
+  - `apps/referidos-app/src/cliente/inicio/ClienteInicio.jsx`
+  - `apps/referidos-app/src/cliente/base/ClienteEscanerBase.jsx`
+  - `apps/referidos-app/src/scanner/hooks/useScannerState.ts`
+  - `apps/referidos-app/src/cliente/historial/HistorialView.jsx`
+  - `apps/referidos-app/src/profile/cliente/ClientePerfil.jsx`
+  - `apps/referidos-app/src/profile/shared/services/supportChatClient.js`
+- RN cliente parity implemented:
+  - Inicio actions/deeplinks + data/empty/loading/error states:
+    - `apps/referidos-android/src/features/cliente/ClienteInicioScreen.tsx`
+  - Escaner permission/success-failure/manual fallback parity:
+    - `apps/referidos-android/src/features/cliente/ClienteEscanerScreen.tsx`
+    - `apps/referidos-android/src/features/scanner/NativeQrScannerBlock.tsx`
+  - Historial filters/status chips/detail navigation parity:
+    - `apps/referidos-android/src/features/cliente/ClienteHistorialScreen.tsx`
+  - Perfil tabs + access/security + help/support parity:
+    - `apps/referidos-android/src/features/profile/ClientePerfilScreen.tsx`
+  - Owner-only ticket query path (RLS-compatible):
+    - `apps/referidos-android/src/shared/services/entityQueries.ts`
+    - uses `support_threads_public.user_public_id` filtering.
+- Verification checks completed:
+  - `npm run android:phase4:cliente-check` -> `Phase 4 cliente parity checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
+    - `npm run android:phase3:shell-check` -> OK
 
 ---
 
-## Phase 5 - Negocio Feature Parity
-**Goal:** negocio completes the same operational flows as PWA.
+## Phase 5 - Closed
+**Status:** completed.
 
-### 5.1 Negocio Inicio
-- [ ] Dashboard cards parity.
-- [ ] Status and notices parity.
-
-### 5.2 Negocio Escaner
-- [ ] Scan and redeem related behavior parity.
-- [ ] Permission and error handling parity.
-
-### 5.3 Negocio Gestionar
-- [ ] Promotions CRUD parity in RN scope.
-- [ ] Branch/address linkage behavior parity in RN scope.
-- [ ] State transitions parity.
-
-### 5.4 Negocio Perfil
-- [ ] Sections and controls parity.
-- [ ] Help/support entry parity.
-- [ ] "Mis tickets" must show only business-owner tickets, preserving category visibility by role.
-
-### 5.5 Verification
-- [ ] End-to-end negocio smoke tests.
-
-**DoD Phase 5**
-- Negocio-side operational workflows behave like PWA for equivalent data/state.
+### Phase 5 closure evidence
+- PWA source behaviors mirrored (references):
+  - `apps/referidos-app/src/negocio/inicio/NegocioInicio.jsx`
+  - `apps/referidos-app/src/negocio/base/NegocioEscanerBase.jsx`
+  - `apps/referidos-app/src/scanner/hooks/useScannerState.ts`
+  - `apps/referidos-app/src/negocio/base/NegocioGestionarBase.jsx`
+  - `apps/referidos-app/src/negocio/gestionar/sections/*`
+  - `apps/referidos-app/src/profile/negocio/NegocioPerfil.jsx`
+- RN negocio parity implemented:
+  - Inicio dashboard/status/notices/actions parity:
+    - `apps/referidos-android/src/features/negocio/NegocioInicioScreen.tsx`
+  - Escaner parse/redeem/manual fallback/result parity:
+    - `apps/referidos-android/src/features/negocio/NegocioEscanerScreen.tsx`
+  - Gestionar promos/sucursales/seguridad panel parity:
+    - `apps/referidos-android/src/features/negocio/NegocioGestionarScreen.tsx`
+  - Perfil tabs/help/support + owner-only tickets parity:
+    - `apps/referidos-android/src/features/profile/NegocioPerfilScreen.tsx`
+- RN data/service layer required for negocio operations:
+  - `apps/referidos-android/src/shared/services/entityQueries.ts`
+  - helpers delivered:
+    - `redeemValidQrCode`
+    - `createPromoForBusiness`
+    - `updatePromoStatusById`
+    - `deletePromoById`
+    - `updateBranchStateById`
+    - `linkPromoToBranch`
+    - `unlinkPromoFromBranch`
+    - `fetchPromoBranchLinksByPromoId`
+- Verification checks completed:
+  - `npm run android:phase5:negocio-check` -> `Phase 5 negocio parity checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
+    - `npm run android:phase3:shell-check` -> OK
+    - `npm run android:phase4:cliente-check` -> OK
+- Newly discovered work for Phase 5:
+  - none.
 
 ---
 
@@ -305,5 +322,5 @@
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 4 - Cliente Feature Parity`
-- Next review trigger: when `Phase 4` DoD is met with verification evidence.
+- Active phase: `Phase 6 - Native Feature Parity (Map, Scanner Internals, Security Local)`
+- Next review trigger: when `Phase 6` DoD is met with verification evidence.

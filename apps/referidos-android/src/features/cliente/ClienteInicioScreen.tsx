@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import { useModalStore } from "@shared/store/modalStore";
 import { fetchPromoFeed, formatDateTime, readFirst } from "@shared/services/entityQueries";
+import { TAB_ROUTES } from "@navigation/routeKeys";
 
 export default function ClienteInicioScreen() {
+  const navigation = useNavigation<any>();
   const onboarding = useAppStore((state) => state.onboarding);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
+  const openAlert = useModalStore((state) => state.openAlert);
   const [promosLoading, setPromosLoading] = useState(true);
   const [promos, setPromos] = useState<any[]>([]);
   const [error, setError] = useState("");
@@ -49,8 +54,49 @@ export default function ClienteInicioScreen() {
     await loadPromos();
   }, [bootstrapAuth, loadPromos]);
 
+  const openPromoLink = useCallback(
+    async (promo: any) => {
+      const externalLink = String(
+        readFirst(
+          promo,
+          ["deeplink", "deep_link", "wa_link", "url", "link", "web_url"],
+          "",
+        ),
+      ).trim();
+
+      if (!externalLink) {
+        openAlert({
+          title: "Promo sin enlace",
+          message: "Esta promocion no tiene un enlace directo disponible por ahora.",
+          tone: "warning",
+        });
+        return;
+      }
+
+      try {
+        const canOpen = await Linking.canOpenURL(externalLink);
+        if (!canOpen) {
+          openAlert({
+            title: "No se pudo abrir",
+            message: "El enlace de la promocion no es valido en este dispositivo.",
+            tone: "warning",
+          });
+          return;
+        }
+        await Linking.openURL(externalLink);
+      } catch {
+        openAlert({
+          title: "Error al abrir",
+          message: "No se pudo abrir el enlace de la promocion.",
+          tone: "warning",
+        });
+      }
+    },
+    [openAlert],
+  );
+
   return (
-    <ScreenScaffold title="Inicio cliente" subtitle="Base funcional Android (fase 3)">
+    <ScreenScaffold title="Inicio cliente" subtitle="Resumen de cuenta y promociones">
       <ScrollView contentContainerStyle={styles.content}>
         <SectionCard
           title={`Hola, ${String(alias).split(" ")[0]}`}
@@ -82,6 +128,20 @@ export default function ClienteInicioScreen() {
             <Text style={styles.infoValue}>
               {readFirst(usuario, ["telefono", "phone"], "sin telefono")}
             </Text>
+          </View>
+          <View style={styles.quickActionsRow}>
+            <Pressable
+              onPress={() => navigation.navigate(TAB_ROUTES.CLIENTE.ESCANER)}
+              style={styles.quickActionPrimary}
+            >
+              <Text style={styles.quickActionPrimaryText}>Ir a escaner</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate(TAB_ROUTES.CLIENTE.HISTORIAL)}
+              style={styles.quickActionSecondary}
+            >
+              <Text style={styles.quickActionSecondaryText}>Ver historial</Text>
+            </Pressable>
           </View>
         </SectionCard>
 
@@ -117,6 +177,9 @@ export default function ClienteInicioScreen() {
                       {String(subtitle)}
                     </Text>
                     <Text style={styles.itemMeta}>{formatDateTime(createdAt)}</Text>
+                    <Pressable onPress={() => { void openPromoLink(promo); }} style={styles.itemAction}>
+                      <Text style={styles.itemActionText}>Abrir promo</Text>
+                    </Pressable>
                   </View>
                 );
               })
@@ -181,6 +244,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#111827",
   },
+  quickActionsRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    gap: 8,
+  },
+  quickActionPrimary: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: "#6D28D9",
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  quickActionPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  quickActionSecondary: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  quickActionSecondaryText: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "700",
+  },
   error: {
     color: "#B91C1C",
     fontSize: 12,
@@ -211,5 +305,18 @@ const styles = StyleSheet.create({
   itemMeta: {
     fontSize: 11,
     color: "#6B7280",
+  },
+  itemAction: {
+    alignSelf: "flex-start",
+    marginTop: 2,
+    backgroundColor: "#F4EEFF",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  itemActionText: {
+    fontSize: 11,
+    color: "#5B21B6",
+    fontWeight: "700",
   },
 });

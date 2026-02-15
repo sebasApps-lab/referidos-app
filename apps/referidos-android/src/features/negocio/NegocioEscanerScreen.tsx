@@ -12,13 +12,30 @@ import {
   fetchQrHistoryByBusinessId,
   formatDateTime,
   readFirst,
+  redeemValidQrCode,
 } from "@shared/services/entityQueries";
+
+type ScannerOutcome = "valido" | "canjeado" | "expirado" | "estatico" | "invalido";
+
+function parseQrKind(code: string): "qrv" | "qrs" | "invalid" {
+  const normalized = String(code || "").trim().toLowerCase();
+  if (normalized.startsWith("qrv-")) return "qrv";
+  if (normalized.startsWith("qrs-")) return "qrs";
+  return "invalid";
+}
+
+function mapRedeemFailure(message: string): ScannerOutcome {
+  const text = String(message || "").toLowerCase();
+  if (text.includes("canjeado") || text.includes("redeemed")) return "canjeado";
+  if (text.includes("expir") || text.includes("venc")) return "expirado";
+  return "invalido";
+}
 
 export default function NegocioEscanerScreen() {
   const onboarding = useAppStore((state) => state.onboarding);
   const [manualCode, setManualCode] = useState("");
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [result, setResult] = useState<null | { code: string; outcome: ScannerOutcome; note: string }>(null);
   const [recentLoading, setRecentLoading] = useState(true);
   const [recent, setRecent] = useState<any[]>([]);
 
@@ -50,53 +67,117 @@ export default function NegocioEscanerScreen() {
     loadRecent();
   }, [loadRecent]);
 
-  const handlePreview = useCallback(async (incomingCode?: string) => {
-    setMessage("");
+  const handleProcessCode = useCallback(async (incomingCode?: string) => {
+    setResult(null);
     setError("");
     const clean = String(incomingCode ?? manualCode).trim();
     if (clean.length < 6) {
-      setError("Ingresa un codigo valido para previsualizar.");
+      setError("Ingresa un codigo valido para continuar.");
       return;
     }
     setManualCode(clean);
 
+    const kind = parseQrKind(clean);
+    if (kind === "invalid") {
+      setError("QR no reconocido. Debe iniciar con qrv- o qrs-.");
+      return;
+    }
+    if (kind === "qrs") {
+      setResult({
+        code: clean,
+        outcome: "estatico",
+        note: "QR estatico detectado. Solo los qrv-* son canjeables en negocio.",
+      });
+      return;
+    }
+
     await observability.track({
       level: "info",
       category: "scanner",
-      message: "negocio_scanner_manual_preview",
+      message: "negocio_scanner_redeem_attempt",
       context: { code_length: clean.length },
     });
 
-    setMessage(
-      "Codigo capturado. El escaneo nativo con camara se integra en la fase 8.",
-    );
-  }, [manualCode]);
+    const redeem = await redeemValidQrCode(supabase, clean);
+    if (!redeem.ok) {
+      const mapped = mapRedeemFailure(redeem.error || "redeem_failed");
+      setResult({
+        code: clean,
+        outcome: mapped,
+        note:
+          mapped === "canjeado"
+            ? "Este QR ya fue canjeado previamente."
+            : mapped === "expirado"
+            ? "Este QR ya expiro y no puede canjearse."
+            : (redeem.error || "No se pudo canjear el QR."),
+      });
+      return;
+    }
+
+    setResult({
+      code: clean,
+      outcome: "valido",
+      note: `Canje exitoso para promo ${readFirst(redeem.data, ["promo_titulo", "promoTitulo"], "sin titulo")}.`,
+    });
+    await loadRecent();
+  }, [loadRecent, manualCode]);
 
   return (
-    <ScreenScaffold title="Escaner negocio" subtitle="Preview manual y movimientos recientes">
+    <ScreenScaffold title="Escaner negocio" subtitle="Canje QR con fallback manual">
       <ScrollView contentContainerStyle={styles.content}>
         <NativeQrScannerBlock
           onDetected={(code) => {
-            void handlePreview(code);
+            void handleProcessCode(code);
           }}
         />
 
         <SectionCard title="Validacion manual">
           <Text style={styles.helper}>
-            Usa este bloque para validar flujo mientras se conecta el escaner nativo.
+            Si no puedes usar camara, ingresa el codigo manualmente para canjear.
           </Text>
           <TextInput
             value={manualCode}
             onChangeText={setManualCode}
             style={styles.input}
-            placeholder="Ej: QR-ABCD-1234"
+            placeholder="Ej: qrv-XXXX-XXXX"
             autoCapitalize="characters"
           />
-          <Pressable onPress={() => { void handlePreview(); }} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Validar previsualizacion</Text>
+          <Pressable onPress={() => { void handleProcessCode(); }} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Procesar QR</Text>
           </Pressable>
-          {message ? <Text style={styles.ok}>{message}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
+        </SectionCard>
+
+        <SectionCard title="Resultado de escaneo">
+          {!result && !error ? (
+            <Text style={styles.emptyText}>Escanea o ingresa un codigo para ver el resultado.</Text>
+          ) : null}
+          {result ? (
+            <View style={styles.resultBox}>
+              <View style={styles.resultTop}>
+                <Text style={styles.resultCode} numberOfLines={1}>
+                  {result.code}
+                </Text>
+                <Text
+                  style={[
+                    styles.resultBadge,
+                    result.outcome === "valido"
+                      ? styles.resultBadgeValid
+                      : result.outcome === "canjeado"
+                      ? styles.resultBadgeRedeemed
+                      : result.outcome === "expirado"
+                      ? styles.resultBadgeExpired
+                      : result.outcome === "estatico"
+                      ? styles.resultBadgeStatic
+                      : styles.resultBadgeInvalid,
+                  ]}
+                >
+                  {result.outcome}
+                </Text>
+              </View>
+              <Text style={styles.resultNote}>{result.note}</Text>
+            </View>
+          ) : null}
         </SectionCard>
 
         <SectionCard
@@ -163,11 +244,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
-  ok: {
-    color: "#047857",
-    fontSize: 12,
-    fontWeight: "600",
-  },
   error: {
     color: "#B91C1C",
     fontSize: 12,
@@ -186,6 +262,58 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: "#6B7280",
+    fontSize: 12,
+  },
+  resultBox: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  resultTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  resultCode: {
+    flex: 1,
+    color: "#181B2A",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  resultBadge: {
+    textTransform: "uppercase",
+    fontWeight: "700",
+    fontSize: 10,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  resultBadgeValid: {
+    color: "#047857",
+    backgroundColor: "#DCFCE7",
+  },
+  resultBadgeRedeemed: {
+    color: "#1D4ED8",
+    backgroundColor: "#DBEAFE",
+  },
+  resultBadgeExpired: {
+    color: "#B91C1C",
+    backgroundColor: "#FEE2E2",
+  },
+  resultBadgeStatic: {
+    color: "#92400E",
+    backgroundColor: "#FEF3C7",
+  },
+  resultBadgeInvalid: {
+    color: "#B91C1C",
+    backgroundColor: "#FEE2E2",
+  },
+  resultNote: {
+    color: "#4B5563",
     fontSize: 12,
   },
   item: {

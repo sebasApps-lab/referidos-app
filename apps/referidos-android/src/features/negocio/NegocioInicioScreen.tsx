@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import { TAB_ROUTES } from "@navigation/routeKeys";
 import {
   fetchBusinessByUserId,
   fetchBranchesByBusinessId,
@@ -14,7 +16,15 @@ import {
   readFirst,
 } from "@shared/services/entityQueries";
 
+function normalizePromoStatus(rawValue: any): "activo" | "pendiente" | "inactivo" {
+  const value = String(rawValue || "").trim().toLowerCase();
+  if (value.includes("activ")) return "activo";
+  if (value.includes("pend")) return "pendiente";
+  return "inactivo";
+}
+
 export default function NegocioInicioScreen() {
+  const navigation = useNavigation<any>();
   const onboarding = useAppStore((state) => state.onboarding);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
   const [loading, setLoading] = useState(true);
@@ -69,8 +79,19 @@ export default function NegocioInicioScreen() {
     await loadDashboard();
   }, [bootstrapAuth, loadDashboard]);
 
+  const promoStats = useMemo(() => {
+    const next = { activo: 0, pendiente: 0, inactivo: 0 };
+    for (const promo of promos) {
+      const status = normalizePromoStatus(readFirst(promo, ["estado", "status"], ""));
+      next[status] += 1;
+    }
+    return next;
+  }, [promos]);
+
+  const hasPendingNotices = promoStats.pendiente > 0 || promoStats.inactivo > 0;
+
   return (
-    <ScreenScaffold title="Inicio negocio" subtitle="Dashboard base Android (fase 4)">
+    <ScreenScaffold title="Inicio negocio" subtitle="Dashboard operativo del negocio">
       <ScrollView contentContainerStyle={styles.content}>
         <SectionCard
           title={readFirst(business, ["nombre"], "Tu negocio")}
@@ -87,13 +108,21 @@ export default function NegocioInicioScreen() {
             <>
               <View style={styles.kpiRow}>
                 <View style={styles.kpiCard}>
-                  <Text style={styles.kpiLabel}>Sucursales</Text>
-                  <Text style={styles.kpiValue}>{branches.length}</Text>
+                  <Text style={styles.kpiLabel}>Activas</Text>
+                  <Text style={styles.kpiValue}>{promoStats.activo}</Text>
                 </View>
                 <View style={styles.kpiCard}>
-                  <Text style={styles.kpiLabel}>Promos</Text>
-                  <Text style={styles.kpiValue}>{promos.length}</Text>
+                  <Text style={styles.kpiLabel}>Pendientes</Text>
+                  <Text style={styles.kpiValue}>{promoStats.pendiente}</Text>
                 </View>
+                <View style={styles.kpiCard}>
+                  <Text style={styles.kpiLabel}>Inactivas</Text>
+                  <Text style={styles.kpiValue}>{promoStats.inactivo}</Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Sucursales:</Text>
+                <Text style={styles.infoValue}>{branches.length}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Categoria:</Text>
@@ -101,13 +130,44 @@ export default function NegocioInicioScreen() {
                   {readFirst(business, ["categoria"], "sin categoria")}
                 </Text>
               </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>RUC:</Text>
-                <Text style={styles.infoValue}>{readFirst(business, ["ruc"], "sin ruc")}</Text>
+              <View style={styles.quickActionsRow}>
+                <Pressable
+                  onPress={() => navigation.navigate(TAB_ROUTES.NEGOCIO.GESTIONAR)}
+                  style={styles.quickActionPrimary}
+                >
+                  <Text style={styles.quickActionPrimaryText}>Gestionar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => navigation.navigate(TAB_ROUTES.NEGOCIO.ESCANER)}
+                  style={styles.quickActionSecondary}
+                >
+                  <Text style={styles.quickActionSecondaryText}>Ir a escaner</Text>
+                </Pressable>
               </View>
             </>
           ) : null}
         </SectionCard>
+
+        {!loading && !error ? (
+          <SectionCard title="Estado y avisos">
+            {hasPendingNotices ? (
+              <>
+                {promoStats.pendiente > 0 ? (
+                  <Text style={styles.noticeText}>
+                    Tienes {promoStats.pendiente} promo(s) pendientes de activacion.
+                  </Text>
+                ) : null}
+                {promoStats.inactivo > 0 ? (
+                  <Text style={styles.noticeText}>
+                    Tienes {promoStats.inactivo} promo(s) inactivas. Revisa transiciones en Gestionar.
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.okNotice}>Operacion estable: no hay avisos pendientes.</Text>
+            )}
+          </SectionCard>
+        ) : null}
 
         <SectionCard title="Promociones recientes">
           {loading ? <BlockSkeleton lines={5} compact /> : null}
@@ -124,7 +184,7 @@ export default function NegocioInicioScreen() {
                     {String(readFirst(promo, ["estado", "status"], "sin_estado"))}
                   </Text>
                   <Text style={styles.itemMeta}>
-                    {formatDateTime(readFirst(promo, ["created_at", "updated_at"], null))}
+                    {formatDateTime(readFirst(promo, ["created_at", "updated_at", "fechacreacion"], null))}
                   </Text>
                 </View>
               ))
@@ -185,7 +245,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoLabel: {
-    width: 70,
+    width: 78,
     color: "#6B7280",
     fontSize: 12,
   },
@@ -193,6 +253,47 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#111827",
     fontSize: 12,
+  },
+  quickActionsRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    gap: 8,
+  },
+  quickActionPrimary: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: "#6D28D9",
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  quickActionPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  quickActionSecondary: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  quickActionSecondaryText: {
+    color: "#374151",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  noticeText: {
+    color: "#7C2D12",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  okNotice: {
+    color: "#047857",
+    fontSize: 12,
+    fontWeight: "600",
   },
   emptyText: {
     color: "#6B7280",

@@ -13,10 +13,19 @@ import {
   readFirst,
 } from "@shared/services/entityQueries";
 
+type ScannerOutcome = "valido" | "estatico" | "invalido";
+
+function resolveScannerOutcome(code: string): ScannerOutcome {
+  const normalized = String(code || "").trim().toLowerCase();
+  if (normalized.startsWith("qrv-")) return "valido";
+  if (normalized.startsWith("qrs-")) return "estatico";
+  return "invalido";
+}
+
 export default function ClienteEscanerScreen() {
   const onboarding = useAppStore((state) => state.onboarding);
   const [manualCode, setManualCode] = useState("");
-  const [message, setMessage] = useState("");
+  const [result, setResult] = useState<null | { code: string; outcome: ScannerOutcome; note: string }>(null);
   const [messageError, setMessageError] = useState("");
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [recent, setRecent] = useState<any[]>([]);
@@ -44,7 +53,7 @@ export default function ClienteEscanerScreen() {
   }, [loadRecent]);
 
   const handleValidatePreview = useCallback(async (incomingCode?: string) => {
-    setMessage("");
+    setResult(null);
     setMessageError("");
     const clean = String(incomingCode ?? manualCode).trim();
     if (clean.length < 6) {
@@ -53,11 +62,12 @@ export default function ClienteEscanerScreen() {
     }
     setManualCode(clean);
 
+    const outcome = resolveScannerOutcome(clean);
     await observability.track({
       level: "info",
       category: "scanner",
-      message: "scanner_manual_preview",
-      context: { code_length: clean.length },
+      message: "cliente_scanner_processed",
+      context: { code_length: clean.length, outcome },
     });
 
     const data = await mobileApi.auth.runOnboardingCheck();
@@ -66,13 +76,28 @@ export default function ClienteEscanerScreen() {
       return;
     }
 
-    setMessage(
-      "Codigo recibido. El escaneo nativo de camara se completa en la fase 8; por ahora usa previsualizacion manual.",
-    );
+    if (outcome === "valido") {
+      setResult({
+        code: clean,
+        outcome,
+        note: "QR valido detectado. Puedes usarlo para canje en negocio.",
+      });
+      return;
+    }
+    if (outcome === "estatico") {
+      setResult({
+        code: clean,
+        outcome,
+        note: "QR estatico detectado. Este codigo es informativo y no se canjea como QR valido.",
+      });
+      return;
+    }
+
+    setMessageError("QR no reconocido. Debe iniciar con qrv- o qrs-.");
   }, [manualCode]);
 
   return (
-    <ScreenScaffold title="Escaner cliente" subtitle="Flujo base listo para migracion de camara nativa">
+    <ScreenScaffold title="Escaner cliente" subtitle="Escaneo QR con fallback manual">
       <ScrollView contentContainerStyle={styles.content}>
         <NativeQrScannerBlock
           onDetected={(code) => {
@@ -82,7 +107,7 @@ export default function ClienteEscanerScreen() {
 
         <SectionCard title="Ingreso manual de codigo">
           <Text style={styles.helper}>
-            Puedes validar el flujo escribiendo un codigo. El escaneo por camara se conecta en la fase 8.
+            Si no puedes usar camara, ingresa el codigo manualmente para validarlo.
           </Text>
           <TextInput
             value={manualCode}
@@ -94,13 +119,38 @@ export default function ClienteEscanerScreen() {
           <Pressable onPress={() => { void handleValidatePreview(); }} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Validar previsualizacion</Text>
           </Pressable>
-          {message ? <Text style={styles.ok}>{message}</Text> : null}
           {messageError ? <Text style={styles.error}>{messageError}</Text> : null}
+        </SectionCard>
+
+        <SectionCard title="Resultado de escaneo">
+          {!result && !messageError ? (
+            <Text style={styles.emptyText}>Escanea un QR o ingresa codigo manual para ver resultado.</Text>
+          ) : null}
+          {result ? (
+            <View style={styles.resultBox}>
+              <View style={styles.resultTop}>
+                <Text style={styles.resultCode}>{result.code}</Text>
+                <Text
+                  style={[
+                    styles.resultBadge,
+                    result.outcome === "valido"
+                      ? styles.resultBadgeValid
+                      : result.outcome === "estatico"
+                      ? styles.resultBadgeStatic
+                      : styles.resultBadgeInvalid,
+                  ]}
+                >
+                  {result.outcome}
+                </Text>
+              </View>
+              <Text style={styles.resultNote}>{result.note}</Text>
+            </View>
+          ) : null}
         </SectionCard>
 
         <SectionCard
           title="Ultimos codigos detectados"
-          subtitle="Referencia rapida mientras llega scanner nativo"
+          subtitle="Referencia rapida de codigos recientes"
           right={
             <Pressable onPress={loadRecent} style={styles.refreshButton}>
               <Text style={styles.refreshText}>Recargar</Text>
@@ -162,11 +212,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
-  ok: {
-    color: "#047857",
-    fontSize: 12,
-    fontWeight: "600",
-  },
   error: {
     color: "#B91C1C",
     fontSize: 12,
@@ -185,6 +230,50 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: "#6B7280",
+    fontSize: 12,
+  },
+  resultBox: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  resultTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  resultCode: {
+    flex: 1,
+    color: "#181B2A",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  resultBadge: {
+    textTransform: "uppercase",
+    fontWeight: "700",
+    fontSize: 10,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  resultBadgeValid: {
+    color: "#047857",
+    backgroundColor: "#DCFCE7",
+  },
+  resultBadgeStatic: {
+    color: "#1D4ED8",
+    backgroundColor: "#DBEAFE",
+  },
+  resultBadgeInvalid: {
+    color: "#B91C1C",
+    backgroundColor: "#FEE2E2",
+  },
+  resultNote: {
+    color: "#4B5563",
     fontSize: 12,
   },
   item: {
