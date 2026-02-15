@@ -54,6 +54,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { data: { session } = {} } = await supabase.auth.getSession();
       if (!session?.access_token) {
+        void observability.track({
+          level: "info",
+          category: "auth",
+          message: "bootstrap_no_session",
+          context: { flow: "auth_bootstrap" },
+        });
         useShellStore.getState().clearSessionCache();
         useModalStore.getState().reset();
         useSecurityStore.getState().reset();
@@ -75,6 +81,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const onboarding = await mobileApi.auth.runOnboardingCheck();
       if (!onboarding?.ok) {
+        void observability.track({
+          level: "warn",
+          category: "auth",
+          message: "bootstrap_onboarding_failed",
+          context: {
+            flow: "auth_bootstrap",
+            error: onboarding?.error || "onboarding_failed",
+          },
+        });
         set({
           bootStatus: "error",
           bootError: onboarding?.error || "onboarding_failed",
@@ -103,6 +118,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         (resolvedRole === "cliente" || resolvedRole === "negocio") &&
         (verificationStatus === "unverified" || verificationStatus === "in_progress");
       const accessMethods = buildAccessMethodsFromUser(onboarding?.usuario || {});
+
+      void observability.track({
+        level: "info",
+        category: "auth",
+        message: "bootstrap_auth_ready",
+        context: {
+          flow: "auth_bootstrap",
+          role: resolvedRole || null,
+          allow_access: Boolean(onboarding?.allowAccess),
+          requires_verification: requiresVerificationFlow,
+        },
+      });
 
       set({
         bootStatus: "ready",
@@ -146,6 +173,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   signOut: async () => {
+    void observability.track({
+      level: "info",
+      category: "auth",
+      message: "sign_out",
+      context: { flow: "auth_session" },
+    });
     await supabase.auth.signOut();
     useShellStore.getState().clearSessionCache();
     useModalStore.getState().reset();

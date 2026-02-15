@@ -16,6 +16,8 @@ const BRANCH_STATUS_COLUMNS = ["status", "estado"] as const;
 const BRANCH_TYPE_COLUMNS = ["tipo", "type"] as const;
 const PROMO_BRANCH_PROMO_COLUMNS = ["promoid", "promo_id", "promoId"] as const;
 const PROMO_BRANCH_BRANCH_COLUMNS = ["sucursalid", "sucursal_id", "sucursalId"] as const;
+const OBS_LEVELS = ["fatal", "error", "warn", "info", "debug"] as const;
+const OBS_DOMAINS = ["observability", "support"] as const;
 
 function getErrorMessage(error: any) {
   return String(error?.message || error || "unknown_error");
@@ -34,6 +36,16 @@ function isMissingColumnError(error: any) {
 function isNoRowsDeletedError(error: any) {
   const text = getErrorMessage(error).toLowerCase();
   return text.includes("results contain 0 rows");
+}
+
+function normalizeObsLevel(value: any) {
+  const next = String(value || "").trim().toLowerCase();
+  return OBS_LEVELS.includes(next as any) ? next : null;
+}
+
+function normalizeObsDomain(value: any) {
+  const next = String(value || "").trim().toLowerCase();
+  return OBS_DOMAINS.includes(next as any) ? next : null;
 }
 
 async function maybeSingleByAnyColumn(
@@ -187,6 +199,48 @@ export async function fetchSupportTicketsByUserPublicId(
 
   if (lastError) return { ok: false, data: [], error: lastError, column: null };
   return { ok: false, data: [], error: "support_owner_column_missing", column: null };
+}
+
+export async function fetchObservabilityEvents(
+  supabase: any,
+  options: {
+    limit?: number;
+    level?: string | null;
+    domain?: string | null;
+  } = {},
+): Promise<Result<any[]>> {
+  const safeLimit = Math.min(Math.max(Number(options.limit || 40), 5), 100);
+  const level = normalizeObsLevel(options.level);
+  const domain = normalizeObsDomain(options.domain);
+
+  const selectShapes = [
+    "id, occurred_at, created_at, level, event_type, message, request_id, trace_id, session_id, event_domain, support_category, support_thread_id, support_route, support_screen, context",
+    "id, occurred_at, created_at, level, event_type, message, request_id, trace_id, session_id, event_domain, context",
+  ];
+
+  let lastError = "";
+  for (const shape of selectShapes) {
+    let query = supabase
+      .from("obs_events")
+      .select(shape)
+      .order("occurred_at", { ascending: false })
+      .limit(safeLimit);
+
+    if (level) query = query.eq("level", level);
+    if (domain) query = query.eq("event_domain", domain);
+
+    const { data, error } = await query;
+    if (!error) return { ok: true, data: data || [] };
+    if (isMissingColumnError(error)) continue;
+    lastError = getErrorMessage(error);
+    break;
+  }
+
+  return {
+    ok: false,
+    data: [],
+    error: lastError || "observability_events_query_failed",
+  };
 }
 
 export async function redeemValidQrCode(

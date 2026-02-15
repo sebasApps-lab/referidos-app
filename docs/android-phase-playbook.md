@@ -255,62 +255,103 @@
 
 ---
 
-## Phase 7 - Observability and Log Operability
-**Goal:** RN emits useful, bounded, production-ready logs equivalent to platform policy.
+## Phase 7 - Closed
+**Status:** completed.
 
-### 7.1 SDK integration
-- [ ] Wire RN events to `@referidos/observability-sdk`.
-- [ ] Ensure standard context contract:
-- [ ] route/screen
-- [ ] role
-- [ ] app/build version
-- [ ] network + device summary
-- [ ] request/session correlation ids
-
-### 7.2 Quality controls
-- [ ] Sampling and rate limiting parity.
-- [ ] Dedupe/fingerprint parity.
-- [ ] PII scrub rules parity.
-
-### 7.3 Verification
-- [ ] Admin/support-facing log readability checks with real RN events.
-
-**DoD Phase 7**
-- Logs from RN are actionable, bounded in volume, and policy-compliant.
+### Phase 7 closure evidence
+- SDK wiring + runtime context contract delivered:
+  - `apps/referidos-android/src/shared/services/mobileApi.ts`
+  - `apps/referidos-android/src/app/App.tsx`
+  - context parity covered:
+    - route/screen via navigation state listeners (`onReady` / `onStateChange`)
+    - role/user context from app bootstrap state
+    - app/build/env metadata
+    - network + device summary snapshots
+    - request/session/trace correlation ids
+- Quality controls delivered in mobile observability SDK:
+  - `packages/observability-sdk/src/createMobileObservabilityClient.js`
+  - parity controls implemented:
+    - sampling + per-level/global rate limit
+    - dedupe/fingerprint windowing
+    - PII scrub and context sanitization
+- Admin/support log readability with real RN events delivered:
+  - `apps/referidos-android/src/features/admin/AdminObservabilidadScreen.tsx`
+  - `apps/referidos-android/src/features/support/SoporteInboxScreen.tsx`
+  - `apps/referidos-android/src/shared/ui/ObservabilityEventFeed.tsx`
+  - `apps/referidos-android/src/shared/services/entityQueries.ts`
+- Verification checks completed:
+  - `npm run android:phase7:observability-check` -> `Phase 7 observability checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
+    - `npm run android:phase3:shell-check` -> OK
+    - `npm run android:phase4:cliente-check` -> OK
+    - `npm run android:phase5:negocio-check` -> OK
+    - `npm run android:phase6:native-check` -> OK
+- Newly discovered work for Phase 7:
+  - none.
 
 ---
 
-## Phase 8 - Support/Admin (last, optional by scope decision)
-**Goal:** only if required for RN release; otherwise explicitly deferred.
+## Phase 8 - Closed
+**Status:** completed with explicit RN scope decision.
 
-### 8.1 Usuario support
-- [ ] Create thread flow parity.
-- [ ] My tickets flow parity.
+### Phase 8 scope decision
+- Included in RN scope:
+  - Usuario support: create thread + my tickets.
+  - Soporte role: inbox, ticket details, irregular ticket, session start/end/ping, jornada controls.
+  - Admin support desk: agent authorization/session controls + ticket assignment/reassignment.
+  - Admin modules in RN: Inicio, Usuarios, Soporte/asesores, Observability, Sistema (perfil/sesion).
+- Diferido (PWA-only by explicit scope decision for this release):
+  - Businesses
+  - Promos
+  - QRs
+  - Reports
+  - Logs del sistema
 
-### 8.2 Soporte role
-- [ ] Inbox parity.
-- [ ] Ticket details parity.
-- [ ] Irregular ticket flow parity.
-- [ ] Session start/end/ping and admin authorization parity.
-- [ ] Session/jornada controls parity.
-
-### 8.3 Admin support desk
-- [ ] Agent authorization/session controls parity.
-- [ ] Ticket assignment/reassignment parity.
-
-### 8.4 Admin modules (only if in RN scope)
-- [ ] Inicio
-- [ ] Users
-- [ ] Soporte / asesores
-- [ ] Businesses
-- [ ] Promos
-- [ ] QRs
-- [ ] Reports
-- [ ] Observability
-- [ ] Logs/System
-
-**DoD Phase 8**
-- Only included modules are explicitly validated; excluded modules are documented as PWA-only.
+### Phase 8 closure evidence
+- PWA source behaviors mirrored (references):
+  - `apps/referidos-app/src/profile/shared/blocks/SupportChatHubBlock.jsx`
+  - `apps/referidos-app/src/profile/shared/blocks/SupportChatTicketsBlock.jsx`
+  - `apps/referidos-app/src/admin/support/AdminSupportDesk.jsx`
+  - `apps/referidos-app/src/admin/support/AdminSupportTicket.jsx`
+  - `apps/referidos-app/src/admin/support/AdminSupportAgents.jsx`
+  - `apps/referidos-app/src/pages/admin/AdminInicio.jsx`
+  - `apps/referidos-app/src/pages/admin/AdminUsuarios.jsx`
+- RN parity implemented:
+  - Usuario support (cliente/negocio):
+    - `apps/referidos-android/src/features/profile/ClientePerfilScreen.tsx`
+    - `apps/referidos-android/src/features/profile/NegocioPerfilScreen.tsx`
+  - Soporte role:
+    - `apps/referidos-android/src/features/support/SoporteInboxScreen.tsx`
+    - `apps/referidos-android/src/features/support/SoporteTicketScreen.tsx`
+    - `apps/referidos-android/src/features/support/SoporteIrregularScreen.tsx`
+    - `apps/referidos-android/src/features/profile/SoportePerfilScreen.tsx`
+  - Admin support desk:
+    - `apps/referidos-android/src/features/admin/AdminSoporteScreen.tsx`
+  - Admin modules in RN scope:
+    - `apps/referidos-android/src/features/admin/AdminInicioScreen.tsx`
+    - `apps/referidos-android/src/features/admin/AdminUsuariosScreen.tsx`
+    - `apps/referidos-android/src/features/admin/AdminObservabilidadScreen.tsx`
+    - `apps/referidos-android/src/features/profile/AdminPerfilScreen.tsx`
+  - Shared support/admin data services:
+    - `apps/referidos-android/src/shared/constants/supportDesk.ts`
+    - `apps/referidos-android/src/shared/services/supportDeskQueries.ts`
+    - `apps/referidos-android/src/shared/store/supportDeskStore.ts`
+- Verification checks completed:
+  - `npm run android:phase8:support-admin-check` -> `Phase 8 support/admin checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
+    - `npm run android:phase3:shell-check` -> OK
+    - `npm run android:phase4:cliente-check` -> OK
+    - `npm run android:phase5:negocio-check` -> OK
+    - `npm run android:phase6:native-check` -> OK
+    - `npm run android:phase7:observability-check` -> OK
+- Newly discovered work for Phase 8:
+  - none.
 
 ---
 
@@ -337,5 +378,5 @@
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 7 - Observability and Log Operability`
-- Next review trigger: when `Phase 7` DoD is met with verification evidence.
+- Active phase: `Phase 9 - Final Parity Certification and Release Readiness`
+- Next review trigger: when `Phase 9` parity matrix and release checks are fully evidenced.

@@ -14,7 +14,10 @@ export const mobileApi = createApiClient(supabase);
 export const observability = createObservabilityClient({
   api: mobileApi,
   baseContext: {
+    app_id: "referidos-android",
     app_version: MOBILE_ENV.APP_VERSION,
+    build_id: MOBILE_ENV.APP_VERSION,
+    env: __DEV__ ? "development" : "production",
     platform: "android",
     channel: "react-native",
   },
