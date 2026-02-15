@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   AppState,
   Appearance,
@@ -127,6 +127,9 @@ export default function App() {
   const onboarding = useAppStore((state) => state.onboarding);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
   const navigationRef = useNavigationContainerRef();
+  const appStartAtRef = useRef(Date.now());
+  const bootReadyTrackedRef = useRef(false);
+  const firstRouteTrackedRef = useRef(false);
 
   const syncRouteContext = useCallback(() => {
     const route = navigationRef.getCurrentRoute();
@@ -136,6 +139,19 @@ export default function App() {
       screen: routeName,
       flow: routeName,
     });
+    if (!firstRouteTrackedRef.current && routeName !== "unknown") {
+      firstRouteTrackedRef.current = true;
+      const startupDurationMs = Math.max(0, Date.now() - appStartAtRef.current);
+      void observability.track({
+        level: "info",
+        category: "performance",
+        message: "app_first_route_ready",
+        context: {
+          route: routeName,
+          startup_duration_ms: startupDurationMs,
+        },
+      });
+    }
   }, [navigationRef]);
 
   useEffect(() => {
@@ -204,6 +220,20 @@ export default function App() {
       },
     });
   }, [onboarding, role]);
+
+  useEffect(() => {
+    if (bootStatus !== "ready" || bootReadyTrackedRef.current) return;
+    bootReadyTrackedRef.current = true;
+    const startupDurationMs = Math.max(0, Date.now() - appStartAtRef.current);
+    void observability.track({
+      level: "info",
+      category: "performance",
+      message: "app_boot_ready",
+      context: {
+        startup_duration_ms: startupDurationMs,
+      },
+    });
+  }, [bootStatus]);
 
   if (bootStatus === "idle" || bootStatus === "loading") {
     return <GlobalLoader label="Inicializando Referidos Android..." />;

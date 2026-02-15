@@ -1,55 +1,55 @@
 # Android Parity Checklist
 
 ## Auth / Onboarding
-- [ ] Welcome / login / register
-- [ ] OAuth callback
-- [ ] Owner data
-- [ ] Business data + category
-- [ ] Address step + map + reverse geocode
-- [ ] Business verify
-- [ ] Account verify prompt
-- [ ] Email verify / method / ready
-- [ ] Add password / add MFA
+- [x] Welcome / login / register
+- [x] OAuth callback
+- [x] Owner data
+- [x] Business data + category
+- [x] Address step + map + reverse geocode
+- [x] Business verify
+- [x] Account verify prompt
+- [x] Email verify / method / ready
+- [x] Add password / add MFA
 
 ## Cliente
-- [ ] Inicio
-- [ ] Escaner
-- [ ] Historial
-- [ ] Perfil
-- [ ] Soporte desde perfil
+- [x] Inicio
+- [x] Escaner
+- [x] Historial
+- [x] Perfil
+- [x] Soporte desde perfil
 
 ## Negocio
-- [ ] Inicio
-- [ ] Escaner
-- [ ] Gestionar
-- [ ] Perfil
-- [ ] Soporte desde perfil
+- [x] Inicio
+- [x] Escaner
+- [x] Gestionar
+- [x] Perfil
+- [x] Soporte desde perfil
 
 ## Soporte
-- [ ] Inbox
-- [ ] Ticket details
-- [ ] Irregular ticket
-- [ ] Session start/end/ping and admin authorization
+- [x] Inbox
+- [x] Ticket details
+- [x] Irregular ticket
+- [x] Session start/end/ping and admin authorization
 
 ## Admin
-- [ ] Inicio
-- [ ] Usuarios
-- [ ] Soporte / asesores
-- [ ] Negocios
-- [ ] Promos
-- [ ] QRs
-- [ ] Reportes
-- [ ] Observabilidad
-- [ ] Sistema
+- [x] Inicio
+- [x] Usuarios
+- [x] Soporte / asesores
+- [x] Negocios
+- [x] Promos
+- [x] QRs
+- [x] Reportes
+- [x] Observabilidad
+- [x] Sistema
 
 ## Security
-- [ ] Local unlock manager parity
-- [ ] PIN storage and attempts policy
-- [ ] Biometrics integration
-- [ ] Reauth-sensitive flows
+- [x] Local unlock manager parity
+- [x] PIN storage and attempts policy
+- [x] Biometrics integration
+- [x] Reauth-sensitive flows
 
 ## Observability
-- [ ] Mobile event ingest wiring
-- [ ] Rate limit / sampling
-- [ ] Context normalization
-- [ ] Admin logs readability
+- [x] Mobile event ingest wiring
+- [x] Rate limit / sampling
+- [x] Context normalization
+- [x] Admin logs readability

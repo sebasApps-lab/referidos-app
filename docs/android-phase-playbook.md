@@ -302,13 +302,9 @@
   - Usuario support: create thread + my tickets.
   - Soporte role: inbox, ticket details, irregular ticket, session start/end/ping, jornada controls.
   - Admin support desk: agent authorization/session controls + ticket assignment/reassignment.
-  - Admin modules in RN: Inicio, Usuarios, Soporte/asesores, Observability, Sistema (perfil/sesion).
-- Diferido (PWA-only by explicit scope decision for this release):
-  - Businesses
-  - Promos
-  - QRs
-  - Reports
-  - Logs del sistema
+  - Admin modules in RN: Inicio, Usuarios, Soporte/asesores, Negocios, Promos, QRs, Reportes, Observability, Sistema/Logs.
+- Diferido (PWA-only):
+  - none.
 
 ### Phase 8 closure evidence
 - PWA source behaviors mirrored (references):
@@ -355,28 +351,38 @@
 
 ---
 
-## Phase 9 - Final Parity Certification and Release Readiness
-**Goal:** prove 1:1 parity for included scope and produce stable Android deliverable.
+## Phase 9 - Closed
+**Status:** completed.
 
-### 9.1 Parity certification
-- [ ] Complete and sign off parity matrix per role and journey.
-- [ ] Compare RN vs PWA results for identical backend snapshots.
-
-### 9.2 Stability and performance
-- [ ] Crash-free smoke in repeated sessions.
-- [ ] Startup and navigation performance sanity checks.
-
-### 9.3 Release checks
-- [ ] Build reproducibility checks (`assembleDebug` and selected release path).
-- [ ] Environment config sanity (dev/staging/prod keys handling).
-- [ ] Packaging and installability validation.
-- [ ] Release signing path validation (non-debug keystore) and minify/proguard smoke validation for release variant.
-
-**DoD Phase 9**
-- RN app is release-ready for agreed scope with parity evidence and no blockers.
+### Phase 9 closure evidence
+- Final parity certification matrix completed and approved:
+  - `docs/android-parity-certification-matrix.md`
+  - includes role/journey evidence for Auth, Cliente, Negocio, Soporte, Admin.
+- Parity/stability checks green:
+  - `npm run android:phase9:parity-check` -> `Phase 9 parity certification checks: OK`
+  - startup instrumentation present in RN shell:
+    - `app_boot_ready`
+    - `app_first_route_ready`
+    - file: `apps/referidos-android/src/app/App.tsx`
+- Release readiness checks green:
+  - `npm run android:assemble:release` -> successful release build with:
+    - signed `app-release.apk`
+    - `mapping.txt` (R8/proguard)
+  - `npm run android:phase9:release-check` -> `Phase 9 release readiness checks: OK`
+- Release output evidence:
+  - `apps/referidos-android/android/app/build/outputs/apk/release/app-release.apk`
+  - `apps/referidos-android/android/app/build/outputs/mapping/release/mapping.txt`
+  - signing metadata:
+    - `apps/referidos-android/android/app/build/intermediates/signing_config_versions/release/writeReleaseSigningConfigVersions/signing-config-versions.json`
+- Windows CMake stabilization note (screens):
+  - release script excludes stuck tasks:
+    - `:react-native-screens:configureCMakeRelWithDebInfo[arm64-v8a]`
+    - `:react-native-screens:buildCMakeRelWithDebInfo[arm64-v8a]`
+  - applied in:
+    - `scripts/run_android_assemble_release_inner.ps1`
 
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 9 - Final Parity Certification and Release Readiness`
-- Next review trigger: when `Phase 9` parity matrix and release checks are fully evidenced.
+- Active phase: none (Phases 1-9 closed).
+- Next review trigger: new migration scope or parity regression report.

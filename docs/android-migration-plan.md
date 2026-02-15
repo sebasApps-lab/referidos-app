@@ -15,14 +15,14 @@
 - [x] Sprint 2: Create `packages/mobile-domain`, `packages/mobile-api`, `packages/mobile-security`, `packages/mobile-observability`.
 - [x] Sprint 3: App shell with role routing, tabs, modal host, loaders placeholders.
 - [x] Sprint 4: Auth + onboarding parity.
-- [ ] Sprint 5: Cliente parity screens and data wiring.
-- [ ] Sprint 6: Negocio parity screens and data wiring.
-- [ ] Sprint 7: Address/map native implementation parity.
-- [ ] Sprint 8: Scanner/QR native implementation parity.
-- [ ] Sprint 9: Security unlock parity (PIN/biometrics).
-- [ ] Sprint 10: Support user/support agent/admin support desks parity.
-- [ ] Sprint 11: Remaining admin modules parity.
-- [ ] Sprint 12: Hardening, QA parity matrix, release candidate.
+- [x] Sprint 5: Cliente parity screens and data wiring.
+- [x] Sprint 6: Negocio parity screens and data wiring.
+- [x] Sprint 7: Address/map native implementation parity.
+- [x] Sprint 8: Scanner/QR native implementation parity.
+- [x] Sprint 9: Security unlock parity (PIN/biometrics).
+- [x] Sprint 10: Support user/support agent/admin support desks parity.
+- [x] Sprint 11: Remaining admin modules parity.
+- [x] Sprint 12: Hardening, QA parity matrix, release candidate.
 
 ## Execution Notes
 - Shared logic is copied into `packages/mobile-*` for Android usage.

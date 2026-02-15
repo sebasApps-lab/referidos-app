@@ -4,7 +4,11 @@ import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { supabase } from "@shared/services/mobileApi";
-import { fetchObservabilityEvents } from "@shared/services/entityQueries";
+import {
+  fetchObservabilityEvents,
+  formatDateTime,
+  readFirst,
+} from "@shared/services/entityQueries";
 import {
   fetchSupportAgentsDashboard,
   fetchSupportStatusSummary,
@@ -39,6 +43,10 @@ type OverviewState = {
   platform: PlatformKpis;
   support: SupportKpis;
   observability: ObservabilityKpis;
+  businesses: any[];
+  promos: any[];
+  qrs: any[];
+  systemLogs: any[];
 };
 
 type CountResult = {
@@ -51,11 +59,16 @@ const RN_INCLUDED_MODULES = [
   "Inicio",
   "Usuarios",
   "Soporte / asesores",
+  "Negocios",
+  "Promos",
+  "QRs",
+  "Reportes",
+  "Logs/Sistema",
   "Observabilidad",
-  "Sistema (perfil/sesion)",
+  "Sistema (perfil/sesion y eventos)",
 ];
 
-const RN_DEFERRED_MODULES = ["Negocios", "Promos", "QRs", "Reportes", "Logs del sistema"];
+const RN_DEFERRED_MODULES: string[] = [];
 
 const EMPTY_OVERVIEW: OverviewState = {
   platform: {
@@ -80,6 +93,10 @@ const EMPTY_OVERVIEW: OverviewState = {
     errorLike: 0,
     warnLike: 0,
   },
+  businesses: [],
+  promos: [],
+  qrs: [],
+  systemLogs: [],
 };
 
 async function countRows(table: string): Promise<CountResult> {
@@ -118,6 +135,10 @@ export default function AdminInicioScreen() {
       supportSummaryResult,
       agentsResult,
       obsResult,
+      businessesResult,
+      promosResult,
+      qrsResult,
+      systemLogsResult,
     ] = await Promise.all([
       countRows("usuarios"),
       countRows("negocios"),
@@ -132,6 +153,13 @@ export default function AdminInicioScreen() {
       fetchObservabilityEvents(supabase, {
         domain: "support",
         limit: 80,
+      }),
+      supabase.from("negocios").select("*").order("created_at", { ascending: false }).limit(10),
+      supabase.from("promos").select("*").order("created_at", { ascending: false }).limit(10),
+      supabase.from("qr_validos").select("*").order("created_at", { ascending: false }).limit(10),
+      fetchObservabilityEvents(supabase, {
+        domain: "observability",
+        limit: 40,
       }),
     ]);
 
@@ -162,6 +190,18 @@ export default function AdminInicioScreen() {
     }
     if (!obsResult.ok) {
       nextErrors.push(`observabilidad: ${obsResult.error || "unknown_error"}`);
+    }
+    if (businessesResult.error) {
+      nextErrors.push(`negocios (listado): ${String(businessesResult.error.message || businessesResult.error)}`);
+    }
+    if (promosResult.error) {
+      nextErrors.push(`promos (listado): ${String(promosResult.error.message || promosResult.error)}`);
+    }
+    if (qrsResult.error) {
+      nextErrors.push(`qr_validos (listado): ${String(qrsResult.error.message || qrsResult.error)}`);
+    }
+    if (!systemLogsResult.ok) {
+      nextErrors.push(`sistema logs: ${systemLogsResult.error || "unknown_error"}`);
     }
 
     const supportSummary = supportSummaryResult.ok
@@ -207,6 +247,10 @@ export default function AdminInicioScreen() {
         errorLike,
         warnLike,
       },
+      businesses: businessesResult.error ? [] : businessesResult.data || [],
+      promos: promosResult.error ? [] : promosResult.data || [],
+      qrs: qrsResult.error ? [] : qrsResult.data || [],
+      systemLogs: systemLogsResult.ok ? systemLogsResult.data : [],
     });
 
     setErrors(nextErrors);
@@ -348,6 +392,122 @@ export default function AdminInicioScreen() {
           ) : null}
         </SectionCard>
 
+        <SectionCard title="Negocios (admin)" subtitle="Listado operativo reciente">
+          {loading ? <BlockSkeleton lines={4} compact /> : null}
+          {!loading && overview.businesses.length === 0 ? (
+            <Text style={styles.metaText}>Sin negocios para mostrar.</Text>
+          ) : null}
+          {!loading
+            ? overview.businesses.map((row: any, index) => (
+                <View key={`${String(row?.id || index)}-${index}`} style={styles.listItem}>
+                  <Text style={styles.listTitle}>
+                    {String(readFirst(row, ["nombre", "razon_social", "name"], "Negocio"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    {String(readFirst(row, ["public_id", "id"], "-"))} | estado:{" "}
+                    {String(readFirst(row, ["status", "estado", "account_status"], "active"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    alta: {formatDateTime(readFirst(row, ["created_at"], null))}
+                  </Text>
+                </View>
+              ))
+            : null}
+        </SectionCard>
+
+        <SectionCard title="Promos (admin)" subtitle="Visibilidad reciente de promociones">
+          {loading ? <BlockSkeleton lines={4} compact /> : null}
+          {!loading && overview.promos.length === 0 ? (
+            <Text style={styles.metaText}>Sin promos para mostrar.</Text>
+          ) : null}
+          {!loading
+            ? overview.promos.map((row: any, index) => (
+                <View key={`${String(row?.id || index)}-${index}`} style={styles.listItem}>
+                  <Text style={styles.listTitle}>
+                    {String(readFirst(row, ["titulo", "nombre", "title"], "Promo"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    {String(readFirst(row, ["public_id", "id"], "-"))} | estado:{" "}
+                    {String(readFirst(row, ["status", "estado"], "pendiente"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    alta: {formatDateTime(readFirst(row, ["created_at"], null))}
+                  </Text>
+                </View>
+              ))
+            : null}
+        </SectionCard>
+
+        <SectionCard title="QRs (admin)" subtitle="Auditoria de codigos recientes">
+          {loading ? <BlockSkeleton lines={4} compact /> : null}
+          {!loading && overview.qrs.length === 0 ? (
+            <Text style={styles.metaText}>Sin QRs para mostrar.</Text>
+          ) : null}
+          {!loading
+            ? overview.qrs.map((row: any, index) => (
+                <View key={`${String(row?.id || index)}-${index}`} style={styles.listItem}>
+                  <Text style={styles.listTitle}>
+                    {String(readFirst(row, ["code", "codigo", "token", "id"], "QR"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    estado: {String(readFirst(row, ["status", "estado"], "active"))} | negocio:{" "}
+                    {String(readFirst(row, ["negocioid", "negocio_id"], "-"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    alta: {formatDateTime(readFirst(row, ["created_at"], null))}
+                  </Text>
+                </View>
+              ))
+            : null}
+        </SectionCard>
+
+        <SectionCard title="Reportes (admin)" subtitle="Resumen operativo para toma de decisiones">
+          {loading ? <BlockSkeleton lines={3} compact /> : null}
+          {!loading ? (
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{overview.support.newCount}</Text>
+                <Text style={styles.metricLabel}>Tickets nuevos</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{overview.support.waitingCount}</Text>
+                <Text style={styles.metricLabel}>Esperando usuario</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{overview.support.closedCount}</Text>
+                <Text style={styles.metricLabel}>Tickets cerrados</Text>
+              </View>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{overview.observability.errorLike}</Text>
+                <Text style={styles.metricLabel}>Errores soporte</Text>
+              </View>
+            </View>
+          ) : null}
+        </SectionCard>
+
+        <SectionCard title="Sistema/Logs (admin)" subtitle="Eventos observability recientes">
+          {loading ? <BlockSkeleton lines={4} compact /> : null}
+          {!loading && overview.systemLogs.length === 0 ? (
+            <Text style={styles.metaText}>Sin eventos de sistema recientes.</Text>
+          ) : null}
+          {!loading
+            ? overview.systemLogs.slice(0, 12).map((row: any, index) => (
+                <View key={`${String(row?.id || index)}-${index}`} style={styles.listItem}>
+                  <Text style={styles.listTitle}>
+                    {String(readFirst(row, ["event_type"], "log"))} |{" "}
+                    {String(readFirst(row, ["level"], "info"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    {String(readFirst(row, ["message"], "Sin mensaje"))}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    {formatDateTime(readFirst(row, ["occurred_at", "created_at"], null))}
+                  </Text>
+                </View>
+              ))
+            : null}
+        </SectionCard>
+
         <SectionCard title="Alcance RN Fase 8">
           <Text style={styles.scopeTitle}>Incluido en RN</Text>
           {RN_INCLUDED_MODULES.map((item) => (
@@ -355,12 +515,16 @@ export default function AdminInicioScreen() {
               - {item}
             </Text>
           ))}
-          <Text style={styles.scopeTitle}>Diferido (PWA-only por decision de alcance)</Text>
-          {RN_DEFERRED_MODULES.map((item) => (
-            <Text key={item} style={styles.scopeText}>
-              - {item}
-            </Text>
-          ))}
+          <Text style={styles.scopeTitle}>Diferido (PWA-only)</Text>
+          {RN_DEFERRED_MODULES.length === 0 ? (
+            <Text style={styles.scopeText}>- Ninguno.</Text>
+          ) : (
+            RN_DEFERRED_MODULES.map((item) => (
+              <Text key={item} style={styles.scopeText}>
+                - {item}
+              </Text>
+            ))
+          )}
         </SectionCard>
       </ScrollView>
     </ScreenScaffold>
@@ -438,6 +602,24 @@ const styles = StyleSheet.create({
   },
   scopeText: {
     fontSize: 12,
+    color: "#475569",
+  },
+  listItem: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 2,
+  },
+  listTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  listMeta: {
+    fontSize: 11,
     color: "#475569",
   },
 });

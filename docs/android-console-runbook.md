@@ -15,6 +15,7 @@ Esta documentacion cubre:
 - Errores frecuentes (puertos, procesos colgados, env, cache, gradle/cmake).
 
 No cubre despliegue de Play Store ni signing release final.
+Incluye smoke de `assembleRelease` con keystore local no-debug y minify/proguard.
 
 ---
 
@@ -88,6 +89,9 @@ Template:
 Referencia:
 
 - `apps/referidos-android/env.example.json`
+- `apps/referidos-android/env.development.example.json`
+- `apps/referidos-android/env.staging.example.json`
+- `apps/referidos-android/env.production.example.json`
 - Resolucion runtime: `apps/referidos-android/src/shared/constants/env.ts`
 
 Si faltan `SUPABASE_URL` o `SUPABASE_ANON_KEY`, la app se queda en bootstrap con error.
@@ -258,6 +262,25 @@ cd apps/referidos-android/android
 ```
 
 Usar solo cuando necesites inspeccion manual de gradle.
+
+## 9.3 Build release smoke (minify/proguard + signing no-debug local)
+
+Comando recomendado (usa script robusto con timeout y genera keystore local si falta):
+
+```powershell
+npm run android:assemble:release
+```
+
+Este flujo:
+
+- genera/usa keystore local en `.android-local/release-keystore/` (no versionado),
+- fuerza `minifyEnabled` via `-Pandroid.enableProguardInReleaseBuilds=true`,
+- firma release con keystore no-debug para validar ruta de firma,
+- produce:
+  - `apps/referidos-android/android/app/build/outputs/apk/release/app-release.apk`
+  - `apps/referidos-android/android/app/build/outputs/mapping/release/mapping.txt`
+
+No reemplaza la firma de producción final, pero valida la ruta técnica completa de release.
 
 ---
 
@@ -487,7 +510,13 @@ npm run typecheck -w @apps/referidos-android
 npm run android:assemble:debug
 ```
 
-## 15.4 SDK/JDK setup helpers
+## 15.4 Build release smoke robusto
+
+```powershell
+npm run android:assemble:release
+```
+
+## 15.5 SDK/JDK setup helpers
 
 ```powershell
 cmd.exe /c scripts\set_java21_env.cmd
