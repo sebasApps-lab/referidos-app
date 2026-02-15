@@ -94,36 +94,44 @@
 
 ---
 
-## Phase 3 - App Shell, Navigation, UI System, and Tab Cache
-**Goal:** stable transversal UI system equivalent to PWA structure and behavior.
+## Phase 3 - Closed
+**Status:** completed.
 
-### 3.1 Global shell parity
-- [ ] Header behavior by route/role parity.
-- [ ] Footer/tab bar behavior parity.
-- [ ] Route guards and hidden-route behavior parity.
-
-### 3.2 Modal and overlays system
-- [ ] Global modal host parity.
-- [ ] Core modal primitives parity (confirm, warning, picker-style).
-- [ ] Ensure modal open/close side effects match PWA (scroll/focus equivalents where applicable).
-
-### 3.3 Skeleton/loaders strategy
-- [ ] Keep shell visible while loading block-level data.
-- [ ] Add block/card skeletons where RN currently shows blank placeholders.
-- [ ] Preserve loading priorities (global bootstrap vs block-level loaders).
-
-### 3.4 Tab keep-alive/cache
-- [ ] Implement/validate keep-alive semantics for role tabs.
-- [ ] Preserve local state and scroll per tab.
-- [ ] Ensure instant tab switch even before internal data fetch completes.
-- [ ] Clear cache on logout / role switch.
-
-### 3.5 Verification
-- [ ] No visual regressions in shell.
-- [ ] Tab switch remains immediate on first and subsequent visits.
-
-**DoD Phase 3**
-- RN shell feels structurally equivalent to PWA and tab navigation is instant with block-level loading.
+### Phase 3 closure evidence
+- Global shell/navigation parity implemented:
+  - `apps/referidos-android/src/navigation/RootNavigator.tsx`
+    - role-conditional root route registration (hidden-route guard at root level).
+  - `apps/referidos-android/src/shared/ui/ScreenScaffold.tsx`
+    - consistent role-aware header scaffold for all role screens.
+  - `apps/referidos-android/src/navigation/RoleTabs.tsx`
+    - consistent tab shell styling/labels by role.
+- Tab keep-alive/cache parity implemented:
+  - `apps/referidos-android/src/navigation/RoleTabs.tsx`
+    - `lazy: false`, `freezeOnBlur: false`, `detachInactiveScreens={false}`, `backBehavior="history"`.
+  - `apps/referidos-android/src/shared/store/shellStore.ts`
+    - persistent active tab state by role + cache epoch invalidation.
+  - `apps/referidos-android/src/shared/store/appStore.ts`
+    - cache reset on logout/no-session/role switch.
+- Global modal/overlay system implemented:
+  - `apps/referidos-android/src/shared/store/modalStore.ts`
+    - confirm, alert/warning, picker primitives.
+  - `apps/referidos-android/src/shared/modals/ModalHost.tsx`
+    - global modal host with backdrop + hardware back handling.
+  - modal usage wired in profile flows:
+    - `apps/referidos-android/src/features/profile/ClientePerfilScreen.tsx`
+    - `apps/referidos-android/src/features/profile/NegocioPerfilScreen.tsx`
+    - `apps/referidos-android/src/features/profile/AdminPerfilScreen.tsx`
+    - `apps/referidos-android/src/features/profile/SoportePerfilScreen.tsx`
+- Skeleton/loading strategy completed:
+  - existing block skeletons retained on data cards (`BlockSkeleton`).
+  - placeholder modules now render block-level skeleton before content:
+    - `apps/referidos-android/src/shared/ui/FeaturePlaceholder.tsx`.
+- Verification checks completed:
+  - `npm run android:phase3:shell-check` -> `Phase 3 shell/navigation/modal checks: OK`
+  - `npm run typecheck -w @apps/referidos-android` -> success
+  - regression safety:
+    - `npm run android:phase1:health` -> OK
+    - `npm run android:phase2:auth-check` -> OK
 
 ---
 
@@ -297,5 +305,5 @@
 ---
 
 ## Current Working Phase
-- Active phase: `Phase 3 - App Shell, Navigation, UI System, and Tab Cache`
-- Next review trigger: when `Phase 3` DoD is met with verification evidence.
+- Active phase: `Phase 4 - Cliente Feature Parity`
+- Next review trigger: when `Phase 4` DoD is met with verification evidence.

@@ -13,6 +13,7 @@ import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
+import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
 import {
   fetchSupportTicketsPublic,
@@ -29,6 +30,9 @@ export default function ClientePerfilScreen() {
   const onboarding = useAppStore((state) => state.onboarding);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
   const signOut = useAppStore((state) => state.signOut);
+  const openConfirm = useModalStore((state) => state.openConfirm);
+  const openAlert = useModalStore((state) => state.openAlert);
+  const openPicker = useModalStore((state) => state.openPicker);
   const [category, setCategory] = useState("acceso");
   const [summary, setSummary] = useState("");
   const [creating, setCreating] = useState(false);
@@ -65,6 +69,11 @@ export default function ClientePerfilScreen() {
     setError("");
     if (summary.trim().length < 5) {
       setError("Describe tu caso en una linea (minimo 5 caracteres).");
+      openAlert({
+        title: "Resumen incompleto",
+        message: "Describe tu caso con al menos 5 caracteres para crear el ticket.",
+        tone: "warning",
+      });
       return;
     }
 
@@ -89,7 +98,36 @@ export default function ClientePerfilScreen() {
     setCreated(result.data || {});
     setSummary("");
     await loadTickets();
-  }, [category, loadTickets, summary]);
+  }, [category, loadTickets, openAlert, summary]);
+
+  const handleSignOut = useCallback(() => {
+    openConfirm({
+      title: "Cerrar sesion",
+      message: "Tu cache local de tabs se reiniciara al salir.",
+      tone: "warning",
+      confirmLabel: "Cerrar sesion",
+      cancelLabel: "Cancelar",
+      onConfirm: () => {
+        void signOut();
+      },
+    });
+  }, [openConfirm, signOut]);
+
+  const openCategoryPicker = useCallback(() => {
+    openPicker({
+      title: "Categoria de soporte",
+      message: "Selecciona el motivo principal de tu consulta.",
+      options: visibleCategories.map((item) => ({
+        id: item.id,
+        label: item.label,
+        description: item.description,
+      })),
+      selectedId: category,
+      confirmLabel: "Aplicar",
+      cancelLabel: "Cancelar",
+      onSelect: (id) => setCategory(id),
+    });
+  }, [category, openPicker, visibleCategories]);
 
   const handleOpenWhatsapp = useCallback(async () => {
     const link = created?.wa_link || created?.waLink;
@@ -121,13 +159,22 @@ export default function ClientePerfilScreen() {
             <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
               <Text style={styles.secondaryBtnText}>Refrescar</Text>
             </Pressable>
-            <Pressable onPress={signOut} style={styles.outlineBtn}>
+            <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
               <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
             </Pressable>
           </View>
         </SectionCard>
 
         <SectionCard title="Chatear con soporte" subtitle="Pre-routing y apertura de WhatsApp">
+          <View style={styles.categoryPickerRow}>
+            <Text style={styles.categoryLabel}>
+              Categoria actual:{" "}
+              {visibleCategories.find((item) => item.id === category)?.label || "sin categoria"}
+            </Text>
+            <Pressable onPress={openCategoryPicker} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Seleccionar</Text>
+            </Pressable>
+          </View>
           <View style={styles.chipWrap}>
             {visibleCategories.map((item) => (
               <Pressable
@@ -214,6 +261,17 @@ const styles = StyleSheet.create({
   content: {
     gap: 12,
     paddingBottom: 20,
+  },
+  categoryPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  categoryLabel: {
+    flex: 1,
+    color: "#4B5563",
+    fontSize: 12,
   },
   infoRow: {
     flexDirection: "row",

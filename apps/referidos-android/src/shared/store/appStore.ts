@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
+import { useModalStore } from "@shared/store/modalStore";
+import { useShellStore } from "@shared/store/shellStore";
 
 export type AppRole = "cliente" | "negocio" | "admin" | "soporte" | null;
 export type BootStatus = "idle" | "loading" | "ready" | "error";
@@ -28,7 +30,7 @@ function resolveRole(onboardingData: any): AppRole {
   return null;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   bootStatus: "idle",
   bootError: null,
   role: null,
@@ -43,6 +45,8 @@ export const useAppStore = create<AppState>((set) => ({
     try {
       const { data: { session } = {} } = await supabase.auth.getSession();
       if (!session?.access_token) {
+        useShellStore.getState().clearSessionCache();
+        useModalStore.getState().reset();
         set({
           bootStatus: "ready",
           onboarding: null,
@@ -68,7 +72,11 @@ export const useAppStore = create<AppState>((set) => ({
         return;
       }
 
+      const previousRole = get().role;
       const resolvedRole = resolveRole(onboarding);
+      if (previousRole !== resolvedRole) {
+        useShellStore.getState().clearSessionCache();
+      }
       const verificationStatus = onboarding?.verification_status || null;
       const requiresVerificationFlow =
         Boolean(onboarding?.allowAccess) &&
@@ -108,6 +116,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
+    useShellStore.getState().clearSessionCache();
+    useModalStore.getState().reset();
     set({
       bootStatus: "ready",
       bootError: null,

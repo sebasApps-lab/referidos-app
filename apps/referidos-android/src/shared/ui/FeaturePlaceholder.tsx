@@ -1,16 +1,36 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import BlockSkeleton from "@shared/ui/BlockSkeleton";
 
 type Props = {
   feature: string;
   description: string;
+  loadingMs?: number;
 };
 
-export default function FeaturePlaceholder({ feature, description }: Props) {
+export default function FeaturePlaceholder({
+  feature,
+  description,
+  loadingMs = 550,
+}: Props) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(false);
+    const timer = setTimeout(() => setReady(true), loadingMs);
+    return () => clearTimeout(timer);
+  }, [feature, loadingMs]);
+
   return (
     <View style={styles.card}>
-      <Text style={styles.feature}>{feature}</Text>
-      <Text style={styles.description}>{description}</Text>
+      {!ready ? (
+        <BlockSkeleton lines={3} />
+      ) : (
+        <>
+          <Text style={styles.feature}>{feature}</Text>
+          <Text style={styles.description}>{description}</Text>
+        </>
+      )}
     </View>
   );
 }
