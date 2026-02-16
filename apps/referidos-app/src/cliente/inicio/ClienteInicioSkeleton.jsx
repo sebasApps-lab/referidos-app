@@ -1,6 +1,6 @@
-import SkeletonBlock from "../../components/ui/Skeleton/SkeletonBlock";
-import SkeletonText from "../../components/ui/Skeleton/SkeletonText";
-import SkeletonCard from "../../components/ui/Skeleton/SkeletonCard";
+import SkeletonBlock from "../../components/ui/skeleton/SkeletonBlock";
+import SkeletonText from "../../components/ui/skeleton/SkeletonText";
+import SkeletonCard from "../../components/ui/skeleton/SkeletonCard";
 
 function NuevasRow() {
   return (
