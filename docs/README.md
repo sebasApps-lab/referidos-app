@@ -13,6 +13,7 @@ Incluye:
 - comandos operativos
 - CI y promociones entre entornos
 - troubleshooting para evitar romper versionado
+- guia detallada para flujo sin PR y despliegue con Netlify (`operacion-sin-pr-netlify.md`)
 
 ## 2) Apps hermanas
 

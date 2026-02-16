@@ -11,6 +11,7 @@ El sistema de versionado registra, para cada producto y entorno:
 - releases semanticas
 - promociones entre entornos
 - deployments
+- gate de aprobacion pre-deploy (con admin override)
 
 Baseline actual: `0.5.0`.
 
@@ -238,6 +239,11 @@ npm run versioning:promote -- --product referidos_app --from staging --to prod -
 npm run versioning:record-deploy -- --product referidos_app --env prod --semver 0.5.3 --deployment-id deploy-123 --status success
 ```
 
+Alternativa visual:
+
+- usar el panel `/admin/versionado/global` en el bloque `Pre-deploy approval gate`.
+- al ejecutar deploy desde ese bloque, se registra automaticamente en `version_deployments`.
+
 ## CI/CD actual
 
 Workflows:
@@ -317,3 +323,4 @@ Resumen rapido:
 Indice docs:
 
 - `docs/README.md`
+- `docs/referidos-system/operacion-sin-pr-netlify.md`

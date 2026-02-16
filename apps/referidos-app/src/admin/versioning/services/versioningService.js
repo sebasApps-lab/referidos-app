@@ -122,3 +122,113 @@ export async function promoteRelease({
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function fetchDeployRequests({ envKey = "", status = "", productKey = "" } = {}) {
+  let query = supabase
+    .from("version_deploy_requests_labeled")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (envKey) query = query.eq("env_key", envKey);
+  if (status) query = query.eq("status", status);
+  if (productKey) query = query.eq("product_key", productKey);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function requestDeploy({
+  productKey,
+  envKey,
+  semver,
+  actor = "admin-ui",
+  notes = "",
+  metadata = {},
+}) {
+  const { data, error } = await supabase.rpc("versioning_request_deploy", {
+    p_product_key: productKey,
+    p_env_key: envKey,
+    p_semver: semver,
+    p_actor: actor,
+    p_notes: notes || null,
+    p_metadata: metadata || {},
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function approveDeployRequest({
+  requestId,
+  actor = "admin-ui",
+  forceAdminOverride = false,
+  notes = "",
+}) {
+  const { data, error } = await supabase.rpc("versioning_approve_deploy_request", {
+    p_request_id: requestId,
+    p_actor: actor,
+    p_force_admin_override: forceAdminOverride,
+    p_notes: notes || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function rejectDeployRequest({
+  requestId,
+  actor = "admin-ui",
+  reason = "",
+}) {
+  const { data, error } = await supabase.rpc("versioning_reject_deploy_request", {
+    p_request_id: requestId,
+    p_actor: actor,
+    p_reason: reason || null,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function executeDeployRequest({
+  requestId,
+  actor = "admin-ui",
+  status = "success",
+  deploymentId = "",
+  logsUrl = "",
+  metadata = {},
+}) {
+  const { data, error } = await supabase.rpc("versioning_execute_deploy_request", {
+    p_request_id: requestId,
+    p_actor: actor,
+    p_status: status,
+    p_deployment_id: deploymentId || null,
+    p_logs_url: logsUrl || null,
+    p_metadata: metadata || {},
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function triggerDeployPipeline({
+  requestId,
+  forceAdminOverride = false,
+  skipMerge = false,
+  sourceBranch = "",
+  targetBranch = "",
+}) {
+  const { data, error } = await supabase.functions.invoke("versioning-deploy-execute", {
+    body: {
+      request_id: requestId,
+      force_admin_override: forceAdminOverride,
+      skip_merge: skipMerge,
+      source_branch: sourceBranch || null,
+      target_branch: targetBranch || null,
+    },
+  });
+
+  if (error) throw new Error(error.message || "No se pudo ejecutar deploy pipeline.");
+  if (!data?.ok) {
+    throw new Error(data?.detail || data?.error || "No se pudo ejecutar deploy pipeline.");
+  }
+  return data;
+}
