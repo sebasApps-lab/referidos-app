@@ -186,3 +186,21 @@ npm run versioning:record-deploy -- --product referidos_app --env prod --semver 
 - `docs/referidos-system/operacion-sin-pr-netlify.md`
 - `docs/versioning-system.md`
 - `apps/referidos-ops/README.md`
+
+## 9) Checklist de salud (rapido)
+
+1. `referidos-ops` migrado y funciones deployadas.
+2. runtime del entorno con:
+- `VERSIONING_OPS_URL`
+- `VERSIONING_OPS_SECRET_KEY`
+- `VERSIONING_PROXY_SHARED_TOKEN`
+3. `versioning-ops-proxy` deployado en runtime.
+4. UI admin en `/admin/versionado/global` carga sin `missing_ops_env`.
+
+Logs utiles:
+
+```powershell
+supabase functions logs versioning-ops-proxy --project-ref btvrtxdizqsqrzdsgvsj
+supabase functions logs versioning-deploy-execute --project-ref ymhaveuksdzlfuecvkmx
+supabase functions logs versioning-dev-release-create --project-ref ymhaveuksdzlfuecvkmx
+```
