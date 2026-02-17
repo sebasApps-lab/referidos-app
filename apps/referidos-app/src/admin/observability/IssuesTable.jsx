@@ -20,6 +20,10 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import Badge from "../../components/ui/Badge";
 import Table from "../../components/ui/Table";
+import {
+  BRAND_ICON_UI_NOTICE,
+  resolveBrandIcon,
+} from "./brandIconPolicy";
 
 const LEVEL_VARIANT = {
   fatal: "bg-red-100 text-red-700",
@@ -328,78 +332,18 @@ function breadcrumbStatusClass(tone) {
   return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
-const BROWSER_META = {
-  chrome: {
-    label: "Chrome",
-    iconUrl: "https://cdn.simpleicons.org/googlechrome",
-  },
-  firefox: {
-    label: "Firefox",
-    iconUrl: "https://cdn.simpleicons.org/firefoxbrowser",
-  },
-  brave: {
-    label: "Brave",
-    iconUrl: "https://cdn.simpleicons.org/brave",
-  },
-  safari: {
-    label: "Safari",
-    iconUrl: "https://cdn.simpleicons.org/safari",
-  },
-  edge: {
-    label: "Edge",
-    iconUrl: "https://cdn.simpleicons.org/microsoftedge",
-  },
-  opera: {
-    label: "Opera",
-    iconUrl: "https://cdn.simpleicons.org/opera",
-  },
-};
-
-const PROVIDER_META = {
-  google: {
-    label: "Google",
-    iconUrl: "https://cdn.simpleicons.org/google",
-  },
-  facebook: {
-    label: "Facebook",
-    iconUrl: "https://cdn.simpleicons.org/facebook",
-  },
-  discord: {
-    label: "Discord",
-    iconUrl: "https://cdn.simpleicons.org/discord",
-  },
-  apple: {
-    label: "Apple",
-    iconUrl: "https://cdn.simpleicons.org/apple",
-  },
-  email: {
-    label: "Correo",
-    iconUrl: null,
-  },
-};
-
-const OS_META = {
-  windows: {
-    label: "Windows",
-    iconUrl: "https://cdn.simpleicons.org/windows11",
-  },
-  android: {
-    label: "Android",
-    iconUrl: "https://cdn.simpleicons.org/android",
-  },
-  ios: {
-    label: "iOS",
-    iconUrl: "https://cdn.simpleicons.org/apple",
-  },
-  macos: {
-    label: "macOS",
-    iconUrl: "https://cdn.simpleicons.org/apple",
-  },
-  linux: {
-    label: "Linux",
-    iconUrl: "https://cdn.simpleicons.org/linux",
-  },
-};
+function withPolicy(group, key, fallbackLabel = null) {
+  const policy = resolveBrandIcon(group, key, fallbackLabel);
+  return {
+    key: policy.key,
+    label: policy.label,
+    iconUrl: policy.iconUrl,
+    legalStatus: policy.legalStatus,
+    legalReason: policy.legalReason,
+    sourceUrl: policy.sourceUrl || null,
+    attribution: policy.attribution || null,
+  };
+}
 
 function detectBrowser(event) {
   const device = asObject(event?.device);
@@ -413,14 +357,14 @@ function detectBrowser(event) {
       release.browser,
     ),
   );
-  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
-  if (raw.includes("chrome")) return { key: "chrome", ...BROWSER_META.chrome };
-  if (raw.includes("firefox") || raw.includes("mozilla")) return { key: "firefox", ...BROWSER_META.firefox };
-  if (raw.includes("brave")) return { key: "brave", ...BROWSER_META.brave };
-  if (raw.includes("safari")) return { key: "safari", ...BROWSER_META.safari };
-  if (raw.includes("edge")) return { key: "edge", ...BROWSER_META.edge };
-  if (raw.includes("opera")) return { key: "opera", ...BROWSER_META.opera };
-  return { key: raw, label: raw, iconUrl: null };
+  if (!raw) return withPolicy("browsers", "unknown", "Desconocido");
+  if (raw.includes("chrome")) return withPolicy("browsers", "chrome", "Chrome");
+  if (raw.includes("firefox") || raw.includes("mozilla")) return withPolicy("browsers", "firefox", "Firefox");
+  if (raw.includes("brave")) return withPolicy("browsers", "brave", "Brave");
+  if (raw.includes("safari")) return withPolicy("browsers", "safari", "Safari");
+  if (raw.includes("edge")) return withPolicy("browsers", "edge", "Edge");
+  if (raw.includes("opera")) return withPolicy("browsers", "opera", "Opera");
+  return withPolicy("browsers", raw, raw);
 }
 
 function detectProvider(event) {
@@ -437,13 +381,13 @@ function detectProvider(event) {
     ),
   );
 
-  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
-  if (raw.includes("google")) return { key: "google", ...PROVIDER_META.google };
-  if (raw.includes("facebook")) return { key: "facebook", ...PROVIDER_META.facebook };
-  if (raw.includes("discord")) return { key: "discord", ...PROVIDER_META.discord };
-  if (raw.includes("apple")) return { key: "apple", ...PROVIDER_META.apple };
-  if (raw.includes("email")) return { key: "email", ...PROVIDER_META.email };
-  return { key: raw, label: raw, iconUrl: null };
+  if (!raw) return withPolicy("providers", "unknown", "Desconocido");
+  if (raw.includes("google")) return withPolicy("providers", "google", "Google");
+  if (raw.includes("facebook")) return withPolicy("providers", "facebook", "Facebook");
+  if (raw.includes("discord")) return withPolicy("providers", "discord", "Discord");
+  if (raw.includes("apple")) return withPolicy("providers", "apple", "Apple");
+  if (raw.includes("email")) return withPolicy("providers", "email", "Correo");
+  return withPolicy("providers", raw, raw);
 }
 
 function detectContactEmail(event) {
@@ -468,13 +412,13 @@ function detectOs(event) {
       release.os,
     ),
   );
-  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
-  if (raw.includes("windows")) return { key: "windows", ...OS_META.windows };
-  if (raw.includes("android")) return { key: "android", ...OS_META.android };
-  if (raw.includes("ios")) return { key: "ios", ...OS_META.ios };
-  if (raw.includes("mac") || raw.includes("darwin")) return { key: "macos", ...OS_META.macos };
-  if (raw.includes("linux")) return { key: "linux", ...OS_META.linux };
-  return { key: raw, label: raw, iconUrl: null };
+  if (!raw) return withPolicy("os", "unknown", "Desconocido");
+  if (raw.includes("windows")) return withPolicy("os", "windows", "Windows");
+  if (raw.includes("android")) return withPolicy("os", "android", "Android");
+  if (raw.includes("ios")) return withPolicy("os", "ios", "iOS");
+  if (raw.includes("mac") || raw.includes("darwin")) return withPolicy("os", "macos", "macOS");
+  if (raw.includes("linux")) return withPolicy("os", "linux", "Linux");
+  return withPolicy("os", raw, raw);
 }
 
 function detectDeviceType(event, osKey) {
@@ -963,6 +907,16 @@ export default function IssuesTable() {
     return { browser, provider, os, deviceType, email };
   }, [selectedEvent]);
 
+  const brandLegalNotes = useMemo(() => {
+    const attributionRows = [identityInfo?.browser, identityInfo?.provider, identityInfo?.os]
+      .map((item) => firstString(item?.attribution))
+      .filter(Boolean);
+    return {
+      notice: BRAND_ICON_UI_NOTICE,
+      attributions: Array.from(new Set(attributionRows)),
+    };
+  }, [identityInfo]);
+
   const importantTags = useMemo(
     () =>
       buildImportantTags({
@@ -1097,6 +1051,15 @@ export default function IssuesTable() {
             iconUrl={null}
             FallbackIcon={identityInfo.deviceType.Icon || Monitor}
           />
+        </div>
+
+        <div className="rounded-xl border border-[#ECE5FA] bg-[#FCFBFF] px-3 py-2 text-[11px] text-slate-600">
+          <div>{brandLegalNotes.notice}</div>
+          {brandLegalNotes.attributions.map((line, idx) => (
+            <div key={`brand-attr-${idx}`} className="mt-1 text-[10px] text-slate-500">
+              {line}
+            </div>
+          ))}
         </div>
 
         <div className="rounded-xl border border-[#E8E2F5] bg-white p-3">
