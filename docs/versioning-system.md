@@ -31,3 +31,4 @@ Notas:
 - El release de `dev` se crea manualmente desde panel o `versioning-dev-release-create`.
 - El deploy de `staging/prod` usa workflow artifact exacto por `source_commit_sha` (`versioning-deploy-artifact.yml`).
 - `npm run versioning:bootstrap` se usa solo para inicializacion/backfill.
+- El panel de versionado en PWA esta aislado via `versioning-ops-proxy` hacia `referidos-ops` (single source of truth).

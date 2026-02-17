@@ -1,144 +1,38 @@
-# Entornos y secrets (versionado + deploy exacto)
+# Entornos y secrets (estado final aplicado)
 
-## 1) Mapa oficial de entornos
+## 1) Mapa de proyectos
 
-1. `dev`
-- Supabase: `btvrtxdizqsqrzdsgvsj`
-- PWA y prelaunch corren local (`npm run dev:app`, `npm run dev:prelaunch`)
-- No deploy formal de `dev` desde gate
+Runtime:
+- `dev` -> Supabase `btvrtxdizqsqrzdsgvsj`
+- `staging` -> Supabase `iegjfeaadayfvqockwov`
+- `prod` -> Supabase `ztcsrfwvjgqnmhnlpeye`
 
-2. `staging`
-- Supabase: `iegjfeaadayfvqockwov`
-- Netlify: sitio PWA staging (y prelaunch staging si decides usarlo)
+Ops:
+- `referidos-ops` -> Supabase `ymhaveuksdzlfuecvkmx`
 
-3. `prod`
-- Supabase: `ztcsrfwvjgqnmhnlpeye`
-- Netlify: sitio PWA prod + sitio prelaunch prod
+Netlify:
+- PWA staging/prod en sitios separados
+- prelaunch staging/prod en sitios separados (si staging existe)
 
-Regla:
-- No mezclar datos entre `staging` y `prod`.
+## 2) Aislamiento de versionado
 
-## 2) Secrets de dev release (que preguntaste)
+Queda asi:
+- el dashboard general sigue leyendo/escribiendo runtime por entorno
+- SOLO el panel de versionado usa `versioning-ops-proxy`
+- ese proxy habla con `referidos-ops`
 
-Usados por `versioning-dev-release-create`:
+Implementacion:
+- proxy runtime: `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
+- servicio UI: `apps/referidos-app/src/admin/versioning/services/versioningService.js`
+- funciones ops invocadas internamente:
+  - `versioning-dev-release-create`
+  - `versioning-deploy-execute`
 
-1. `VERSIONING_DEV_RELEASE_WORKFLOW`
-- workflow de GitHub a disparar.
-- recomendado: `versioning-release-dev.yml`
+## 3) Secrets requeridos por proyecto
 
-2. `VERSIONING_DEV_RELEASE_REF`
-- rama/ref sobre la que corre ese workflow.
-- recomendado: `dev`
-
-3. `VERSIONING_DEV_RELEASE_ALLOWED_REFS`
-- lista CSV de refs permitidas.
-- recomendado estricto: `dev`
-- recomendado flexible: `dev,develop`
-
-## 3) Supabase Edge secrets (por proyecto: dev/staging/prod)
-
-Estos van en `supabase secrets` de cada proyecto.
-
-### 3.1 Requeridos para soporte anonimo + analytics
-
-- `PRELAUNCH_UA_PEPPER`
-- `PRELAUNCH_IP_RISK_PEPPER`
-
-### 3.2 Requeridos para geocoding
-
-- `OSM_USER_AGENT`
-- `OSM_EMAIL`
-
-Opcionales geocoding:
-- `MAPTILER_API_KEY` (o `MAPTILER_KEY`)
-- `MAPTILER_BASE_URL`
-- `OSM_BASE_URL`
-- `ADDRESS_CACHE_TTL_DAYS`
-- `ADDRESS_SEARCH_MAX_LIMIT`
-- `OSM_MIN_INTERVAL_MS`
-
-### 3.3 Requeridos para versionado/deploy
-
-- `GITHUB_DEPLOY_OWNER`
-- `GITHUB_DEPLOY_REPO`
-- `GITHUB_DEPLOY_TOKEN`
-- `DEPLOY_BRANCH_DEV` (normalmente `dev`)
-- `DEPLOY_BRANCH_STAGING` (normalmente `staging`)
-- `DEPLOY_BRANCH_PROD` (normalmente `main`)
-- `VERSIONING_DEV_RELEASE_WORKFLOW`
-- `VERSIONING_DEV_RELEASE_REF`
-- `VERSIONING_DEV_RELEASE_ALLOWED_REFS`
-- `VERSIONING_DEPLOY_WORKFLOW` (recomendado `versioning-deploy-artifact.yml`)
-- `VERSIONING_DEPLOY_WORKFLOW_REF` (recomendado `dev` o rama donde vive el workflow)
-- `VERSIONING_DEPLOY_CALLBACK_TOKEN` (token compartido con GitHub secret)
-
-Opcional:
-- `VERSIONING_DEPLOY_CALLBACK_URL` (si no lo defines, se construye con `SUPABASE_URL/URL`)
-- `SUPABASE_ENV` (`dev`, `staging`, `prod`) para observabilidad
-
-### 3.4 Variables base (inyectadas por Supabase runtime)
-
-Normalmente no debes setearlas manualmente:
-
-- `SUPABASE_URL` / `URL`
-- `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_ANON_KEY` / `PUBLISHABLE_KEY`
-- `SUPABASE_SECRET_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `SECRET_KEY`
-
-## 4) GitHub repository secrets (Actions)
-
-Estos NO van en Supabase. Van en el repo de GitHub.
-
-### 4.1 Requeridos para workflows de versionado
-
-- `SUPABASE_URL`
-- `SUPABASE_SECRET_KEY`
-
-Nota:
-- estos son usados por workflows `versioning-release-dev.yml`, `versioning-promote.yml`, `versioning-record-deployment.yml`.
-
-### 4.2 Requeridos para deploy exacto por artifact
-
-- `NETLIFY_AUTH_TOKEN`
-- `VERSIONING_DEPLOY_CALLBACK_TOKEN` (debe coincidir con Edge secret del mismo nombre)
-
-Site IDs (puedes usar especificos por app+env o fallback generico):
-
-Especificos recomendados:
-- `NETLIFY_SITE_ID_REFERIDOS_APP_STAGING`
-- `NETLIFY_SITE_ID_REFERIDOS_APP_PROD`
-- `NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING` (si existe prelaunch staging)
-- `NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD`
-
-Fallback generico:
-- `NETLIFY_SITE_ID_STAGING`
-- `NETLIFY_SITE_ID_PROD`
-
-## 5) Como funciona el deploy exacto ahora
-
-1. Panel admin solicita deploy.
-2. Edge `versioning-deploy-execute` valida:
-- release promovida
-- commit en rama destino (o requiere `Subir release`)
-3. Edge dispara workflow `versioning-deploy-artifact.yml` con:
-- `source_commit_sha` exacto
-- `request_id`, app, env, semver
-- `callback_url`
-4. Workflow:
-- checkout del commit exacto
-- build del workspace (`referidos_app` o `prelaunch_web`)
-- deploy a Netlify por CLI/API con `NETLIFY_AUTH_TOKEN` + `NETLIFY_SITE_ID_*`
-5. Workflow llama callback `versioning-deploy-callback`.
-6. Callback finaliza estado en DB (`success`/`failed`) via `versioning_finalize_deploy_request`.
-
-## 6) Matriz minima por proyecto Supabase
-
-### 6.1 Dev (`btvrtxdizqsqrzdsgvsj`)
+## 3.1 `referidos-ops` (Supabase Edge secrets)
 
 Requeridos:
-- `PRELAUNCH_UA_PEPPER`
-- `PRELAUNCH_IP_RISK_PEPPER`
-- `OSM_USER_AGENT`
-- `OSM_EMAIL`
 - `GITHUB_DEPLOY_OWNER`
 - `GITHUB_DEPLOY_REPO`
 - `GITHUB_DEPLOY_TOKEN`
@@ -151,44 +45,113 @@ Requeridos:
 - `VERSIONING_DEPLOY_WORKFLOW`
 - `VERSIONING_DEPLOY_WORKFLOW_REF`
 - `VERSIONING_DEPLOY_CALLBACK_TOKEN`
+- `VERSIONING_PROXY_SHARED_TOKEN`
 
 Opcionales:
 - `VERSIONING_DEPLOY_CALLBACK_URL`
-- tuning geocoding
-- `SUPABASE_ENV=dev`
+- `SUPABASE_ENV=ops`
 
-### 6.2 Staging (`iegjfeaadayfvqockwov`)
+Notas:
+- `VERSIONING_PROXY_SHARED_TOKEN` protege llamadas internas desde `versioning-ops-proxy`.
+- `versioning-deploy-callback` valida `VERSIONING_DEPLOY_CALLBACK_TOKEN`.
 
-Misma lista funcional de `dev`, con valores propios de staging.
+## 3.2 Runtime `dev/staging/prod` (Supabase Edge secrets)
 
-### 6.3 Prod (`ztcsrfwvjgqnmhnlpeye`)
+Requeridos para el proxy:
+- `VERSIONING_OPS_URL` = `https://ymhaveuksdzlfuecvkmx.supabase.co`
+- `VERSIONING_OPS_SECRET_KEY` = secret key de `referidos-ops`
+- `VERSIONING_PROXY_SHARED_TOKEN` = mismo valor configurado en ops
 
-Misma lista funcional de `dev`, con valores propios de prod.
+No requerido en runtime para versionado:
+- no hace falta `GITHUB_DEPLOY_*`
+- no hace falta `VERSIONING_DEPLOY_*` (salvo si mantienes funciones antiguas activas)
 
-## 7) Comandos utiles
+## 3.3 GitHub repository secrets
+
+Requeridos para workflows de versionado:
+- `SUPABASE_URL` = `https://ymhaveuksdzlfuecvkmx.supabase.co`
+- `SUPABASE_SECRET_KEY` = secret key de `referidos-ops`
+
+Requeridos para deploy artifact exacto:
+- `NETLIFY_AUTH_TOKEN`
+- `VERSIONING_DEPLOY_CALLBACK_TOKEN` (igual al de ops)
+- `NETLIFY_SITE_ID_REFERIDOS_APP_STAGING`
+- `NETLIFY_SITE_ID_REFERIDOS_APP_PROD`
+- `NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING` (si aplica)
+- `NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD`
+
+Fallback opcional:
+- `NETLIFY_SITE_ID_STAGING`
+- `NETLIFY_SITE_ID_PROD`
+
+## 4) Configuracion de funciones en ops
+
+Archivo:
+- `apps/referidos-ops/supabase/config.toml`
+
+Config requerida:
+- `versioning-deploy-callback`: `verify_jwt = false`
+- `versioning-deploy-execute`: `verify_jwt = false`
+- `versioning-dev-release-create`: `verify_jwt = false`
+
+Motivo:
+- estas funciones aceptan 2 modelos:
+  - llamado directo con JWT admin (validacion interna manual)
+  - llamado interno por proxy con `x-versioning-proxy-token`
+
+## 5) Comandos de despliegue
 
 ```powershell
-$DEV_REF = "btvrtxdizqsqrzdsgvsj"
-$STAGING_REF = "iegjfeaadayfvqockwov"
-$PROD_REF = "ztcsrfwvjgqnmhnlpeye"
+$OPS_REF = "ymhaveuksdzlfuecvkmx"
 ```
 
-Ejemplo set en dev (resumen):
-
+Migraciones en ops:
 ```powershell
-supabase secrets set --project-ref $DEV_REF PRELAUNCH_UA_PEPPER="..." PRELAUNCH_IP_RISK_PEPPER="..." OSM_USER_AGENT="referidos-app/1.0 (support@tudominio.com)" OSM_EMAIL="support@tudominio.com" GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_largo_unico"
+cd apps/referidos-ops
+supabase db push --project-ref $OPS_REF
 ```
 
-## 8) Deploy de Edge Functions clave
+Funciones ops:
+```powershell
+supabase functions deploy versioning-dev-release-create --project-ref $OPS_REF
+supabase functions deploy versioning-deploy-execute --project-ref $OPS_REF
+supabase functions deploy versioning-deploy-callback --project-ref $OPS_REF --no-verify-jwt
+```
 
+Funcion proxy en runtime (ejemplo dev):
 ```powershell
 cd apps/referidos-app
+supabase functions deploy versioning-ops-proxy --project-ref btvrtxdizqsqrzdsgvsj
 ```
 
+Repetir proxy para staging/prod:
 ```powershell
-supabase functions deploy versioning-deploy-execute --project-ref $DEV_REF
-supabase functions deploy versioning-dev-release-create --project-ref $DEV_REF
-supabase functions deploy versioning-deploy-callback --project-ref $DEV_REF --no-verify-jwt
+supabase functions deploy versioning-ops-proxy --project-ref iegjfeaadayfvqockwov
+supabase functions deploy versioning-ops-proxy --project-ref ztcsrfwvjgqnmhnlpeye
 ```
 
-Repite con `$STAGING_REF` y `$PROD_REF`.
+## 6) Ejemplo de set de secrets
+
+Ops:
+```powershell
+$OPS_REF = "ymhaveuksdzlfuecvkmx"
+supabase secrets set --project-ref $OPS_REF GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev,develop" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_largo_unico" VERSIONING_PROXY_SHARED_TOKEN="token_largo_unico_proxy" SUPABASE_ENV="ops"
+```
+
+Runtime (dev):
+```powershell
+$DEV_REF = "btvrtxdizqsqrzdsgvsj"
+supabase secrets set --project-ref $DEV_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_largo_unico_proxy"
+```
+
+## 7) Validacion funcional rapida
+
+1. Login admin en PWA del entorno (dev/staging/prod).
+2. Abrir panel `admin/versionado/global`.
+3. Verificar:
+- listado de releases carga
+- promociones y deploy requests cargan
+- crear release dev funciona
+- trigger deploy pipeline funciona
+4. Confirmar en ops:
+- tablas `version_*` cambian en `referidos-ops`, no en runtime.

@@ -53,3 +53,7 @@ Para setup y troubleshooting detallado usa tambien:
 
 - `docs/referidos-system/README.md`
 - `versioning/component-map.json`
+
+Nota:
+- por ahora el bridge de versionado (`versioning-ops-proxy`) esta implementado en PWA.
+- Android mantiene endpoint puente legacy temporal y se migra despues.

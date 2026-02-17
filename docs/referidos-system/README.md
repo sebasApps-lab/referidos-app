@@ -2,73 +2,163 @@
 
 Baseline del sistema: `0.5.0`.
 
-## 1) Que controla este sistema
+Control plane central:
+- proyecto Supabase: `referidos-ops`
+- URL: `https://ymhaveuksdzlfuecvkmx.supabase.co`
+- ref: `ymhaveuksdzlfuecvkmx`
 
-Para cada producto y entorno guarda:
+## 1) Arquitectura final aplicada
 
-- cambios detectados por git
-- revisiones por componente
+Hoy el sistema queda separado en 2 planos:
+
+1. Plano runtime (por entorno):
+- `dev` -> `btvrtxdizqsqrzdsgvsj`
+- `staging` -> `iegjfeaadayfvqockwov`
+- `prod` -> `ztcsrfwvjgqnmhnlpeye`
+- mantiene datos funcionales: usuarios, soporte, negocio, etc.
+
+2. Plano ops (unico):
+- `referidos-ops`
+- mantiene versionado, promociones, gate de deploy, auditoria de deploy.
+
+## 2) Aislamiento del panel de versionado (aplicado)
+
+El panel de versionado en la PWA ahora SI esta aislado a ops.
+
+Como funciona:
+
+1. Frontend admin:
+- `apps/referidos-app/src/admin/versioning/services/versioningService.js`
+- ya no consulta tablas/versioning RPC locales.
+- ahora llama solo a `supabase.functions.invoke("versioning-ops-proxy", ...)`.
+
+2. Proxy en runtime:
+- `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
+- valida auth local + rol admin local.
+- reenvia operaciones de versionado a `referidos-ops`.
+
+3. Operaciones en ops:
+- lecturas/RPC por cliente service-role de ops.
+- operaciones de pipeline/deploy/release-dev por edge functions de ops:
+  - `versioning-deploy-execute`
+  - `versioning-dev-release-create`
+- autenticacion interna por header seguro `x-versioning-proxy-token`.
+
+4. Ops functions habilitadas para proxy interno:
+- `apps/referidos-ops/supabase/config.toml`
+- `verify_jwt = false` en:
+  - `versioning-deploy-execute`
+  - `versioning-dev-release-create`
+  - `versioning-deploy-callback` (ya estaba)
+
+5. Seguridad:
+- las funciones ops siguen validando admin por JWT para uso directo.
+- para uso interno aceptan token compartido (`VERSIONING_PROXY_SHARED_TOKEN`).
+- el proxy local exige admin local antes de reenviar.
+
+## 3) Que controla el sistema
+
+Por producto y entorno:
+- changesets detectados
+- revisiones de componentes
 - releases semver
 - promociones entre entornos
-- solicitudes y ejecucion de deploy
-- auditoria de acciones
+- solicitudes/aprobaciones/ejecucion de deploy
+- auditoria
 
 Productos:
-
-- `referidos_app` (PWA)
+- `referidos_app`
 - `prelaunch_web`
 - `android_app`
 
-Entornos:
-
+Entornos versionados:
 - `dev`
 - `staging`
 - `prod`
 
-## 2) Flujo actual (resumen corto)
+## 4) Flujo operativo
 
-1. Push a `dev` o `develop`:
+1. Push a `dev`/`develop`:
 - corre `versioning-detect-dev.yml`
-- solo detecta cambios (`detect`)
-- NO crea release automaticamente
+- detecta cambios
+- no crea release automaticamente
 
-2. Crear release de `dev`:
-- desde panel admin (`/admin/versionado/global`) con boton `Relase`
-- o con Edge Function `versioning-dev-release-create`
-- esto dispara `versioning-release-dev.yml`
+2. Crear release de DEVELOPMENT:
+- desde panel admin (boton `Relase`)
+- o `versioning-dev-release-create`
+- dispara workflow `versioning-release-dev.yml`
 
 3. Promover release:
 - `dev -> staging`
 - `staging -> prod`
 
 4. Deploy:
-- solo permitido para `staging` y `prod`
-- se ejecuta desde gate/admin
-- valida que el `source_commit_sha` este en la rama destino
-- si no esta, requiere `Subir release` (merge controlado)
-- luego dispara workflow `versioning-deploy-artifact.yml` (checkout exacto por SHA + deploy artifact a Netlify)
-- finaliza estado por callback (`versioning-deploy-callback`)
+- solo `staging`/`prod`
+- gate de aprobacion
+- valida commit exacto (`source_commit_sha`)
+- si falta codigo en rama destino: `Subir release`
+- deploy exacto por workflow `versioning-deploy-artifact.yml`
+- callback finaliza estado (`versioning-deploy-callback`)
 
-## 3) Conceptos clave
+## 5) Mensajes de commit (sin PR labels)
 
-`changeset`:
-- lista de componentes impactados por un rango git
+`major`:
+```text
+feat!: cambiar contrato de soporte
+BREAKING CHANGE: ahora el campo X es obligatorio
+```
 
-`bump`:
-- incremento semver (`major`, `minor`, `patch`, `none`)
+`minor`:
+```text
+feat: agregar filtro por estado en panel
+```
 
-`release`:
-- version semver publicada en un entorno
+`patch`:
+```text
+fix: corregir validacion de whatsapp
+refactor: simplificar parser de versionado
+perf: optimizar carga de tickets
+```
 
-`promotion`:
-- mover una semver exacta entre entornos
+`none`:
+```text
+docs: actualizar guia de versionado
+```
 
-`deploy`:
-- publicacion real en infraestructura (Netlify)
+## 6) Ubicacion de piezas clave
 
-## 4) Scripts y comandos
+Migrations ops:
+- `apps/referidos-ops/supabase/migrations/20260219_000013_ops_versioning_prereqs.sql`
+- `apps/referidos-ops/supabase/migrations/20260220_000014_ops_versioning_prereq_helpers.sql`
+- `apps/referidos-ops/supabase/migrations/20260221_000014_versioning_system.sql`
+- `apps/referidos-ops/supabase/migrations/20260222_000015_versioning_deploy_gate.sql`
+- `apps/referidos-ops/supabase/migrations/20260223_000016_versioning_execute_deploy_started.sql`
+- `apps/referidos-ops/supabase/migrations/20260224_000017_versioning_request_deploy_env_guard.sql`
+- `apps/referidos-ops/supabase/migrations/20260225_000018_versioning_deploy_artifact_finalize.sql`
 
-Desde raiz del repo:
+Edge functions runtime (bridge):
+- `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
+
+Edge functions ops:
+- `apps/referidos-ops/supabase/functions/versioning-dev-release-create/index.ts`
+- `apps/referidos-ops/supabase/functions/versioning-deploy-execute/index.ts`
+- `apps/referidos-ops/supabase/functions/versioning-deploy-callback/index.ts`
+
+UI panel:
+- `apps/referidos-app/src/admin/versioning/VersioningOverviewPanel.jsx`
+- `apps/referidos-app/src/admin/versioning/services/versioningService.js`
+
+Workflows:
+- `.github/workflows/versioning-detect-dev.yml`
+- `.github/workflows/versioning-release-dev.yml`
+- `.github/workflows/versioning-promote.yml`
+- `.github/workflows/versioning-record-deployment.yml`
+- `.github/workflows/versioning-deploy-artifact.yml`
+- `.github/workflows/versioning-detect-pr.yml`
+
+## 7) Comandos base
+
+Desde raiz:
 
 ```powershell
 npm run versioning:detect
@@ -88,67 +178,11 @@ npm run versioning:record-deploy -- --product referidos_app --env prod --semver 
 ```
 
 `versioning:bootstrap`:
-- se usa para inicializacion/backfill, no en cada cambio
+- solo inicializacion/backfill
 
-## 5) Mensajes de commit (sin PR labels)
-
-Si no usas PR labels, el sistema toma senales del commit message.
-
-1. `major`:
-
-```text
-feat!: cambiar contrato de soporte
-BREAKING CHANGE: ahora el campo X es obligatorio
-```
-
-2. `minor`:
-
-```text
-feat: agregar filtro por estado en panel
-```
-
-3. `patch`:
-
-```text
-fix: corregir validacion de whatsapp
-refactor: simplificar parser de versionado
-perf: optimizar carga de tickets
-```
-
-4. `none`:
-
-```text
-docs: actualizar guia de versionado
-```
-
-## 6) Donde vive el sistema
-
-Schema/migraciones:
-
-- `apps/referidos-app/supabase/migrations/20260220_000014_versioning_system.sql`
-- `apps/referidos-app/supabase/migrations/20260221_000015_versioning_deploy_gate.sql`
-- (y migraciones posteriores relacionadas)
-
-Edge Functions principales:
-
-- `apps/referidos-app/supabase/functions/versioning-dev-release-create/index.ts`
-- `apps/referidos-app/supabase/functions/versioning-deploy-execute/index.ts`
-
-Panel admin:
-
-- `apps/referidos-app/src/admin/versioning/VersioningOverviewPanel.jsx`
-
-CI:
-
-- `.github/workflows/versioning-detect-dev.yml`
-- `.github/workflows/versioning-release-dev.yml`
-- `.github/workflows/versioning-promote.yml`
-- `.github/workflows/versioning-record-deployment.yml`
-- `.github/workflows/versioning-deploy-artifact.yml`
-- `.github/workflows/versioning-detect-pr.yml`
-
-## 7) Documentos relacionados
+## 8) Documentos relacionados
 
 - `docs/referidos-system/entornos-y-secrets.md`
 - `docs/referidos-system/operacion-sin-pr-netlify.md`
 - `docs/versioning-system.md`
+- `apps/referidos-ops/README.md`

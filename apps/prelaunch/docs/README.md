@@ -51,7 +51,7 @@ Regla practica:
 
 1. compilar prelaunch
 2. revisar rutas/flows de soporte y waitlist
-3. confirmar label semver correcto en PR
+3. usar commit message semantico para bump correcto
 
 ## Referencias
 
