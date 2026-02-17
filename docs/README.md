@@ -14,6 +14,7 @@ Incluye:
 - CI y promociones entre entornos
 - troubleshooting para evitar romper versionado
 - guia detallada para flujo sin PR y despliegue con Netlify (`operacion-sin-pr-netlify.md`)
+- guia de entornos y secretos por proyecto (`entornos-y-secrets.md`)
 
 ## 2) Apps hermanas
 

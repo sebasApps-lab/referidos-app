@@ -1,0 +1,36 @@
+name: Versioning Detect (Dev Push)
+
+on:
+  push:
+    branches:
+      - dev
+      - develop
+
+jobs:
+  detect-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Detect versioning changeset
+        env:
+          VERSIONING_BASE_REF: HEAD~1
+          VERSIONING_HEAD_REF: HEAD
+          VERSIONING_STRICT_MAJOR_ACK: "0"
+        run: |
+          node tooling/versioning/detect-changes.mjs \
+            --output "versioning/out/changeset.json"
+
+      - name: Upload changeset artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: versioning-changeset-dev-${{ github.sha }}
+          path: versioning/out/changeset.json

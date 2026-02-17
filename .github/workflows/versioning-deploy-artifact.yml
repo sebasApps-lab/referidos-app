@@ -1,0 +1,267 @@
+name: Versioning Deploy Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: "ID de la solicitud de deploy"
+        required: true
+        type: string
+      product_key:
+        description: "Producto (referidos_app | prelaunch_web)"
+        required: true
+        type: string
+      env_key:
+        description: "Entorno destino (staging | prod)"
+        required: true
+        type: string
+      semver:
+        description: "Version semver"
+        required: true
+        type: string
+      source_commit_sha:
+        description: "Commit exacto a desplegar"
+        required: true
+        type: string
+      source_branch:
+        description: "Rama origen"
+        required: false
+        type: string
+      target_branch:
+        description: "Rama destino"
+        required: false
+        type: string
+      callback_url:
+        description: "URL de callback para finalizar deploy"
+        required: true
+        type: string
+      deploy_execution_id:
+        description: "ID interno de ejecucion de deploy"
+        required: true
+        type: string
+      actor:
+        description: "Actor que disparo el deploy"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-artifact:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_KEY: ${{ inputs.product_key }}
+      ENV_KEY: ${{ inputs.env_key }}
+      REQUEST_ID: ${{ inputs.request_id }}
+      SEMVER: ${{ inputs.semver }}
+      SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+      SOURCE_BRANCH: ${{ inputs.source_branch }}
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+      CALLBACK_URL: ${{ inputs.callback_url }}
+      DEPLOY_EXECUTION_ID: ${{ inputs.deploy_execution_id }}
+      WORKFLOW_ACTOR: ${{ inputs.actor }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
+      NETLIFY_SITE_ID_STAGING: ${{ secrets.NETLIFY_SITE_ID_STAGING }}
+      NETLIFY_SITE_ID_PROD: ${{ secrets.NETLIFY_SITE_ID_PROD }}
+      NETLIFY_SITE_ID_REFERIDOS_APP_STAGING: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_STAGING }}
+      NETLIFY_SITE_ID_REFERIDOS_APP_PROD: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_PROD }}
+      NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING }}
+      NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD }}
+    steps:
+      - name: Validar input y resolver plan
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          product="${PRODUCT_KEY}"
+          env_key="${ENV_KEY}"
+
+          if [[ "$env_key" != "staging" && "$env_key" != "prod" ]]; then
+            echo "Entorno invalido para deploy: $env_key"
+            exit 1
+          fi
+
+          workspace=""
+          publish_dir=""
+          specific_site_id=""
+
+          if [[ "$product" == "referidos_app" ]]; then
+            workspace="@referidos/referidos-app"
+            publish_dir="apps/referidos-app/dist"
+            if [[ "$env_key" == "staging" ]]; then
+              specific_site_id="${NETLIFY_SITE_ID_REFERIDOS_APP_STAGING}"
+            else
+              specific_site_id="${NETLIFY_SITE_ID_REFERIDOS_APP_PROD}"
+            fi
+          elif [[ "$product" == "prelaunch_web" ]]; then
+            workspace="@referidos/prelaunch"
+            publish_dir="apps/prelaunch/dist"
+            if [[ "$env_key" == "staging" ]]; then
+              specific_site_id="${NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING}"
+            else
+              specific_site_id="${NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD}"
+            fi
+          else
+            echo "Producto no soportado para deploy web por artifact exacto: $product"
+            exit 1
+          fi
+
+          fallback_site_id=""
+          if [[ "$env_key" == "staging" ]]; then
+            fallback_site_id="${NETLIFY_SITE_ID_STAGING}"
+          else
+            fallback_site_id="${NETLIFY_SITE_ID_PROD}"
+          fi
+
+          site_id="${specific_site_id:-$fallback_site_id}"
+          if [[ -z "$site_id" ]]; then
+            echo "No se encontro NETLIFY_SITE_ID para product=${product} env=${env_key}"
+            exit 1
+          fi
+
+          if [[ -z "${NETLIFY_AUTH_TOKEN}" ]]; then
+            echo "Falta secret NETLIFY_AUTH_TOKEN"
+            exit 1
+          fi
+
+          echo "workspace=${workspace}" >> "$GITHUB_OUTPUT"
+          echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+          echo "site_id=${site_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout commit exacto
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_commit_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build artifact exacto
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --workspace "${{ steps.plan.outputs.workspace }}" run build
+
+          publish_dir="${{ steps.plan.outputs.publish_dir }}"
+          if [[ "$publish_dir" == "apps/referidos-app/dist" && -d "apps/referidos-app/dist/client" ]]; then
+            publish_dir="apps/referidos-app/dist/client"
+          fi
+
+          if [[ ! -d "$publish_dir" ]]; then
+            echo "Publish dir no existe: $publish_dir"
+            exit 1
+          fi
+
+          echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy artifact a Netlify
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npx --yes netlify-cli@latest deploy \
+            --site "${{ steps.plan.outputs.site_id }}" \
+            --auth "${NETLIFY_AUTH_TOKEN}" \
+            --dir "${{ steps.build.outputs.publish_dir }}" \
+            --prod \
+            --message "versioning:${PRODUCT_KEY}:${ENV_KEY}:${SEMVER}:${SOURCE_COMMIT_SHA}" \
+            --json > deploy-output.json
+
+          node -e "const fs=require('fs');const out=JSON.parse(fs.readFileSync('deploy-output.json','utf8'));const id=out.id||out.deploy_id||out.deployId||'';const url=out.deploy_ssl_url||out.deploy_url||out.url||'';if(!id){console.error('deploy-output sin id');console.error(JSON.stringify(out,null,2));process.exit(1);}fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deployment_id='+id+'\\n');if(url){fs.appendFileSync(process.env.GITHUB_OUTPUT, 'logs_url='+url+'\\n');}"
+
+      - name: Finalizar deploy en backend
+        if: ${{ always() }}
+        shell: bash
+        env:
+          FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
+          DEPLOYMENT_ID_RAW: ${{ steps.deploy.outputs.deployment_id }}
+          DEPLOY_LOGS_URL_RAW: ${{ steps.deploy.outputs.logs_url }}
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CALLBACK_ACTOR: ${{ inputs.actor }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CALLBACK_URL}" ]]; then
+            echo "CALLBACK_URL vacio"
+            exit 1
+          fi
+
+          if [[ -z "${VERSIONING_DEPLOY_CALLBACK_TOKEN}" ]]; then
+            echo "Falta secret VERSIONING_DEPLOY_CALLBACK_TOKEN en GitHub"
+            exit 1
+          fi
+
+          deployment_id="${DEPLOYMENT_ID_RAW:-$DEPLOY_EXECUTION_ID}"
+          logs_url="${DEPLOY_LOGS_URL_RAW:-$GITHUB_RUN_URL}"
+          actor="${CALLBACK_ACTOR:-${WORKFLOW_ACTOR:-github-actions}}"
+
+          export DEPLOYMENT_ID_FINAL="${deployment_id}"
+          export LOGS_URL_FINAL="${logs_url}"
+          export ACTOR_FINAL="${actor}"
+
+          node <<'NODE'
+          (async () => {
+            const callbackUrl = process.env.CALLBACK_URL;
+            const callbackToken = process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN;
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              status: process.env.FINAL_STATUS || "failed",
+              deployment_id: process.env.DEPLOYMENT_ID_FINAL || "",
+              logs_url: process.env.LOGS_URL_FINAL || "",
+              actor: process.env.ACTOR_FINAL || "github-actions",
+              metadata: {
+                trigger: "github_workflow_artifact_exact",
+                product_key: process.env.PRODUCT_KEY,
+                env_key: process.env.ENV_KEY,
+                semver: process.env.SEMVER,
+                source_commit_sha: process.env.SOURCE_COMMIT_SHA,
+                source_branch: process.env.SOURCE_BRANCH || null,
+                target_branch: process.env.TARGET_BRANCH || null,
+                github_run_id: process.env.GITHUB_RUN_ID,
+                github_run_url: process.env.GITHUB_RUN_URL,
+                github_repository: process.env.GITHUB_REPOSITORY,
+              },
+            };
+
+            const res = await fetch(callbackUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-versioning-callback-token": callbackToken,
+              },
+              body: JSON.stringify(payload),
+            });
+
+            const text = await res.text();
+            let parsed = {};
+            try {
+              parsed = text ? JSON.parse(text) : {};
+            } catch {
+              parsed = { raw: text };
+            }
+
+            if (!res.ok || parsed.ok === false) {
+              console.error("Callback failed", {
+                status: res.status,
+                parsed,
+              });
+              process.exit(1);
+            }
+
+            console.log("Callback ok", parsed);
+          })().catch((error) => {
+            console.error("Callback exception", error);
+            process.exit(1);
+          });
+          NODE

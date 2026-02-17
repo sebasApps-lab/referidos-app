@@ -123,6 +123,53 @@ export async function promoteRelease({
   return data;
 }
 
+export async function fetchPromotionHistory({ productId = "", limit = 50 } = {}) {
+  let query = supabase
+    .from("version_promotions")
+    .select("id, product_id, from_release_id, to_release_id, promoted_by, notes, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (productId) query = query.eq("product_id", productId);
+
+  const { data: promotions, error: promotionsError } = await query;
+  if (promotionsError) throw new Error(promotionsError.message);
+
+  const rows = promotions || [];
+  const releaseIds = Array.from(
+    new Set(
+      rows
+        .flatMap((row) => [row.from_release_id, row.to_release_id])
+        .filter(Boolean)
+    )
+  );
+
+  const releasesById = new Map();
+  if (releaseIds.length > 0) {
+    const { data: releases, error: releasesError } = await supabase
+      .from("version_releases_labeled")
+      .select("id, product_key, env_key, version_label")
+      .in("id", releaseIds);
+    if (releasesError) throw new Error(releasesError.message);
+    for (const release of releases || []) {
+      releasesById.set(release.id, release);
+    }
+  }
+
+  return rows.map((row) => {
+    const fromRelease = releasesById.get(row.from_release_id) || null;
+    const toRelease = releasesById.get(row.to_release_id) || null;
+    return {
+      ...row,
+      product_key: toRelease?.product_key || fromRelease?.product_key || null,
+      from_env_key: fromRelease?.env_key || null,
+      from_version_label: fromRelease?.version_label || null,
+      to_env_key: toRelease?.env_key || null,
+      to_version_label: toRelease?.version_label || null,
+    };
+  });
+}
+
 export async function fetchDeployRequests({ envKey = "", status = "", productKey = "" } = {}) {
   let query = supabase
     .from("version_deploy_requests_labeled")
@@ -147,9 +194,14 @@ export async function requestDeploy({
   notes = "",
   metadata = {},
 }) {
+  const normalizedEnv = String(envKey || "").trim().toLowerCase();
+  if (!["staging", "prod"].includes(normalizedEnv)) {
+    throw new Error("Deploy solo permitido en staging o prod.");
+  }
+
   const { data, error } = await supabase.rpc("versioning_request_deploy", {
     p_product_key: productKey,
-    p_env_key: envKey,
+    p_env_key: normalizedEnv,
     p_semver: semver,
     p_actor: actor,
     p_notes: notes || null,
@@ -213,6 +265,8 @@ export async function triggerDeployPipeline({
   requestId,
   forceAdminOverride = false,
   skipMerge = false,
+  syncRelease = false,
+  syncOnly = false,
   sourceBranch = "",
   targetBranch = "",
 }) {
@@ -221,6 +275,8 @@ export async function triggerDeployPipeline({
       request_id: requestId,
       force_admin_override: forceAdminOverride,
       skip_merge: skipMerge,
+      sync_release: syncRelease,
+      sync_only: syncOnly,
       source_branch: sourceBranch || null,
       target_branch: targetBranch || null,
     },
@@ -228,7 +284,33 @@ export async function triggerDeployPipeline({
 
   if (error) throw new Error(error.message || "No se pudo ejecutar deploy pipeline.");
   if (!data?.ok) {
-    throw new Error(data?.detail || data?.error || "No se pudo ejecutar deploy pipeline.");
+    const pipelineError = new Error(
+      data?.detail || data?.error || "No se pudo ejecutar deploy pipeline."
+    );
+    pipelineError.code = data?.error || "deploy_pipeline_failed";
+    pipelineError.payload = data;
+    throw pipelineError;
+  }
+  return data;
+}
+
+export async function createDevRelease({
+  productKey = "",
+  ref = "dev",
+}) {
+  const normalizedProduct = String(productKey || "").trim();
+  const normalizedRef = String(ref || "dev").trim() || "dev";
+
+  const { data, error } = await supabase.functions.invoke("versioning-dev-release-create", {
+    body: {
+      product_key: normalizedProduct || null,
+      ref: normalizedRef,
+    },
+  });
+
+  if (error) throw new Error(error.message || "No se pudo crear release de development.");
+  if (!data?.ok) {
+    throw new Error(data?.detail || data?.error || "No se pudo crear release de development.");
   }
   return data;
 }

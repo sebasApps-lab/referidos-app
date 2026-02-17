@@ -1,11 +1,16 @@
 name: Versioning Release Dev
 
 on:
-  push:
-    branches:
-      - dev
-      - develop
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch/ref to release from (default: dev)"
+        required: false
+        type: string
+      product_filter:
+        description: "Optional product key filter (referidos_app | prelaunch_web | android_app)"
+        required: false
+        type: string
 
 jobs:
   release-dev:
@@ -15,6 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.ref || 'dev' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -41,5 +47,6 @@ jobs:
           VERSIONING_INPUT: versioning/out/changeset.json
           VERSIONING_CREATE_RELEASE: "1"
           VERSIONING_RELEASE_STATUS: validated
+          VERSIONING_PRODUCT_FILTER: ${{ inputs.product_filter }}
         run: |
           node tooling/versioning/apply-changeset.mjs

@@ -16,6 +16,7 @@ function parseArgs(argv) {
     baseline: process.env.VERSIONING_BASELINE_VERSION || "0.5.0",
     createRelease: process.env.VERSIONING_CREATE_RELEASE !== "0",
     releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "validated",
+    productFilter: (process.env.VERSIONING_PRODUCT_FILTER || "").trim(),
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -24,6 +25,7 @@ function parseArgs(argv) {
     if (token === "--baseline") out.baseline = argv[i + 1];
     if (token === "--no-release") out.createRelease = false;
     if (token === "--release-status") out.releaseStatus = argv[i + 1];
+    if (token === "--product") out.productFilter = (argv[i + 1] || "").trim();
   }
   return out;
 }
@@ -205,10 +207,18 @@ async function main() {
       .eq("env_key", args.env)
       .limit(1)
       .single(),
-    `find environment ${args.env}`
+      `find environment ${args.env}`
   );
 
+  let processedProducts = 0;
+
   for (const productChange of changeset.products || []) {
+    if (args.productFilter && productChange.productKey !== args.productFilter) {
+      continue;
+    }
+
+    processedProducts += 1;
+
     const product = await mustSingle(
       supabase
         .from("version_products")
@@ -380,6 +390,11 @@ async function main() {
     console.log(
       `VERSIONING_APPLIED product=${product.product_key} components=${changedRevisionMap.size} release=${createdReleaseVersion || "-"}`
     );
+  }
+
+  if (processedProducts === 0) {
+    const filterLabel = args.productFilter || "none";
+    console.log(`VERSIONING_APPLY_NO_PRODUCTS filter=${filterLabel}`);
   }
 }
 
