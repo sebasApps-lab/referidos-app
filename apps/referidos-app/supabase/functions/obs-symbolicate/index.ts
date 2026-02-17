@@ -254,6 +254,112 @@ function releaseLabel(releaseRow: ReleaseRecord) {
   return `${releaseRow.app_id}@${releaseRow.app_version}+${build}`;
 }
 
+function normalizeEnvKey(value: string | null): string {
+  return safeString(value)?.toLowerCase() || "";
+}
+
+function inferEventEnv(eventRow: ObsEventRecord, releaseRow: ReleaseRecord | null) {
+  if (releaseRow?.env) return normalizeEnvKey(releaseRow.env);
+  const release = safeObject(eventRow.release);
+  return normalizeEnvKey(safeString(release.env));
+}
+
+function isDevLikeEnv(value: string | null) {
+  const env = normalizeEnvKey(value);
+  return env === "dev" || env === "development" || env === "local" || env === "remote";
+}
+
+function finiteNumber(value: unknown): number | null {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return num;
+}
+
+function buildDevPassthroughPayload(eventRow: ObsEventRecord) {
+  const baseFrames = safeArray(eventRow.stack_frames_raw);
+  const frames =
+    baseFrames.length > 0
+      ? baseFrames
+      : parseStackFramesRaw(eventRow.stack_raw).map((frame) => scrubUnknown(frame) as Record<string, unknown>);
+
+  let symbolicatedCount = 0;
+  const passthroughFrames = frames.map((frame) => {
+    const source = safeString(frame.file) || safeString(frame.raw) || null;
+    const line = finiteNumber(frame.line);
+    const column = finiteNumber(frame.column);
+    const hasLocation = Boolean(source && line !== null);
+    if (hasLocation) symbolicatedCount += 1;
+    return {
+      ...frame,
+      generated_file: normalizedFrameFile(source),
+      map_path: null,
+      symbolicated: hasLocation,
+      original: hasLocation
+        ? {
+            source,
+            line: Math.max(1, Math.trunc(line || 0)),
+            column: Math.max(0, Math.trunc(column || 0)),
+            name: safeString(frame.function),
+          }
+        : null,
+    };
+  });
+
+  return {
+    payload: {
+      message: eventRow.message,
+      stack_preview: eventRow.stack_preview,
+      stack_raw: eventRow.stack_raw,
+      frames: passthroughFrames,
+      stats: {
+        total_frames: passthroughFrames.length,
+        symbolicated_frames: symbolicatedCount,
+      },
+    },
+    symbolicatedCount,
+  };
+}
+
+async function persistDevPassthroughSymbolication({
+  eventRow,
+  actorUserId,
+  cacheType,
+  nowIso,
+  releaseName,
+  status,
+}: {
+  eventRow: ObsEventRecord;
+  actorUserId: string;
+  cacheType: "short" | "long";
+  nowIso: string;
+  releaseName: string | null;
+  status: string;
+}) {
+  const passthrough = buildDevPassthroughPayload(eventRow);
+  await supabaseAdmin
+    .from("obs_events")
+    .update({
+      symbolicated_stack: passthrough.payload,
+      symbolicated_at: nowIso,
+      symbolicated_by: actorUserId,
+      symbolication_release: releaseName,
+      symbolication_status: status,
+      symbolication_type: cacheType,
+    })
+    .eq("id", eventRow.id);
+
+  return {
+    ok: true,
+    cached: false,
+    event_id: eventRow.id,
+    symbolicated_stack: passthrough.payload,
+    symbolication_status: status,
+    symbolicated_at: nowIso,
+    symbolication_type: cacheType,
+    symbolication_release: releaseName,
+  };
+}
+
 async function applySymbolicationToEvent(
   eventRow: ObsEventRecord,
   actorUserId: string,
@@ -299,6 +405,23 @@ async function applySymbolicationToEvent(
 
   const releaseRow = await loadReleaseForEvent(eventRow);
   if (!releaseRow) {
+    const release = safeObject(eventRow.release);
+    const releaseEnv = safeString(release.env);
+    if (isDevLikeEnv(releaseEnv)) {
+      const releaseName =
+        safeString(release.version_label) ||
+        safeString(release.app_version) ||
+        (releaseEnv ? `dev@${releaseEnv}` : "dev");
+      return await persistDevPassthroughSymbolication({
+        eventRow,
+        actorUserId,
+        cacheType,
+        nowIso,
+        releaseName,
+        status: "ok:dev_native_stack",
+      });
+    }
+
     await supabaseAdmin
       .from("obs_events")
       .update({
@@ -317,6 +440,17 @@ async function applySymbolicationToEvent(
 
   const manifestResult = await loadManifest(releaseRow);
   if (!manifestResult.ok || !manifestResult.manifest) {
+    if (isDevLikeEnv(inferEventEnv(eventRow, releaseRow))) {
+      return await persistDevPassthroughSymbolication({
+        eventRow,
+        actorUserId,
+        cacheType,
+        nowIso,
+        releaseName: releaseLabel(releaseRow),
+        status: "ok:dev_manifest_passthrough",
+      });
+    }
+
     await supabaseAdmin
       .from("obs_events")
       .update({
@@ -389,6 +523,17 @@ async function applySymbolicationToEvent(
 
   for (const consumer of sourceMapCache.values()) {
     consumer.destroy?.();
+  }
+
+  if (symbolicatedCount === 0 && isDevLikeEnv(inferEventEnv(eventRow, releaseRow))) {
+    return await persistDevPassthroughSymbolication({
+      eventRow,
+      actorUserId,
+      cacheType,
+      nowIso,
+      releaseName: releaseLabel(releaseRow),
+      status: "ok:dev_no_mapped_frames",
+    });
   }
 
   const symbolicationStatus = symbolicatedCount > 0 ? "ok" : "error:no_mapped_frames";

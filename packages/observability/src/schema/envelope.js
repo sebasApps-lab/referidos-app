@@ -7,15 +7,31 @@ const ALLOWED_SOURCE = new Set(["web", "edge", "worker"]);
 export function buildReleaseFromEnv(importMetaEnv = {}) {
   const appVersion =
     importMetaEnv.VITE_APP_VERSION ||
+    importMetaEnv.VITE_VERSION_LABEL ||
     importMetaEnv.VITE_RELEASE ||
     importMetaEnv.VITE_COMMIT_SHA ||
     "dev";
   const buildId =
-    importMetaEnv.VITE_BUILD_ID || importMetaEnv.VITE_COMMIT_SHA || "";
+    importMetaEnv.VITE_BUILD_ID ||
+    importMetaEnv.VITE_SOURCE_COMMIT_SHA ||
+    importMetaEnv.VITE_COMMIT_SHA ||
+    "";
+  const versionReleaseId =
+    importMetaEnv.VITE_VERSION_RELEASE_ID ||
+    importMetaEnv.VITE_RELEASE_ID ||
+    "";
+  const sourceCommitSha =
+    importMetaEnv.VITE_SOURCE_COMMIT_SHA ||
+    importMetaEnv.VITE_COMMIT_SHA ||
+    "";
   const env = importMetaEnv.MODE || importMetaEnv.VITE_ENV || "development";
   const appId = importMetaEnv.VITE_APP_ID || "referidos-app";
   return {
     app_version: appVersion,
+    version_label: appVersion,
+    semver: appVersion,
+    version_release_id: versionReleaseId,
+    source_commit_sha: sourceCommitSha,
     build_id: buildId,
     env,
     app_id: appId,

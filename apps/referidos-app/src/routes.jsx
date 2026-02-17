@@ -202,7 +202,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/observability"
+        path="/admin/issues"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -210,6 +210,30 @@ export default function AppRoutes() {
             </RequireRole>
           </RequireAuth>
         }
+      />
+      <Route
+        path="/admin/issues/events"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminObservability />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/issues/events/details"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminObservability />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/observability"
+        element={<Navigate to="/admin/issues" replace />}
       />
       <Route
         path="/admin/dev/errors"

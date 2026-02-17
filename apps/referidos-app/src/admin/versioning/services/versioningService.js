@@ -64,6 +64,20 @@ export async function fetchReleaseComponents(releaseId) {
   });
 }
 
+export async function fetchReleaseSnapshot({
+  releaseId = "",
+  productKey = "",
+  envKey = "",
+  semver = "",
+} = {}) {
+  return invokeVersioningOps("fetch_release_snapshot", {
+    releaseId,
+    productKey,
+    envKey,
+    semver,
+  });
+}
+
 export async function fetchComponentHistory(componentId, limit = 50) {
   return invokeVersioningOps("fetch_component_history", {
     componentId,

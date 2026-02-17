@@ -34,6 +34,24 @@ import {
 
 const MAX_TITLE_LEN = 220;
 
+type JsonObject = Record<string, unknown>;
+
+type SnapshotComponent = {
+  component_key: string;
+  component_type: string | null;
+  revision_no: number | null;
+  revision_id: string | null;
+  path_globs: string[];
+};
+
+type ReleaseSnapshot = {
+  id: string;
+  version_label: string;
+  version_release_id: string | null;
+  source_commit_sha: string | null;
+  components: SnapshotComponent[];
+};
+
 function safeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const next = value.trim();
@@ -45,6 +63,17 @@ function safeObject(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>;
   }
   return {};
+}
+
+function safeArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
+function safeInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.trunc(parsed);
 }
 
 function normalizeErrorCode(value: string | null) {
@@ -93,6 +122,172 @@ function issueTitleForEvent({
   const detail = errorCode || message.slice(0, 90);
   const title = `${base}: ${detail} (${eventType})`;
   return title.length <= MAX_TITLE_LEN ? title : title.slice(0, MAX_TITLE_LEN);
+}
+
+function normalizeFilePath(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  let normalized = trimmed;
+  try {
+    if (/^https?:\/\//i.test(trimmed)) {
+      const parsed = new URL(trimmed);
+      normalized = parsed.pathname || "/";
+    }
+  } catch {
+    normalized = trimmed;
+  }
+
+  normalized = normalized.split("?")[0].split("#")[0];
+  normalized = normalized.replace(/\\/g, "/");
+  normalized = normalized.replace(/^\.\//, "");
+  return normalized.toLowerCase();
+}
+
+function escapeRegexChar(char: string) {
+  return /[\\^$+?.()|[\]{}]/.test(char) ? `\\${char}` : char;
+}
+
+function globToRegExp(pattern: string): RegExp {
+  const normalized = normalizeFilePath(pattern);
+  let source = "^";
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    if (char === "*") {
+      if (normalized[i + 1] === "*") {
+        source += ".*";
+        i += 1;
+      } else {
+        source += "[^/]*";
+      }
+    } else if (char === "?") {
+      source += ".";
+    } else {
+      source += escapeRegexChar(char);
+    }
+  }
+  source += "$";
+  return new RegExp(source, "i");
+}
+
+function globSpecificity(pattern: string) {
+  return pattern.replace(/[\*\?]/g, "").length;
+}
+
+function parsePathGlobs(value: unknown): string[] {
+  const raw = safeArray(value)
+    .map((entry) => safeString(entry))
+    .filter((entry): entry is string => Boolean(entry));
+  return Array.from(new Set(raw));
+}
+
+function extractStackFiles(stackFramesRaw: unknown): string[] {
+  const frames = safeArray(stackFramesRaw)
+    .map((entry) => safeObject(entry))
+    .filter((entry) => Object.keys(entry).length > 0);
+
+  const files = frames
+    .map((frame) => safeString(frame.file))
+    .filter((entry): entry is string => Boolean(entry))
+    .map((entry) => normalizeFilePath(entry))
+    .filter(Boolean);
+
+  return Array.from(new Set(files));
+}
+
+function resolveComponentByStack({
+  components,
+  stackFiles,
+}: {
+  components: SnapshotComponent[];
+  stackFiles: string[];
+}): SnapshotComponent | null {
+  if (!components.length || !stackFiles.length) return null;
+
+  let bestMatch: SnapshotComponent | null = null;
+  let bestScore = -1;
+
+  for (const component of components) {
+    const globs = component.path_globs || [];
+    for (const glob of globs) {
+      const normalizedGlob = normalizeFilePath(glob);
+      if (!normalizedGlob) continue;
+      const regex = globToRegExp(normalizedGlob);
+      for (const file of stackFiles) {
+        if (regex.test(file)) {
+          const score = globSpecificity(normalizedGlob);
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = component;
+          }
+        }
+      }
+    }
+  }
+
+  return bestMatch;
+}
+
+async function loadReleaseSnapshot({
+  tenantId,
+  appId,
+  envKey,
+  versionLabel,
+}: {
+  tenantId: string;
+  appId: string;
+  envKey: string;
+  versionLabel: string;
+}): Promise<ReleaseSnapshot | null> {
+  if (!tenantId || !appId || !envKey || !versionLabel) return null;
+
+  const { data: snapshotRow, error: snapshotError } = await supabaseAdmin
+    .from("obs_release_snapshots")
+    .select("id, version_label, version_release_id, source_commit_sha")
+    .eq("tenant_id", tenantId)
+    .eq("app_id", appId)
+    .eq("env_key", envKey)
+    .eq("version_label", versionLabel)
+    .limit(1)
+    .maybeSingle();
+
+  if (snapshotError || !snapshotRow?.id) {
+    return null;
+  }
+
+  const { data: componentRows, error: componentError } = await supabaseAdmin
+    .from("obs_release_snapshot_components")
+    .select(
+      [
+        "component_key",
+        "component_type",
+        "revision_no",
+        "revision_id",
+        "path_globs",
+      ].join(", ")
+    )
+    .eq("snapshot_id", snapshotRow.id)
+    .order("component_key", { ascending: true });
+
+  if (componentError) {
+    return null;
+  }
+
+  const components: SnapshotComponent[] = (componentRows || []).map((row) => ({
+    component_key: safeString(row.component_key) || "",
+    component_type: safeString(row.component_type) || null,
+    revision_no: safeInteger(row.revision_no),
+    revision_id: safeString(row.revision_id) || null,
+    path_globs: parsePathGlobs(row.path_globs),
+  })).filter((row) => Boolean(row.component_key));
+
+  return {
+    id: String(snapshotRow.id),
+    version_label: safeString(snapshotRow.version_label) || versionLabel,
+    version_release_id: safeString(snapshotRow.version_release_id),
+    source_commit_sha: safeString(snapshotRow.source_commit_sha),
+    components,
+  };
 }
 
 serve(async (req) => {
@@ -211,6 +406,7 @@ serve(async (req) => {
   let skipped = 0;
   const issuesTouched = new Set<string>();
   const errors: Array<{ index: number; code: string }> = [];
+  const snapshotCache = new Map<string, ReleaseSnapshot | null>();
 
   for (let index = 0; index < rawEvents.length; index += 1) {
     const item = rawEvents[index] || {};
@@ -321,13 +517,87 @@ serve(async (req) => {
     const appVersion =
       safeString(releasePayload.app_version) ||
       safeString((scrubbedContext as Record<string, unknown>).app_version);
+    const releaseVersionLabel =
+      safeString(releasePayload.version_label) ||
+      appVersion;
+    const releaseSemver =
+      safeString(releasePayload.semver) ||
+      releaseVersionLabel;
+    const releaseVersionIdFromPayload =
+      safeString(releasePayload.version_release_id) ||
+      safeString(releasePayload.release_id);
+    const releaseSourceCommitFromPayload = safeString(releasePayload.source_commit_sha);
     const buildId = safeString(releasePayload.build_id);
-    const env = safeString(releasePayload.env) || Deno.env.get("SUPABASE_ENV");
+    const env =
+      safeString(releasePayload.env) ||
+      safeString((scrubbedContext as Record<string, unknown>).env) ||
+      Deno.env.get("SUPABASE_ENV");
     const appId =
       safeString(item.app_id) ||
       safeString(releasePayload.app_id) ||
       appIdDefault ||
       "unknown";
+
+    const snapshotLookupKey = [
+      tenantId,
+      appId || "",
+      env || "",
+      releaseVersionLabel || "",
+    ].join("|");
+
+    let releaseSnapshot: ReleaseSnapshot | null = null;
+    if (releaseVersionLabel && appId && env) {
+      if (snapshotCache.has(snapshotLookupKey)) {
+        releaseSnapshot = snapshotCache.get(snapshotLookupKey) || null;
+      } else {
+        releaseSnapshot = await loadReleaseSnapshot({
+          tenantId,
+          appId,
+          envKey: env,
+          versionLabel: releaseVersionLabel,
+        });
+        snapshotCache.set(snapshotLookupKey, releaseSnapshot);
+      }
+    }
+
+    const explicitComponentKey =
+      safeString(item.component_key) ||
+      safeString((scrubbedContext as Record<string, unknown>).component_key) ||
+      safeString((supportContextExtra as Record<string, unknown>).component_key);
+
+    let resolvedComponent: SnapshotComponent | null = null;
+    let componentResolutionMethod = "unresolved";
+    if (releaseSnapshot?.components?.length) {
+      if (explicitComponentKey) {
+        resolvedComponent =
+          releaseSnapshot.components.find(
+            (component) =>
+              component.component_key.toLowerCase() === explicitComponentKey.toLowerCase(),
+          ) || null;
+        if (resolvedComponent) {
+          componentResolutionMethod = "explicit_context";
+        }
+      }
+
+      if (!resolvedComponent) {
+        const stackFiles = extractStackFiles(stackFramesRaw);
+        const stackMatched = resolveComponentByStack({
+          components: releaseSnapshot.components,
+          stackFiles,
+        });
+        if (stackMatched) {
+          resolvedComponent = stackMatched;
+          componentResolutionMethod = "stack_path_glob";
+        }
+      }
+    }
+
+    const releaseVersionId =
+      releaseSnapshot?.version_release_id ||
+      releaseVersionIdFromPayload;
+    const releaseSourceCommitSha =
+      releaseSnapshot?.source_commit_sha ||
+      releaseSourceCommitFromPayload;
 
     const userRef = scrubUnknown(safeObject(item.user_ref)) as Record<string, unknown>;
     if (auth.authUser?.id) {
@@ -372,7 +642,7 @@ serve(async (req) => {
           p_title: title,
           p_level: level,
           p_occurred_at: occurredAt,
-          p_last_release: appVersion,
+          p_last_release: releaseVersionLabel || appVersion,
         },
       );
 
@@ -405,10 +675,24 @@ serve(async (req) => {
         },
         breadcrumbs,
         release: {
+          app_id: appId,
           app_version: appVersion,
+          version_label: releaseVersionLabel,
+          semver: releaseSemver,
+          version_release_id: releaseVersionId,
+          source_commit_sha: releaseSourceCommitSha,
           build_id: buildId,
           env,
         },
+        release_version_label: releaseVersionLabel,
+        release_semver: releaseSemver,
+        release_version_id: releaseVersionId,
+        release_source_commit_sha: releaseSourceCommitSha,
+        resolved_component_key: resolvedComponent?.component_key || null,
+        resolved_component_type: resolvedComponent?.component_type || null,
+        resolved_component_revision_no: resolvedComponent?.revision_no ?? null,
+        resolved_component_revision_id: resolvedComponent?.revision_id || null,
+        component_resolution_method: componentResolutionMethod,
         device,
         user_ref: userRef,
         request_id: requestId,
@@ -445,7 +729,7 @@ serve(async (req) => {
         .update({
           last_event_id: insertedEvent.id,
           last_seen_at: occurredAt,
-          last_release: appVersion,
+          last_release: releaseVersionLabel || appVersion,
         })
         .eq("id", issueId);
 

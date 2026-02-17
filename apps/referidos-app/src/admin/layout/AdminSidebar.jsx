@@ -46,7 +46,7 @@ const NAV_GROUPS = [
     title: "Sistema",
     items: [
       { label: "Logs", to: "/admin/logs", Icon: FileText },
-      { label: "Observability", to: "/admin/observability", Icon: Activity },
+      { label: "Issues", to: "/admin/issues", Icon: Activity },
       { label: "Dev Errores", to: "/admin/dev/errors", Icon: AlertTriangle },
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
       { label: "Prelaunch Analytics", to: "/admin/prelaunch-analytics", Icon: BarChart3 },

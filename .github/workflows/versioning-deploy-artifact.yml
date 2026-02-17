@@ -69,6 +69,18 @@ jobs:
       NETLIFY_SITE_ID_REFERIDOS_APP_PROD: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_PROD }}
       NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING }}
       NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD }}
+      OBS_SUPABASE_URL_STAGING: ${{ secrets.OBS_SUPABASE_URL_STAGING }}
+      OBS_SUPABASE_URL_PROD: ${{ secrets.OBS_SUPABASE_URL_PROD }}
+      OBS_SUPABASE_SECRET_KEY_STAGING: ${{ secrets.OBS_SUPABASE_SECRET_KEY_STAGING }}
+      OBS_SUPABASE_SECRET_KEY_PROD: ${{ secrets.OBS_SUPABASE_SECRET_KEY_PROD }}
+      OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+      OBS_SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_PROD }}
+      SUPABASE_URL_STAGING: ${{ secrets.SUPABASE_URL_STAGING }}
+      SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
+      SUPABASE_SECRET_KEY_STAGING: ${{ secrets.SUPABASE_SECRET_KEY_STAGING }}
+      SUPABASE_SECRET_KEY_PROD: ${{ secrets.SUPABASE_SECRET_KEY_PROD }}
+      SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+      SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
     steps:
       - name: Validar input y resolver plan
         id: plan
@@ -86,11 +98,15 @@ jobs:
 
           workspace=""
           publish_dir=""
+          upload_app=""
+          obs_app_id=""
           specific_site_id=""
 
           if [[ "$product" == "referidos_app" ]]; then
             workspace="@referidos/referidos-app"
             publish_dir="apps/referidos-app/dist"
+            upload_app="referidos-app"
+            obs_app_id="referidos-app"
             if [[ "$env_key" == "staging" ]]; then
               specific_site_id="${NETLIFY_SITE_ID_REFERIDOS_APP_STAGING}"
             else
@@ -99,6 +115,8 @@ jobs:
           elif [[ "$product" == "prelaunch_web" ]]; then
             workspace="@referidos/prelaunch"
             publish_dir="apps/prelaunch/dist"
+            upload_app="prelaunch"
+            obs_app_id="prelaunch"
             if [[ "$env_key" == "staging" ]]; then
               specific_site_id="${NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING}"
             else
@@ -129,7 +147,39 @@ jobs:
 
           echo "workspace=${workspace}" >> "$GITHUB_OUTPUT"
           echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+          echo "upload_app=${upload_app}" >> "$GITHUB_OUTPUT"
+          echo "obs_app_id=${obs_app_id}" >> "$GITHUB_OUTPUT"
           echo "site_id=${site_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolver credenciales Supabase observability
+        id: obs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_key="${ENV_KEY}"
+          obs_url=""
+          obs_secret=""
+
+          if [[ "$env_key" == "staging" ]]; then
+            obs_url="${OBS_SUPABASE_URL_STAGING:-${SUPABASE_URL_STAGING:-}}"
+            obs_secret="${OBS_SUPABASE_SECRET_KEY_STAGING:-${OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING:-${SUPABASE_SECRET_KEY_STAGING:-${SUPABASE_SERVICE_ROLE_KEY_STAGING:-}}}}"
+          else
+            obs_url="${OBS_SUPABASE_URL_PROD:-${SUPABASE_URL_PROD:-}}"
+            obs_secret="${OBS_SUPABASE_SECRET_KEY_PROD:-${OBS_SUPABASE_SERVICE_ROLE_KEY_PROD:-${SUPABASE_SECRET_KEY_PROD:-${SUPABASE_SERVICE_ROLE_KEY_PROD:-}}}}"
+          fi
+
+          if [[ -z "$obs_url" ]]; then
+            echo "Falta secret OBS_SUPABASE_URL_${env_key^^}"
+            exit 1
+          fi
+          if [[ -z "$obs_secret" ]]; then
+            echo "Falta secret OBS_SUPABASE_SECRET_KEY_${env_key^^} (o OBS_SUPABASE_SERVICE_ROLE_KEY_${env_key^^})"
+            exit 1
+          fi
+
+          echo "obs_url=${obs_url}" >> "$GITHUB_OUTPUT"
+          echo "obs_secret=${obs_secret}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout commit exacto
         uses: actions/checkout@v4
@@ -148,6 +198,13 @@ jobs:
       - name: Build artifact exacto
         id: build
         shell: bash
+        env:
+          VITE_APP_VERSION: ${{ inputs.semver }}
+          VITE_BUILD_ID: ${{ inputs.source_commit_sha }}
+          VITE_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_ENV: ${{ inputs.env_key }}
+          VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
         run: |
           set -euo pipefail
           npm --workspace "${{ steps.plan.outputs.workspace }}" run build
@@ -163,6 +220,27 @@ jobs:
           fi
 
           echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload sourcemaps + registrar release metadata
+        id: sourcemaps
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
+          SUPABASE_SECRET_KEY: ${{ steps.obs.outputs.obs_secret }}
+          OBS_TENANT_NAME: ReferidosAPP
+          APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          APP_VERSION: ${{ inputs.semver }}
+          BUILD_ID: ${{ inputs.source_commit_sha }}
+          APP_ENV: ${{ inputs.env_key }}
+          VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          VITE_APP_VERSION: ${{ inputs.semver }}
+          VITE_BUILD_ID: ${{ inputs.source_commit_sha }}
+          VITE_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_ENV: ${{ inputs.env_key }}
+        run: |
+          set -euo pipefail
+          node tooling/observability/upload-sourcemaps.mjs --app "${{ steps.plan.outputs.upload_app }}"
 
       - name: Deploy artifact a Netlify
         id: deploy

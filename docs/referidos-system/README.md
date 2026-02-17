@@ -42,6 +42,7 @@ Como funciona:
 - operaciones de pipeline/deploy/release-dev por edge functions de ops:
   - `versioning-deploy-execute`
   - `versioning-dev-release-create`
+  - `versioning-deploy-callback` (finalizacion + sync observability)
 - autenticacion interna por header seguro `x-versioning-proxy-token`.
 
 4. Ops functions habilitadas para proxy interno:
@@ -100,6 +101,28 @@ Entornos versionados:
 - deploy exacto por workflow `versioning-deploy-artifact.yml`
 - callback finaliza estado (`versioning-deploy-callback`)
 
+## 4.1) Integracion con observability (aplicada)
+
+Objetivo:
+- cada `obs_event` puede guardar componente/revision exacta de la release desplegada.
+
+Pipeline:
+1. deploy `success` en ops.
+2. `versioning-deploy-callback` llama `obs-release-sync` en runtime destino.
+3. runtime guarda snapshot local:
+- `obs_release_snapshots`
+- `obs_release_snapshot_components`
+4. `obs-ingest` resuelve por snapshot local (sin llamadas remotas por evento):
+- `release_version_label`
+- `release_version_id`
+- `release_source_commit_sha`
+- `resolved_component_key`
+- `resolved_component_revision_no`
+- `component_resolution_method` (`explicit_context`, `stack_path_glob`, `unresolved`)
+
+Nota:
+- no se implementa fallback por fecha para logs legacy.
+
 ## 5) Mensajes de commit (sin PR labels)
 
 `major`:
@@ -138,6 +161,7 @@ Migrations ops:
 
 Edge functions runtime (bridge):
 - `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
+- `apps/referidos-app/supabase/functions/obs-release-sync/index.ts`
 
 Edge functions ops:
 - `apps/referidos-ops/supabase/functions/versioning-dev-release-create/index.ts`

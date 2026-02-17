@@ -36,6 +36,7 @@ git push
 - si falta commit en rama destino: `Subir release`
 - ejecutar deploy exacto por commit
 - callback finaliza request
+- callback sincroniza snapshot de release a observability runtime (`obs-release-sync`)
 
 ## 3) Commit message -> bump
 
@@ -94,6 +95,10 @@ Resto admin:
 
 `release_sync_required`:
 - usar `Subir release` y volver a ejecutar deploy
+
+`obs_release_sync_failed`:
+- revisar secrets `OBS_RELEASE_SYNC_TOKEN` y `OBS_RELEASE_SYNC_URL_*` en `referidos-ops`
+- revisar logs de `obs-release-sync` en runtime
 
 `github_workflow_dispatch_failed`:
 - revisar `GITHUB_DEPLOY_*`, workflow y permisos del token

@@ -152,6 +152,123 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       return data || [];
     }
 
+    case "fetch_release_snapshot": {
+      const releaseId = asString(payload.releaseId);
+      const productKey = asString(payload.productKey).toLowerCase();
+      const envKey = asString(payload.envKey).toLowerCase();
+      const semver = asString(payload.semver || payload.versionLabel);
+
+      let releaseQuery = opsAdmin
+        .from("version_releases_labeled")
+        .select(
+          [
+            "id",
+            "tenant_id",
+            "product_key",
+            "product_name",
+            "env_key",
+            "env_name",
+            "semver_major",
+            "semver_minor",
+            "semver_patch",
+            "prerelease_tag",
+            "prerelease_no",
+            "version_label",
+            "status",
+            "source_commit_sha",
+            "created_at",
+            "updated_at",
+          ].join(", ")
+        );
+
+      if (releaseId) {
+        releaseQuery = releaseQuery.eq("id", releaseId);
+      } else {
+        if (!productKey || !envKey) {
+          throw new Error("productKey y envKey requeridos cuando no se envia releaseId");
+        }
+        releaseQuery = releaseQuery.eq("product_key", productKey).eq("env_key", envKey);
+        if (semver) {
+          releaseQuery = releaseQuery.eq("version_label", semver);
+        } else {
+          releaseQuery = releaseQuery
+            .order("semver_major", { ascending: false })
+            .order("semver_minor", { ascending: false })
+            .order("semver_patch", { ascending: false })
+            .order("prerelease_no", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(1);
+        }
+      }
+
+      const { data: releaseRows, error: releaseError } = await releaseQuery.limit(1);
+      if (releaseError) throw new Error(releaseError.message);
+      const release = Array.isArray(releaseRows) ? releaseRows[0] : null;
+      if (!release) {
+        throw new Error("release_not_found");
+      }
+
+      const { data: components, error: componentsError } = await opsAdmin
+        .from("version_release_components_labeled")
+        .select(
+          [
+            "release_id",
+            "component_id",
+            "component_key",
+            "component_type",
+            "component_name",
+            "revision_id",
+            "revision_no",
+            "bump_level",
+            "content_hash",
+            "source_commit_sha",
+            "source_branch",
+            "revision_created_at",
+          ].join(", ")
+        )
+        .eq("release_id", asString(release.id))
+        .order("component_key", { ascending: true });
+
+      if (componentsError) throw new Error(componentsError.message);
+      const componentRows = components || [];
+      const componentIds = Array.from(
+        new Set(
+          componentRows
+            .map((row) => asString((row as JsonObject).component_id))
+            .filter(Boolean)
+        )
+      );
+
+      const pathGlobsByComponent = new Map<string, string[]>();
+      if (componentIds.length > 0) {
+        const { data: pathRows, error: pathError } = await opsAdmin
+          .from("version_component_paths")
+          .select("component_id, path_glob, include")
+          .in("component_id", componentIds)
+          .eq("include", true);
+        if (pathError) throw new Error(pathError.message);
+        for (const row of pathRows || []) {
+          const componentId = asString((row as JsonObject).component_id);
+          const pathGlob = asString((row as JsonObject).path_glob);
+          if (!componentId || !pathGlob) continue;
+          const list = pathGlobsByComponent.get(componentId) || [];
+          list.push(pathGlob);
+          pathGlobsByComponent.set(componentId, list);
+        }
+      }
+
+      return {
+        release,
+        components: componentRows.map((row) => {
+          const componentId = asString((row as JsonObject).component_id);
+          return {
+            ...row,
+            path_globs: pathGlobsByComponent.get(componentId) || [],
+          };
+        }),
+      };
+    }
+
     case "fetch_component_history": {
       const componentId = asString(payload.componentId);
       const limit = normalizeLimit(payload.limit, 50, 1, 200);

@@ -11,11 +11,19 @@ const DEFAULT_APP_ID = importEnv.VITE_APP_ID || "referidos-app";
 const DEFAULT_ENV = importEnv.MODE || importEnv.VITE_ENV || "development";
 const DEFAULT_VERSION =
   importEnv.VITE_APP_VERSION ||
+  importEnv.VITE_VERSION_LABEL ||
   importEnv.VITE_RELEASE ||
   importEnv.VITE_COMMIT_SHA ||
   "dev";
 const DEFAULT_BUILD_ID =
-  importEnv.VITE_BUILD_ID || importEnv.VITE_COMMIT_SHA || "";
+  importEnv.VITE_BUILD_ID ||
+  importEnv.VITE_SOURCE_COMMIT_SHA ||
+  importEnv.VITE_COMMIT_SHA ||
+  "";
+const DEFAULT_RELEASE_ID =
+  importEnv.VITE_VERSION_RELEASE_ID || importEnv.VITE_RELEASE_ID || "";
+const DEFAULT_SOURCE_COMMIT_SHA =
+  importEnv.VITE_SOURCE_COMMIT_SHA || importEnv.VITE_COMMIT_SHA || "";
 
 const LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug"]);
 const LOG_CATEGORIES = new Set([
@@ -87,6 +95,15 @@ const registerReleaseOnce = async () => {
         app_version: DEFAULT_VERSION,
         build_id: DEFAULT_BUILD_ID,
         env: DEFAULT_ENV,
+        meta: {
+          versioning: {
+            release_id: DEFAULT_RELEASE_ID || null,
+            source_commit_sha: DEFAULT_SOURCE_COMMIT_SHA || null,
+            version_label: DEFAULT_VERSION,
+            env_key: DEFAULT_ENV,
+            app_id: DEFAULT_APP_ID,
+          },
+        },
       },
     });
   } catch {

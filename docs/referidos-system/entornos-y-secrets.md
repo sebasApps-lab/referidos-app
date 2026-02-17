@@ -47,8 +47,13 @@ Requeridos:
 - `VERSIONING_DEPLOY_WORKFLOW_REF` (ej. `dev`)
 - `VERSIONING_DEPLOY_CALLBACK_TOKEN` (token compartido con GitHub secret)
 - `VERSIONING_PROXY_SHARED_TOKEN` (token compartido con runtimes)
+- `OBS_RELEASE_SYNC_TOKEN` (token interno para llamar `obs-release-sync` en runtime)
+- `OBS_RELEASE_SYNC_URL_STAGING` (URL base del proyecto Supabase runtime staging, ej. `https://iegjfeaadayfvqockwov.supabase.co`)
+- `OBS_RELEASE_SYNC_URL_PROD` (URL base del proyecto Supabase runtime prod, ej. `https://ztcsrfwvjgqnmhnlpeye.supabase.co`)
 
 Opcionales:
+- `OBS_RELEASE_SYNC_URL_DEV` (si quieres sincronizar snapshots en dev por callback)
+- `OBS_RELEASE_SYNC_TENANT_HINT` (default `ReferidosAPP`)
 - `VERSIONING_DEPLOY_CALLBACK_URL`
 - `SUPABASE_ENV=ops`
 
@@ -58,6 +63,7 @@ Requeridos para el bridge:
 - `VERSIONING_OPS_URL` = `https://ymhaveuksdzlfuecvkmx.supabase.co`
 - `VERSIONING_OPS_SECRET_KEY` = secret key de `referidos-ops`
 - `VERSIONING_PROXY_SHARED_TOKEN` = mismo valor que en ops
+- `OBS_RELEASE_SYNC_TOKEN` = mismo token que en ops (validacion interna de `obs-release-sync`)
 
 ## 3.3 GitHub repository secrets
 
@@ -77,6 +83,35 @@ Fallback:
 - `NETLIFY_SITE_ID_STAGING`
 - `NETLIFY_SITE_ID_PROD`
 
+## 3.4 Explicacion secret por secret (que hace y por que existe)
+
+Ops:
+- `GITHUB_DEPLOY_OWNER`: owner usado por API de GitHub para merges/workflows.
+- `GITHUB_DEPLOY_REPO`: repo objetivo para dispatch/merge automatizado.
+- `GITHUB_DEPLOY_TOKEN`: PAT tecnico con permisos para `actions:write` y merge.
+- `DEPLOY_BRANCH_DEV|STAGING|PROD`: rama canonica por entorno para verificar/mergear `source_commit_sha`.
+- `VERSIONING_DEV_RELEASE_WORKFLOW`: workflow que crea release de DEVELOPMENT.
+- `VERSIONING_DEV_RELEASE_REF`: rama/ref desde donde se dispara ese workflow.
+- `VERSIONING_DEV_RELEASE_ALLOWED_REFS`: allowlist de refs validas para evitar ejecuciones accidentales.
+- `VERSIONING_DEPLOY_WORKFLOW`: workflow de deploy exacto por commit/artifact.
+- `VERSIONING_DEPLOY_WORKFLOW_REF`: ref usada para disparar ese workflow.
+- `VERSIONING_DEPLOY_CALLBACK_TOKEN`: firma callback GitHub -> edge para finalizar estado.
+- `VERSIONING_PROXY_SHARED_TOKEN`: firma interna runtime proxy -> ops edge.
+- `OBS_RELEASE_SYNC_TOKEN`: firma interna ops callback -> runtime `obs-release-sync`.
+- `OBS_RELEASE_SYNC_URL_*`: endpoint runtime por entorno donde se sincroniza snapshot de release.
+- `OBS_RELEASE_SYNC_TENANT_HINT`: tenant por defecto para persistir snapshot/release en observability runtime.
+
+Runtime:
+- `VERSIONING_OPS_URL`: URL del control plane (`referidos-ops`) para acciones de versionado.
+- `VERSIONING_OPS_SECRET_KEY`: key server-to-server para consultas de versionado desde runtime.
+- `VERSIONING_PROXY_SHARED_TOKEN`: evita que cualquier caller externo use endpoints internos de ops.
+- `OBS_RELEASE_SYNC_TOKEN`: valida que solo ops pueda sincronizar snapshots al runtime.
+
+GitHub:
+- `SUPABASE_URL` + `SUPABASE_SECRET_KEY`: permiten a workflows registrar cambios en control plane ops.
+- `NETLIFY_AUTH_TOKEN`: autentica deploy API/CLI a Netlify.
+- `NETLIFY_SITE_ID_*`: determina exactamente que site de Netlify recibe cada deploy.
+
 ## 4) Config de funciones en ops
 
 Archivo:
@@ -90,6 +125,17 @@ Debe incluir:
 Motivo:
 - llamada directa con JWT admin
 - llamada interna con `x-versioning-proxy-token`
+
+## 4.1) Config de funciones en runtime
+
+Archivo:
+- `apps/referidos-app/supabase/config.toml`
+
+Debe incluir:
+- `[functions.obs-release-sync] verify_jwt = false`
+
+Motivo:
+- `obs-release-sync` se invoca desde `referidos-ops` con token interno (`x-obs-release-sync-token`), no con sesion de usuario.
 
 ## 5) Runbook de activacion (orden recomendado)
 
@@ -125,26 +171,29 @@ supabase functions deploy versioning-deploy-callback --project-ref $OPS_REF --no
 
 Set secrets ops (ejemplo):
 ```powershell
-supabase secrets set --project-ref $OPS_REF GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev,develop" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_callback_largo" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" SUPABASE_ENV="ops"
+supabase secrets set --project-ref $OPS_REF GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev,develop" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_callback_largo" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo" OBS_RELEASE_SYNC_URL_STAGING="https://iegjfeaadayfvqockwov.supabase.co" OBS_RELEASE_SYNC_URL_PROD="https://ztcsrfwvjgqnmhnlpeye.supabase.co" OBS_RELEASE_SYNC_URL_DEV="https://btvrtxdizqsqrzdsgvsj.supabase.co" OBS_RELEASE_SYNC_TENANT_HINT="ReferidosAPP" SUPABASE_ENV="ops"
 ```
 
 Set secrets runtime dev (ejemplo):
 ```powershell
-supabase secrets set --project-ref $DEV_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo"
+supabase secrets set --project-ref $DEV_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo"
 ```
 
 Deploy proxy en dev:
 ```powershell
 cd apps/referidos-app
 supabase functions deploy versioning-ops-proxy --project-ref $DEV_REF
+supabase functions deploy obs-release-sync --project-ref $DEV_REF --no-verify-jwt
 ```
 
 Si ya validaste en dev:
 ```powershell
-supabase secrets set --project-ref $STG_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo"
+supabase secrets set --project-ref $STG_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo"
 supabase functions deploy versioning-ops-proxy --project-ref $STG_REF
-supabase secrets set --project-ref $PROD_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo"
+supabase functions deploy obs-release-sync --project-ref $STG_REF --no-verify-jwt
+supabase secrets set --project-ref $PROD_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo"
 supabase functions deploy versioning-ops-proxy --project-ref $PROD_REF
+supabase functions deploy obs-release-sync --project-ref $PROD_REF --no-verify-jwt
 ```
 
 ## 7) Verificacion y pruebas
@@ -192,6 +241,11 @@ Validar en DB ops:
 `deploy_env_not_allowed`:
 - deploy solo permitido en `staging` y `prod`
 
+`obs_release_sync_failed` (en metadata del deploy request):
+- revisar `OBS_RELEASE_SYNC_TOKEN` en ops y runtimes (debe coincidir)
+- revisar `OBS_RELEASE_SYNC_URL_STAGING/PROD`
+- revisar logs de `obs-release-sync` en runtime correspondiente
+
 ## 9) Nota de rollout seguro
 
 Para rollout por fases:
@@ -199,3 +253,24 @@ Para rollout por fases:
 2. validar flujo completo
 3. replicar a `staging`
 4. replicar a `prod`
+
+## 10) Flujo de sincronizacion release -> observability
+
+1. Se ejecuta deploy aprobado (`versioning-deploy-execute`) en `referidos-ops`.
+2. Workflow de GitHub llama `versioning-deploy-callback` con estado final.
+3. Si estado es `success`, callback llama `obs-release-sync` en runtime destino.
+4. `obs-release-sync` trae snapshot desde ops y guarda:
+- `obs_release_snapshots`
+- `obs_release_snapshot_components`
+- `obs_releases.meta.versioning`
+5. `obs-ingest` usa snapshot local para resolver:
+- `release_version_label`
+- `release_version_id`
+- `release_source_commit_sha`
+- `resolved_component_key`
+- `resolved_component_revision_no`
+- `component_resolution_method`
+
+Nota:
+- No se usa fallback por fecha para legacy.
+- Si no hay snapshot, el evento queda `component_resolution_method = unresolved`.
