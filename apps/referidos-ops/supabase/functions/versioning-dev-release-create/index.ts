@@ -69,6 +69,8 @@ serve(async (req) => {
 
   const productKey = asString(body.product_key).toLowerCase();
   const requestedRef = asString(body.ref);
+  const overrideSemver = asString(body.override_semver);
+  const releaseNotes = asString(body.release_notes);
 
   if (productKey && !isValidProductKey(productKey)) {
     return jsonResponse(
@@ -133,6 +135,8 @@ serve(async (req) => {
     ref,
     inputs: {
       product_filter: productKey || "",
+      override_semver: overrideSemver || "",
+      release_notes: releaseNotes || "",
     },
   };
 
@@ -191,6 +195,8 @@ serve(async (req) => {
       payload: {
         ref,
         product_key: productKey || null,
+        override_semver: overrideSemver || null,
+        release_notes: releaseNotes || null,
       },
     });
   }
@@ -201,6 +207,7 @@ serve(async (req) => {
       workflow: workflowId,
       ref,
       product_key: productKey || null,
+      override_semver: overrideSemver || null,
       detail: "Workflow de release dev disparado correctamente.",
     },
     200,

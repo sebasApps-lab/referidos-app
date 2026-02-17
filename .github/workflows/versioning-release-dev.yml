@@ -11,6 +11,14 @@ on:
         description: "Optional product key filter (referidos_app | prelaunch_web | android_app)"
         required: false
         type: string
+      override_semver:
+        description: "Optional semver override (X.Y.Z)"
+        required: false
+        type: string
+      release_notes:
+        description: "Optional notes for this dev release"
+        required: false
+        type: string
 
 jobs:
   release-dev:
@@ -48,5 +56,7 @@ jobs:
           VERSIONING_CREATE_RELEASE: "1"
           VERSIONING_RELEASE_STATUS: validated
           VERSIONING_PRODUCT_FILTER: ${{ inputs.product_filter }}
+          VERSIONING_OVERRIDE_SEMVER: ${{ inputs.override_semver }}
+          VERSIONING_RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           node tooling/versioning/apply-changeset.mjs

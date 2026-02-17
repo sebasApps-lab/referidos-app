@@ -14,6 +14,7 @@ Estructura en repo:
 - Config Supabase CLI: `apps/referidos-ops/supabase/config.toml`
 
 Funciones clave:
+- `versioning-dev-release-preview`
 - `versioning-dev-release-create`
 - `versioning-deploy-execute`
 - `versioning-deploy-callback`
@@ -46,6 +47,7 @@ supabase db push --project-ref ymhaveuksdzlfuecvkmx
 ```powershell
 cd apps/referidos-ops
 supabase functions deploy versioning-deploy-execute --project-ref ymhaveuksdzlfuecvkmx
+supabase functions deploy versioning-dev-release-preview --project-ref ymhaveuksdzlfuecvkmx
 supabase functions deploy versioning-dev-release-create --project-ref ymhaveuksdzlfuecvkmx
 supabase functions deploy versioning-deploy-callback --project-ref ymhaveuksdzlfuecvkmx --no-verify-jwt
 ```

@@ -4,7 +4,6 @@ import {
   listFilesFromRoots,
   loadComponentMap,
   matchesAnyGlob,
-  parseSemver,
 } from "./shared.mjs";
 import { getSupabaseAdminClient, mustData, mustSingle } from "./supabase-client.mjs";
 
@@ -13,10 +12,16 @@ function parseArgs(argv) {
     map: process.env.VERSIONING_COMPONENT_MAP || "versioning/component-map.json",
     baseline: process.env.VERSIONING_BASELINE_VERSION || "0.5.0",
     envs: String(process.env.VERSIONING_ENVS || "dev,staging,prod")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    forceSnapshot: process.env.VERSIONING_FORCE_SNAPSHOT === "1",
+    products: String(
+      process.env.VERSIONING_BOOTSTRAP_PRODUCTS || process.env.VERSIONING_PRODUCT_FILTER || ""
+    )
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean),
-    forceSnapshot: process.env.VERSIONING_FORCE_SNAPSHOT === "1",
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -29,7 +34,18 @@ function parseArgs(argv) {
         .filter(Boolean);
     }
     if (token === "--force-snapshot") out.forceSnapshot = true;
+    if (token === "--products") {
+      out.products = String(argv[i + 1] || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    if (token === "--product") {
+      const next = String(argv[i + 1] || "").trim();
+      if (next) out.products.push(next);
+    }
   }
+  out.products = [...new Set(out.products)];
   return out;
 }
 
@@ -54,52 +70,6 @@ function buildLogicalComponents(product, files) {
     });
   }
   return components;
-}
-
-async function ensureRelease({
-  supabase,
-  tenantId,
-  productId,
-  envId,
-  baseline,
-}) {
-  const semver = parseSemver(baseline);
-  const existing = await mustData(
-    supabase
-      .from("version_releases")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .eq("product_id", productId)
-      .eq("env_id", envId)
-      .eq("semver_major", semver.major)
-      .eq("semver_minor", semver.minor)
-      .eq("semver_patch", semver.patch)
-      .is("prerelease_tag", null)
-      .limit(1),
-    "ensure release select"
-  );
-
-  if (existing[0]) return existing[0].id;
-
-  const created = await mustSingle(
-    supabase
-      .from("version_releases")
-      .insert({
-        tenant_id: tenantId,
-        product_id: productId,
-        env_id: envId,
-        semver_major: semver.major,
-        semver_minor: semver.minor,
-        semver_patch: semver.patch,
-        status: "deployed",
-        source_commit_sha: "baseline-0.5.0",
-        created_by: "bootstrap",
-      })
-      .select("id")
-      .single(),
-    "ensure release insert"
-  );
-  return created.id;
 }
 
 async function upsertComponentAndRevision({
@@ -168,45 +138,11 @@ async function upsertComponentAndRevision({
   return { componentId: componentRow.id, revisionId: createdRevision.id };
 }
 
-async function replaceSnapshot({
-  supabase,
-  tenantId,
-  releaseId,
-  revisionMap,
-}) {
-  await mustData(
-    supabase
-      .from("version_release_components")
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("release_id", releaseId),
-    "delete previous snapshot"
-  );
-
-  const rows = [];
-  for (const [componentId, revisionId] of revisionMap.entries()) {
-    rows.push({
-      tenant_id: tenantId,
-      release_id: releaseId,
-      component_id: componentId,
-      component_revision_id: revisionId,
-    });
-  }
-
-  const chunkSize = 500;
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
-    await mustData(
-      supabase.from("version_release_components").insert(chunk),
-      `insert snapshot chunk ${i / chunkSize + 1}`
-    );
-  }
-}
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const map = loadComponentMap(args.map);
   const supabase = getSupabaseAdminClient();
+  const selectedProductKeys = new Set(args.products || []);
 
   const envRows = await mustData(
     supabase
@@ -219,11 +155,21 @@ async function main() {
     throw new Error("No environments found for bootstrap");
   }
 
-  for (const product of map.products) {
+  const targetProducts = map.products.filter(
+    (product) => selectedProductKeys.size === 0 || selectedProductKeys.has(product.productKey)
+  );
+
+  if (targetProducts.length === 0) {
+    throw new Error(
+      `No products matched for bootstrap. requested=${args.products.join(",") || "none"}`
+    );
+  }
+
+  for (const product of targetProducts) {
     const productRow = await mustSingle(
       supabase
         .from("version_products")
-        .select("id, tenant_id, product_key")
+        .select("id, tenant_id, product_key, metadata")
         .eq("product_key", product.productKey)
         .eq("tenant_id", envRows[0].tenant_id)
         .single(),
@@ -240,7 +186,6 @@ async function main() {
       (component) => component.componentFiles.length > 0
     );
 
-    const revisionMap = new Map();
     for (const component of allComponents) {
       const { componentId, revisionId } = await upsertComponentAndRevision({
         supabase,
@@ -248,38 +193,39 @@ async function main() {
         productId: productRow.id,
         component,
       });
-      revisionMap.set(componentId, revisionId);
-    }
-
-    for (const envRow of envRows) {
-      const releaseId = await ensureRelease({
-        supabase,
-        tenantId: productRow.tenant_id,
-        productId: productRow.id,
-        envId: envRow.id,
-        baseline: args.baseline,
-      });
-
-      const existingSnapshotRows = await mustData(
-        supabase
-          .from("version_release_components")
-          .select("id")
-          .eq("tenant_id", productRow.tenant_id)
-          .eq("release_id", releaseId),
-        "snapshot rows"
-      );
-      const needsSnapshot =
-        args.forceSnapshot || existingSnapshotRows.length === 0;
-
-      if (needsSnapshot) {
-        await replaceSnapshot({
-          supabase,
-          tenantId: productRow.tenant_id,
-          releaseId,
-          revisionMap,
-        });
+      if (!componentId || !revisionId) {
+        throw new Error(`invalid revision state for component ${component.componentKey}`);
       }
     }
+
+    const currentMetadata =
+      productRow.metadata && typeof productRow.metadata === "object" && !Array.isArray(productRow.metadata)
+        ? productRow.metadata
+        : {};
+    const currentVersioning =
+      currentMetadata.versioning && typeof currentMetadata.versioning === "object" && !Array.isArray(currentMetadata.versioning)
+        ? currentMetadata.versioning
+        : {};
+
+    await mustData(
+      supabase
+        .from("version_products")
+        .update({
+          metadata: {
+            ...currentMetadata,
+            versioning: {
+              ...currentVersioning,
+              initialized: true,
+              initial_baseline_semver: args.baseline,
+              initialized_at: new Date().toISOString(),
+              bootstrap_source: "bootstrap-baseline",
+            },
+          },
+        })
+        .eq("tenant_id", productRow.tenant_id)
+        .eq("id", productRow.id),
+      `mark product initialized ${product.productKey}`
+    );
 
     console.log(
       `VERSIONING_BASELINE_BOOTSTRAPPED product=${product.productKey} components=${allComponents.length}`

@@ -6,7 +6,7 @@ export default function AdminVersioningReleases() {
   return (
     <AdminLayout
       title="Versionado Detalle"
-      subtitle="Releases por producto, snapshot de componentes e historial"
+      subtitle="Releases por app, snapshot de componentes e historial"
     >
       <VersioningReleaseExplorerPanel />
     </AdminLayout>

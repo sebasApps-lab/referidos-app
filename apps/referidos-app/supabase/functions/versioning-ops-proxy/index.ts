@@ -97,7 +97,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         await Promise.all([
           opsAdmin
             .from("version_products")
-            .select("id, product_key, name, active, created_at")
+            .select("id, product_key, name, active, metadata, created_at")
             .order("name", { ascending: true }),
           opsAdmin
             .from("version_environments")
@@ -106,7 +106,35 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         ]);
       if (productsError) throw new Error(productsError.message);
       if (envsError) throw new Error(envsError.message);
-      return { products: products || [], environments: envs || [] };
+
+      const productIds = Array.from(
+        new Set((products || []).map((row) => asString((row as JsonObject).id)).filter(Boolean))
+      );
+      const componentCountByProduct = new Map<string, number>();
+      if (productIds.length > 0) {
+        const { data: componentRows, error: componentRowsError } = await opsAdmin
+          .from("version_components")
+          .select("product_id")
+          .in("product_id", productIds);
+        if (componentRowsError) throw new Error(componentRowsError.message);
+        for (const row of componentRows || []) {
+          const productId = asString((row as JsonObject).product_id);
+          if (!productId) continue;
+          componentCountByProduct.set(productId, (componentCountByProduct.get(productId) || 0) + 1);
+        }
+      }
+
+      const enrichedProducts = (products || []).map((product) => {
+        const productId = asString((product as JsonObject).id);
+        const count = componentCountByProduct.get(productId) || 0;
+        return {
+          ...product,
+          component_count: count,
+          initialized: count > 0,
+        };
+      });
+
+      return { products: enrichedProducts, environments: envs || [] };
     }
 
     case "fetch_latest_releases": {
@@ -281,6 +309,58 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         .limit(limit);
       if (error) throw new Error(error.message);
       return data || [];
+    }
+
+    case "fetch_component_catalog": {
+      const productKey = asString(payload.productKey);
+      if (!productKey) throw new Error("productKey requerido");
+
+      const { data: productRow, error: productError } = await opsAdmin
+        .from("version_products")
+        .select("id, tenant_id")
+        .eq("product_key", productKey)
+        .limit(1)
+        .maybeSingle();
+      if (productError) throw new Error(productError.message);
+      if (!productRow?.id) return [];
+
+      const { data, error } = await opsAdmin
+        .from("version_component_latest_revisions")
+        .select(
+          [
+            "tenant_id",
+            "component_id",
+            "product_id",
+            "component_key",
+            "component_type",
+            "display_name",
+            "revision_id",
+            "revision_no",
+            "content_hash",
+            "source_commit_sha",
+            "source_branch",
+            "bump_level",
+            "created_at",
+          ].join(", ")
+        )
+        .eq("tenant_id", asString((productRow as JsonObject).tenant_id))
+        .eq("product_id", asString((productRow as JsonObject).id))
+        .order("component_key", { ascending: true });
+      if (error) throw new Error(error.message);
+
+      return (data || []).map((row) => ({
+        component_id: asString((row as JsonObject).component_id),
+        component_key: asString((row as JsonObject).component_key),
+        component_type: asString((row as JsonObject).component_type),
+        component_name: asString((row as JsonObject).display_name),
+        revision_id: asString((row as JsonObject).revision_id),
+        revision_no: asNumber((row as JsonObject).revision_no, 0),
+        bump_level: asString((row as JsonObject).bump_level),
+        content_hash: asString((row as JsonObject).content_hash),
+        source_commit_sha: asString((row as JsonObject).source_commit_sha),
+        source_branch: asString((row as JsonObject).source_branch),
+        revision_created_at: asString((row as JsonObject).created_at),
+      }));
     }
 
     case "fetch_drift": {
@@ -495,12 +575,33 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       const result = await invokeOpsFunction("versioning-dev-release-create", {
         product_key: asString(payload.productKey) || null,
         ref: asString(payload.ref, "dev"),
+        override_semver: asString(payload.overrideSemver) || null,
+        release_notes: asString(payload.releaseNotes) || null,
         actor: asString(payload.actor, actor),
       });
 
       if (!result.ok) {
         throw new Error(
           asString(result.payload?.detail, asString(result.payload?.error, "No se pudo crear release de development."))
+        );
+      }
+
+      return result.payload;
+    }
+
+    case "preview_dev_release": {
+      const result = await invokeOpsFunction("versioning-dev-release-preview", {
+        product_key: asString(payload.productKey) || null,
+        ref: asString(payload.ref, "dev"),
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo calcular preview de release de development.")
+          )
         );
       }
 

@@ -28,6 +28,9 @@ async function main() {
   if (!args.product) throw new Error("Missing --product");
   if (!args.semver) throw new Error("Missing --semver");
   if (!args.deploymentId) throw new Error("Missing --deployment-id");
+  if (String(args.env || "").toLowerCase() === "dev") {
+    throw new Error("record-deployment: env dev no admite estado deployed");
+  }
 
   const semver = parseSemver(args.semver);
   const supabase = getSupabaseAdminClient();

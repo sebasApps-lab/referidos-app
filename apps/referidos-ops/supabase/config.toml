@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.versioning-dev-release-create]
 verify_jwt = false
+
+[functions.versioning-dev-release-preview]
+verify_jwt = false

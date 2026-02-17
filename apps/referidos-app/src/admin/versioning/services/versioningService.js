@@ -85,6 +85,12 @@ export async function fetchComponentHistory(componentId, limit = 50) {
   });
 }
 
+export async function fetchComponentCatalog(productKey) {
+  return invokeVersioningOps("fetch_component_catalog", {
+    productKey,
+  });
+}
+
 export async function fetchDrift(productKey, envA = "staging", envB = "prod") {
   return invokeVersioningOps("fetch_drift", {
     productKey,
@@ -208,12 +214,26 @@ export async function triggerDeployPipeline({
   });
 }
 
+export async function previewDevRelease({
+  productKey = "",
+  ref = "dev",
+} = {}) {
+  return invokeVersioningOps("preview_dev_release", {
+    productKey,
+    ref,
+  });
+}
+
 export async function createDevRelease({
   productKey = "",
   ref = "dev",
+  overrideSemver = "",
+  releaseNotes = "",
 }) {
   return invokeVersioningOps("create_dev_release", {
     productKey,
     ref,
+    overrideSemver,
+    releaseNotes,
   });
 }

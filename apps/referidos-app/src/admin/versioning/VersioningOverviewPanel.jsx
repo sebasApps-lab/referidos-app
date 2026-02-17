@@ -20,6 +20,7 @@ import {
   fetchPromotionHistory,
   fetchReleasesByProductEnv,
   fetchVersioningCatalog,
+  previewDevRelease,
   promoteRelease,
   rejectDeployRequest,
   requestDeploy,
@@ -29,6 +30,29 @@ import {
 const ENV_OPTIONS = ["dev", "staging", "prod"];
 const DEPLOY_ENV_OPTIONS = ["staging", "prod"];
 const DEPLOYABLE_PRODUCTS = ["referidos_app", "prelaunch_web"];
+const PRODUCT_PRIORITY = ["referidos_app", "prelaunch_web"];
+
+function compareProductsForTabs(a, b, isInitialized) {
+  const keyA = String(a?.product_key || "");
+  const keyB = String(b?.product_key || "");
+  const priorityA = PRODUCT_PRIORITY.includes(keyA)
+    ? PRODUCT_PRIORITY.indexOf(keyA)
+    : PRODUCT_PRIORITY.length + 1;
+  const priorityB = PRODUCT_PRIORITY.includes(keyB)
+    ? PRODUCT_PRIORITY.indexOf(keyB)
+    : PRODUCT_PRIORITY.length + 1;
+  if (priorityA !== priorityB && (priorityA <= PRODUCT_PRIORITY.length || priorityB <= PRODUCT_PRIORITY.length)) {
+    return priorityA - priorityB;
+  }
+
+  const initializedA = isInitialized(keyA);
+  const initializedB = isInitialized(keyB);
+  if (initializedA !== initializedB) return initializedA ? -1 : 1;
+
+  const labelA = normalizeProductLabel(a);
+  const labelB = normalizeProductLabel(b);
+  return labelA.localeCompare(labelB, "es");
+}
 
 function normalizeProductLabel(product) {
   const key = String(product?.product_key || "").toLowerCase();
@@ -47,6 +71,29 @@ function normalizeEnvLabel(envKey) {
   return String(envKey || "-").toUpperCase();
 }
 
+function normalizeProductMetadata(product) {
+  const metadata = product?.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+  return metadata;
+}
+
+function isProductInitialized(product) {
+  if (!product) return false;
+  if (product.initialized === true) return true;
+  if (Number(product.component_count || 0) > 0) return true;
+  const metadata = normalizeProductMetadata(product);
+  return metadata?.versioning?.initialized === true;
+}
+
+function getInitialBaselineSemver(product) {
+  const metadata = normalizeProductMetadata(product);
+  const fromVersioning = String(metadata?.versioning?.initial_baseline_semver || "").trim();
+  if (fromVersioning) return fromVersioning;
+  const fromRoot = String(metadata?.initial_baseline_semver || "").trim();
+  if (fromRoot) return fromRoot;
+  return "0.5.0";
+}
+
 function normalizeReleaseStatus(envKey, status) {
   const normalizedEnv = String(envKey || "").toLowerCase();
   const normalizedStatus = String(status || "").toLowerCase();
@@ -54,8 +101,14 @@ function normalizeReleaseStatus(envKey, status) {
 
   if (normalizedEnv !== "dev") return normalizedStatus;
 
-  if (normalizedStatus === "deployed") return "promoted";
-  if (normalizedStatus === "approved" || normalizedStatus === "validated") return "released";
+  if (
+    normalizedStatus === "approved" ||
+    normalizedStatus === "validated" ||
+    normalizedStatus === "deployed" ||
+    normalizedStatus === "promoted"
+  ) {
+    return "released";
+  }
   if (normalizedStatus === "draft" || normalizedStatus === "sin release") return "pending";
   if (normalizedStatus === "rolled_back") return "failed";
   return normalizedStatus;
@@ -130,12 +183,35 @@ function uniqueReleaseRowsByVersion(rows) {
   return list;
 }
 
-function VersionCard({ row, action, message = "" }) {
+function parseSemverLabel(value) {
+  const match = String(value || "").trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+  };
+}
+
+function compareSemverLabel(a, b) {
+  const parsedA = parseSemverLabel(a);
+  const parsedB = parseSemverLabel(b);
+  if (!parsedA || !parsedB) return 0;
+  if (parsedA.major !== parsedB.major) return parsedA.major - parsedB.major;
+  if (parsedA.minor !== parsedB.minor) return parsedA.minor - parsedB.minor;
+  return parsedA.patch - parsedB.patch;
+}
+
+function VersionCard({ row, action, message = "", disabled = false }) {
   const isDevelopment = String(row?.env_key || "").toLowerCase() === "dev";
   const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
 
   return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
+    <div
+      className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm ${
+        disabled ? "opacity-60 grayscale-[0.1]" : ""
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="text-xs uppercase tracking-[0.1em] text-slate-400">
           {normalizeEnvLabel(row.env_key)}
@@ -144,7 +220,7 @@ function VersionCard({ row, action, message = "" }) {
           <button
             type="button"
             onClick={action.onClick}
-            disabled={action.disabled}
+            disabled={disabled || action.disabled}
             className="inline-flex items-center rounded-lg border border-[#E9E2F7] px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
           >
             {action.loading ? action.loadingLabel || "Procesando..." : action.label}
@@ -154,6 +230,11 @@ function VersionCard({ row, action, message = "" }) {
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
       <div className="mt-2 text-xs text-slate-500">Estado: {statusLabel}</div>
       <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
+      {disabled ? (
+        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
+          No inicializado
+        </div>
+      ) : null}
       {isDevelopment && message ? (
         <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
           {message}
@@ -179,6 +260,8 @@ export default function VersioningOverviewPanel() {
 
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
+  const [devReleaseDraft, setDevReleaseDraft] = useState(null);
+  const [devReleaseDraftError, setDevReleaseDraftError] = useState("");
   const [promoteSourceEnv, setPromoteSourceEnv] = useState("dev");
   const [promoteRows, setPromoteRows] = useState([]);
   const [promoteRowsLoading, setPromoteRowsLoading] = useState(false);
@@ -201,6 +284,23 @@ export default function VersioningOverviewPanel() {
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
     [catalog.products, activeProductKey]
   );
+  const initializedByProduct = useMemo(() => {
+    const map = new Map();
+    for (const product of catalog.products || []) {
+      map.set(product.product_key, isProductInitialized(product));
+    }
+    return map;
+  }, [catalog.products]);
+  const orderedProducts = useMemo(() => {
+    const withMeta = (catalog.products || []).map((product) => ({
+      ...product,
+      initializedInDev: initializedByProduct.get(product.product_key) === true,
+    }));
+
+    return withMeta.sort((a, b) =>
+      compareProductsForTabs(a, b, (productKey) => initializedByProduct.get(productKey) === true)
+    );
+  }, [catalog.products, initializedByProduct]);
   const selectedProductLabel = useMemo(
     () => normalizeProductLabel(selectedProduct),
     [selectedProduct]
@@ -226,8 +326,32 @@ export default function VersioningOverviewPanel() {
         setLatestReleases(dataLatest);
         setDeployRequests(requests);
 
-        const firstProduct = dataCatalog.products?.[0]?.product_key || "";
-        const selectedProductKey = activeProductKey || firstProduct;
+        const initializedSet = new Set(
+          (dataCatalog.products || [])
+            .filter((product) => isProductInitialized(product))
+            .map((product) => product.product_key)
+            .filter(Boolean)
+        );
+        const sortedProducts = [...(dataCatalog.products || [])].sort((a, b) =>
+          compareProductsForTabs(a, b, (productKey) => initializedSet.has(productKey))
+        );
+
+        const hasInitialized = sortedProducts.some((product) =>
+          initializedSet.has(product.product_key)
+        );
+        const firstInitializedProductKey =
+          sortedProducts.find((product) => initializedSet.has(product.product_key))?.product_key || "";
+        const activeExists = sortedProducts.some(
+          (product) => product.product_key === activeProductKey
+        );
+        const activeInitialized = initializedSet.has(activeProductKey);
+        const firstProduct = sortedProducts[0]?.product_key || "";
+
+        let selectedProductKey = activeProductKey || firstProduct;
+        if (!activeExists || (hasInitialized && !activeInitialized)) {
+          selectedProductKey = hasInitialized ? firstInitializedProductKey : firstProduct;
+        }
+
         setActiveProductKey(selectedProductKey);
         const selectedProductMeta =
           dataCatalog.products?.find((product) => product.product_key === selectedProductKey) ||
@@ -299,6 +423,8 @@ export default function VersioningOverviewPanel() {
     setDeploySyncRequired(null);
     setActiveDeployRequestId("");
     setPromoteDraft(null);
+    setDevReleaseDraft(null);
+    setDevReleaseDraftError("");
   }, [activeProductKey]);
 
   useEffect(() => {
@@ -369,19 +495,43 @@ export default function VersioningOverviewPanel() {
         .filter((row) => row.product_key === activeProductKey)
         .map((row) => [row.env_key, row])
     );
+    const baselineSemver = getInitialBaselineSemver(selectedProduct);
 
     return ENV_OPTIONS.map((envKey) => {
       const row = rowsByEnv.get(envKey);
       if (row) return row;
+      const isDev = String(envKey).toLowerCase() === "dev";
       return {
         product_key: activeProductKey,
         env_key: envKey,
-        version_label: "-",
+        version_label:
+          isDev && isProductInitialized(selectedProduct) ? baselineSemver : "-",
         status: "sin release",
         source_commit_sha: "",
       };
     });
-  }, [activeProductKey, latestReleases]);
+  }, [activeProductKey, latestReleases, selectedProduct]);
+
+  const isActiveProductInitialized = useMemo(
+    () => initializedByProduct.get(activeProductKey) === true,
+    [activeProductKey, initializedByProduct]
+  );
+
+  useEffect(() => {
+    if (!orderedProducts.length) return;
+    const activeProduct = orderedProducts.find(
+      (product) => product.product_key === activeProductKey
+    );
+    const hasInitialized = orderedProducts.some((product) => product.initializedInDev);
+
+    if (activeProduct && (!hasInitialized || activeProduct.initializedInDev)) return;
+
+    const firstInitialized = orderedProducts.find((product) => product.initializedInDev);
+    const fallback = firstInitialized || orderedProducts[0] || null;
+    if (fallback?.product_key && fallback.product_key !== activeProductKey) {
+      setActiveProductKey(fallback.product_key);
+    }
+  }, [orderedProducts, activeProductKey]);
 
   const promotedToTargetVersionSet = useMemo(() => {
     const set = new Set();
@@ -563,16 +713,50 @@ export default function VersioningOverviewPanel() {
     }
   };
 
-  const requestCreateDevRelease = useCallback(() => {
-    openConfirmDialog({
-      title: "Confirmar release de DEVELOPMENT",
-      copy: `Se creara un nuevo release de DEVELOPMENT para ${selectedProductLabel}.`,
-      confirmLabel: "Confirmar",
-      action: {
-        type: "create-dev-release",
-      },
-    });
-  }, [openConfirmDialog, selectedProductLabel]);
+  const requestCreateDevRelease = useCallback(async () => {
+    setDevReleaseMessage("");
+    setDevReleaseDraftError("");
+    if (!activeProductKey) {
+      setDevReleaseMessage("Selecciona una app para crear release de development.");
+      return;
+    }
+
+    setCreatingDevRelease(true);
+    try {
+      const preview = await previewDevRelease({
+        productKey: activeProductKey,
+        ref: "dev",
+      });
+
+      setDevReleaseDraft({
+        productKey: activeProductKey,
+        productLabel: selectedProductLabel,
+        ref: preview?.ref || "dev",
+        currentSemver: preview?.current_semver || "-",
+        suggestedSemver: preview?.suggested_semver || "",
+        suggestedBump: preview?.suggested_bump || "patch",
+        suggestionSource: preview?.suggestion_source || "unknown",
+        shouldCreateRelease: preview?.should_create_release !== false,
+        changedFilesCount: Number(preview?.changed_files_count || 0),
+        changedFiles: Array.isArray(preview?.changed_files) ? preview.changed_files.slice(0, 12) : [],
+        contractHits: Array.isArray(preview?.contract_hits) ? preview.contract_hits.slice(0, 8) : [],
+        minorHits: Array.isArray(preview?.minor_hits) ? preview.minor_hits.slice(0, 8) : [],
+        docOnly: preview?.doc_only === true,
+        commitMessages: Array.isArray(preview?.commit_messages)
+          ? preview.commit_messages.slice(0, 6)
+          : [],
+        mode: "suggested",
+        customSemver: preview?.suggested_semver || "",
+        notes: "",
+      });
+    } catch (err) {
+      setDevReleaseMessage(
+        err?.message || "No se pudo calcular la version sugerida para release de development."
+      );
+    } finally {
+      setCreatingDevRelease(false);
+    }
+  }, [activeProductKey, selectedProductLabel]);
 
   const requestPromoteVersion = useCallback(
     ({ semver, fromEnv, toEnv, source = "list", notes = "" }) => {
@@ -615,7 +799,7 @@ export default function VersioningOverviewPanel() {
     });
   }, [openConfirmDialog]);
 
-  const handleCreateDevRelease = async () => {
+  const handleCreateDevRelease = async ({ overrideSemver = "", releaseNotes = "" } = {}) => {
     setDevReleaseMessage("");
     if (!activeProductKey) {
       setDevReleaseMessage("Selecciona una app para crear release de development.");
@@ -627,10 +811,14 @@ export default function VersioningOverviewPanel() {
       const result = await createDevRelease({
         productKey: activeProductKey,
         ref: "dev",
+        overrideSemver: overrideSemver || "",
+        releaseNotes: releaseNotes || "",
       });
       setDevReleaseMessage(
         `Release de DEVELOPMENT en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}`
       );
+      setDevReleaseDraft(null);
+      setDevReleaseDraftError("");
     } catch (err) {
       setDevReleaseMessage(err?.message || "No se pudo crear release de development.");
     } finally {
@@ -638,14 +826,54 @@ export default function VersioningOverviewPanel() {
     }
   };
 
+  const closeDevReleaseDraft = () => {
+    if (creatingDevRelease) return;
+    setDevReleaseDraft(null);
+    setDevReleaseDraftError("");
+  };
+
+  const submitDevReleaseDraft = async () => {
+    if (!devReleaseDraft) return;
+    setDevReleaseDraftError("");
+
+    const mode = devReleaseDraft.mode === "custom" ? "custom" : "suggested";
+    const customSemver = String(devReleaseDraft.customSemver || "").trim();
+    const currentSemver = String(devReleaseDraft.currentSemver || "").trim();
+    const suggestedSemver = String(devReleaseDraft.suggestedSemver || "").trim();
+
+    if (mode === "custom") {
+      if (!parseSemverLabel(customSemver)) {
+        setDevReleaseDraftError("La version manual debe tener formato X.Y.Z.");
+        return;
+      }
+      if (parseSemverLabel(currentSemver) && compareSemverLabel(customSemver, currentSemver) <= 0) {
+        setDevReleaseDraftError(`La version manual debe ser mayor que ${currentSemver}.`);
+        return;
+      }
+    } else if (!suggestedSemver || !parseSemverLabel(suggestedSemver)) {
+      setDevReleaseDraftError("No hay version sugerida valida para crear release.");
+      return;
+    }
+
+    if (devReleaseDraft.shouldCreateRelease === false && mode !== "custom") {
+      setDevReleaseDraftError("No hay cambios suficientes para crear release con la sugerida.");
+      return;
+    }
+
+    const overrideSemver = mode === "custom" ? customSemver : "";
+    const releaseNotes = String(devReleaseDraft.notes || "").trim();
+    await handleCreateDevRelease({
+      overrideSemver,
+      releaseNotes,
+    });
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmDialog?.action) return;
     setConfirmLoading(true);
     try {
       const { type, payload } = confirmDialog.action;
-      if (type === "create-dev-release") {
-        await handleCreateDevRelease();
-      } else if (type === "promote") {
+      if (type === "promote") {
         await handlePromoteVersion(payload || {});
       } else if (type === "deploy") {
         await handleDeployByVersion(payload || {});
@@ -701,20 +929,29 @@ export default function VersioningOverviewPanel() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          {catalog.products.map((product) => (
+          {orderedProducts.map((product) => {
+            const disabled = !product.initializedInDev;
+            return (
             <button
               key={product.id}
               type="button"
-              onClick={() => setActiveProductKey(product.product_key)}
+              onClick={() => {
+                if (disabled) return;
+                setActiveProductKey(product.product_key);
+              }}
+              disabled={disabled}
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                 activeProductKey === product.product_key
                   ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                  : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                  : disabled
+                    ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                    : "border-[#E9E2F7] bg-white text-[#2F1A55]"
               }`}
             >
               {normalizeProductLabel(product)}
             </button>
-          ))}
+            );
+          })}
         </div>
         <button
           type="button"
@@ -751,7 +988,9 @@ export default function VersioningOverviewPanel() {
                 const releaseVersion = String(row.version_label || "").trim();
                 let action = null;
 
-                if (envKey === "dev") {
+                if (!isActiveProductInitialized) {
+                  action = null;
+                } else if (envKey === "dev") {
                   if (normalizedStatus === "released" && releaseVersion && releaseVersion !== "-") {
                     const promoteActionId = actionKey(
                       "promote",
@@ -773,7 +1012,7 @@ export default function VersioningOverviewPanel() {
                           source: "quick-dev-card",
                         }),
                     };
-                  } else if (normalizedStatus !== "promoted") {
+                  } else {
                     action = {
                       label: "Release",
                       loadingLabel: "Creando...",
@@ -813,13 +1052,23 @@ export default function VersioningOverviewPanel() {
                     row={row}
                     action={action}
                     message={envKey === "dev" ? devReleaseMessage : ""}
+                    disabled={!isActiveProductInitialized}
                   />
                 );
               })}
             </div>
+            {!isActiveProductInitialized ? (
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                Esta app aun no esta inicializada. Ejecuta bootstrap por producto para habilitar release/promote/deploy.
+              </div>
+            ) : null}
           </div>
 
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+          <div
+            className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
+              isActiveProductInitialized ? "" : "opacity-60"
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
                 <ShieldCheck size={15} />
@@ -919,7 +1168,7 @@ export default function VersioningOverviewPanel() {
                           <button
                             type="button"
                             onClick={() => handleApproveRequest(row.id, false)}
-                            disabled={deployingActionId === `approve-${row.id}`}
+                            disabled={!isActiveProductInitialized || deployingActionId === `approve-${row.id}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 disabled:opacity-60"
                           >
                             <CheckCircle2 size={12} />
@@ -928,7 +1177,7 @@ export default function VersioningOverviewPanel() {
                           <button
                             type="button"
                             onClick={() => handleRejectRequest(row.id)}
-                            disabled={deployingActionId === `reject-${row.id}`}
+                            disabled={!isActiveProductInitialized || deployingActionId === `reject-${row.id}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-60"
                           >
                             <XCircle size={12} />
@@ -945,7 +1194,11 @@ export default function VersioningOverviewPanel() {
             </Table>
           </div>
 
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+          <div
+            className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
+              isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
+            }`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <ArrowRightLeft size={15} />
@@ -1284,7 +1537,11 @@ export default function VersioningOverviewPanel() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+          <div
+            className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
+              isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
+            }`}
+          >
             <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
               <GitCompare size={15} />
               Drift de versiones
@@ -1373,6 +1630,145 @@ export default function VersioningOverviewPanel() {
           </div>
         </>
       )}
+
+      {devReleaseDraft ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/45 p-4">
+          <button
+            type="button"
+            aria-label="Cerrar release development"
+            onClick={closeDevReleaseDraft}
+            className="absolute inset-0 h-full w-full"
+          />
+          <div className="relative z-[1201] w-full max-w-2xl rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-[#2F1A55]">
+                Release DEVELOPMENT ({devReleaseDraft.productLabel})
+              </div>
+              <button
+                type="button"
+                onClick={closeDevReleaseDraft}
+                disabled={creatingDevRelease}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#E9E2F7] text-slate-500 disabled:opacity-60"
+                aria-label="Cerrar"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-700">
+                Version actual: <strong>{devReleaseDraft.currentSemver || "-"}</strong>
+              </div>
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-700">
+                Sugerida: <strong>{devReleaseDraft.suggestedSemver || "-"}</strong> ({devReleaseDraft.suggestedBump})
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+              Razon: <strong>{devReleaseDraft.suggestionSource}</strong> | Archivos detectados:{" "}
+              <strong>{devReleaseDraft.changedFilesCount}</strong>
+              {devReleaseDraft.docOnly ? " | Solo docs" : ""}
+            </div>
+
+            {devReleaseDraft.contractHits?.length ? (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Cambios de contrato detectados (major sugerido): {devReleaseDraft.contractHits.join(", ")}
+              </div>
+            ) : null}
+
+            {devReleaseDraft.changedFiles?.length ? (
+              <div className="mt-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+                <div className="font-semibold text-slate-700">Archivos considerados</div>
+                <div className="mt-1 max-h-28 overflow-auto space-y-1">
+                  {devReleaseDraft.changedFiles.map((item, index) => (
+                    <div key={`preview-file-${index}`} className="font-mono text-[11px] text-slate-500">
+                      [{item.status}] {item.path}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-3 inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setDevReleaseDraft((prev) => (prev ? { ...prev, mode: "suggested" } : prev))
+                }
+                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                  devReleaseDraft.mode === "suggested" ? "bg-[#2F1A55] text-white" : "text-slate-500"
+                }`}
+              >
+                Usar sugerida
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setDevReleaseDraft((prev) => (prev ? { ...prev, mode: "custom" } : prev))
+                }
+                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                  devReleaseDraft.mode === "custom" ? "bg-[#2F1A55] text-white" : "text-slate-500"
+                }`}
+              >
+                Version manual
+              </button>
+            </div>
+
+            {devReleaseDraft.mode === "custom" ? (
+              <input
+                value={devReleaseDraft.customSemver || ""}
+                onChange={(event) =>
+                  setDevReleaseDraft((prev) =>
+                    prev ? { ...prev, customSemver: event.target.value } : prev
+                  )
+                }
+                className="mt-2 w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5]"
+                placeholder="X.Y.Z (ej. 0.1.1)"
+              />
+            ) : null}
+
+            <textarea
+              value={devReleaseDraft.notes || ""}
+              onChange={(event) =>
+                setDevReleaseDraft((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
+              }
+              className="mt-2 min-h-[70px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
+              placeholder="Notas del release (opcional)"
+            />
+
+            {devReleaseDraftError ? (
+              <div className="mt-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+                {devReleaseDraftError}
+              </div>
+            ) : null}
+
+            {!devReleaseDraft.shouldCreateRelease && devReleaseDraft.mode !== "custom" ? (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                No hay cambios suficientes para crear release con la sugerida. Usa version manual si necesitas forzar un salto.
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDevReleaseDraft}
+                disabled={creatingDevRelease}
+                className="rounded-lg border border-[#E9E2F7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submitDevReleaseDraft}
+                disabled={creatingDevRelease}
+                className="rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {creatingDevRelease ? "Procesando..." : "Crear release"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {confirmDialog ? (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/45 p-4">

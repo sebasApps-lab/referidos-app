@@ -21,7 +21,7 @@ Regla:
 El panel de versionado en PWA usa bridge:
 - frontend: `apps/referidos-app/src/admin/versioning/services/versioningService.js`
 - bridge runtime: `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
-- backend ops: `versioning-dev-release-create`, `versioning-deploy-execute`, `versioning-deploy-callback`
+- backend ops: `versioning-dev-release-preview`, `versioning-dev-release-create`, `versioning-deploy-execute`, `versioning-deploy-callback`
 
 Flujo:
 1. admin se autentica en runtime (dev/staging/prod)
@@ -121,6 +121,7 @@ Debe incluir:
 - `[functions.versioning-deploy-callback] verify_jwt = false`
 - `[functions.versioning-deploy-execute] verify_jwt = false`
 - `[functions.versioning-dev-release-create] verify_jwt = false`
+- `[functions.versioning-dev-release-preview] verify_jwt = false`
 
 Motivo:
 - llamada directa con JWT admin
@@ -165,6 +166,7 @@ supabase db push --project-ref $OPS_REF
 Deploy funciones ops:
 ```powershell
 supabase functions deploy versioning-dev-release-create --project-ref $OPS_REF
+supabase functions deploy versioning-dev-release-preview --project-ref $OPS_REF
 supabase functions deploy versioning-deploy-execute --project-ref $OPS_REF
 supabase functions deploy versioning-deploy-callback --project-ref $OPS_REF --no-verify-jwt
 ```

@@ -87,6 +87,7 @@ Entornos versionados:
 2. Crear release de DEVELOPMENT:
 - desde panel admin (boton `Relase`)
 - o `versioning-dev-release-create`
+- panel muestra preview del salto sugerido (razones + archivos detectados) y permite override manual de semver
 - dispara workflow `versioning-release-dev.yml`
 
 3. Promover release:
@@ -203,6 +204,17 @@ npm run versioning:record-deploy -- --product referidos_app --env prod --semver 
 
 `versioning:bootstrap`:
 - solo inicializacion/backfill
+- puede correrse por app/producto:
+
+```powershell
+npm run versioning:bootstrap -- --products referidos_app,prelaunch_web --baseline 0.5.0 --envs dev,staging,prod --force-snapshot
+```
+
+`--product` tambien funciona:
+
+```powershell
+npm run versioning:bootstrap -- --product referidos_app --product prelaunch_web
+```
 
 ## 8) Documentos relacionados
 
