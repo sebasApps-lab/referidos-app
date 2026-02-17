@@ -1,4 +1,5 @@
 import {
+  getBreadcrumbTemplate,
   createErrorRuntime,
   createObservabilityClient,
   createPolicyRuntime,
@@ -165,6 +166,20 @@ export const logEvent = ({
 
 export const logBreadcrumb = (message, context = {}) => {
   runtime.addBreadcrumb(message, context || {});
+};
+
+export const logCatalogBreadcrumb = (code, data = {}, overrides = {}) => {
+  const key = typeof code === "string" ? code.trim() : "";
+  if (!key) return;
+  const template = getBreadcrumbTemplate(key);
+  runtime.addBreadcrumb({
+    code: key,
+    type: overrides?.type || template?.type || "ui",
+    channel: overrides?.channel || template?.channel || "manual",
+    message: overrides?.message || template?.message || key,
+    timestamp: overrides?.timestamp || new Date().toISOString(),
+    data: data || {},
+  });
 };
 
 export const logError = (error, context = {}) => {

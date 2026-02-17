@@ -13,6 +13,9 @@ import {
 const SHORT_CACHE_MS = 2 * 24 * 60 * 60 * 1000;
 const LONG_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ISSUE_EVENTS = 200;
+const SOURCE_EXCERPT_LINES_BEFORE = 10;
+const SOURCE_EXCERPT_LINES_AFTER = 10;
+const SOURCE_EXCERPT_MAX_LINE_LEN = 280;
 
 type ObsEventRecord = {
   id: string;
@@ -69,6 +72,8 @@ function normalizeCacheType(value: unknown) {
 
 function isCacheValid(eventRow: ObsEventRecord, nowMs: number) {
   if (!eventRow.symbolicated_stack || !eventRow.symbolicated_at) return false;
+  const stackObj = safeObject(eventRow.symbolicated_stack);
+  if (!Object.prototype.hasOwnProperty.call(stackObj, "excerpt_kind")) return false;
   const atMs = Date.parse(eventRow.symbolicated_at);
   if (Number.isNaN(atMs)) return false;
   return nowMs - atMs < cacheMsForType(eventRow.symbolication_type);
@@ -275,6 +280,97 @@ function finiteNumber(value: unknown): number | null {
   return num;
 }
 
+function splitSourceLines(sourceText: string) {
+  return sourceText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+}
+
+function sanitizeSourceLine(value: string) {
+  const normalized = value.replace(/\t/g, "  ");
+  if (normalized.length <= SOURCE_EXCERPT_MAX_LINE_LEN) return normalized;
+  return `${normalized.slice(0, SOURCE_EXCERPT_MAX_LINE_LEN)}...`;
+}
+
+function buildSourceExcerptFromLines(
+  sourceLines: string[],
+  errorLine: number,
+  errorColumn: number | null,
+) {
+  if (!Number.isFinite(errorLine) || errorLine < 1 || errorLine > sourceLines.length) {
+    return null;
+  }
+  const startLine = Math.max(1, errorLine - SOURCE_EXCERPT_LINES_BEFORE);
+  const endLine = Math.min(sourceLines.length, errorLine + SOURCE_EXCERPT_LINES_AFTER);
+
+  const lines = [];
+  for (let lineNo = startLine; lineNo <= endLine; lineNo += 1) {
+    lines.push({
+      line_no: lineNo,
+      text: sanitizeSourceLine(sourceLines[lineNo - 1] || ""),
+      highlight: lineNo === errorLine,
+    });
+  }
+
+  return {
+    start_line: startLine,
+    end_line: endLine,
+    error_line: errorLine,
+    error_column: errorColumn,
+    lines,
+  };
+}
+
+function isAppSourcePath(source: string | null) {
+  const value = safeString(source)?.toLowerCase() || "";
+  if (!value) return false;
+  if (value.includes("node_modules")) return false;
+  if (value.includes("/.pnpm/")) return false;
+  if (value.includes("/vite/deps/")) return false;
+  if (value.includes("/vendor/")) return false;
+  if (value.includes("cdn.") || value.includes("unpkg") || value.includes("jsdelivr")) return false;
+  if (value.includes("/src/")) return true;
+  if (value.includes("/apps/")) return true;
+  if (value.includes("/packages/")) return true;
+  return !value.includes("/assets/");
+}
+
+function resolveErrorExcerpt(frames: Array<Record<string, unknown>>) {
+  const candidates = frames
+    .map((frame) => {
+      const original = safeObject(frame.original);
+      const excerpt = safeObject(original.excerpt);
+      const lines = safeArray(excerpt.lines);
+      if (!Boolean(frame.symbolicated) || !lines.length) return null;
+      const source = safeString(original.source);
+      const row = {
+        source,
+        line: Number(original.line),
+        column: Number(original.column),
+        frame_name: safeString(original.name) || safeString(frame.function) || null,
+        excerpt,
+        is_app_source: isAppSourcePath(source),
+      };
+      return row;
+    })
+    .filter((item): item is {
+      source: string | null;
+      line: number;
+      column: number;
+      frame_name: string | null;
+      excerpt: Record<string, unknown>;
+      is_app_source: boolean;
+    } => Boolean(item));
+
+  if (!candidates.length) return null;
+  const preferred = candidates.find((item) => item.is_app_source) || candidates[0];
+  return {
+    source: preferred.source,
+    line: Number.isFinite(preferred.line) ? preferred.line : null,
+    column: Number.isFinite(preferred.column) ? preferred.column : null,
+    frame_name: preferred.frame_name,
+    excerpt: preferred.excerpt,
+  };
+}
+
 function buildDevPassthroughPayload(eventRow: ObsEventRecord) {
   const baseFrames = safeArray(eventRow.stack_frames_raw);
   const frames =
@@ -311,6 +407,8 @@ function buildDevPassthroughPayload(eventRow: ObsEventRecord) {
       stack_preview: eventRow.stack_preview,
       stack_raw: eventRow.stack_raw,
       frames: passthroughFrames,
+      excerpt_kind: "none",
+      error_excerpt: null,
       stats: {
         total_frames: passthroughFrames.length,
         symbolicated_frames: symbolicatedCount,
@@ -470,6 +568,7 @@ async function applySymbolicationToEvent(
 
   const manifestLookup = buildManifestLookup(manifestResult.manifest);
   const sourceMapCache = new Map<string, SourceMapConsumer>();
+  const sourceContentCache = new Map<string, string[]>();
   const baseFrames = safeArray(eventRow.stack_frames_raw);
   const frames =
     baseFrames.length > 0
@@ -502,11 +601,31 @@ async function applySymbolicationToEvent(
         if (position?.source) {
           symbolicated = true;
           symbolicatedCount += 1;
+
+          let excerpt: Record<string, unknown> | null = null;
+          const sourceCacheKey = `${mapPath}::${position.source}`;
+          let sourceLines = sourceContentCache.get(sourceCacheKey);
+          if (!sourceLines) {
+            const sourceContent = consumer.sourceContentFor(position.source, true);
+            if (typeof sourceContent === "string" && sourceContent.length > 0) {
+              sourceLines = splitSourceLines(sourceContent);
+              sourceContentCache.set(sourceCacheKey, sourceLines);
+            }
+          }
+          if (sourceLines && Number.isFinite(position.line)) {
+            excerpt = buildSourceExcerptFromLines(
+              sourceLines,
+              Math.max(1, Number(position.line)),
+              Number.isFinite(position.column) ? Number(position.column) : null,
+            );
+          }
+
           original = {
             source: position.source,
             line: position.line,
             column: position.column,
             name: position.name || null,
+            excerpt,
           };
         }
       }
@@ -536,12 +655,23 @@ async function applySymbolicationToEvent(
     });
   }
 
+  const resolvedExcerpt = resolveErrorExcerpt(symbolicatedFrames);
   const symbolicationStatus = symbolicatedCount > 0 ? "ok" : "error:no_mapped_frames";
   const symbolicatedPayload = {
     message: eventRow.message,
     stack_preview: eventRow.stack_preview,
     stack_raw: eventRow.stack_raw,
     frames: symbolicatedFrames,
+    excerpt_kind: resolvedExcerpt ? "source" : "none",
+    error_excerpt: resolvedExcerpt
+      ? {
+          source: resolvedExcerpt.source,
+          line: resolvedExcerpt.line,
+          column: resolvedExcerpt.column,
+          frame_name: resolvedExcerpt.frame_name,
+          ...resolvedExcerpt.excerpt,
+        }
+      : null,
     stats: {
       total_frames: symbolicatedFrames.length,
       symbolicated_frames: symbolicatedCount,

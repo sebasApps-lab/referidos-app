@@ -73,6 +73,9 @@ export function normalizeEnvelope(input = {}, defaults = {}) {
   const breadcrumbs = Array.isArray(input.breadcrumbs)
     ? scrubUnknown(input.breadcrumbs).slice(-50)
     : [];
+  const breadcrumbsMeta = scrubUnknown(
+    input.breadcrumbs_meta || input.breadcrumbsMeta || {},
+  );
   const error = scrubUnknown(input.error || {});
 
   return {
@@ -94,6 +97,7 @@ export function normalizeEnvelope(input = {}, defaults = {}) {
     }),
     tags: scrubUnknown(input.tags || {}),
     breadcrumbs,
+    breadcrumbs_meta: breadcrumbsMeta,
     request_id: clampText(input.request_id, 120),
     trace_id: clampText(input.trace_id, 120),
     session_id: clampText(input.session_id, 120),

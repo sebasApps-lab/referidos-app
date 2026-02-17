@@ -329,6 +329,18 @@ export function createMobileObservabilityClient({
       screen: clampText(String(input.screen || context.screen || ""), 220) || null,
       flow: clampText(String(input.flow || context.flow || ""), 220) || null,
       flow_step: clampText(String(input.flow_step || context.flow_step || ""), 220) || null,
+      breadcrumbs: Array.isArray(input.breadcrumbs)
+        ? scrubUnknown(input.breadcrumbs).slice(-50)
+        : [],
+      breadcrumbs_meta: scrubUnknown(
+        input.breadcrumbs_meta ||
+          input.breadcrumbsMeta || {
+            runtime_initialized: true,
+            runtime_health: "ok",
+            storage_status: "unavailable",
+            source: Array.isArray(input.breadcrumbs) ? "provided" : "none",
+          },
+      ),
     };
 
     const supportThreadId = clampText(

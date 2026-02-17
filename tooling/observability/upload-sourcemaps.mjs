@@ -74,6 +74,15 @@ function chunk(items, size) {
   return out;
 }
 
+function hasUsableSourcesContent(mapJson) {
+  if (!mapJson || typeof mapJson !== "object") return false;
+  const sourcesContent = mapJson.sourcesContent;
+  if (!Array.isArray(sourcesContent) || sourcesContent.length === 0) return false;
+  return sourcesContent.some(
+    (entry) => typeof entry === "string" && entry.trim().length > 0,
+  );
+}
+
 async function downloadJson(supabase, bucket, storagePath) {
   const { data, error } = await supabase.storage.from(bucket).download(storagePath);
   if (error || !data) return null;
@@ -174,6 +183,17 @@ async function main() {
     const mapStoragePath = `${releasePath}/maps/${relPosix}`;
     const fullPath = path.join(distDir, relPath);
     const content = await fs.readFile(fullPath);
+    let parsedMap = null;
+    try {
+      parsedMap = JSON.parse(content.toString("utf-8"));
+    } catch {
+      throw new Error(`invalid_sourcemap_json(${relPosix})`);
+    }
+    if (!hasUsableSourcesContent(parsedMap)) {
+      throw new Error(
+        `sourcemap_missing_sourcesContent(${relPosix}). Rebuild with sourcesContent enabled and retry upload.`,
+      );
+    }
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
@@ -189,6 +209,7 @@ async function main() {
       generated_file: generatedFile,
       map_file: relPosix,
       map_path: mapStoragePath,
+      has_sources_content: true,
     });
   }
 

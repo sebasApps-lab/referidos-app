@@ -23,6 +23,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     sourcemap: "hidden",
+    rollupOptions: {
+      output: {
+        sourcemapExcludeSources: false,
+      },
+    },
   },
   server: {
     host: true,

@@ -19,6 +19,7 @@ import {
   normalizeBusinessName,
 } from "../utils/businessDataUtils";
 import { runValidateRegistration } from "../../services/registrationClient";
+import { logCatalogBreadcrumb } from "../../services/loggingClient";
 import { toTitleCaseEs } from "../../utils/textCase";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
@@ -428,6 +429,9 @@ export default function useAuthActions({
   const handleEmailRegister = useCallback(async () => {
     if (!validateEmailRegister()) return;
     setEmailError("");
+    logCatalogBreadcrumb("auth.signup.start", {
+      method: "auth_flow_email_register",
+    });
 
     try {
       //Crear SOLO la cuenta Auth (sin perfil)
@@ -438,6 +442,10 @@ export default function useAuthActions({
 
       if (error) {
         const msg = error.message?.toLowerCase() || "";
+        logCatalogBreadcrumb("auth.signup.error", {
+          method: "auth_flow_email_register",
+          error: error.message || "signup_failed",
+        });
         if (msg.includes("ya existe") || msg.includes("already") || msg.includes("exists")) {
           setEmailError("Esta cuenta ya existe. Si la creaste con Google, usa Google para continuar.");
           if (onResetToWelcome) {
@@ -454,17 +462,32 @@ export default function useAuthActions({
       //Asegurar sesion activa
       const session = data?.session ?? (await supabase.auth.getSession()).data.session;
       if (!session?.user) {
+        logCatalogBreadcrumb("auth.signup.error", {
+          method: "auth_flow_email_register",
+          error: "signup_session_missing",
+        });
         setEmailError("No se pudo iniciar la sesion");
         return;
       }
 
       const boot = await bootstrapAuth({ force: true });
       if (!boot.ok) {
+        logCatalogBreadcrumb("auth.signup.error", {
+          method: "auth_flow_email_register",
+          error: boot.error || "bootstrap_failed",
+        });
         setEmailError(boot.error || "No se pudo validar onboarding");
         return;
       }
+      logCatalogBreadcrumb("auth.signup.ok", {
+        method: "auth_flow_email_register",
+      });
 
     } catch (err) {
+      logCatalogBreadcrumb("auth.signup.error", {
+        method: "auth_flow_email_register",
+        error: err?.message || "signup_exception",
+      });
       setEmailError(err?.message || "Error al crear la cuenta");
     }
   }, [

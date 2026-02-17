@@ -33,6 +33,22 @@ import {
 } from "../_shared/observability.ts";
 
 const MAX_TITLE_LEN = 220;
+const ALLOWED_BREADCRUMB_STATUS = new Set([
+  "present",
+  "missing_early_boot",
+  "missing_runtime_failure",
+  "missing_source_uninstrumented",
+  "missing_payload_empty",
+  "missing_storage_unavailable",
+  "missing_unknown",
+]);
+const ALLOWED_BREADCRUMB_SOURCE = new Set([
+  "memory",
+  "storage",
+  "merged",
+  "provided",
+  "none",
+]);
 
 type JsonObject = Record<string, unknown>;
 
@@ -74,6 +90,135 @@ function safeInteger(value: unknown): number | null {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   return Math.trunc(parsed);
+}
+
+function safeBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const next = value.trim().toLowerCase();
+    if (next === "true") return true;
+    if (next === "false") return false;
+  }
+  return null;
+}
+
+function parseIsoOrNull(value: unknown): string | null {
+  const raw = safeString(value);
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function normalizeBreadcrumbSource(value: unknown): string | null {
+  const raw = safeString(value)?.toLowerCase() || null;
+  if (!raw) return null;
+  return ALLOWED_BREADCRUMB_SOURCE.has(raw) ? raw : null;
+}
+
+function normalizeBreadcrumbStatus(value: unknown): string | null {
+  const raw = safeString(value)?.toLowerCase() || null;
+  if (!raw) return null;
+  return ALLOWED_BREADCRUMB_STATUS.has(raw) ? raw : null;
+}
+
+type BreadcrumbAssessment = {
+  count: number;
+  lastAt: string | null;
+  source: string;
+  status: string;
+  reason: string | null;
+  meta: Record<string, unknown>;
+};
+
+function extractBreadcrumbLastAt(breadcrumbs: Record<string, unknown>[]) {
+  for (let idx = breadcrumbs.length - 1; idx >= 0; idx -= 1) {
+    const row = safeObject(breadcrumbs[idx]);
+    const at = parseIsoOrNull(row.timestamp || row.occurred_at || row.created_at);
+    if (at) return at;
+  }
+  return null;
+}
+
+function classifyBreadcrumbs({
+  item,
+  source,
+  breadcrumbs,
+  breadcrumbsMetaRaw,
+}: {
+  item: Record<string, unknown>;
+  source: string;
+  breadcrumbs: Record<string, unknown>[];
+  breadcrumbsMetaRaw: Record<string, unknown>;
+}): BreadcrumbAssessment {
+  const count = breadcrumbs.length;
+  const lastAt = extractBreadcrumbLastAt(breadcrumbs);
+  const explicitProvided = Object.prototype.hasOwnProperty.call(item, "breadcrumbs");
+  const runtimeInitialized = safeBoolean(breadcrumbsMetaRaw.runtime_initialized);
+  const runtimeHealth = safeString(breadcrumbsMetaRaw.runtime_health)?.toLowerCase() || null;
+  const storageStatus = safeString(breadcrumbsMetaRaw.storage_status)?.toLowerCase() || null;
+  const sourceMeta = normalizeBreadcrumbSource(breadcrumbsMetaRaw.source);
+  const reasonHint = normalizeBreadcrumbStatus(breadcrumbsMetaRaw.missing_reason_hint);
+
+  let breadcrumbSource = sourceMeta;
+  if (!breadcrumbSource) {
+    if (explicitProvided) breadcrumbSource = "provided";
+    else if (count > 0) breadcrumbSource = "provided";
+    else breadcrumbSource = "none";
+  }
+
+  let status = "present";
+  let reason: string | null = null;
+
+  if (count === 0) {
+    if (reasonHint && reasonHint !== "present") {
+      status = reasonHint;
+    } else if (runtimeInitialized === false) {
+      status = "missing_early_boot";
+      reason = "runtime_not_initialized";
+    } else if (runtimeHealth === "init_failed" || runtimeHealth === "runtime_error") {
+      status = "missing_runtime_failure";
+      reason = `runtime_${runtimeHealth}`;
+    } else if (
+      storageStatus === "unavailable" ||
+      storageStatus === "read_failed" ||
+      storageStatus === "write_failed"
+    ) {
+      status = "missing_storage_unavailable";
+      reason = `storage_${storageStatus}`;
+    } else if (source === "edge" || source === "worker") {
+      status = "missing_source_uninstrumented";
+      reason = `${source}_without_breadcrumb_steps`;
+    } else if (explicitProvided) {
+      status = "missing_payload_empty";
+      reason = "payload_breadcrumbs_empty";
+    } else {
+      status = "missing_unknown";
+      reason = "missing_reason_not_determined";
+    }
+  }
+
+  const meta = {
+    ...(breadcrumbsMetaRaw || {}),
+    count,
+    last_at: lastAt,
+    source: breadcrumbSource,
+    runtime_initialized: runtimeInitialized,
+    runtime_health: runtimeHealth,
+    storage_status: storageStatus,
+    explicit_provided: explicitProvided,
+    classified_status: status,
+    classified_reason: reason,
+  };
+
+  return {
+    count,
+    lastAt,
+    source: breadcrumbSource || "none",
+    status,
+    reason,
+    meta,
+  };
 }
 
 function normalizeErrorCode(value: string | null) {
@@ -421,7 +566,18 @@ serve(async (req) => {
       scrubbedExtras && typeof scrubbedExtras === "object" && !Array.isArray(scrubbedExtras)
         ? scrubbedExtras
         : {};
-    const breadcrumbs = normalizeBreadcrumbs(item.breadcrumbs);
+    const breadcrumbs = normalizeBreadcrumbs(item.breadcrumbs)
+      .map((entry) => safeObject(entry))
+      .filter((entry) => Object.keys(entry).length > 0);
+    const breadcrumbsMetaRaw = scrubUnknown(
+      safeObject(item.breadcrumbs_meta || item.breadcrumbsMeta),
+    ) as Record<string, unknown>;
+    const breadcrumbAssessment = classifyBreadcrumbs({
+      item: safeObject(item),
+      source,
+      breadcrumbs,
+      breadcrumbsMetaRaw,
+    });
     const eventDomain = normalizeDomain(
       item.event_domain || (scrubbedContext as Record<string, unknown>).event_domain,
     );
@@ -674,6 +830,12 @@ serve(async (req) => {
           extra: scrubbedExtras,
         },
         breadcrumbs,
+        breadcrumbs_count: breadcrumbAssessment.count,
+        breadcrumbs_last_at: breadcrumbAssessment.lastAt,
+        breadcrumbs_source: breadcrumbAssessment.source,
+        breadcrumbs_status: breadcrumbAssessment.status,
+        breadcrumbs_reason: breadcrumbAssessment.reason,
+        breadcrumbs_meta: breadcrumbAssessment.meta,
         release: {
           app_id: appId,
           app_version: appVersion,

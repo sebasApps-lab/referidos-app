@@ -46,7 +46,24 @@ export default function useAppLogger() {
       flow,
       flow_step: onboarding?.current_step || null,
     });
-    logBreadcrumb(`NAVIGATE ${pathname}`, { route: pathname });
+    logBreadcrumb({
+      code: "app.route.change",
+      type: "ui",
+      channel: "manual",
+      message: `Route changed: ${pathname}`,
+      data: { route: pathname, flow },
+    });
+    logBreadcrumb({
+      code: "app.screen.enter",
+      type: "ui",
+      channel: "manual",
+      message: `Screen entered: ${pathname}`,
+      data: {
+        route: pathname,
+        flow,
+        flow_step: onboarding?.current_step || null,
+      },
+    });
   }, [location.pathname, onboarding?.current_step]);
 
 }

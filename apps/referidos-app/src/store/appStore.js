@@ -22,6 +22,7 @@ import {
   beginPolicyAction,
   endPolicyAction,
   evaluateErrorPolicy,
+  logCatalogBreadcrumb,
   reportError,
 } from "../services/loggingClient";
 import { supabase } from "../lib/supabaseClient";
@@ -368,10 +369,17 @@ export const useAppStore = create(
       // AUTH
       //-----------------------
       login: async (email, password) => {
+        logCatalogBreadcrumb("auth.signin.start", {
+          method: "store_login",
+        });
         set({ loading: true, error: null });
         try {
           const result = await signInWithEmail(email, password);
           if (!result.ok) {
+            logCatalogBreadcrumb("auth.signin.error", {
+              method: "store_login",
+              error: result.error || "login_failed",
+            });
             set({ loading: false, error: result.error });
             return { ok: false, error: result.error };
           }
@@ -381,38 +389,68 @@ export const useAppStore = create(
           set({ loading: false });
           
           if (!boot.ok) {
+            logCatalogBreadcrumb("auth.signin.error", {
+              method: "store_login_bootstrap",
+              error: boot.error || "bootstrap_failed",
+            });
             set({ error: boot.error ?? "No se pudo validar onboarding" });
             return { ok: false, error: boot.error ?? "No se pudo validar onboarding" };
           }
 
+          logCatalogBreadcrumb("auth.signin.ok", {
+            method: "store_login",
+          });
           return { ok: true };
         } catch (error) {
           const message = handleError(error);
+          logCatalogBreadcrumb("auth.signin.error", {
+            method: "store_login",
+            error: message,
+          });
           set({ loading: false, error: message });
           return { ok: false, error: message };
         }
       },
 
       register: async ({ email, password, telefono, nombre, role = "cliente" }) => {
+        logCatalogBreadcrumb("auth.signup.start", {
+          method: "store_register",
+          role,
+        });
         set({ loading: true, error: null });
         try {
           const result = await signUpWithEmail({ email, password, telefono, nombre, role });
           if (!result.ok) {
+            logCatalogBreadcrumb("auth.signup.error", {
+              method: "store_register",
+              role,
+              error: result.error || "register_failed",
+            });
             set({ loading: false, error: result.error });
             return { ok: false, error: result.error };
           }
           // No seteamos usuario aqu??
           // El onboarding se resolver?? al hacer login
           set({ loading: false });
+          logCatalogBreadcrumb("auth.signup.ok", {
+            method: "store_register",
+            role,
+          });
           return { ok: true, data: result.data, warning: result.warning };
         } catch (error) {
           const message = handleError(error);
+          logCatalogBreadcrumb("auth.signup.error", {
+            method: "store_register",
+            role,
+            error: message,
+          });
           set({ loading: false, error: message });
           return { ok: false, error: message };
         }
       },
 
         logout: async () => {
+          logCatalogBreadcrumb("auth.signout.start", { scope: "local" });
           let userId = null;
           const currentUser = get().usuario;
           const isSupport = currentUser?.role === "soporte";
@@ -427,7 +465,12 @@ export const useAppStore = create(
               await endSupportSession({ reason: "logout" });
             }
             await signOut({ scope: "local" });
+            logCatalogBreadcrumb("auth.signout.ok", { scope: "local" });
           } catch (e) {
+            logCatalogBreadcrumb("auth.signout.error", {
+              scope: "local",
+              error: e?.message || "logout_failed",
+            });
             //opcional: log o toast
           } finally {
             if (userId) {
@@ -457,6 +500,9 @@ export const useAppStore = create(
       // BOOTSTRAP AUTH
       //---------------------
       bootstrapAuth: async ({ force = false } = {}) => {
+        logCatalogBreadcrumb("auth.bootstrap.start", {
+          force: Boolean(force),
+        });
         if (bootstrapInFlightPromise) {
           return await bootstrapInFlightPromise;
         }
@@ -476,6 +522,9 @@ export const useAppStore = create(
             const { data: { session } = {} } = await supabase.auth.getSession();
             //Sin sesi??n
             if (!session?.access_token) {
+              logCatalogBreadcrumb("auth.bootstrap.ok", {
+                has_session: false,
+              });
               set({
                 bootstrap: false,
                 bootstrapError: false,
@@ -603,6 +652,12 @@ export const useAppStore = create(
                 onboarding: mustTerminateSession ? null : previousOnboarding,
                 error: errMsg,
               });
+              logCatalogBreadcrumb("auth.bootstrap.error", {
+                step: "session_register",
+                error: errMsg,
+                code: errCode || null,
+                recoverable: !mustTerminateSession,
+              });
               return {
                 ok: false,
                 error: errMsg,
@@ -621,6 +676,10 @@ export const useAppStore = create(
                 onboarding: check ?? null,
                 error: errMsg,
               });
+              logCatalogBreadcrumb("auth.bootstrap.error", {
+                step: "onboarding_check",
+                error: errMsg,
+              });
               return { ok: false, error: errMsg };
             }
 
@@ -636,10 +695,19 @@ export const useAppStore = create(
               onboarding: check,
               emailVerifiedSessionAt: nextVerifiedAt,
             });
+            logCatalogBreadcrumb("auth.bootstrap.ok", {
+              has_session: true,
+              role: nextUser?.role || null,
+              allow_access: check?.allowAccess === true,
+            });
 
             return { ok: true, usuario: nextUser };
           } catch (error) {
             const message = handleError(error);
+            logCatalogBreadcrumb("auth.bootstrap.error", {
+              step: "exception",
+              error: message,
+            });
             set({
               bootstrap: false,
               bootstrapError: true,

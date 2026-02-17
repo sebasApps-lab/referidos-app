@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, RefreshCw, Search, Sparkles } from "lucide-react";
+import {
+  AlertOctagon,
+  AlertCircle,
+  ArrowLeft,
+  Code2,
+  Globe2,
+  Layers3,
+  Mail,
+  Monitor,
+  RefreshCw,
+  Search,
+  Smartphone,
+  Sparkles,
+  Tablet,
+  Tags,
+  UserRound,
+} from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import Badge from "../../components/ui/Badge";
@@ -65,6 +81,12 @@ const EVENT_DETAIL_SELECT = [
   "resolved_component_revision_no",
   "resolved_component_revision_id",
   "component_resolution_method",
+  "breadcrumbs_count",
+  "breadcrumbs_last_at",
+  "breadcrumbs_source",
+  "breadcrumbs_status",
+  "breadcrumbs_reason",
+  "breadcrumbs_meta",
 ].join(", ");
 
 function formatDate(iso) {
@@ -112,6 +134,558 @@ function safeJson(value) {
   } catch {
     return "{}";
   }
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function asObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  return {};
+}
+
+function asString(value) {
+  if (typeof value === "string") {
+    const next = value.trim();
+    return next || null;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    const next = asString(value);
+    if (next) return next;
+  }
+  return null;
+}
+
+function normalizeKey(value) {
+  return asString(value)?.toLowerCase().replace(/\s+/g, "_") || "";
+}
+
+const SYMBOLICATION_STATUS_LABELS = {
+  ok: "Mapeado correctamente",
+  "ok:dev_native_stack": "Dev: stack nativo (sin mapear)",
+  "ok:dev_manifest_passthrough": "Dev: sin manifest, stack nativo",
+  "ok:dev_no_mapped_frames": "Dev: sin frames mapeados, stack nativo",
+  "error:release_not_found": "Error: release no encontrado",
+  "error:manifest_path_missing": "Error: falta ruta del manifest",
+  "error:manifest_download_failed": "Error: no se pudo descargar el manifest",
+  "error:manifest_empty": "Error: manifest vacio",
+  "error:manifest_invalid_json": "Error: manifest invalido",
+  "error:no_mapped_frames": "Error: no se pudieron mapear frames",
+};
+
+function formatSymbolicationStatus(value) {
+  const key = asString(value);
+  if (!key) return "-";
+  const known = SYMBOLICATION_STATUS_LABELS[key];
+  if (known) return known;
+  if (key.startsWith("error:")) {
+    return `Error: ${key.slice(6).replace(/_/g, " ")}`;
+  }
+  if (key.startsWith("ok:")) {
+    return `OK: ${key.slice(3).replace(/_/g, " ")}`;
+  }
+  return key;
+}
+
+function formatSymbolicationType(value) {
+  const key = normalizeKey(value);
+  if (!key) return "-";
+  if (key === "short") return "Cache corto";
+  if (key === "long") return "Cache largo";
+  return key;
+}
+
+function formatLevelLabel(value) {
+  const key = normalizeKey(value);
+  if (!key) return "-";
+  if (key === "fatal") return "Critico (fatal)";
+  if (key === "error") return "Severo (error)";
+  if (key === "warn") return "Advertencia";
+  if (key === "info") return "Informativo";
+  if (key === "debug") return "Debug";
+  return key;
+}
+
+function formatLevelBadge(value) {
+  const key = normalizeKey(value);
+  if (!key) return "-";
+  if (key === "fatal") return "Critico";
+  if (key === "error") return "Severo";
+  if (key === "warn") return "Warn";
+  if (key === "info") return "Info";
+  if (key === "debug") return "Debug";
+  return key;
+}
+
+function formatEventTypeLabel(value) {
+  const key = normalizeKey(value);
+  if (!key) return "-";
+  if (key === "error") return "Error";
+  if (key === "log") return "Log";
+  if (key === "performance") return "Performance";
+  if (key === "security") return "Seguridad";
+  if (key === "audit") return "Auditoria";
+  return key;
+}
+
+const BREADCRUMB_STATUS_META = {
+  present: { label: "Con breadcrumbs", tone: "ok" },
+  missing_early_boot: { label: "Sin breadcrumbs (arranque temprano)", tone: "warn" },
+  missing_runtime_failure: { label: "Sin breadcrumbs (fallo runtime)", tone: "warn" },
+  missing_source_uninstrumented: { label: "Sin breadcrumbs (origen sin instrumentar)", tone: "warn" },
+  missing_payload_empty: { label: "Sin breadcrumbs (payload vacio)", tone: "warn" },
+  missing_storage_unavailable: { label: "Sin breadcrumbs (storage no disponible)", tone: "warn" },
+  missing_unknown: { label: "Sin breadcrumbs (motivo no determinado)", tone: "warn" },
+};
+
+const BREADCRUMB_SOURCE_LABELS = {
+  memory: "Memoria runtime",
+  storage: "Storage persistente",
+  merged: "Memoria + storage",
+  provided: "Payload del evento",
+  none: "Sin origen",
+};
+
+const BREADCRUMB_REASON_LABELS = {
+  runtime_not_initialized: "El runtime no estaba inicializado cuando ocurrio el evento.",
+  runtime_init_failed: "Fallo durante la inicializacion del runtime de observabilidad.",
+  runtime_runtime_error: "El runtime de observabilidad reporto un error interno.",
+  storage_unavailable: "No habia storage disponible para persistir breadcrumbs.",
+  storage_read_failed: "Fallo al leer breadcrumbs persistidos.",
+  storage_write_failed: "Fallo al guardar breadcrumbs persistidos.",
+  edge_without_breadcrumb_steps: "El evento proviene de Edge sin pasos instrumentados.",
+  worker_without_breadcrumb_steps: "El evento proviene de Worker sin pasos instrumentados.",
+  payload_breadcrumbs_empty: "El payload envio breadcrumbs vacios.",
+  missing_reason_not_determined: "No se pudo determinar la causa exacta.",
+};
+
+function formatKeyAsLabel(value) {
+  const raw = asString(value);
+  if (!raw) return "-";
+  return raw.replace(/_/g, " ");
+}
+
+function resolveBreadcrumbDiagnostics(event) {
+  const meta = asObject(event?.breadcrumbs_meta);
+  const breadcrumbRows = asArray(event?.breadcrumbs);
+  const fromField = Number(event?.breadcrumbs_count);
+  const fromMeta = Number(meta.count);
+  const payloadCount = breadcrumbRows.length;
+  const count = payloadCount > 0
+    ? payloadCount
+    : Number.isFinite(fromField)
+      ? Math.max(0, Math.trunc(fromField))
+      : Number.isFinite(fromMeta)
+        ? Math.max(0, Math.trunc(fromMeta))
+        : 0;
+
+  const statusKey =
+    (payloadCount > 0
+      ? "present"
+      : normalizeKey(event?.breadcrumbs_status) ||
+        normalizeKey(meta.classified_status) ||
+        (count > 0 ? "present" : "missing_unknown"));
+  const sourceKey =
+    (payloadCount > 0
+      ? normalizeKey(event?.breadcrumbs_source) ||
+        normalizeKey(meta.source) ||
+        "provided"
+      : normalizeKey(event?.breadcrumbs_source) ||
+        normalizeKey(meta.source) ||
+        (count > 0 ? "provided" : "none"));
+  const reasonKey =
+    (payloadCount > 0
+      ? null
+      : normalizeKey(event?.breadcrumbs_reason) ||
+        normalizeKey(meta.classified_reason) ||
+        normalizeKey(meta.missing_reason_hint) ||
+        null);
+
+  return {
+    count,
+    lastAt: firstString(event?.breadcrumbs_last_at, meta.last_at),
+    status: statusKey || "missing_unknown",
+    statusLabel: BREADCRUMB_STATUS_META[statusKey]?.label || formatKeyAsLabel(statusKey),
+    statusTone: BREADCRUMB_STATUS_META[statusKey]?.tone || "warn",
+    source: sourceKey || "none",
+    sourceLabel: BREADCRUMB_SOURCE_LABELS[sourceKey] || formatKeyAsLabel(sourceKey),
+    reason: reasonKey,
+    reasonLabel: reasonKey ? (BREADCRUMB_REASON_LABELS[reasonKey] || formatKeyAsLabel(reasonKey)) : null,
+    meta,
+  };
+}
+
+function breadcrumbStatusClass(tone) {
+  if (tone === "ok") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+const BROWSER_META = {
+  chrome: {
+    label: "Chrome",
+    iconUrl: "https://cdn.simpleicons.org/googlechrome",
+  },
+  firefox: {
+    label: "Firefox",
+    iconUrl: "https://cdn.simpleicons.org/firefoxbrowser",
+  },
+  brave: {
+    label: "Brave",
+    iconUrl: "https://cdn.simpleicons.org/brave",
+  },
+  safari: {
+    label: "Safari",
+    iconUrl: "https://cdn.simpleicons.org/safari",
+  },
+  edge: {
+    label: "Edge",
+    iconUrl: "https://cdn.simpleicons.org/microsoftedge",
+  },
+  opera: {
+    label: "Opera",
+    iconUrl: "https://cdn.simpleicons.org/opera",
+  },
+};
+
+const PROVIDER_META = {
+  google: {
+    label: "Google",
+    iconUrl: "https://cdn.simpleicons.org/google",
+  },
+  facebook: {
+    label: "Facebook",
+    iconUrl: "https://cdn.simpleicons.org/facebook",
+  },
+  discord: {
+    label: "Discord",
+    iconUrl: "https://cdn.simpleicons.org/discord",
+  },
+  apple: {
+    label: "Apple",
+    iconUrl: "https://cdn.simpleicons.org/apple",
+  },
+  email: {
+    label: "Correo",
+    iconUrl: null,
+  },
+};
+
+const OS_META = {
+  windows: {
+    label: "Windows",
+    iconUrl: "https://cdn.simpleicons.org/windows11",
+  },
+  android: {
+    label: "Android",
+    iconUrl: "https://cdn.simpleicons.org/android",
+  },
+  ios: {
+    label: "iOS",
+    iconUrl: "https://cdn.simpleicons.org/apple",
+  },
+  macos: {
+    label: "macOS",
+    iconUrl: "https://cdn.simpleicons.org/apple",
+  },
+  linux: {
+    label: "Linux",
+    iconUrl: "https://cdn.simpleicons.org/linux",
+  },
+};
+
+function detectBrowser(event) {
+  const device = asObject(event?.device);
+  const context = asObject(event?.context);
+  const release = asObject(event?.release);
+  const raw = normalizeKey(
+    firstString(
+      device.browser,
+      context.browser,
+      context.user_agent_browser,
+      release.browser,
+    ),
+  );
+  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
+  if (raw.includes("chrome")) return { key: "chrome", ...BROWSER_META.chrome };
+  if (raw.includes("firefox") || raw.includes("mozilla")) return { key: "firefox", ...BROWSER_META.firefox };
+  if (raw.includes("brave")) return { key: "brave", ...BROWSER_META.brave };
+  if (raw.includes("safari")) return { key: "safari", ...BROWSER_META.safari };
+  if (raw.includes("edge")) return { key: "edge", ...BROWSER_META.edge };
+  if (raw.includes("opera")) return { key: "opera", ...BROWSER_META.opera };
+  return { key: raw, label: raw, iconUrl: null };
+}
+
+function detectProvider(event) {
+  const userRef = asObject(event?.user_ref);
+  const context = asObject(event?.context);
+  const appMeta = asObject(userRef.app_metadata);
+
+  const raw = normalizeKey(
+    firstString(
+      userRef.provider,
+      appMeta.provider,
+      context.provider,
+      context.auth_provider,
+    ),
+  );
+
+  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
+  if (raw.includes("google")) return { key: "google", ...PROVIDER_META.google };
+  if (raw.includes("facebook")) return { key: "facebook", ...PROVIDER_META.facebook };
+  if (raw.includes("discord")) return { key: "discord", ...PROVIDER_META.discord };
+  if (raw.includes("apple")) return { key: "apple", ...PROVIDER_META.apple };
+  if (raw.includes("email")) return { key: "email", ...PROVIDER_META.email };
+  return { key: raw, label: raw, iconUrl: null };
+}
+
+function detectContactEmail(event) {
+  const userRef = asObject(event?.user_ref);
+  const context = asObject(event?.context);
+  return firstString(
+    userRef.email,
+    context.email,
+    context.user_email,
+  );
+}
+
+function detectOs(event) {
+  const device = asObject(event?.device);
+  const context = asObject(event?.context);
+  const release = asObject(event?.release);
+  const raw = normalizeKey(
+    firstString(
+      device.os,
+      context.os,
+      context.platform,
+      release.os,
+    ),
+  );
+  if (!raw) return { key: "unknown", label: "Desconocido", iconUrl: null };
+  if (raw.includes("windows")) return { key: "windows", ...OS_META.windows };
+  if (raw.includes("android")) return { key: "android", ...OS_META.android };
+  if (raw.includes("ios")) return { key: "ios", ...OS_META.ios };
+  if (raw.includes("mac") || raw.includes("darwin")) return { key: "macos", ...OS_META.macos };
+  if (raw.includes("linux")) return { key: "linux", ...OS_META.linux };
+  return { key: raw, label: raw, iconUrl: null };
+}
+
+function detectDeviceType(event, osKey) {
+  const device = asObject(event?.device);
+  const context = asObject(event?.context);
+  const raw = normalizeKey(
+    firstString(
+      device.type,
+      context.device_type,
+      context.device,
+    ),
+  );
+  if (raw.includes("tablet")) return { key: "tablet", label: "Tablet", Icon: Tablet };
+  if (raw.includes("mobile") || raw.includes("phone")) return { key: "phone", label: "Teléfono", Icon: Smartphone };
+  if (raw.includes("desktop") || raw.includes("pc") || raw.includes("laptop")) {
+    return { key: "pc", label: "PC", Icon: Monitor };
+  }
+  if (osKey === "android" || osKey === "ios") return { key: "phone", label: "Teléfono", Icon: Smartphone };
+  return { key: "pc", label: "PC", Icon: Monitor };
+}
+
+function buildImportantTags({ event, symbolicationInfo, identity, breadcrumbDiagnostics }) {
+  if (!event) return [];
+  const tags = [
+    { label: "Nivel", value: formatLevelLabel(event.level), tone: "risk" },
+    { label: "Tipo", value: formatEventTypeLabel(event.event_type), tone: "base" },
+    { label: "Estado", value: event.event_domain || "-", tone: "base" },
+    { label: "Source", value: event.source || "-", tone: "base" },
+    { label: "App", value: event.app_id || "-", tone: "base" },
+    { label: "Release", value: event.release_version_label || "-", tone: "accent" },
+    { label: "Componente", value: event.resolved_component_key || "-", tone: "accent" },
+    { label: "Resolución", value: event.component_resolution_method || "-", tone: "base" },
+    {
+      label: "Symbolication",
+      value: formatSymbolicationStatus(symbolicationInfo?.symbolication_status),
+      tone: "accent",
+    },
+    { label: "Navegador", value: identity.browser.label || "-", tone: "base" },
+    { label: "Proveedor", value: identity.provider.label || "-", tone: "base" },
+    { label: "SO", value: identity.os.label || "-", tone: "base" },
+    { label: "Dispositivo", value: identity.deviceType.label || "-", tone: "base" },
+    {
+      label: "Breadcrumbs",
+      value: breadcrumbDiagnostics?.statusLabel || "-",
+      tone: breadcrumbDiagnostics?.statusTone === "ok" ? "base" : "risk",
+    },
+    { label: "Origen trail", value: breadcrumbDiagnostics?.sourceLabel || "-", tone: "base" },
+    { label: "Retention", value: event.retention_tier || "-", tone: "base" },
+  ];
+  if (breadcrumbDiagnostics?.reasonLabel) {
+    tags.push({ label: "Motivo trail", value: breadcrumbDiagnostics.reasonLabel, tone: "base" });
+  }
+  return tags.filter((tag) => tag.value && tag.value !== "-");
+}
+
+function tagToneClass(tone) {
+  if (tone === "risk") return "border-red-200 bg-red-50 text-red-700";
+  if (tone === "accent") return "border-[#D8C6FF] bg-[#F5F0FF] text-[#5E30A5]";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function normalizeBreadcrumb(entry, index) {
+  const obj = asObject(entry);
+  const title =
+    firstString(obj.message, obj.event, obj.action, obj.name, obj.category) ||
+    `Paso ${index + 1}`;
+  const timestamp = firstString(obj.timestamp, obj.occurred_at, obj.created_at, obj.time);
+  const detail =
+    firstString(
+      obj.description,
+      obj.route,
+      obj.screen,
+      obj.flow_step,
+      obj.details,
+      typeof entry === "string" ? entry : null,
+    ) || "Sin detalle adicional";
+
+  const meta = [
+    ["nivel", firstString(obj.level, obj.severity)],
+    ["tipo", firstString(obj.type, obj.event_type)],
+    ["ruta", firstString(obj.route, obj.path)],
+    ["pantalla", firstString(obj.screen)],
+    ["flow", firstString(obj.flow)],
+  ].filter((item) => item[1]);
+
+  return {
+    id: firstString(obj.id) || `crumb-${index}`,
+    index,
+    title,
+    timestamp,
+    detail,
+    meta,
+    raw: obj,
+  };
+}
+
+function toInt(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.trunc(num);
+}
+
+function isErrorBreadcrumb(crumb, eventLevelKey, isLast) {
+  const raw = asObject(crumb?.raw);
+  const level = normalizeKey(firstString(raw.level, raw.severity));
+  const type = normalizeKey(firstString(raw.type, raw.event_type));
+  const hay = `${crumb?.title || ""} ${crumb?.detail || ""} ${level} ${type}`.toLowerCase();
+  const errorWords = [
+    "error",
+    "fatal",
+    "exception",
+    "failed",
+    "fail",
+    "crash",
+    "throw",
+    "timeout",
+    "rejected",
+  ];
+
+  if (level === "error" || level === "fatal") return true;
+  if (errorWords.some((word) => hay.includes(word))) return true;
+  if (isLast && (eventLevelKey === "error" || eventLevelKey === "fatal")) return true;
+  return false;
+}
+
+function buildFailedCodeContext(symbolicationInfo, symbolicatedFrames) {
+  const stack = asObject(symbolicationInfo?.symbolicated_stack);
+  const errorExcerpt = asObject(stack.error_excerpt);
+  const excerptLines = asArray(errorExcerpt.lines);
+
+  if (excerptLines.length > 0) {
+    const line = toInt(errorExcerpt.error_line) ?? toInt(errorExcerpt.line) ?? null;
+    const lines = excerptLines.map((entry, idx) => {
+      const row = asObject(entry);
+      const lineNo = toInt(row.line_no) ?? (line != null ? line - 10 + idx : idx + 1);
+      const text = firstString(row.text, row.code, row.value, "") || "";
+      const highlight = Boolean(row.highlight) || (line != null ? lineNo === line : false);
+      return { lineNo, text, highlight };
+    });
+    return {
+      source: firstString(errorExcerpt.source, "unknown"),
+      line: line ?? 1,
+      column: toInt(errorExcerpt.error_column) ?? toInt(errorExcerpt.column) ?? 0,
+      frameLabel: firstString(errorExcerpt.frame_name, "Frame"),
+      lines,
+    };
+  }
+
+  const frames = Array.isArray(symbolicatedFrames) ? symbolicatedFrames : [];
+  const frameWithExcerpt = frames.find((item) => {
+    const original = asObject(item?.original);
+    const excerpt = asObject(original.excerpt);
+    const lines = asArray(excerpt.lines);
+    return lines.length > 0;
+  });
+  if (!frameWithExcerpt) return null;
+
+  const original = asObject(frameWithExcerpt.original);
+  const excerpt = asObject(original.excerpt);
+  const rawLines = asArray(excerpt.lines);
+  if (!rawLines.length) return null;
+
+  const line = toInt(excerpt.error_line) ?? toInt(original.line) ?? toInt(frameWithExcerpt.line) ?? 1;
+  const lines = rawLines.map((entry, idx) => {
+    const row = asObject(entry);
+    const lineNo = toInt(row.line_no) ?? line - 10 + idx;
+    const text = firstString(row.text, row.code, row.value, "") || "";
+    const highlight = Boolean(row.highlight) || lineNo === line;
+    return { lineNo, text, highlight };
+  });
+
+  return {
+    source: firstString(original.source, frameWithExcerpt.file, frameWithExcerpt.generated_file, "unknown"),
+    line,
+    column: toInt(excerpt.error_column) ?? toInt(original.column) ?? toInt(frameWithExcerpt.column) ?? 0,
+    frameLabel: firstString(original.name, frameWithExcerpt.function, frameWithExcerpt.raw, "Frame"),
+    lines,
+  };
+}
+
+function IdentityCard({ title, value, subtitle, iconUrl, FallbackIcon }) {
+  return (
+    <div className="rounded-xl border border-[#E8E2F5] bg-white px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#E7DDFB] bg-[#F7F2FF]">
+          <FallbackIcon size={16} className="text-[#6A3EB1]" />
+          {iconUrl ? (
+            <img
+              src={iconUrl}
+              alt={title}
+              loading="lazy"
+              className="absolute h-5 w-5 object-contain"
+              referrerPolicy="no-referrer"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ) : null}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            {title}
+          </div>
+          <div className="truncate text-sm font-semibold text-slate-800">{value || "-"}</div>
+          {subtitle ? (
+            <div className="truncate text-[11px] text-slate-500">{subtitle}</div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function IssuesTable() {
@@ -251,6 +825,7 @@ export default function IssuesTable() {
         action: "issue",
         issue_id: issueId,
         cache_type: "long",
+        force: true,
       },
     });
     setCacheIssueBusy(false);
@@ -318,7 +893,7 @@ export default function IssuesTable() {
     if (!isDetailsRoute || !eventId || !issueId) return;
     setSymbolicationError(null);
     void loadEventDetails(issueId, eventId);
-    void symbolicateEvent(eventId, { cacheType: "short" });
+    void symbolicateEvent(eventId, { cacheType: "short", force: true });
   }, [isDetailsRoute, issueId, eventId]);
 
   useEffect(() => {
@@ -364,6 +939,62 @@ export default function IssuesTable() {
   const symbolicatedFrames = Array.isArray(symbolicationInfo?.symbolicated_stack?.frames)
     ? symbolicationInfo.symbolicated_stack.frames
     : [];
+
+  const breadcrumbDiagnostics = useMemo(
+    () => resolveBreadcrumbDiagnostics(selectedEvent),
+    [selectedEvent],
+  );
+
+  const identityInfo = useMemo(() => {
+    if (!selectedEvent) {
+      return {
+        browser: { label: "-", iconUrl: null },
+        provider: { label: "-", iconUrl: null },
+        os: { label: "-", iconUrl: null },
+        deviceType: { label: "-", Icon: Monitor },
+        email: null,
+      };
+    }
+    const browser = detectBrowser(selectedEvent);
+    const provider = detectProvider(selectedEvent);
+    const os = detectOs(selectedEvent);
+    const deviceType = detectDeviceType(selectedEvent, os.key);
+    const email = detectContactEmail(selectedEvent);
+    return { browser, provider, os, deviceType, email };
+  }, [selectedEvent]);
+
+  const importantTags = useMemo(
+    () =>
+      buildImportantTags({
+        event: selectedEvent,
+        symbolicationInfo,
+        identity: identityInfo,
+        breadcrumbDiagnostics,
+      }),
+    [selectedEvent, symbolicationInfo, identityInfo, breadcrumbDiagnostics],
+  );
+
+  const breadcrumbTimeline = useMemo(() => {
+    const raw = Array.isArray(selectedEvent?.breadcrumbs) ? selectedEvent.breadcrumbs : [];
+    const normalized = raw.map((entry, index) => normalizeBreadcrumb(entry, index));
+    const eventLevelKey = normalizeKey(selectedEvent?.level);
+    const flags = normalized.map((crumb, index) =>
+      isErrorBreadcrumb(crumb, eventLevelKey, index === normalized.length - 1),
+    );
+    let errorIndex = flags.lastIndexOf(true);
+    if (errorIndex < 0 && normalized.length > 0 && (eventLevelKey === "error" || eventLevelKey === "fatal")) {
+      errorIndex = normalized.length - 1;
+    }
+    return normalized.map((crumb, index) => ({
+      ...crumb,
+      isError: index === errorIndex,
+    }));
+  }, [selectedEvent]);
+
+  const failedCodeContext = useMemo(
+    () => buildFailedCodeContext(symbolicationInfo, symbolicatedFrames),
+    [symbolicationInfo, symbolicatedFrames],
+  );
 
   if (isDetailsRoute) {
     if (loadingEvents && !selectedEvent) {
@@ -421,11 +1052,217 @@ export default function IssuesTable() {
           </div>
         ) : null}
 
+        <div className="rounded-xl border border-[#E8E2F5] bg-white p-3">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+            <Tags size={15} />
+            Tags importantes del evento
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {importantTags.map((tag) => (
+              <div
+                key={`${tag.label}-${tag.value}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${tagToneClass(tag.tone)}`}
+              >
+                <span className="opacity-80">{tag.label}:</span>
+                <span>{tag.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <IdentityCard
+            title="Navegador"
+            value={identityInfo.browser.label}
+            iconUrl={identityInfo.browser.iconUrl}
+            FallbackIcon={Globe2}
+          />
+          <IdentityCard
+            title="Proveedor"
+            value={identityInfo.provider.label}
+            subtitle={identityInfo.email || null}
+            iconUrl={identityInfo.provider.iconUrl}
+            FallbackIcon={identityInfo.provider.key === "email" ? Mail : UserRound}
+          />
+          <IdentityCard
+            title="Sistema operativo"
+            value={identityInfo.os.label}
+            iconUrl={identityInfo.os.iconUrl}
+            FallbackIcon={Monitor}
+          />
+          <IdentityCard
+            title="Dispositivo"
+            value={identityInfo.deviceType.label}
+            subtitle={identityInfo.email ? "Contacto detectado" : "Sin correo detectado"}
+            iconUrl={null}
+            FallbackIcon={identityInfo.deviceType.Icon || Monitor}
+          />
+        </div>
+
+        <div className="rounded-xl border border-[#E8E2F5] bg-white p-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+            <Layers3 size={15} />
+            Secuencia de breadcrumbs
+            <span className="rounded-full border border-[#E2D6FA] bg-[#F6F2FF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
+              {breadcrumbTimeline.length}
+            </span>
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${breadcrumbStatusClass(
+                breadcrumbDiagnostics.statusTone,
+              )}`}
+            >
+              {breadcrumbDiagnostics.statusLabel}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              {breadcrumbDiagnostics.sourceLabel}
+            </span>
+          </div>
+          <div className="mb-3 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <span className="font-semibold text-slate-700">Count:</span> {breadcrumbDiagnostics.count}
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <span className="font-semibold text-slate-700">Last at:</span> {formatDate(breadcrumbDiagnostics.lastAt)}
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <span className="font-semibold text-slate-700">Status key:</span> {breadcrumbDiagnostics.status}
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <span className="font-semibold text-slate-700">Source key:</span> {breadcrumbDiagnostics.source}
+            </div>
+          </div>
+          {breadcrumbDiagnostics.reasonLabel ? (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+              <span className="font-semibold">Motivo:</span> {breadcrumbDiagnostics.reasonLabel}
+            </div>
+          ) : null}
+
+          {breadcrumbTimeline.length > 0 ? (
+            <div className="space-y-2">
+              {breadcrumbTimeline.map((crumb, idx) => (
+                <div key={`${crumb.id}-${idx}`} className="relative pl-14">
+                  {idx < breadcrumbTimeline.length - 1 ? (
+                    <div
+                      className={`absolute left-[22px] top-[40px] h-[calc(100%-24px)] w-px ${
+                        crumb.isError
+                          ? "bg-gradient-to-b from-red-300 to-transparent"
+                          : "bg-gradient-to-b from-[#CBB8F3] to-transparent"
+                      }`}
+                    />
+                  ) : null}
+                  <div
+                    className={`absolute left-0 top-2 flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold ${
+                      crumb.isError
+                        ? "border border-red-300 bg-red-100 text-red-700"
+                        : "border border-[#DCCBFF] bg-[#F4EDFF] text-[#5E30A5]"
+                    }`}
+                  >
+                    {crumb.isError ? <AlertOctagon size={18} /> : idx + 1}
+                  </div>
+
+                  <div
+                    className={`min-h-[84px] rounded-xl px-4 py-3 ${
+                      crumb.isError
+                        ? "border border-red-200 bg-red-50"
+                        : "border border-[#EEE7FC] bg-[#FCFBFF]"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className={`text-sm font-semibold ${crumb.isError ? "text-red-700" : "text-slate-800"}`}>
+                        {crumb.title}
+                      </div>
+                      <div className={`text-[11px] ${crumb.isError ? "text-red-600" : "text-slate-500"}`}>
+                        {crumb.timestamp ? formatDate(crumb.timestamp) : "Sin timestamp"}
+                      </div>
+                    </div>
+                    {crumb.isError ? (
+                      <div className="mt-1 inline-flex items-center rounded-full border border-red-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                        Paso con error
+                      </div>
+                    ) : null}
+                    <div className={`mt-1 text-xs ${crumb.isError ? "text-red-700" : "text-slate-600"}`}>
+                      {crumb.detail}
+                    </div>
+                    {crumb.meta.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {crumb.meta.map(([key, value]) => (
+                          <div
+                            key={`${crumb.id}-${key}`}
+                            className={`rounded-md bg-white px-2 py-0.5 text-[10px] ${
+                              crumb.isError
+                                ? "border border-red-200 text-red-700"
+                                : "border border-[#E5DBF8] text-slate-600"
+                            }`}
+                          >
+                            <span className="font-semibold text-[#5E30A5]">{key}:</span> {value}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-[#DDD4F3] px-3 py-4 text-center text-xs text-slate-500">
+              Este evento no tiene breadcrumbs registrados.{" "}
+              {breadcrumbDiagnostics.reasonLabel
+                ? `Motivo detectado: ${breadcrumbDiagnostics.reasonLabel}`
+                : "Motivo detectado: no determinado."}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">
+            <Code2 size={15} />
+            Codigo que fallo
+          </div>
+
+          {failedCodeContext ? (
+            <>
+              <div className="mb-2 text-xs text-red-700">
+                {failedCodeContext.source}:{failedCodeContext.line}:{failedCodeContext.column}
+              </div>
+              <div className="overflow-auto rounded-lg border border-red-200 bg-[#211A2B] p-2">
+                <div className="min-w-[420px] space-y-1 font-mono text-[11px] leading-5">
+                  {failedCodeContext.lines.map((line, idx) => (
+                    <div
+                      key={`${failedCodeContext.source}-${line.lineNo}-${idx}`}
+                      className={`grid grid-cols-[56px_minmax(0,1fr)] items-start gap-3 rounded px-2 py-0.5 ${
+                        line.highlight ? "bg-red-500/20 ring-1 ring-red-400/50" : "bg-transparent"
+                      }`}
+                    >
+                      <span className={`text-right ${line.highlight ? "text-red-200" : "text-slate-500"}`}>
+                        {line.lineNo}
+                      </span>
+                      <pre
+                        className={`whitespace-pre-wrap break-words ${
+                          line.highlight ? "text-red-100" : "text-slate-100"
+                        }`}
+                      >
+                        {line.text || " "}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-2 text-[11px] text-red-700">
+                {failedCodeContext.frameLabel || "Frame"}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-dashed border-red-200 bg-white px-3 py-4 text-center text-xs text-red-600">
+              No hay codigo fuente disponible para este release/frame.
+            </div>
+          )}
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-[#E8E2F5] bg-white p-3 text-xs text-slate-700">
             <div><span className="font-semibold">Fecha:</span> {formatDate(selectedEvent.occurred_at)}</div>
-            <div><span className="font-semibold">Nivel:</span> {selectedEvent.level || "-"}</div>
-            <div><span className="font-semibold">Tipo:</span> {selectedEvent.event_type || "-"}</div>
+            <div><span className="font-semibold">Severidad:</span> {formatLevelLabel(selectedEvent.level)}</div>
+            <div><span className="font-semibold">Clase:</span> {formatEventTypeLabel(selectedEvent.event_type)}</div>
             <div><span className="font-semibold">Codigo:</span> {selectedEvent.error_code || "-"}</div>
             <div><span className="font-semibold">Issue:</span> {selectedEvent.issue_id || "-"}</div>
             <div><span className="font-semibold">App:</span> {selectedEvent.app_id || "-"}</div>
@@ -447,8 +1284,8 @@ export default function IssuesTable() {
             <div><span className="font-semibold">Revision:</span> {selectedEvent.resolved_component_revision_no ?? "-"}</div>
             <div><span className="font-semibold">Revision ID:</span> {selectedEvent.resolved_component_revision_id || "-"}</div>
             <div><span className="font-semibold">Resolution:</span> {selectedEvent.component_resolution_method || "-"}</div>
-            <div><span className="font-semibold">Symbolication status:</span> {symbolicationInfo?.symbolication_status || "-"}</div>
-            <div><span className="font-semibold">Symbolication type:</span> {symbolicationInfo?.symbolication_type || "-"}</div>
+            <div><span className="font-semibold">Symbolication status:</span> {formatSymbolicationStatus(symbolicationInfo?.symbolication_status)}</div>
+            <div><span className="font-semibold">Symbolication type:</span> {formatSymbolicationType(symbolicationInfo?.symbolication_type)}</div>
             <div><span className="font-semibold">Symbolicated at:</span> {formatDate(symbolicationInfo?.symbolicated_at)}</div>
           </div>
         </div>
@@ -467,6 +1304,11 @@ export default function IssuesTable() {
           <div className="rounded-xl border border-[#E8E2F5] bg-white p-3 text-xs text-slate-700">
             <div><span className="font-semibold">Retention tier:</span> {selectedEvent.retention_tier || "-"}</div>
             <div><span className="font-semibold">Retention expires:</span> {formatDate(selectedEvent.retention_expires_at)}</div>
+            <div><span className="font-semibold">Breadcrumbs status:</span> {breadcrumbDiagnostics.statusLabel}</div>
+            <div><span className="font-semibold">Breadcrumbs source:</span> {breadcrumbDiagnostics.sourceLabel}</div>
+            <div><span className="font-semibold">Breadcrumbs reason:</span> {breadcrumbDiagnostics.reasonLabel || "-"}</div>
+            <div><span className="font-semibold">Breadcrumbs count:</span> {breadcrumbDiagnostics.count}</div>
+            <div><span className="font-semibold">Breadcrumbs last at:</span> {formatDate(breadcrumbDiagnostics.lastAt)}</div>
             <div><span className="font-semibold">User ID:</span> {selectedEvent.user_id || "-"}</div>
             <div><span className="font-semibold">Auth user ID:</span> {selectedEvent.auth_user_id || "-"}</div>
             <div><span className="font-semibold">Created at:</span> {formatDate(selectedEvent.created_at)}</div>
@@ -527,6 +1369,7 @@ export default function IssuesTable() {
                 device: selectedEvent.device,
                 user_ref: selectedEvent.user_ref,
                 breadcrumbs: selectedEvent.breadcrumbs,
+                breadcrumbs_meta: selectedEvent.breadcrumbs_meta,
                 support_context_extra: selectedEvent.support_context_extra,
               })}
             </pre>
@@ -605,9 +1448,9 @@ export default function IssuesTable() {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className={LEVEL_VARIANT[event.level] || LEVEL_VARIANT.info}>
-                  {event.level}
+                  {formatLevelBadge(event.level)}
                 </Badge>
-                <span className="font-semibold text-slate-700">{event.event_type}</span>
+                <span className="font-semibold text-slate-700">{formatEventTypeLabel(event.event_type)}</span>
                 <span className="text-slate-500">{formatDate(event.occurred_at)}</span>
               </div>
               <div className="mt-1 text-sm text-slate-700">{event.message}</div>
@@ -695,7 +1538,7 @@ export default function IssuesTable() {
             </td>
             <td className="px-4 py-3">
               <Badge className={LEVEL_VARIANT[issue.level] || LEVEL_VARIANT.info}>
-                {issue.level}
+                {formatLevelBadge(issue.level)}
               </Badge>
             </td>
             <td className="px-4 py-3 text-slate-600">{issue.status}</td>
