@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Rocket,
   ShieldCheck,
+  X,
   XCircle,
 } from "lucide-react";
 import Table from "../../components/ui/Table";
@@ -60,40 +61,6 @@ function normalizeReleaseStatus(envKey, status) {
   return normalizedStatus;
 }
 
-function VersionCard({ row, onRelease, releaseLoading = false, releaseMessage = "" }) {
-  const isDevelopment = String(row?.env_key || "").toLowerCase() === "dev";
-  const canRelease = isDevelopment && typeof onRelease === "function";
-  const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
-
-  return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs uppercase tracking-[0.1em] text-slate-400">
-          {normalizeEnvLabel(row.env_key)}
-        </div>
-        {canRelease ? (
-          <button
-            type="button"
-            onClick={onRelease}
-            disabled={releaseLoading}
-            className="inline-flex items-center rounded-lg border border-[#E9E2F7] px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
-          >
-            {releaseLoading ? "Creando..." : "Relase"}
-          </button>
-        ) : null}
-      </div>
-      <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
-      <div className="mt-2 text-xs text-slate-500">Estado: {statusLabel}</div>
-      <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
-      {isDevelopment && releaseMessage ? (
-        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
-          {releaseMessage}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function statusBadgeClass(status) {
   if (status === "pending") return "bg-amber-100 text-amber-700";
   if (status === "approved") return "bg-indigo-100 text-indigo-700";
@@ -106,6 +73,94 @@ function statusBadgeClass(status) {
 function formatDate(value) {
   if (!value) return "-";
   return new Date(value).toLocaleString("es-EC");
+}
+
+function versionKey(envKey, versionLabel) {
+  return `${String(envKey || "").toLowerCase()}::${String(versionLabel || "").trim()}`;
+}
+
+function actionKey(prefix, ...parts) {
+  const normalized = parts
+    .map((part) => String(part || "").replace(/[^a-zA-Z0-9_-]/g, "_"))
+    .join("-");
+  return `${prefix}-${normalized}`;
+}
+
+function deploymentStateFromRequest(row) {
+  if (!row) return "not_deployed";
+  const requestStatus = String(row.status || "").toLowerCase();
+  const deploymentStatus = String(row.deployment_status || "").toLowerCase();
+
+  if (deploymentStatus === "success" || deploymentStatus === "deployed") return "deployed";
+  if (requestStatus === "pending") return "pending";
+  if (requestStatus === "approved") return "approved";
+  if (requestStatus === "rejected") return "rejected";
+  if (requestStatus === "failed" || deploymentStatus === "failed") return "failed";
+  if (requestStatus === "executed") return deploymentStatus === "failed" ? "failed" : "deployed";
+  return "not_deployed";
+}
+
+function deploymentStateBadgeClass(state) {
+  if (state === "deployed") return "bg-emerald-100 text-emerald-700";
+  if (state === "pending") return "bg-amber-100 text-amber-700";
+  if (state === "approved") return "bg-indigo-100 text-indigo-700";
+  if (state === "failed") return "bg-red-100 text-red-700";
+  if (state === "rejected") return "bg-slate-200 text-slate-700";
+  return "bg-slate-100 text-slate-600";
+}
+
+function deploymentStateLabel(state) {
+  if (state === "deployed") return "deployed";
+  if (state === "pending") return "pending";
+  if (state === "approved") return "approved";
+  if (state === "failed") return "failed";
+  if (state === "rejected") return "rejected";
+  return "not deployed";
+}
+
+function uniqueReleaseRowsByVersion(rows) {
+  const list = [];
+  const seen = new Set();
+  for (const row of rows || []) {
+    const versionLabel = String(row.version_label || "").trim();
+    if (!versionLabel || seen.has(versionLabel)) continue;
+    seen.add(versionLabel);
+    list.push(row);
+  }
+  return list;
+}
+
+function VersionCard({ row, action, message = "" }) {
+  const isDevelopment = String(row?.env_key || "").toLowerCase() === "dev";
+  const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
+
+  return (
+    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-xs uppercase tracking-[0.1em] text-slate-400">
+          {normalizeEnvLabel(row.env_key)}
+        </div>
+        {action ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            disabled={action.disabled}
+            className="inline-flex items-center rounded-lg border border-[#E9E2F7] px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+          >
+            {action.loading ? action.loadingLabel || "Procesando..." : action.label}
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
+      <div className="mt-2 text-xs text-slate-500">Estado: {statusLabel}</div>
+      <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
+      {isDevelopment && message ? (
+        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
+          {message}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function VersioningOverviewPanel() {
@@ -121,32 +176,39 @@ export default function VersioningOverviewPanel() {
   const [deployRequests, setDeployRequests] = useState([]);
   const [promotionHistory, setPromotionHistory] = useState([]);
   const [releaseOpsMode, setReleaseOpsMode] = useState("promote");
+
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
-
-  const [promoteForm, setPromoteForm] = useState({
-    productKey: "",
-    fromEnv: "staging",
-    toEnv: "prod",
-    semver: "",
-    notes: "",
-  });
-  const [promoteOptions, setPromoteOptions] = useState([]);
-  const [promoting, setPromoting] = useState(false);
+  const [promoteSourceEnv, setPromoteSourceEnv] = useState("dev");
+  const [promoteRows, setPromoteRows] = useState([]);
+  const [promoteRowsLoading, setPromoteRowsLoading] = useState(false);
+  const [promotingActionId, setPromotingActionId] = useState("");
   const [promoteMessage, setPromoteMessage] = useState("");
+  const [promoteDraft, setPromoteDraft] = useState(null);
 
-  const [deployForm, setDeployForm] = useState({
-    productKey: "",
-    envKey: "staging",
-    semver: "",
-    notes: "",
-  });
-  const [deployOptions, setDeployOptions] = useState([]);
+  const [deployTargetEnv, setDeployTargetEnv] = useState("staging");
+  const [deployNotes, setDeployNotes] = useState("");
   const [deployingActionId, setDeployingActionId] = useState("");
   const [deployMessage, setDeployMessage] = useState("");
   const [activeDeployRequestId, setActiveDeployRequestId] = useState("");
   const [deploySyncRequired, setDeploySyncRequired] = useState(null);
+
   const [approvalMessage, setApprovalMessage] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const selectedProduct = useMemo(
+    () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
+    [catalog.products, activeProductKey]
+  );
+  const selectedProductLabel = useMemo(
+    () => normalizeProductLabel(selectedProduct),
+    [selectedProduct]
+  );
+  const promoteTargetEnv = useMemo(
+    () => (promoteSourceEnv === "dev" ? "staging" : "prod"),
+    [promoteSourceEnv]
+  );
 
   const load = useCallback(
     async (manual = false) => {
@@ -165,17 +227,19 @@ export default function VersioningOverviewPanel() {
         setDeployRequests(requests);
 
         const firstProduct = dataCatalog.products?.[0]?.product_key || "";
-        const selectedProduct = activeProductKey || firstProduct;
-        setActiveProductKey(selectedProduct);
+        const selectedProductKey = activeProductKey || firstProduct;
+        setActiveProductKey(selectedProductKey);
         const selectedProductMeta =
-          dataCatalog.products?.find((product) => product.product_key === selectedProduct) || null;
-        if (selectedProduct) {
+          dataCatalog.products?.find((product) => product.product_key === selectedProductKey) ||
+          null;
+
+        if (selectedProductKey) {
           const [drift, promotions] = await Promise.all([
-            fetchDrift(selectedProduct, driftFrom, driftTo),
+            fetchDrift(selectedProductKey, driftFrom, driftTo),
             selectedProductMeta?.id
               ? fetchPromotionHistory({
                   productId: selectedProductMeta.id,
-                  limit: 50,
+                  limit: 80,
                 })
               : Promise.resolve([]),
           ]);
@@ -185,13 +249,6 @@ export default function VersioningOverviewPanel() {
           setDriftRows([]);
           setPromotionHistory([]);
         }
-
-        if (!promoteForm.productKey && firstProduct) {
-          setPromoteForm((prev) => ({ ...prev, productKey: firstProduct }));
-        }
-        if (!deployForm.productKey && firstProduct) {
-          setDeployForm((prev) => ({ ...prev, productKey: firstProduct }));
-        }
       } catch (err) {
         setError(err?.message || "No se pudo cargar versionado.");
       } finally {
@@ -199,7 +256,7 @@ export default function VersioningOverviewPanel() {
         setRefreshing(false);
       }
     },
-    [activeProductKey, deployForm.productKey, driftFrom, driftTo, promoteForm.productKey]
+    [activeProductKey, driftFrom, driftTo]
   );
 
   useEffect(() => {
@@ -207,79 +264,46 @@ export default function VersioningOverviewPanel() {
   }, [load]);
 
   useEffect(() => {
-    if (!activeProductKey) return;
-    setPromoteForm((prev) =>
-      prev.productKey === activeProductKey
-        ? prev
-        : { ...prev, productKey: activeProductKey, semver: "" }
-    );
-    setDeployForm((prev) =>
-      prev.productKey === activeProductKey
-        ? prev
-        : { ...prev, productKey: activeProductKey, semver: "" }
-    );
+    if (!activeProductKey) {
+      setPromoteRows([]);
+      return;
+    }
+    let cancelled = false;
+    setPromoteRowsLoading(true);
+    setError("");
+
+    fetchReleasesByProductEnv(activeProductKey, promoteSourceEnv)
+      .then((rows) => {
+        if (cancelled) return;
+        setPromoteRows(uniqueReleaseRowsByVersion(rows));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPromoteRows([]);
+        setError(err?.message || "No se pudieron cargar releases para promocionar.");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setPromoteRowsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProductKey, promoteSourceEnv]);
+
+  useEffect(() => {
+    setPromoteMessage("");
+    setDeployMessage("");
+    setApprovalMessage("");
+    setDeploySyncRequired(null);
+    setActiveDeployRequestId("");
+    setPromoteDraft(null);
   }, [activeProductKey]);
 
   useEffect(() => {
-    const loadPromoteReleases = async () => {
-      if (!promoteForm.productKey || !promoteForm.fromEnv) {
-        setPromoteOptions([]);
-        return;
-      }
-      try {
-        const releases = await fetchReleasesByProductEnv(
-          promoteForm.productKey,
-          promoteForm.fromEnv
-        );
-        const unique = [];
-        const seen = new Set();
-        for (const row of releases) {
-          if (seen.has(row.version_label)) continue;
-          seen.add(row.version_label);
-          unique.push(row.version_label);
-        }
-        setPromoteOptions(unique);
-        if (!promoteForm.semver && unique[0]) {
-          setPromoteForm((prev) => ({ ...prev, semver: unique[0] }));
-        }
-      } catch {
-        setPromoteOptions([]);
-      }
-    };
-    loadPromoteReleases();
-  }, [promoteForm.fromEnv, promoteForm.productKey, promoteForm.semver]);
-
-  useEffect(() => {
-    const loadDeployReleases = async () => {
-      if (!deployForm.productKey || !deployForm.envKey) {
-        setDeployOptions([]);
-        return;
-      }
-      try {
-        const releases = await fetchReleasesByProductEnv(deployForm.productKey, deployForm.envKey);
-        const unique = [];
-        const seen = new Set();
-        for (const row of releases) {
-          if (seen.has(row.version_label)) continue;
-          seen.add(row.version_label);
-          unique.push(row.version_label);
-        }
-        setDeployOptions(unique);
-        if (!deployForm.semver && unique[0]) {
-          setDeployForm((prev) => ({ ...prev, semver: unique[0] }));
-        }
-      } catch {
-        setDeployOptions([]);
-      }
-    };
-    loadDeployReleases();
-  }, [deployForm.envKey, deployForm.productKey, deployForm.semver]);
-
-  useEffect(() => {
-    setActiveDeployRequestId("");
-    setDeploySyncRequired(null);
-    setDeployMessage("");
-  }, [deployForm.productKey, deployForm.envKey, deployForm.semver]);
+    setPromoteDraft(null);
+  }, [promoteSourceEnv, releaseOpsMode]);
 
   const driftSummary = useMemo(() => {
     const total = driftRows.length;
@@ -287,31 +311,27 @@ export default function VersioningOverviewPanel() {
     return { total, differs };
   }, [driftRows]);
 
+  const selectedProductDeployRequests = useMemo(
+    () => deployRequests.filter((row) => row.product_key === activeProductKey),
+    [deployRequests, activeProductKey]
+  );
+
   const pendingDeployCount = useMemo(
-    () => deployRequests.filter((row) => row.product_key === activeProductKey && row.status === "pending").length,
-    [deployRequests, activeProductKey]
+    () => selectedProductDeployRequests.filter((row) => row.status === "pending").length,
+    [selectedProductDeployRequests]
   );
-
   const approvedDeployCount = useMemo(
-    () => deployRequests.filter((row) => row.product_key === activeProductKey && row.status === "approved").length,
-    [deployRequests, activeProductKey]
+    () => selectedProductDeployRequests.filter((row) => row.status === "approved").length,
+    [selectedProductDeployRequests]
   );
-
   const executedDeployCount = useMemo(
-    () => deployRequests.filter((row) => row.product_key === activeProductKey && row.status === "executed").length,
-    [deployRequests, activeProductKey]
+    () => selectedProductDeployRequests.filter((row) => row.status === "executed").length,
+    [selectedProductDeployRequests]
   );
 
   const sortedDeployRequests = useMemo(() => {
-    const rank = {
-      pending: 0,
-      approved: 1,
-      executed: 2,
-      failed: 3,
-      rejected: 4,
-    };
-    return deployRequests
-      .filter((row) => row.product_key === activeProductKey)
+    const rank = { pending: 0, approved: 1, executed: 2, failed: 3, rejected: 4 };
+    return selectedProductDeployRequests
       .slice()
       .sort((a, b) => {
         const rankA = rank[a.status] ?? 99;
@@ -319,16 +339,28 @@ export default function VersioningOverviewPanel() {
         if (rankA !== rankB) return rankA - rankB;
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       });
-  }, [deployRequests, activeProductKey]);
+  }, [selectedProductDeployRequests]);
 
-  const selectedProduct = useMemo(
-    () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
-    [catalog.products, activeProductKey]
+  const latestDeployRequestByVersion = useMemo(() => {
+    const map = new Map();
+    const sorted = selectedProductDeployRequests
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    for (const row of sorted) {
+      const key = versionKey(row.env_key, row.version_label);
+      if (!map.has(key)) map.set(key, row);
+    }
+    return map;
+  }, [selectedProductDeployRequests]);
+
+  const getLatestDeployRequestForVersion = useCallback(
+    (envKey, versionLabel) => latestDeployRequestByVersion.get(versionKey(envKey, versionLabel)) || null,
+    [latestDeployRequestByVersion]
   );
 
-  const selectedProductLabel = useMemo(
-    () => normalizeProductLabel(selectedProduct),
-    [selectedProduct]
+  const getDeploymentStateForVersion = useCallback(
+    (envKey, versionLabel) => deploymentStateFromRequest(getLatestDeployRequestForVersion(envKey, versionLabel)),
+    [getLatestDeployRequestForVersion]
   );
 
   const envCards = useMemo(() => {
@@ -351,78 +383,123 @@ export default function VersioningOverviewPanel() {
     });
   }, [activeProductKey, latestReleases]);
 
-  const handlePromote = async () => {
-    setPromoteMessage("");
-    if (!promoteForm.productKey || !promoteForm.semver) {
-      setPromoteMessage("Selecciona producto y version.");
+  const promotedToTargetVersionSet = useMemo(() => {
+    const set = new Set();
+    for (const row of promotionHistory || []) {
+      if (String(row.to_env_key || "") === promoteTargetEnv) {
+        const versionLabel = String(row.to_version_label || "").trim();
+        if (versionLabel) set.add(versionLabel);
+      }
+    }
+    return set;
+  }, [promotionHistory, promoteTargetEnv]);
+
+  const deployHistoryRows = useMemo(
+    () =>
+      (promotionHistory || []).filter(
+        (row) => String(row.to_env_key || "").toLowerCase() === deployTargetEnv
+      ),
+    [promotionHistory, deployTargetEnv]
+  );
+
+  const openConfirmDialog = useCallback((dialog) => {
+    setConfirmDialog(dialog);
+  }, []);
+
+  const closeConfirmDialog = useCallback(() => {
+    if (confirmLoading) return;
+    setConfirmDialog(null);
+  }, [confirmLoading]);
+
+  const handlePromoteVersion = async ({
+    semver,
+    fromEnv = promoteSourceEnv,
+    toEnv = promoteTargetEnv,
+    source = "list",
+    notes = "",
+  }) => {
+    if (!activeProductKey || !semver) {
+      setPromoteMessage("Selecciona una version valida para promover.");
       return;
     }
-    setPromoting(true);
+
+    const currentActionId = actionKey("promote", source, fromEnv, toEnv, semver);
+    setPromotingActionId(currentActionId);
+    setPromoteMessage("");
+
     try {
       await promoteRelease({
-        productKey: promoteForm.productKey,
-        fromEnv: promoteForm.fromEnv,
-        toEnv: promoteForm.toEnv,
-        semver: promoteForm.semver,
-        notes: promoteForm.notes,
+        productKey: activeProductKey,
+        fromEnv,
+        toEnv,
+        semver,
+        notes,
       });
-      setPromoteMessage("Promocion registrada correctamente.");
+      setPromoteMessage(`Release ${semver} promovida de ${fromEnv} a ${toEnv}.`);
+      setPromoteDraft(null);
       await load(true);
     } catch (err) {
       setPromoteMessage(err?.message || "No se pudo promover la release.");
     } finally {
-      setPromoting(false);
+      setPromotingActionId("");
     }
   };
 
-  const handleCreateDeployRequest = async () => {
+  const handleDeployByVersion = async ({
+    envKey,
+    semver,
+    source = "history",
+    notes = "",
+  }) => {
     setDeployMessage("");
-    if (!deployForm.productKey || !deployForm.envKey || !deployForm.semver) {
-      setDeployMessage("Selecciona app, entorno y version para ejecutar deploy.");
+    if (!activeProductKey || !envKey || !semver) {
+      setDeployMessage("Faltan datos para ejecutar deploy.");
       return;
     }
-    if (!DEPLOYABLE_PRODUCTS.includes(deployForm.productKey)) {
+    if (!DEPLOYABLE_PRODUCTS.includes(activeProductKey)) {
       setDeployMessage(
         "Deploy por artifact exacto disponible solo para REFERIDOS PWA y PRELAUNCH WEB."
       );
       return;
     }
-    if (!DEPLOY_ENV_OPTIONS.includes(deployForm.envKey)) {
+    if (!DEPLOY_ENV_OPTIONS.includes(envKey)) {
       setDeployMessage("Deploy solo permitido en staging o prod.");
       return;
     }
 
-    setDeployingActionId("deploy-admin");
-    let normalizedRequestId = activeDeployRequestId || "";
-    try {
-      if (!normalizedRequestId) {
-        const existingRequest = deployRequests.find(
-          (row) =>
-            row.product_key === deployForm.productKey &&
-            row.env_key === deployForm.envKey &&
-            row.version_label === deployForm.semver &&
-            ["pending", "approved"].includes(row.status)
-        );
+    const currentActionId = actionKey("deploy", source, envKey, semver);
+    setDeployingActionId(currentActionId);
+    setReleaseOpsMode("deploy");
+    setDeployTargetEnv(envKey);
 
-        if (existingRequest?.id) {
-          normalizedRequestId = existingRequest.id;
-        } else {
-          const requestId = await requestDeploy({
-            productKey: deployForm.productKey,
-            envKey: deployForm.envKey,
-            semver: deployForm.semver,
-            actor: "admin-ui-direct",
-            notes: deployForm.notes,
-            metadata: {
-              trigger: "admin_direct_panel",
-              mode: "direct_deploy",
-            },
-          });
-          normalizedRequestId =
-            typeof requestId === "string"
-              ? requestId
-              : requestId?.request_id || requestId?.id || "";
-        }
+    let normalizedRequestId = "";
+    try {
+      const existingRequest = selectedProductDeployRequests.find(
+        (row) =>
+          row.env_key === envKey &&
+          row.version_label === semver &&
+          ["pending", "approved"].includes(String(row.status || "").toLowerCase())
+      );
+
+      if (existingRequest?.id) {
+        normalizedRequestId = existingRequest.id;
+      } else {
+        const requestId = await requestDeploy({
+          productKey: activeProductKey,
+          envKey,
+          semver,
+          actor: "admin-ui-direct",
+          notes: notes || deployNotes,
+          metadata: {
+            trigger: "admin_list_deploy",
+            source,
+          },
+        });
+
+        normalizedRequestId =
+          typeof requestId === "string"
+            ? requestId
+            : requestId?.request_id || requestId?.id || "";
       }
 
       if (!normalizedRequestId) {
@@ -430,17 +507,17 @@ export default function VersioningOverviewPanel() {
       }
 
       setActiveDeployRequestId(normalizedRequestId);
-
       const result = await triggerDeployPipeline({
         requestId: normalizedRequestId,
         forceAdminOverride: true,
         syncRelease: false,
         syncOnly: false,
       });
+
       setDeploySyncRequired(null);
       setActiveDeployRequestId("");
       setDeployMessage(
-        `Deploy como admin ejecutado. deployment_id=${result?.deployment_id || "-"}`
+        `Deploy ejecutado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
       );
       await load(true);
     } catch (err) {
@@ -466,11 +543,6 @@ export default function VersioningOverviewPanel() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "El release aun no esta en la rama destino. Deseas subir release ahora?"
-    );
-    if (!confirmed) return;
-
     setDeployingActionId("sync-release");
     try {
       const result = await triggerDeployPipeline({
@@ -490,6 +562,58 @@ export default function VersioningOverviewPanel() {
       setDeployingActionId("");
     }
   };
+
+  const requestCreateDevRelease = useCallback(() => {
+    openConfirmDialog({
+      title: "Confirmar release de DEVELOPMENT",
+      copy: `Se creara un nuevo release de DEVELOPMENT para ${selectedProductLabel}.`,
+      confirmLabel: "Confirmar",
+      action: {
+        type: "create-dev-release",
+      },
+    });
+  }, [openConfirmDialog, selectedProductLabel]);
+
+  const requestPromoteVersion = useCallback(
+    ({ semver, fromEnv, toEnv, source = "list", notes = "" }) => {
+      openConfirmDialog({
+        title: "Confirmar promocion",
+        copy: `Vas a promover ${semver} desde ${normalizeEnvLabel(fromEnv)} hacia ${normalizeEnvLabel(toEnv)}.`,
+        confirmLabel: "Confirmar",
+        action: {
+          type: "promote",
+          payload: { semver, fromEnv, toEnv, source, notes },
+        },
+      });
+    },
+    [openConfirmDialog]
+  );
+
+  const requestDeployVersion = useCallback(
+    ({ envKey, semver, source = "history", notes = "" }) => {
+      openConfirmDialog({
+        title: "Confirmar deploy",
+        copy: `Se ejecutara deploy de ${semver} hacia ${normalizeEnvLabel(envKey)}.`,
+        confirmLabel: "Confirmar",
+        action: {
+          type: "deploy",
+          payload: { envKey, semver, source, notes },
+        },
+      });
+    },
+    [openConfirmDialog]
+  );
+
+  const requestSyncRelease = useCallback(() => {
+    openConfirmDialog({
+      title: "Confirmar subida de release",
+      copy: "El release aun no esta en la rama destino. Se intentara subir release para continuar con deploy.",
+      confirmLabel: "Confirmar",
+      action: {
+        type: "sync-release",
+      },
+    });
+  }, [openConfirmDialog]);
 
   const handleCreateDevRelease = async () => {
     setDevReleaseMessage("");
@@ -514,6 +638,26 @@ export default function VersioningOverviewPanel() {
     }
   };
 
+  const handleConfirmAction = async () => {
+    if (!confirmDialog?.action) return;
+    setConfirmLoading(true);
+    try {
+      const { type, payload } = confirmDialog.action;
+      if (type === "create-dev-release") {
+        await handleCreateDevRelease();
+      } else if (type === "promote") {
+        await handlePromoteVersion(payload || {});
+      } else if (type === "deploy") {
+        await handleDeployByVersion(payload || {});
+      } else if (type === "sync-release") {
+        await handleSyncRelease();
+      }
+      setConfirmDialog(null);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
   const handleApproveRequest = async (requestId, forceAdminOverride = false) => {
     setApprovalMessage("");
     setDeployingActionId(`approve-${requestId}`);
@@ -529,7 +673,7 @@ export default function VersioningOverviewPanel() {
       );
       await load(true);
     } catch (err) {
-      setDeployMessage(err?.message || "No se pudo aprobar la solicitud.");
+      setApprovalMessage(err?.message || "No se pudo aprobar la solicitud.");
     } finally {
       setDeployingActionId("");
     }
@@ -561,23 +705,7 @@ export default function VersioningOverviewPanel() {
             <button
               key={product.id}
               type="button"
-              onClick={async () => {
-                const nextProductKey = product.product_key;
-                setActiveProductKey(nextProductKey);
-                try {
-                  const [drift, promotions] = await Promise.all([
-                    fetchDrift(nextProductKey, driftFrom, driftTo),
-                    fetchPromotionHistory({
-                      productId: product.id,
-                      limit: 50,
-                    }),
-                  ]);
-                  setDriftRows(drift);
-                  setPromotionHistory(promotions);
-                } catch (err) {
-                  setError(err?.message || "No se pudo cargar drift para la app seleccionada.");
-                }
-              }}
+              onClick={() => setActiveProductKey(product.product_key)}
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                 activeProductKey === product.product_key
                   ? "border-[#2F1A55] bg-[#2F1A55] text-white"
@@ -617,15 +745,77 @@ export default function VersioningOverviewPanel() {
               Releases actuales
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {envCards.map((row) => (
-                <VersionCard
-                  key={`${row.product_key}-${row.env_key}`}
-                  row={row}
-                  onRelease={row.env_key === "dev" ? handleCreateDevRelease : null}
-                  releaseLoading={row.env_key === "dev" ? creatingDevRelease : false}
-                  releaseMessage={row.env_key === "dev" ? devReleaseMessage : ""}
-                />
-              ))}
+              {envCards.map((row) => {
+                const envKey = String(row.env_key || "").toLowerCase();
+                const normalizedStatus = normalizeReleaseStatus(envKey, row.status);
+                const releaseVersion = String(row.version_label || "").trim();
+                let action = null;
+
+                if (envKey === "dev") {
+                  if (normalizedStatus === "released" && releaseVersion && releaseVersion !== "-") {
+                    const promoteActionId = actionKey(
+                      "promote",
+                      "quick-dev-card",
+                      "dev",
+                      "staging",
+                      releaseVersion
+                    );
+                    action = {
+                      label: "Promote",
+                      loadingLabel: "Promoviendo...",
+                      loading: promotingActionId === promoteActionId,
+                      disabled: promotingActionId === promoteActionId,
+                      onClick: () =>
+                        requestPromoteVersion({
+                          semver: releaseVersion,
+                          fromEnv: "dev",
+                          toEnv: "staging",
+                          source: "quick-dev-card",
+                        }),
+                    };
+                  } else if (normalizedStatus !== "promoted") {
+                    action = {
+                      label: "Release",
+                      loadingLabel: "Creando...",
+                      loading: creatingDevRelease,
+                      disabled: creatingDevRelease,
+                      onClick: requestCreateDevRelease,
+                    };
+                  }
+                } else if (
+                  DEPLOY_ENV_OPTIONS.includes(envKey) &&
+                  DEPLOYABLE_PRODUCTS.includes(activeProductKey) &&
+                  releaseVersion &&
+                  releaseVersion !== "-"
+                ) {
+                  const deployState = getDeploymentStateForVersion(envKey, releaseVersion);
+                  if (deployState !== "deployed" && normalizedStatus !== "deployed") {
+                    const deployActionId = actionKey("deploy", "quick-card", envKey, releaseVersion);
+                    action = {
+                      label: "Deploy",
+                      loadingLabel: "Ejecutando...",
+                      loading: deployingActionId === deployActionId,
+                      disabled: deployingActionId === deployActionId,
+                      onClick: () =>
+                        requestDeployVersion({
+                          envKey,
+                          semver: releaseVersion,
+                          source: "quick-card",
+                          notes: "quick_env_card",
+                        }),
+                    };
+                  }
+                }
+
+                return (
+                  <VersionCard
+                    key={`${row.product_key}-${row.env_key}`}
+                    row={row}
+                    action={action}
+                    message={envKey === "dev" ? devReleaseMessage : ""}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -678,7 +868,11 @@ export default function VersioningOverviewPanel() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusBadgeClass(row.status)}`}>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusBadgeClass(
+                        row.status
+                      )}`}
+                    >
                       {row.status}
                     </span>
                   </td>
@@ -779,62 +973,157 @@ export default function VersioningOverviewPanel() {
 
             {releaseOpsMode === "promote" ? (
               <>
-                <div className="grid gap-2 sm:grid-cols-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]">
                     {selectedProductLabel}
                   </div>
-                  <select
-                    value={promoteForm.fromEnv}
-                    onChange={(event) =>
-                      setPromoteForm((prev) => ({ ...prev, fromEnv: event.target.value, semver: "" }))
-                    }
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-                  >
-                    <option value="dev">dev</option>
-                    <option value="staging">staging</option>
-                  </select>
-                  <select
-                    value={promoteForm.toEnv}
-                    onChange={(event) =>
-                      setPromoteForm((prev) => ({ ...prev, toEnv: event.target.value }))
-                    }
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-                  >
-                    <option value="staging">staging</option>
-                    <option value="prod">prod</option>
-                  </select>
-                  <select
-                    value={promoteForm.semver}
-                    onChange={(event) =>
-                      setPromoteForm((prev) => ({ ...prev, semver: event.target.value }))
-                    }
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-                  >
-                    <option value="">Selecciona version</option>
-                    {promoteOptions.map((version) => (
-                      <option key={`semver-${version}`} value={version}>
-                        {version}
-                      </option>
+                  <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
+                    {["dev", "staging"].map((env) => (
+                      <button
+                        key={`promote-from-${env}`}
+                        type="button"
+                        onClick={() => setPromoteSourceEnv(env)}
+                        className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                          promoteSourceEnv === env
+                            ? "bg-[#2F1A55] text-white"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {normalizeEnvLabel(env)}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
-                <textarea
-                  value={promoteForm.notes}
-                  onChange={(event) =>
-                    setPromoteForm((prev) => ({ ...prev, notes: event.target.value }))
-                  }
-                  className="min-h-[84px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
-                  placeholder="Notas de promocion"
-                />
-                <button
-                  type="button"
-                  onClick={handlePromote}
-                  disabled={promoting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
-                >
-                  <Rocket size={14} />
-                  {promoting ? "Promoviendo..." : "Promover release"}
-                </button>
+
+                {promoteRowsLoading ? (
+                  <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                    Cargando releases para promocionar...
+                  </div>
+                ) : (
+                  <Table
+                    columns={[
+                      { key: "version", label: "Version" },
+                      { key: "status", label: "Estado", align: "center" },
+                      { key: "commit", label: "Commit" },
+                      { key: "promoted", label: "Ya promovida", align: "center" },
+                      { key: "action", label: "Accion", align: "right" },
+                    ]}
+                  >
+                    {promoteRows.slice(0, 25).map((row) => {
+                      const versionLabel = String(row.version_label || "").trim();
+                      const alreadyPromoted = promotedToTargetVersionSet.has(versionLabel);
+                      const currentActionId = actionKey(
+                        "promote",
+                        "list",
+                        promoteSourceEnv,
+                        promoteTargetEnv,
+                        versionLabel
+                      );
+
+                      const isDraftOpen = promoteDraft?.actionId === currentActionId;
+                      return (
+                        <React.Fragment key={`${row.env_key}-${versionLabel}`}>
+                          <tr className="hover:bg-[#FAF8FF]">
+                            <td className="px-4 py-3 text-xs font-semibold text-slate-700">
+                              {versionLabel}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-slate-600">
+                              {normalizeReleaseStatus(promoteSourceEnv, row.status)}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                              {row.source_commit_sha || "-"}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs">
+                              {alreadyPromoted ? (
+                                <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
+                                  si
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                                  no
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {isDraftOpen ? (
+                                <div className="inline-flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPromoteDraft(null)}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#D8C7F3] bg-white text-slate-500 hover:text-slate-700"
+                                    aria-label="Cerrar notas"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      requestPromoteVersion({
+                                        semver: versionLabel,
+                                        fromEnv: promoteSourceEnv,
+                                        toEnv: promoteTargetEnv,
+                                        source: "list",
+                                        notes: promoteDraft.notes || "",
+                                      })
+                                    }
+                                    disabled={promotingActionId === currentActionId}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                                  >
+                                    {promotingActionId === currentActionId ? "Promoviendo..." : "CONTINUAR"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPromoteDraft({
+                                      actionId: currentActionId,
+                                      semver: versionLabel,
+                                      fromEnv: promoteSourceEnv,
+                                      toEnv: promoteTargetEnv,
+                                      source: "list",
+                                      notes: "",
+                                    })
+                                  }
+                                  disabled={alreadyPromoted || promotingActionId === currentActionId}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                                >
+                                  <Rocket size={12} />
+                                  {normalizeEnvLabel(promoteTargetEnv)}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {isDraftOpen ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 pb-3 pt-0">
+                                <textarea
+                                  value={promoteDraft.notes || ""}
+                                  onChange={(event) =>
+                                    setPromoteDraft((current) =>
+                                      current?.actionId === currentActionId
+                                        ? { ...current, notes: event.target.value }
+                                        : current
+                                    )
+                                  }
+                                  className="min-h-[78px] w-full rounded-xl border border-[#CBB7EA] bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
+                                  placeholder="Notas opcionales"
+                                />
+                              </td>
+                            </tr>
+                          ) : null}
+                        </React.Fragment>
+                      );
+                    })}
+                  </Table>
+                )}
+
+                {!promoteRowsLoading && promoteRows.length === 0 ? (
+                  <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                    No hay releases disponibles para promocionar desde {normalizeEnvLabel(promoteSourceEnv)}.
+                  </div>
+                ) : null}
+
                 {promoteMessage ? (
                   <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
                     {promoteMessage}
@@ -843,70 +1132,141 @@ export default function VersioningOverviewPanel() {
               </>
             ) : (
               <>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]">
                     {selectedProductLabel}
                   </div>
-                  <select
-                    value={deployForm.envKey}
-                    onChange={(event) =>
-                      setDeployForm((prev) => ({ ...prev, envKey: event.target.value, semver: "" }))
-                    }
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-                  >
+                  <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
                     {DEPLOY_ENV_OPTIONS.map((env) => (
-                      <option key={`deploy-env-${env}`} value={env}>
-                        {env}
-                      </option>
+                      <button
+                        key={`deploy-env-${env}`}
+                        type="button"
+                        onClick={() => setDeployTargetEnv(env)}
+                        className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                          deployTargetEnv === env
+                            ? "bg-[#2F1A55] text-white"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {normalizeEnvLabel(env)}
+                      </button>
                     ))}
-                  </select>
-                  <select
-                    value={deployForm.semver}
-                    onChange={(event) =>
-                      setDeployForm((prev) => ({ ...prev, semver: event.target.value }))
-                    }
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-                  >
-                    <option value="">Selecciona version</option>
-                    {deployOptions.map((version) => (
-                      <option key={`deploy-semver-${version}`} value={version}>
-                        {version}
-                      </option>
-                    ))}
-                  </select>
+                  </div>
                 </div>
+
                 <textarea
-                  value={deployForm.notes}
-                  onChange={(event) =>
-                    setDeployForm((prev) => ({ ...prev, notes: event.target.value }))
-                  }
-                  className="min-h-[84px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
-                  placeholder="Notas de deploy directo como admin"
+                  value={deployNotes}
+                  onChange={(event) => setDeployNotes(event.target.value)}
+                  className="min-h-[64px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
+                  placeholder="Notas opcionales de deploy"
                 />
-                <button
-                  type="button"
-                  onClick={handleCreateDeployRequest}
-                  disabled={deployingActionId === "deploy-admin"}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+
+                <Table
+                  columns={[
+                    { key: "created", label: "Promovido" },
+                    { key: "from", label: "Origen" },
+                    { key: "version", label: "Version" },
+                    { key: "state", label: "Deploy", align: "center" },
+                    { key: "last", label: "Ultimo deploy" },
+                    { key: "action", label: "Accion", align: "right" },
+                  ]}
                 >
-                  <Rocket size={14} />
-                  {deployingActionId === "deploy-admin" ? "Ejecutando..." : "Deploy como admin"}
-                </button>
+                  {deployHistoryRows.slice(0, 25).map((row) => {
+                    const versionLabel = String(row.to_version_label || "").trim();
+                    const latestRequest = getLatestDeployRequestForVersion(
+                      deployTargetEnv,
+                      versionLabel
+                    );
+                    const deployState = deploymentStateFromRequest(latestRequest);
+                    const currentActionId = actionKey(
+                      "deploy",
+                      "history",
+                      deployTargetEnv,
+                      versionLabel
+                    );
+
+                    return (
+                      <tr key={row.id} className="hover:bg-[#FAF8FF]">
+                        <td className="px-4 py-3 text-xs text-slate-600">{formatDate(row.created_at)}</td>
+                        <td className="px-4 py-3 text-xs text-slate-700">
+                          {(row.from_env_key || "-").toUpperCase()} / {row.from_version_label || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-slate-700">
+                          {versionLabel || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs">
+                          <span
+                            className={`rounded-full px-2 py-1 text-[11px] font-semibold ${deploymentStateBadgeClass(
+                              deployState
+                            )}`}
+                          >
+                            {deploymentStateLabel(deployState)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600">
+                          <div>{latestRequest?.deployment_id || "-"}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {latestRequest?.executed_at
+                              ? formatDate(latestRequest.executed_at)
+                              : latestRequest?.created_at
+                                ? formatDate(latestRequest.created_at)
+                                : "-"}
+                          </div>
+                          {latestRequest?.logs_url ? (
+                            <a
+                              href={latestRequest.logs_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] font-semibold text-[#5E30A5] underline"
+                            >
+                              Ver logs
+                            </a>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              requestDeployVersion({
+                                envKey: deployTargetEnv,
+                                semver: versionLabel,
+                                source: "history",
+                                notes: deployNotes,
+                              })
+                            }
+                            disabled={deployingActionId === currentActionId}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                          >
+                            <Rocket size={12} />
+                            {deployingActionId === currentActionId
+                              ? "Ejecutando..."
+                              : deployState === "deployed"
+                                ? "Re-deploy"
+                                : "Deploy"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Table>
+
+                {deployHistoryRows.length === 0 ? (
+                  <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                    No hay promociones hacia {normalizeEnvLabel(deployTargetEnv)} para esta app.
+                  </div>
+                ) : null}
+
                 {deploySyncRequired ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    <div className="font-semibold">
-                      El release aun no esta en la rama destino.
-                    </div>
-                    <div className="mt-1">
-                      Commit: {deploySyncRequired?.source_commit_sha || "-"}
-                    </div>
+                    <div className="font-semibold">El release aun no esta en la rama destino.</div>
+                    <div className="mt-1">Commit: {deploySyncRequired?.source_commit_sha || "-"}</div>
                     <div>
                       Rama origen: {deploySyncRequired?.branches?.source || "-"} | Rama destino:{" "}
                       {deploySyncRequired?.branches?.target || "-"}
                     </div>
                     <button
                       type="button"
-                      onClick={handleSyncRelease}
+                      onClick={requestSyncRelease}
                       disabled={deployingActionId === "sync-release"}
                       className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800 disabled:opacity-60"
                     >
@@ -914,6 +1274,7 @@ export default function VersioningOverviewPanel() {
                     </button>
                   </div>
                 ) : null}
+
                 {deployMessage ? (
                   <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
                     {deployMessage}
@@ -921,41 +1282,6 @@ export default function VersioningOverviewPanel() {
                 ) : null}
               </>
             )}
-          </div>
-
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
-              <ArrowRightLeft size={15} />
-              Historial de promociones
-            </div>
-            <Table
-              columns={[
-                { key: "created", label: "Fecha" },
-                { key: "from", label: "Desde" },
-                { key: "to", label: "Hacia" },
-                { key: "actor", label: "Actor" },
-                { key: "notes", label: "Notas" },
-              ]}
-            >
-              {promotionHistory.slice(0, 25).map((row) => (
-                <tr key={row.id} className="hover:bg-[#FAF8FF]">
-                  <td className="px-4 py-3 text-xs text-slate-600">{formatDate(row.created_at)}</td>
-                  <td className="px-4 py-3 text-xs text-slate-700">
-                    {(row.from_env_key || "-").toUpperCase()} / {row.from_version_label || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-700">
-                    {(row.to_env_key || "-").toUpperCase()} / {row.to_version_label || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">{row.promoted_by || "-"}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{row.notes || "-"}</td>
-                </tr>
-              ))}
-            </Table>
-            {promotionHistory.length === 0 ? (
-              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
-                No hay promociones registradas para esta app.
-              </div>
-            ) : null}
           </div>
 
           <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
@@ -1047,6 +1373,41 @@ export default function VersioningOverviewPanel() {
           </div>
         </>
       )}
+
+      {confirmDialog ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/45 p-4">
+          <button
+            type="button"
+            aria-label="Cerrar confirmacion"
+            onClick={closeConfirmDialog}
+            className="absolute inset-0 h-full w-full"
+          />
+          <div className="relative z-[1201] w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-xl">
+            <div className="text-sm font-semibold text-[#2F1A55]">{confirmDialog.title || "Confirmacion"}</div>
+            <div className="mt-2 text-xs text-slate-600">
+              {confirmDialog.copy || "Confirma esta accion para continuar."}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeConfirmDialog}
+                disabled={confirmLoading}
+                className="rounded-lg border border-[#E9E2F7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAction}
+                disabled={confirmLoading}
+                className="rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {confirmLoading ? "Procesando..." : confirmDialog.confirmLabel || "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
