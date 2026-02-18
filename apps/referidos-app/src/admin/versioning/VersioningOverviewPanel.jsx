@@ -561,12 +561,51 @@ export default function VersioningOverviewPanel() {
     setConfirmDialog(null);
   }, [confirmLoading]);
 
+  const resolveDeployRequestIdForVersion = useCallback(
+    async ({ envKey, semver, source = "promote", notes = "" }) => {
+      const existingRequest = selectedProductDeployRequests.find(
+        (row) =>
+          row.env_key === envKey &&
+          row.version_label === semver &&
+          ["pending", "approved"].includes(String(row.status || "").toLowerCase())
+      );
+
+      if (existingRequest?.id) {
+        return existingRequest.id;
+      }
+
+      const requestId = await requestDeploy({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+        actor: "admin-ui-promote-sync",
+        notes: notes || `promote_auto_sync:${source}`,
+        metadata: {
+          trigger: "promote_auto_sync",
+          source,
+        },
+      });
+
+      const normalizedRequestId =
+        typeof requestId === "string"
+          ? requestId
+          : requestId?.request_id || requestId?.id || "";
+
+      if (!normalizedRequestId) {
+        throw new Error("No se pudo resolver request_id para sincronizar release.");
+      }
+      return normalizedRequestId;
+    },
+    [selectedProductDeployRequests, activeProductKey]
+  );
+
   const handlePromoteVersion = async ({
     semver,
     fromEnv = promoteSourceEnv,
     toEnv = promoteTargetEnv,
     source = "list",
     notes = "",
+    syncRelease = false,
   }) => {
     if (!activeProductKey || !semver) {
       setPromoteMessage("Selecciona una version valida para promover.");
@@ -585,7 +624,50 @@ export default function VersioningOverviewPanel() {
         semver,
         notes,
       });
-      setPromoteMessage(`Release ${semver} promovida de ${fromEnv} a ${toEnv}.`);
+
+      if (syncRelease) {
+        if (!DEPLOYABLE_PRODUCTS.includes(activeProductKey) || !DEPLOY_ENV_OPTIONS.includes(toEnv)) {
+          setPromoteMessage(
+            `Release ${semver} promovida de ${fromEnv} a ${toEnv}. Merge automatico no disponible para esta app/entorno.`
+          );
+          setPromoteDraft(null);
+          await load(true);
+          return;
+        }
+
+        try {
+          const syncRequestId = await resolveDeployRequestIdForVersion({
+            envKey: toEnv,
+            semver,
+            source,
+            notes: notes || "Promocion con merge automatico",
+          });
+          const syncResult = await triggerDeployPipeline({
+            requestId: syncRequestId,
+            forceAdminOverride: true,
+            syncRelease: true,
+            syncOnly: true,
+          });
+
+          setPromoteMessage(
+            `Release ${semver} promovida de ${fromEnv} a ${toEnv} y subida a rama destino (${syncResult?.branches?.target || "-"})`
+          );
+          setPromoteDraft(null);
+          await load(true);
+          return;
+        } catch (syncErr) {
+          setPromoteMessage(
+            `Release ${semver} promovida de ${fromEnv} a ${toEnv}, pero no se pudo subir a la rama destino: ${
+              syncErr?.message || "error de sync"
+            }`
+          );
+          setPromoteDraft(null);
+          await load(true);
+          return;
+        }
+      }
+
+      setPromoteMessage(`Release ${semver} promovida de ${fromEnv} a ${toEnv} (sin merge automatico).`);
       setPromoteDraft(null);
       await load(true);
     } catch (err) {
@@ -760,17 +842,32 @@ export default function VersioningOverviewPanel() {
 
   const requestPromoteVersion = useCallback(
     ({ semver, fromEnv, toEnv, source = "list", notes = "" }) => {
+      const canSyncMerge =
+        DEPLOYABLE_PRODUCTS.includes(activeProductKey) &&
+        DEPLOY_ENV_OPTIONS.includes(String(toEnv || "").toLowerCase());
+
       openConfirmDialog({
         title: "Confirmar promocion",
-        copy: `Vas a promover ${semver} desde ${normalizeEnvLabel(fromEnv)} hacia ${normalizeEnvLabel(toEnv)}.`,
-        confirmLabel: "Confirmar",
+        copy: canSyncMerge
+          ? `Vas a promover ${semver} desde ${normalizeEnvLabel(fromEnv)} hacia ${normalizeEnvLabel(
+              toEnv
+            )}. Tambien puedes subir esta release a la rama destino en el mismo paso.`
+          : `Vas a promover ${semver} desde ${normalizeEnvLabel(fromEnv)} hacia ${normalizeEnvLabel(toEnv)}.`,
+        confirmLabel: canSyncMerge ? "Continuar con merge" : "Confirmar",
+        secondaryLabel: canSyncMerge ? "Continuar sin merge" : "",
         action: {
           type: "promote",
-          payload: { semver, fromEnv, toEnv, source, notes },
+          payload: { semver, fromEnv, toEnv, source, notes, syncRelease: canSyncMerge },
         },
+        secondaryAction: canSyncMerge
+          ? {
+              type: "promote",
+              payload: { semver, fromEnv, toEnv, source, notes, syncRelease: false },
+            }
+          : null,
       });
     },
-    [openConfirmDialog]
+    [openConfirmDialog, activeProductKey]
   );
 
   const requestDeployVersion = useCallback(
@@ -868,18 +965,34 @@ export default function VersioningOverviewPanel() {
     });
   };
 
+  const runConfirmAction = async (action) => {
+    if (!action) return;
+    const { type, payload } = action;
+    if (type === "promote") {
+      await handlePromoteVersion(payload || {});
+    } else if (type === "deploy") {
+      await handleDeployByVersion(payload || {});
+    } else if (type === "sync-release") {
+      await handleSyncRelease();
+    }
+  };
+
   const handleConfirmAction = async () => {
     if (!confirmDialog?.action) return;
     setConfirmLoading(true);
     try {
-      const { type, payload } = confirmDialog.action;
-      if (type === "promote") {
-        await handlePromoteVersion(payload || {});
-      } else if (type === "deploy") {
-        await handleDeployByVersion(payload || {});
-      } else if (type === "sync-release") {
-        await handleSyncRelease();
-      }
+      await runConfirmAction(confirmDialog.action);
+      setConfirmDialog(null);
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleSecondaryConfirmAction = async () => {
+    if (!confirmDialog?.secondaryAction) return;
+    setConfirmLoading(true);
+    try {
+      await runConfirmAction(confirmDialog.secondaryAction);
       setConfirmDialog(null);
     } finally {
       setConfirmLoading(false);
@@ -1790,8 +1903,20 @@ export default function VersioningOverviewPanel() {
                 disabled={confirmLoading}
                 className="rounded-lg border border-[#E9E2F7] bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-60"
               >
-                Cancelar
+                {confirmDialog.cancelLabel || "Cancelar"}
               </button>
+              {confirmDialog.secondaryAction ? (
+                <button
+                  type="button"
+                  onClick={handleSecondaryConfirmAction}
+                  disabled={confirmLoading}
+                  className="rounded-lg border border-[#CBB7EA] bg-white px-3 py-1.5 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
+                >
+                  {confirmLoading
+                    ? "Procesando..."
+                    : confirmDialog.secondaryLabel || "Continuar sin merge"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={handleConfirmAction}
