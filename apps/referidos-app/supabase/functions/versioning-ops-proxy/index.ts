@@ -501,7 +501,23 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         p_force_admin_override: forceAdminOverride,
         p_notes: notes || null,
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const message = String(error.message || "");
+        if (message.includes("is not pending")) {
+          const { data: requestRow, error: requestError } = await opsAdmin
+            .from("version_deploy_requests_labeled")
+            .select("id, status, approved_by, approved_at, executed_at, deployment_status, deployment_id")
+            .eq("id", requestId)
+            .maybeSingle();
+          if (!requestError && requestRow) {
+            return {
+              ...requestRow,
+              already_processed: true,
+            };
+          }
+        }
+        throw new Error(message);
+      }
       return data || null;
     }
 
@@ -566,6 +582,41 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         );
         (pipelineError as Error & { code?: string; payload?: unknown }).payload = result.payload;
         throw pipelineError;
+      }
+
+      return result.payload;
+    }
+
+    case "sync_release_branch": {
+      const productKey = asString(payload.productKey);
+      const toEnv = asString(payload.toEnv).toLowerCase();
+      const semver = asString(payload.semver);
+      if (!productKey || !toEnv || !semver) {
+        throw new Error("productKey, toEnv y semver requeridos.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-sync", {
+        product_key: productKey,
+        from_env: asString(payload.fromEnv) || null,
+        to_env: toEnv,
+        semver,
+        source_branch: asString(payload.sourceBranch) || null,
+        target_branch: asString(payload.targetBranch) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const syncError = new Error(detail || "No se pudo sincronizar release a rama destino.");
+        (syncError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "release_sync_failed"
+        );
+        (syncError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw syncError;
       }
 
       return result.payload;

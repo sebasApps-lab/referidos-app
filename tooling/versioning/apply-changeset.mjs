@@ -17,7 +17,7 @@ function parseArgs(argv) {
     env: process.env.VERSIONING_TARGET_ENV || "dev",
     baseline: process.env.VERSIONING_BASELINE_VERSION || "0.1.0",
     createRelease: process.env.VERSIONING_CREATE_RELEASE !== "0",
-    releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "validated",
+    releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "released",
     productFilter: (process.env.VERSIONING_PRODUCT_FILTER || "").trim(),
     overrideSemver: (process.env.VERSIONING_OVERRIDE_SEMVER || "").trim(),
     releaseNotes: (process.env.VERSIONING_RELEASE_NOTES || "").trim(),

@@ -88,16 +88,6 @@ async function main() {
     "insert deployment"
   );
 
-  if (args.status === "success") {
-    await mustData(
-      supabase
-        .from("version_releases")
-        .update({ status: "deployed" })
-        .eq("id", releaseId),
-      "mark release deployed"
-    );
-  }
-
   console.log(
     `VERSIONING_DEPLOYMENT_RECORDED product=${args.product} env=${args.env} semver=${args.semver} status=${args.status}`
   );

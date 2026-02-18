@@ -24,6 +24,7 @@ import {
   promoteRelease,
   rejectDeployRequest,
   requestDeploy,
+  syncReleaseBranch,
   triggerDeployPipeline,
 } from "./services/versioningService";
 
@@ -95,22 +96,11 @@ function getInitialBaselineSemver(product) {
 }
 
 function normalizeReleaseStatus(envKey, status) {
-  const normalizedEnv = String(envKey || "").toLowerCase();
   const normalizedStatus = String(status || "").toLowerCase();
   if (!normalizedStatus) return "-";
 
-  if (normalizedEnv !== "dev") return normalizedStatus;
-
-  if (
-    normalizedStatus === "approved" ||
-    normalizedStatus === "validated" ||
-    normalizedStatus === "deployed" ||
-    normalizedStatus === "promoted"
-  ) {
-    return "released";
-  }
+  if (normalizedStatus === "validated") return "released";
   if (normalizedStatus === "draft" || normalizedStatus === "sin release") return "pending";
-  if (normalizedStatus === "rolled_back") return "failed";
   return normalizedStatus;
 }
 
@@ -202,9 +192,19 @@ function compareSemverLabel(a, b) {
   return parsedA.patch - parsedB.patch;
 }
 
-function VersionCard({ row, action, message = "", disabled = false }) {
-  const isDevelopment = String(row?.env_key || "").toLowerCase() === "dev";
+function VersionCard({
+  row,
+  action = null,
+  actions = [],
+  message = "",
+  disabled = false,
+  deployState = "",
+}) {
+  const envKey = String(row?.env_key || "").toLowerCase();
+  const isDevelopment = envKey === "dev";
+  const isDeployTrackedEnv = envKey === "staging" || envKey === "prod";
   const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
+  const actionList = Array.isArray(actions) && actions.length ? actions : action ? [action] : [];
 
   return (
     <div
@@ -216,19 +216,35 @@ function VersionCard({ row, action, message = "", disabled = false }) {
         <div className="text-xs uppercase tracking-[0.1em] text-slate-400">
           {normalizeEnvLabel(row.env_key)}
         </div>
-        {action ? (
-          <button
-            type="button"
-            onClick={action.onClick}
-            disabled={disabled || action.disabled}
-            className="inline-flex items-center rounded-lg border border-[#E9E2F7] px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
-          >
-            {action.loading ? action.loadingLabel || "Procesando..." : action.label}
-          </button>
+        {actionList.length ? (
+          <div className="flex items-center gap-1">
+            {actionList.map((item) => (
+              <button
+                key={item.key || item.label}
+                type="button"
+                onClick={item.onClick}
+                disabled={disabled || item.disabled}
+                className="inline-flex items-center rounded-lg border border-[#E9E2F7] px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+              >
+                {item.loading ? item.loadingLabel || "Procesando..." : item.label}
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
-      <div className="mt-2 text-xs text-slate-500">Estado: {statusLabel}</div>
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
+        <span>Estado: {statusLabel}</span>
+        {isDeployTrackedEnv && deployState === "deployed" ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${deploymentStateBadgeClass(
+              "deployed"
+            )}`}
+          >
+            deployed
+          </span>
+        ) : null}
+      </div>
       <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
       {disabled ? (
         <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
@@ -626,44 +642,6 @@ export default function VersioningOverviewPanel() {
     setConfirmDialog(null);
   }, [confirmLoading]);
 
-  const resolveDeployRequestIdForVersion = useCallback(
-    async ({ envKey, semver, source = "promote", notes = "" }) => {
-      const existingRequest = selectedProductDeployRequests.find(
-        (row) =>
-          row.env_key === envKey &&
-          row.version_label === semver &&
-          ["pending", "approved"].includes(String(row.status || "").toLowerCase())
-      );
-
-      if (existingRequest?.id) {
-        return existingRequest.id;
-      }
-
-      const requestId = await requestDeploy({
-        productKey: activeProductKey,
-        envKey,
-        semver,
-        actor: "admin-ui-promote-sync",
-        notes: notes || `promote_auto_sync:${source}`,
-        metadata: {
-          trigger: "promote_auto_sync",
-          source,
-        },
-      });
-
-      const normalizedRequestId =
-        typeof requestId === "string"
-          ? requestId
-          : requestId?.request_id || requestId?.id || "";
-
-      if (!normalizedRequestId) {
-        throw new Error("No se pudo resolver request_id para sincronizar release.");
-      }
-      return normalizedRequestId;
-    },
-    [selectedProductDeployRequests, activeProductKey]
-  );
-
   const handlePromoteVersion = async ({
     semver,
     fromEnv = promoteSourceEnv,
@@ -701,19 +679,12 @@ export default function VersioningOverviewPanel() {
         }
 
         try {
-          const syncRequestId = await resolveDeployRequestIdForVersion({
-            envKey: toEnv,
+          const syncResult = await syncReleaseBranch({
+            productKey: activeProductKey,
+            fromEnv,
+            toEnv,
             semver,
-            source,
-            notes: notes || "Promocion con merge automatico",
           });
-          const syncResult = await triggerDeployPipeline({
-            requestId: syncRequestId,
-            forceAdminOverride: true,
-            syncRelease: true,
-            syncOnly: true,
-          });
-
           setPromoteMessage(
             `Release ${semver} promovida de ${fromEnv} a ${toEnv} y subida a rama destino (${syncResult?.branches?.target || "-"})`
           );
@@ -770,7 +741,14 @@ export default function VersioningOverviewPanel() {
     setDeployTargetEnv(envKey);
 
     let normalizedRequestId = "";
+    let normalizedRequestStatus = "";
     try {
+      await syncReleaseBranch({
+        productKey: activeProductKey,
+        toEnv: envKey,
+        semver,
+      });
+
       const existingRequest = selectedProductDeployRequests.find(
         (row) =>
           row.env_key === envKey &&
@@ -780,6 +758,7 @@ export default function VersioningOverviewPanel() {
 
       if (existingRequest?.id) {
         normalizedRequestId = existingRequest.id;
+        normalizedRequestStatus = String(existingRequest.status || "").toLowerCase();
       } else {
         const requestId = await requestDeploy({
           productKey: activeProductKey,
@@ -797,10 +776,27 @@ export default function VersioningOverviewPanel() {
           typeof requestId === "string"
             ? requestId
             : requestId?.request_id || requestId?.id || "";
+        normalizedRequestStatus = "pending";
       }
 
       if (!normalizedRequestId) {
         throw new Error("No se pudo resolver request_id para ejecutar deploy.");
+      }
+
+      if (normalizedRequestStatus === "pending") {
+        try {
+          await approveDeployRequest({
+            requestId: normalizedRequestId,
+            actor: "admin-ui-direct",
+            forceAdminOverride: true,
+            notes: "Auto-aprobado por deploy directo de admin",
+          });
+        } catch (approveErr) {
+          const approveMessage = String(approveErr?.message || "");
+          if (!approveMessage.includes("is not pending")) {
+            throw approveErr;
+          }
+        }
       }
 
       setActiveDeployRequestId(normalizedRequestId);
@@ -1085,15 +1081,20 @@ export default function VersioningOverviewPanel() {
     setApprovalMessage("");
     setDeployingActionId(`approve-${requestId}`);
     try {
-      await approveDeployRequest({
+      const result = await approveDeployRequest({
         requestId,
         forceAdminOverride,
       });
-      setApprovalMessage(
-        forceAdminOverride
-          ? "Solicitud aprobada con admin override."
-          : "Solicitud aprobada correctamente."
-      );
+      const status = String(result?.status || "").toLowerCase();
+      if (result?.already_processed || (status && status !== "pending")) {
+        setApprovalMessage(`La solicitud ya no estaba pendiente (estado actual: ${status || "desconocido"}).`);
+      } else {
+        setApprovalMessage(
+          forceAdminOverride
+            ? "Solicitud aprobada con admin override."
+            : "Solicitud aprobada correctamente."
+        );
+      }
       await load(true);
     } catch (err) {
       setApprovalMessage(err?.message || "No se pudo aprobar la solicitud.");
@@ -1181,12 +1182,18 @@ export default function VersioningOverviewPanel() {
                 const envKey = String(row.env_key || "").toLowerCase();
                 const normalizedStatus = normalizeReleaseStatus(envKey, row.status);
                 const releaseVersion = String(row.version_label || "").trim();
-                let action = null;
+                const hasValidVersion = releaseVersion && releaseVersion !== "-";
+                const deployStateForCard =
+                  DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
+                    ? getDeploymentStateForVersion(envKey, releaseVersion)
+                    : "";
+
+                const actions = [];
 
                 if (!isActiveProductInitialized) {
-                  action = null;
+                  // no-op
                 } else if (envKey === "dev") {
-                  if (normalizedStatus === "released" && releaseVersion && releaseVersion !== "-") {
+                  if (normalizedStatus === "released" && hasValidVersion) {
                     const promoteActionId = actionKey(
                       "promote",
                       "quick-dev-card",
@@ -1194,7 +1201,8 @@ export default function VersioningOverviewPanel() {
                       "staging",
                       releaseVersion
                     );
-                    action = {
+                    actions.push({
+                      key: promoteActionId,
                       label: "Promote",
                       loadingLabel: "Promoviendo...",
                       loading: promotingActionId === promoteActionId,
@@ -1206,26 +1214,51 @@ export default function VersioningOverviewPanel() {
                           toEnv: "staging",
                           source: "quick-dev-card",
                         }),
-                    };
-                  } else {
-                    action = {
+                    });
+                  } else if (normalizedStatus !== "promoted") {
+                    const releaseActionId = actionKey("release", "quick-dev-card", releaseVersion || "pending");
+                    actions.push({
+                      key: releaseActionId,
                       label: "Release",
                       loadingLabel: "Creando...",
                       loading: creatingDevRelease,
                       disabled: creatingDevRelease,
                       onClick: requestCreateDevRelease,
-                    };
+                    });
                   }
                 } else if (
                   DEPLOY_ENV_OPTIONS.includes(envKey) &&
                   DEPLOYABLE_PRODUCTS.includes(activeProductKey) &&
-                  releaseVersion &&
-                  releaseVersion !== "-"
+                  hasValidVersion
                 ) {
-                  const deployState = getDeploymentStateForVersion(envKey, releaseVersion);
-                  if (deployState !== "deployed" && normalizedStatus !== "deployed") {
+                  if (envKey === "staging" && normalizedStatus === "approved") {
+                    const promoteActionId = actionKey(
+                      "promote",
+                      "quick-staging-card",
+                      "staging",
+                      "prod",
+                      releaseVersion
+                    );
+                    actions.push({
+                      key: promoteActionId,
+                      label: "Promote",
+                      loadingLabel: "Promoviendo...",
+                      loading: promotingActionId === promoteActionId,
+                      disabled: promotingActionId === promoteActionId,
+                      onClick: () =>
+                        requestPromoteVersion({
+                          semver: releaseVersion,
+                          fromEnv: "staging",
+                          toEnv: "prod",
+                          source: "quick-staging-card",
+                        }),
+                    });
+                  }
+
+                  if (deployStateForCard !== "deployed") {
                     const deployActionId = actionKey("deploy", "quick-card", envKey, releaseVersion);
-                    action = {
+                    actions.push({
+                      key: deployActionId,
                       label: "Deploy",
                       loadingLabel: "Ejecutando...",
                       loading: deployingActionId === deployActionId,
@@ -1237,7 +1270,7 @@ export default function VersioningOverviewPanel() {
                           source: "quick-card",
                           notes: "quick_env_card",
                         }),
-                    };
+                    });
                   }
                 }
 
@@ -1245,7 +1278,8 @@ export default function VersioningOverviewPanel() {
                   <VersionCard
                     key={`${row.product_key}-${row.env_key}`}
                     row={row}
-                    action={action}
+                    actions={actions}
+                    deployState={deployStateForCard}
                     message={envKey === "dev" ? devReleaseMessage : ""}
                     disabled={!isActiveProductInitialized}
                   />

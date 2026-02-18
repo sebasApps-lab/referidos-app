@@ -7,17 +7,6 @@ import {
   supabaseAdmin,
 } from "../_shared/support.ts";
 
-type DeployRequestRow = {
-  id: string;
-  release_id: string;
-  product_key: string;
-  env_key: string;
-  version_label: string;
-  status: string;
-  requested_by: string | null;
-  admin_override: boolean | null;
-};
-
 type BranchCheckResult = {
   ok: boolean;
   inBranch: boolean;
@@ -31,11 +20,6 @@ type BranchCheckResult = {
 function asString(value: unknown, fallback = ""): string {
   if (typeof value !== "string") return fallback;
   return value.trim() || fallback;
-}
-
-function asBoolean(value: unknown, fallback = false): boolean {
-  if (typeof value === "boolean") return value;
-  return fallback;
 }
 
 function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
@@ -61,7 +45,7 @@ function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
       }
     }
   } catch {
-    // Non-URL format: continue with owner/repo parsing.
+    // Non-URL format.
   }
 
   const normalizedRepo = repoRaw.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "");
@@ -80,24 +64,29 @@ function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
   return { owner: ownerRaw, repo: normalizedRepo };
 }
 
+function envVarKey(input: string): string {
+  return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function getNestedString(input: Record<string, unknown>, path: string[]): string {
+  let current: unknown = input;
+  for (const key of path) {
+    if (!current || typeof current !== "object") return "";
+    current = (current as Record<string, unknown>)[key];
+  }
+  return asString(current);
+}
+
 function isInternalProxyAuthorized(req: Request) {
   const expected = asString(Deno.env.get("VERSIONING_PROXY_SHARED_TOKEN"));
   if (!expected) return false;
   const received = asString(req.headers.get("x-versioning-proxy-token"));
   return Boolean(received) && received === expected;
-}
-
-function envVarKey(input: string): string {
-  return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
-}
-
-function resolveWorkflowCallbackUrl() {
-  const explicit = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_URL"));
-  if (explicit) return explicit;
-
-  const supabaseUrl = asString(Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL"));
-  if (!supabaseUrl) return "";
-  return `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/versioning-deploy-callback`;
 }
 
 function resolveBranchForEnv({
@@ -157,20 +146,6 @@ function resolveBranches({
   return { sourceBranch, targetBranch };
 }
 
-function getNestedString(input: Record<string, unknown>, path: string[]): string {
-  let current: unknown = input;
-  for (const key of path) {
-    if (!current || typeof current !== "object") return "";
-    current = (current as Record<string, unknown>)[key];
-  }
-  return asString(current);
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
-}
-
 async function mergeBranches({
   owner,
   repo,
@@ -178,7 +153,6 @@ async function mergeBranches({
   base,
   head,
   actor,
-  requestId,
 }: {
   owner: string;
   repo: string;
@@ -186,7 +160,6 @@ async function mergeBranches({
   base: string;
   head: string;
   actor: string;
-  requestId: string;
 }) {
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/merges`, {
     method: "POST",
@@ -199,7 +172,7 @@ async function mergeBranches({
     body: JSON.stringify({
       base,
       head,
-      commit_message: `[deploy-gate] merge ${head} -> ${base} (request ${requestId}) by ${actor}`,
+      commit_message: `[versioning-sync] merge ${head} -> ${base} by ${actor}`,
     }),
   });
 
@@ -225,63 +198,6 @@ async function mergeBranches({
     ok: false,
     status: response.status,
     message: asString(parsed.message, "github_merge_failed"),
-    payload: parsed,
-  };
-}
-
-async function dispatchGithubWorkflow({
-  owner,
-  repo,
-  token,
-  workflowId,
-  workflowRef,
-  inputs,
-}: {
-  owner: string;
-  repo: string;
-  token: string;
-  workflowId: string;
-  workflowRef: string;
-  inputs: Record<string, string>;
-}) {
-  const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
-    {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "User-Agent": "referidos-versioning-edge",
-    },
-    body: JSON.stringify({
-      ref: workflowRef,
-      inputs,
-    }),
-  }
-  );
-
-  const text = await response.text();
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    parsed = { raw: text };
-  }
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      message: asString(parsed.message, "github_workflow_dispatch_failed"),
-      payload: parsed,
-    };
-  }
-
-  return {
-    ok: true,
-    status: response.status,
-    message: "workflow_dispatched",
     payload: parsed,
   };
 }
@@ -368,7 +284,7 @@ serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const internalProxyCall = isInternalProxyAuthorized(req);
 
-  let actor = asString(body.actor, "admin:proxy");
+  let actor = "admin:proxy";
   if (!internalProxyCall) {
     const authHeader = req.headers.get("authorization") ?? "";
     const token = authHeader.replace("Bearer ", "").trim();
@@ -388,70 +304,41 @@ serve(async (req) => {
     if (usuario.role !== "admin") {
       return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);
     }
+
     actor = `admin:${asString(usuario.id) || asString(user.id)}`;
+  } else {
+    actor = asString(body.actor, "admin:proxy");
   }
 
-  const requestId = asString(body.request_id);
-  const forceAdminOverride = asBoolean(body.force_admin_override, false);
-  const syncRelease = asBoolean(body.sync_release, false);
-  const syncOnly = asBoolean(body.sync_only, false);
+  const productKey = asString(body.product_key).toLowerCase();
+  const fromEnvKeyInput = asString(body.from_env).toLowerCase();
+  const toEnvKey = asString(body.to_env).toLowerCase();
+  const semver = asString(body.semver);
   const sourceBranchInput = asString(body.source_branch);
   const targetBranchInput = asString(body.target_branch);
 
-  if (!requestId) {
-    return jsonResponse({ ok: false, error: "missing_request_id" }, 400, cors);
-  }
-
-  const { data: requestRow, error: requestErr } = await supabaseAdmin
-    .from("version_deploy_requests_labeled")
-    .select("id, release_id, product_key, env_key, version_label, status, requested_by, admin_override")
-    .eq("id", requestId)
-    .limit(1)
-    .maybeSingle<DeployRequestRow>();
-
-  if (requestErr || !requestRow) {
-    return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
-  }
-
-  if (!["staging", "prod"].includes(requestRow.env_key)) {
+  if (!productKey || !toEnvKey || !semver) {
     return jsonResponse(
-      {
-        ok: false,
-        error: "deploy_env_not_allowed",
-        detail: `Deploy solo permitido en staging/prod. env_key=${requestRow.env_key}`,
-      },
+      { ok: false, error: "missing_params", detail: "product_key, to_env y semver son requeridos." },
+      400,
+      cors
+    );
+  }
+
+  if (!["staging", "prod"].includes(toEnvKey)) {
+    return jsonResponse(
+      { ok: false, error: "sync_env_not_allowed", detail: "Sync solo permitido hacia staging/prod." },
       409,
       cors
     );
   }
 
-  if (!["referidos_app", "prelaunch_web"].includes(requestRow.product_key)) {
+  if (!["referidos_app", "prelaunch_web"].includes(productKey)) {
     return jsonResponse(
       {
         ok: false,
-        error: "deploy_product_not_supported",
-        detail:
-          "Deploy exacto por artifact soportado solo para referidos_app y prelaunch_web.",
-      },
-      409,
-      cors
-    );
-  }
-
-  if (!["pending", "approved"].includes(requestRow.status)) {
-    return jsonResponse(
-      { ok: false, error: "deploy_request_invalid_status", status: requestRow.status },
-      409,
-      cors
-    );
-  }
-
-  if (requestRow.status === "pending" && !forceAdminOverride) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "deploy_request_requires_approval",
-        detail: "Request pending: approve first or execute with admin override.",
+        error: "sync_product_not_supported",
+        detail: "Sync soportado solo para referidos_app y prelaunch_web.",
       },
       409,
       cors
@@ -479,15 +366,25 @@ serve(async (req) => {
   }
 
   const { data: releaseRow, error: releaseErr } = await supabaseAdmin
-    .from("version_releases")
-    .select("id, source_commit_sha")
-    .eq("id", requestRow.release_id)
+    .from("version_releases_labeled")
+    .select("id, tenant_id, product_key, env_key, version_label, source_commit_sha")
+    .eq("product_key", productKey)
+    .eq("env_key", toEnvKey)
+    .eq("version_label", semver)
+    .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ id: string; source_commit_sha: string | null }>();
+    .maybeSingle<{
+      id: string;
+      tenant_id: string;
+      product_key: string;
+      env_key: string;
+      version_label: string;
+      source_commit_sha: string | null;
+    }>();
 
   if (releaseErr || !releaseRow) {
     return jsonResponse(
-      { ok: false, error: "release_not_found", detail: "No se encontro release para la solicitud de deploy." },
+      { ok: false, error: "release_not_found", detail: "No se encontro release destino para sync." },
       404,
       cors
     );
@@ -502,28 +399,30 @@ serve(async (req) => {
     );
   }
 
-  const { data: promotionRow } = await supabaseAdmin
-    .from("version_promotions")
-    .select("from_release_id, created_at")
-    .eq("to_release_id", requestRow.release_id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ from_release_id: string }>();
-
-  let sourceEnvKey = "";
-  if (promotionRow?.from_release_id) {
-    const { data: sourceRelease } = await supabaseAdmin
-      .from("version_releases_labeled")
-      .select("env_key")
-      .eq("id", promotionRow.from_release_id)
+  let sourceEnvKey = fromEnvKeyInput;
+  if (!sourceEnvKey) {
+    const { data: promotionRow } = await supabaseAdmin
+      .from("version_promotions")
+      .select("from_release_id, created_at")
+      .eq("to_release_id", releaseRow.id)
+      .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle<{ env_key: string }>();
-    sourceEnvKey = asString(sourceRelease?.env_key);
+      .maybeSingle<{ from_release_id: string }>();
+
+    if (promotionRow?.from_release_id) {
+      const { data: fromRelease } = await supabaseAdmin
+        .from("version_releases_labeled")
+        .select("env_key")
+        .eq("id", promotionRow.from_release_id)
+        .limit(1)
+        .maybeSingle<{ env_key: string }>();
+      sourceEnvKey = asString(fromRelease?.env_key).toLowerCase();
+    }
   }
 
   const { sourceBranch, targetBranch } = resolveBranches({
-    productKey: requestRow.product_key,
-    targetEnvKey: requestRow.env_key,
+    productKey,
+    targetEnvKey: toEnvKey,
     sourceEnvKey,
     sourceBranchInput,
     targetBranchInput,
@@ -555,31 +454,11 @@ serve(async (req) => {
     target_branch: targetBranch,
     source_env_key: sourceEnvKey || null,
     source_commit_sha: sourceCommitSha,
-    sync_requested: syncRelease,
-    sync_only: syncOnly,
     branch_check_before: branchCheckBefore,
   };
 
+  let alreadySynced = branchCheckBefore.inBranch;
   if (!branchCheckBefore.inBranch) {
-    if (!syncRelease) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "release_sync_required",
-          detail: `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}).`,
-          request_id: requestId,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          branch_check: branchCheckBefore,
-        },
-        409,
-        cors
-      );
-    }
-
     const mergeResult = await mergeBranches({
       owner: githubOwner,
       repo: githubRepo,
@@ -587,7 +466,6 @@ serve(async (req) => {
       base: targetBranch,
       head: sourceBranch,
       actor,
-      requestId,
     });
 
     mergeSummary = {
@@ -633,179 +511,39 @@ serve(async (req) => {
         cors
       );
     }
-
-    if (syncOnly) {
-      return jsonResponse(
-        {
-          ok: true,
-          request_id: requestId,
-          release_synced: true,
-          sync_only: true,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          merge: mergeSummary,
-        },
-        200,
-        cors
-      );
-    }
-  } else if (syncOnly) {
-    return jsonResponse(
-      {
-        ok: true,
-        request_id: requestId,
-        release_synced: true,
-        already_synced: true,
-        sync_only: true,
-        source_commit_sha: sourceCommitSha,
-        branches: {
-          source: sourceBranch,
-          target: targetBranch,
-        },
-        merge: mergeSummary,
-      },
-      200,
-      cors
-    );
   }
 
-  const workflowId = asString(
-    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW"),
-    "versioning-deploy-artifact.yml"
-  );
-  const defaultWorkflowRef = asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev");
-  const workflowRef = asString(
-    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW_REF"),
-    defaultWorkflowRef
-  );
-  const callbackUrl = resolveWorkflowCallbackUrl();
-  if (!callbackUrl) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "missing_callback_url",
-        detail:
-          "Define VERSIONING_DEPLOY_CALLBACK_URL o usa SUPABASE_URL/URL para construir el callback.",
-      },
-      500,
-      cors
-    );
-  }
-  const callbackToken = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_TOKEN"));
-  if (!callbackToken) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "missing_callback_token",
-        detail: "Define VERSIONING_DEPLOY_CALLBACK_TOKEN en secrets de Edge.",
-      },
-      500,
-      cors
-    );
-  }
-
-  const deployExecutionId = `gha-${Date.now()}-${requestRow.id.slice(0, 8)}`;
-  const dispatchResult = await dispatchGithubWorkflow({
-    owner: githubOwner,
-    repo: githubRepo,
-    token: githubToken,
-    workflowId,
-    workflowRef,
-    inputs: {
-      request_id: requestRow.id,
-      product_key: requestRow.product_key,
-      env_key: requestRow.env_key,
-      semver: requestRow.version_label,
+  await supabaseAdmin.from("version_audit_log").insert({
+    tenant_id: releaseRow.tenant_id,
+    actor,
+    action: "sync_release_branch",
+    entity_type: "version_releases",
+    entity_id: releaseRow.id,
+    payload: {
+      product_key: productKey,
+      semver,
+      from_env: sourceEnvKey || null,
+      to_env: toEnvKey,
       source_commit_sha: sourceCommitSha,
-      source_branch: sourceBranch,
-      target_branch: targetBranch,
-      callback_url: callbackUrl,
-      deploy_execution_id: deployExecutionId,
-      actor,
-    },
-  });
-
-  if (!dispatchResult.ok) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "github_workflow_dispatch_failed",
-        detail: dispatchResult.message,
-        github_context: {
-          owner: githubOwner,
-          repo: githubRepo,
-          workflow_id: workflowId,
-          workflow_ref: workflowRef,
-        },
-        github: dispatchResult,
-      },
-      502,
-      cors
-    );
-  }
-
-  const workflowLogsUrl = `https://github.com/${githubOwner}/${githubRepo}/actions/workflows/${workflowId}`;
-
-  const { data: deploymentRowId, error: deployErr } = await supabaseAdmin.rpc(
-    "versioning_execute_deploy_request",
-    {
-      p_request_id: requestId,
-      p_actor: actor,
-      p_status: "started",
-      p_deployment_id: deployExecutionId,
-      p_logs_url: workflowLogsUrl,
-      p_metadata: {
-        trigger: "admin_panel_pipeline",
-        deploy_mode: "github_artifact_exact",
-        force_admin_override: forceAdminOverride,
-        source_commit_sha: sourceCommitSha,
-        merge: mergeSummary,
-        workflow: {
-          id: workflowId,
-          ref: workflowRef,
-          callback_url: callbackUrl,
-          dispatched_at: new Date().toISOString(),
-        },
-        github: dispatchResult.payload,
-      },
-    }
-  );
-
-  if (deployErr) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "deploy_registration_failed",
-        detail: deployErr.message,
-        merge: mergeSummary,
-        github: dispatchResult,
-      },
-      500,
-      cors
-    );
-  }
-
-  return jsonResponse(
-    {
-      ok: true,
-      request_id: requestId,
-      deployment_row_id: deploymentRowId,
-      deployment_id: deployExecutionId,
-      logs_url: workflowLogsUrl,
-      merge: mergeSummary,
-      workflow: {
-        id: workflowId,
-        ref: workflowRef,
-        callback_url: callbackUrl,
-        status: dispatchResult.status,
-      },
       branches: {
         source: sourceBranch,
         target: targetBranch,
       },
+      merge: mergeSummary,
+    },
+  });
+
+  return jsonResponse(
+    {
+      ok: true,
+      release_synced: true,
+      already_synced: alreadySynced,
+      source_commit_sha: sourceCommitSha,
+      branches: {
+        source: sourceBranch,
+        target: targetBranch,
+      },
+      merge: mergeSummary,
     },
     200,
     cors

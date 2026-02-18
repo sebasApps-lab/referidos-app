@@ -214,6 +214,24 @@ export async function triggerDeployPipeline({
   });
 }
 
+export async function syncReleaseBranch({
+  productKey,
+  fromEnv = "",
+  toEnv,
+  semver,
+  sourceBranch = "",
+  targetBranch = "",
+}) {
+  return invokeVersioningOps("sync_release_branch", {
+    productKey,
+    fromEnv,
+    toEnv,
+    semver,
+    sourceBranch,
+    targetBranch,
+  });
+}
+
 export async function previewDevRelease({
   productKey = "",
   ref = "dev",

@@ -55,7 +55,7 @@ jobs:
           VERSIONING_BASELINE_VERSION: 0.1.0
           VERSIONING_INPUT: versioning/out/changeset.json
           VERSIONING_CREATE_RELEASE: "1"
-          VERSIONING_RELEASE_STATUS: validated
+          VERSIONING_RELEASE_STATUS: released
           VERSIONING_PRODUCT_FILTER: ${{ inputs.product_filter }}
           VERSIONING_OVERRIDE_SEMVER: ${{ inputs.override_semver }}
           VERSIONING_RELEASE_NOTES: ${{ inputs.release_notes }}
