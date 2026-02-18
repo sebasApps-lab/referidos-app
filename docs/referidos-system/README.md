@@ -1,6 +1,6 @@
 # Referidos-system: guia operativa de versionado
 
-Baseline del sistema: `0.5.0`.
+Baseline del sistema: `0.1.0`.
 
 Control plane central:
 - proyecto Supabase: `referidos-ops`
@@ -207,7 +207,7 @@ npm run versioning:record-deploy -- --product referidos_app --env prod --semver 
 - puede correrse por app/producto:
 
 ```powershell
-npm run versioning:bootstrap -- --products referidos_app,prelaunch_web --baseline 0.5.0 --envs dev,staging,prod --force-snapshot
+npm run versioning:bootstrap -- --products referidos_app,prelaunch_web --baseline 0.1.0 --envs dev
 ```
 
 `--product` tambien funciona:

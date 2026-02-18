@@ -442,7 +442,7 @@ serve(async (req) => {
     if (latestError) throw new Error(latestError.message);
 
     const latestRow = latestRows?.[0] || null;
-    const baseline = asString(map.baselineVersion, "0.5.0");
+    const baseline = asString(map.baselineVersion, "0.1.0");
     const isInitialRelease = !latestRow;
     const currentSemver = latestRow
       ? `${latestRow.semver_major}.${latestRow.semver_minor}.${latestRow.semver_patch}`

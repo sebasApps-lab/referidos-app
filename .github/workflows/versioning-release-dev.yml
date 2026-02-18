@@ -52,6 +52,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           VERSIONING_TARGET_ENV: dev
+          VERSIONING_BASELINE_VERSION: 0.1.0
           VERSIONING_INPUT: versioning/out/changeset.json
           VERSIONING_CREATE_RELEASE: "1"
           VERSIONING_RELEASE_STATUS: validated

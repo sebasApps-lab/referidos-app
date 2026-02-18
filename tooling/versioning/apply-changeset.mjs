@@ -15,7 +15,7 @@ function parseArgs(argv) {
   const out = {
     input: process.env.VERSIONING_INPUT || "versioning/out/changeset.json",
     env: process.env.VERSIONING_TARGET_ENV || "dev",
-    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.5.0",
+    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.1.0",
     createRelease: process.env.VERSIONING_CREATE_RELEASE !== "0",
     releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "validated",
     productFilter: (process.env.VERSIONING_PRODUCT_FILTER || "").trim(),

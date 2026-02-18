@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "baselineVersion": "0.5.0",
+  "baselineVersion": "0.1.0",
   "globalIgnore": [
     "**/node_modules/**",
     "**/dist/**",

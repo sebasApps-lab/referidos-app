@@ -91,7 +91,7 @@ function getInitialBaselineSemver(product) {
   if (fromVersioning) return fromVersioning;
   const fromRoot = String(metadata?.initial_baseline_semver || "").trim();
   if (fromRoot) return fromRoot;
-  return "0.5.0";
+  return "0.1.0";
 }
 
 function normalizeReleaseStatus(envKey, status) {

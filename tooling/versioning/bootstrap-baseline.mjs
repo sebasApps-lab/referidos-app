@@ -10,7 +10,7 @@ import { getSupabaseAdminClient, mustData, mustSingle } from "./supabase-client.
 function parseArgs(argv) {
   const out = {
     map: process.env.VERSIONING_COMPONENT_MAP || "versioning/component-map.json",
-    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.5.0",
+    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.1.0",
     envs: String(process.env.VERSIONING_ENVS || "dev,staging,prod")
         .split(",")
         .map((item) => item.trim())
@@ -77,6 +77,7 @@ async function upsertComponentAndRevision({
   tenantId,
   productId,
   component,
+  baseline,
 }) {
   const componentRow = await mustSingle(
     supabase
@@ -124,7 +125,7 @@ async function upsertComponentAndRevision({
         component_id: componentRow.id,
         revision_no: (latest?.revision_no || 0) + 1,
         content_hash: nextHash,
-        source_commit_sha: "baseline-0.5.0",
+        source_commit_sha: `baseline-${baseline}`,
         source_branch: "bootstrap",
         bump_level: "patch",
         change_summary: "Baseline import",
@@ -192,6 +193,7 @@ async function main() {
         tenantId: productRow.tenant_id,
         productId: productRow.id,
         component,
+        baseline: args.baseline,
       });
       if (!componentId || !revisionId) {
         throw new Error(`invalid revision state for component ${component.componentKey}`);
