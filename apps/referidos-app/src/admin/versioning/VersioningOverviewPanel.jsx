@@ -199,6 +199,7 @@ function VersionCard({
   message = "",
   disabled = false,
   deployState = "",
+  mergeState = null,
 }) {
   const envKey = String(row?.env_key || "").toLowerCase();
   const isDevelopment = envKey === "dev";
@@ -235,15 +236,22 @@ function VersionCard({
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span>Estado: {statusLabel}</span>
-        {isDeployTrackedEnv && deployState === "deployed" ? (
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${deploymentStateBadgeClass(
-              "deployed"
-            )}`}
-          >
-            deployed
-          </span>
-        ) : null}
+        <div className="flex items-center gap-1">
+          {isDeployTrackedEnv && mergeState?.merged ? (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              merged
+            </span>
+          ) : null}
+          {isDeployTrackedEnv && deployState === "deployed" ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${deploymentStateBadgeClass(
+                "deployed"
+              )}`}
+            >
+              deployed
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
       {disabled ? (
@@ -251,7 +259,17 @@ function VersionCard({
           No inicializado
         </div>
       ) : null}
-      {isDevelopment && message ? (
+      {!isDevelopment && isDeployTrackedEnv && mergeState?.checking ? (
+        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
+          Verificando merge...
+        </div>
+      ) : null}
+      {!isDevelopment && isDeployTrackedEnv && !mergeState?.checking && mergeState?.error ? (
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+          {mergeState.error}
+        </div>
+      ) : null}
+      {message ? (
         <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
           {message}
         </div>
@@ -292,6 +310,9 @@ export default function VersioningOverviewPanel() {
   const [deployMessage, setDeployMessage] = useState("");
   const [activeDeployRequestId, setActiveDeployRequestId] = useState("");
   const [deploySyncRequired, setDeploySyncRequired] = useState(null);
+  const [mergeStatusByVersion, setMergeStatusByVersion] = useState({});
+  const [envCardMessages, setEnvCardMessages] = useState({});
+  const [mergingActionId, setMergingActionId] = useState("");
 
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -506,6 +527,7 @@ export default function VersioningOverviewPanel() {
     setPromoteDraft(null);
     setDevReleaseDraft(null);
     setDevReleaseDraftError("");
+    setEnvCardMessages({});
   }, [activeProductKey]);
 
   useEffect(() => {
@@ -570,6 +592,11 @@ export default function VersioningOverviewPanel() {
     [getLatestDeployRequestForVersion]
   );
 
+  const getMergeStatusForVersion = useCallback(
+    (envKey, versionLabel) => mergeStatusByVersion[versionKey(envKey, versionLabel)] || null,
+    [mergeStatusByVersion]
+  );
+
   const envCards = useMemo(() => {
     const rowsByEnv = new Map(
       latestReleases
@@ -597,6 +624,73 @@ export default function VersioningOverviewPanel() {
     () => initializedByProduct.get(activeProductKey) === true,
     [activeProductKey, initializedByProduct]
   );
+
+  const refreshMergeStatuses = useCallback(async () => {
+    if (!activeProductKey || !isActiveProductInitialized || !DEPLOYABLE_PRODUCTS.includes(activeProductKey)) {
+      setMergeStatusByVersion({});
+      return;
+    }
+
+    const targets = envCards
+      .map((row) => ({
+        envKey: String(row?.env_key || "").toLowerCase(),
+        semver: String(row?.version_label || "").trim(),
+      }))
+      .filter(
+        (row) => DEPLOY_ENV_OPTIONS.includes(row.envKey) && row.semver && row.semver !== "-"
+      );
+
+    if (!targets.length) {
+      setMergeStatusByVersion({});
+      return;
+    }
+
+    const checkingMap = Object.fromEntries(
+      targets.map((target) => [versionKey(target.envKey, target.semver), { checking: true }])
+    );
+    setMergeStatusByVersion(checkingMap);
+
+    const statusEntries = await Promise.all(
+      targets.map(async (target) => {
+        const key = versionKey(target.envKey, target.semver);
+        try {
+          const result = await syncReleaseBranch({
+            productKey: activeProductKey,
+            toEnv: target.envKey,
+            semver: target.semver,
+            checkOnly: true,
+          });
+          return [
+            key,
+            {
+              checking: false,
+              merged: result?.release_synced === true || result?.already_synced === true,
+              branches: result?.branches || null,
+              sourceCommitSha: result?.source_commit_sha || "",
+              error: "",
+            },
+          ];
+        } catch (err) {
+          return [
+            key,
+            {
+              checking: false,
+              merged: false,
+              branches: null,
+              sourceCommitSha: "",
+              error: err?.message || "No se pudo verificar merge en rama destino.",
+            },
+          ];
+        }
+      })
+    );
+
+    setMergeStatusByVersion(Object.fromEntries(statusEntries));
+  }, [activeProductKey, envCards, isActiveProductInitialized]);
+
+  useEffect(() => {
+    refreshMergeStatuses();
+  }, [refreshMergeStatuses]);
 
   useEffect(() => {
     if (!orderedProducts.length) return;
@@ -641,6 +735,47 @@ export default function VersioningOverviewPanel() {
     if (confirmLoading) return;
     setConfirmDialog(null);
   }, [confirmLoading]);
+
+  const handleMergeRelease = async ({
+    envKey,
+    semver,
+    source = "card",
+  }) => {
+    if (!activeProductKey || !envKey || !semver) {
+      setDeployMessage("Faltan datos para ejecutar merge.");
+      return;
+    }
+    if (!DEPLOYABLE_PRODUCTS.includes(activeProductKey) || !DEPLOY_ENV_OPTIONS.includes(envKey)) {
+      setDeployMessage("Merge disponible solo para staging/prod en REFERIDOS PWA y PRELAUNCH WEB.");
+      return;
+    }
+
+    const currentActionId = actionKey("merge", source, envKey, semver);
+    setMergingActionId(currentActionId);
+    setEnvCardMessages((current) => ({ ...current, [envKey]: "" }));
+
+    try {
+      const result = await syncReleaseBranch({
+        productKey: activeProductKey,
+        toEnv: envKey,
+        semver,
+      });
+      setEnvCardMessages((current) => ({
+        ...current,
+        [envKey]: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)} (${result?.branches?.target || "-"})`,
+      }));
+      await load(true);
+      await refreshMergeStatuses();
+    } catch (err) {
+      setEnvCardMessages((current) => ({
+        ...current,
+        [envKey]: err?.message || "No se pudo hacer merge a la rama destino.",
+      }));
+      await refreshMergeStatuses();
+    } finally {
+      setMergingActionId("");
+    }
+  };
 
   const handlePromoteVersion = async ({
     semver,
@@ -946,6 +1081,21 @@ export default function VersioningOverviewPanel() {
     [openConfirmDialog]
   );
 
+  const requestMergeVersion = useCallback(
+    ({ envKey, semver, source = "card" }) => {
+      openConfirmDialog({
+        title: "Confirmar merge",
+        copy: `Se intentara subir la release ${semver} hacia ${normalizeEnvLabel(envKey)} haciendo merge de ramas.`,
+        confirmLabel: "Confirmar",
+        action: {
+          type: "merge-release",
+          payload: { envKey, semver, source },
+        },
+      });
+    },
+    [openConfirmDialog]
+  );
+
   const requestSyncRelease = useCallback(() => {
     openConfirmDialog({
       title: "Confirmar subida de release",
@@ -1052,6 +1202,8 @@ export default function VersioningOverviewPanel() {
       await handleDeployByVersion(payload || {});
     } else if (type === "sync-release") {
       await handleSyncRelease();
+    } else if (type === "merge-release") {
+      await handleMergeRelease(payload || {});
     }
   };
 
@@ -1187,6 +1339,11 @@ export default function VersioningOverviewPanel() {
                   DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
                     ? getDeploymentStateForVersion(envKey, releaseVersion)
                     : "";
+                const mergeStateForCard =
+                  DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
+                    ? getMergeStatusForVersion(envKey, releaseVersion)
+                    : null;
+                const isMergedForCard = mergeStateForCard?.merged === true;
 
                 const actions = [];
 
@@ -1231,6 +1388,23 @@ export default function VersioningOverviewPanel() {
                   DEPLOYABLE_PRODUCTS.includes(activeProductKey) &&
                   hasValidVersion
                 ) {
+                  if (!isMergedForCard) {
+                    const mergeActionId = actionKey("merge", "quick-card", envKey, releaseVersion);
+                    actions.push({
+                      key: mergeActionId,
+                      label: "Merge",
+                      loadingLabel: "Mergeando...",
+                      loading: mergingActionId === mergeActionId,
+                      disabled: mergingActionId === mergeActionId || mergeStateForCard?.checking === true,
+                      onClick: () =>
+                        requestMergeVersion({
+                          envKey,
+                          semver: releaseVersion,
+                          source: "quick-card",
+                        }),
+                    });
+                  }
+
                   if (envKey === "staging" && normalizedStatus === "approved") {
                     const promoteActionId = actionKey(
                       "promote",
@@ -1280,7 +1454,8 @@ export default function VersioningOverviewPanel() {
                     row={row}
                     actions={actions}
                     deployState={deployStateForCard}
-                    message={envKey === "dev" ? devReleaseMessage : ""}
+                    mergeState={mergeStateForCard}
+                    message={envCardMessages[envKey] || (envKey === "dev" ? devReleaseMessage : "")}
                     disabled={!isActiveProductInitialized}
                   />
                 );

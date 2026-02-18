@@ -22,6 +22,11 @@ function asString(value: unknown, fallback = ""): string {
   return value.trim() || fallback;
 }
 
+function asBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  return fallback;
+}
+
 function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
   const ownerRaw = asString(ownerInput);
   const repoRaw = asString(repoInput);
@@ -316,6 +321,7 @@ serve(async (req) => {
   const semver = asString(body.semver);
   const sourceBranchInput = asString(body.source_branch);
   const targetBranchInput = asString(body.target_branch);
+  const checkOnly = asBoolean(body.check_only, false);
 
   if (!productKey || !toEnvKey || !semver) {
     return jsonResponse(
@@ -456,6 +462,26 @@ serve(async (req) => {
     source_commit_sha: sourceCommitSha,
     branch_check_before: branchCheckBefore,
   };
+
+  if (checkOnly) {
+    return jsonResponse(
+      {
+        ok: true,
+        release_synced: branchCheckBefore.inBranch,
+        already_synced: branchCheckBefore.inBranch,
+        check_only: true,
+        in_branch: branchCheckBefore.inBranch,
+        source_commit_sha: sourceCommitSha,
+        branches: {
+          source: sourceBranch,
+          target: targetBranch,
+        },
+        merge: mergeSummary,
+      },
+      200,
+      cors
+    );
+  }
 
   let alreadySynced = branchCheckBefore.inBranch;
   if (!branchCheckBefore.inBranch) {

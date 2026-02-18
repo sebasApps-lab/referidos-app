@@ -219,6 +219,7 @@ export async function syncReleaseBranch({
   fromEnv = "",
   toEnv,
   semver,
+  checkOnly = false,
   sourceBranch = "",
   targetBranch = "",
 }) {
@@ -227,6 +228,7 @@ export async function syncReleaseBranch({
     fromEnv,
     toEnv,
     semver,
+    checkOnly,
     sourceBranch,
     targetBranch,
   });

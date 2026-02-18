@@ -602,6 +602,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         semver,
         source_branch: asString(payload.sourceBranch) || null,
         target_branch: asString(payload.targetBranch) || null,
+        check_only: asBoolean(payload.checkOnly, false),
         actor: asString(payload.actor, actor),
       });
 
