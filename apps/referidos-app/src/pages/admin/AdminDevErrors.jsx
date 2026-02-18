@@ -5,7 +5,7 @@ import ErrorCatalogTable from "../../admin/observability/ErrorCatalogTable";
 export default function AdminDevErrors() {
   return (
     <AdminLayout
-      title="Dev / Catalogo de errores"
+      title="Catalogo errores"
       subtitle="Errores detectados, pendientes y definidos"
     >
       <ErrorCatalogTable />

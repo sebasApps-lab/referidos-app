@@ -193,7 +193,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/prelaunch-analytics"
+        path="/admin/analytics"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -237,7 +237,7 @@ export default function AppRoutes() {
         element={<Navigate to="/admin/issues" replace />}
       />
       <Route
-        path="/admin/dev/errors"
+        path="/admin/error-codes"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -307,7 +307,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/catalogo"
+        path="/admin/soporte/macros"
         element={
           <RequireAuth>
             <RequireRole role="admin">

@@ -40,7 +40,7 @@ const NAV_GROUPS = [
       { label: "Reportes", to: "/admin/reportes", Icon: AlertTriangle },
       { label: "Soporte", to: "/admin/soporte", Icon: ShieldCheck },
       { label: "Panel Tickets", to: "/admin/soporte/panel-tickets", Icon: Layers3 },
-      { label: "Catalogo Soporte", to: "/admin/soporte/catalogo", Icon: FileText },
+      { label: "Macros", to: "/admin/soporte/macros", Icon: FileText },
     ],
   },
   {
@@ -48,9 +48,9 @@ const NAV_GROUPS = [
     items: [
       { label: "Logs", to: "/admin/logs", Icon: FileText },
       { label: "Issues", to: "/admin/issues", Icon: Activity },
-      { label: "Dev Errores", to: "/admin/dev/errors", Icon: AlertTriangle },
+      { label: "Catalogo errores", to: "/admin/error-codes", Icon: AlertTriangle },
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
-      { label: "Prelaunch Analytics", to: "/admin/prelaunch-analytics", Icon: BarChart3 },
+      { label: "Analytics", to: "/admin/analytics", Icon: BarChart3 },
       { label: "Versionado Global", to: "/admin/versionado/global", Icon: GitBranch },
       { label: "Versionado Detalle", to: "/admin/versionado/detalle", Icon: Layers3 },
       { label: "Documentacion", to: "/admin/documentacion", Icon: BookOpen },

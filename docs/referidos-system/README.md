@@ -219,6 +219,7 @@ npm run versioning:bootstrap -- --product referidos_app --product prelaunch_web
 ## 8) Documentos relacionados
 
 - `docs/referidos-system/entornos-y-secrets.md`
+- `docs/referidos-system/ops-telemetry-cold-dispatch.md`
 - `docs/referidos-system/operacion-sin-pr-netlify.md`
 - `docs/versioning-system.md`
 - `apps/referidos-ops/README.md`

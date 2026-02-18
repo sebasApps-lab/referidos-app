@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.versioning-dev-release-preview]
 verify_jwt = false
+
+[functions.ops-telemetry-ingest]
+verify_jwt = false

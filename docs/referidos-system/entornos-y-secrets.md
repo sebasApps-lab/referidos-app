@@ -276,3 +276,75 @@ Para rollout por fases:
 Nota:
 - No se usa fallback por fecha para legacy.
 - Si no hay snapshot, el evento queda `component_resolution_method = unresolved`.
+
+## 11) Ops telemetry hot/cold (runtime config)
+
+Documento dedicado:
+- `docs/referidos-system/ops-telemetry-cold-dispatch.md`
+
+Estado actual:
+- el sistema usa `ops_sync_outbox` en runtime y `ops_telemetry_*` en `referidos-ops`.
+- la configuracion de `cold dispatch` se guarda en `public.ops_sync_runtime_config`.
+- esa configuracion se hace con helper SQL idempotente (migracion `20260301_000023_ops_sync_runtime_config_helper.sql`).
+
+SQL oficial para configurar (el mismo para cualquier entorno):
+```sql
+select public.ops_sync_upsert_runtime_config(
+  p_runtime_base_url := 'https://<RUNTIME_PROJECT_REF>.supabase.co',
+  p_cron_token := '<CRON_TOKEN_LARGO>',
+  p_enabled := true,
+  p_tenant_name := 'ReferidosAPP'
+);
+```
+
+Regla:
+- ejecutar este SQL en el proyecto runtime del entorno correspondiente.
+- no guardar `CRON_TOKEN_LARGO` en repo ni en migraciones.
+
+Plantilla por entorno:
+
+`dev` (`btvrtxdizqsqrzdsgvsj`)
+```sql
+select public.ops_sync_upsert_runtime_config(
+  p_runtime_base_url := 'https://btvrtxdizqsqrzdsgvsj.supabase.co',
+  p_cron_token := '<CRON_TOKEN_LARGO_DEV>',
+  p_enabled := true,
+  p_tenant_name := 'ReferidosAPP'
+);
+```
+
+`staging` (`iegjfeaadayfvqockwov`) cuando se habilite:
+```sql
+select public.ops_sync_upsert_runtime_config(
+  p_runtime_base_url := 'https://iegjfeaadayfvqockwov.supabase.co',
+  p_cron_token := '<CRON_TOKEN_LARGO_STAGING>',
+  p_enabled := true,
+  p_tenant_name := 'ReferidosAPP'
+);
+```
+
+`prod` (`ztcsrfwvjgqnmhnlpeye`) cuando se habilite:
+```sql
+select public.ops_sync_upsert_runtime_config(
+  p_runtime_base_url := 'https://ztcsrfwvjgqnmhnlpeye.supabase.co',
+  p_cron_token := '<CRON_TOKEN_LARGO_PROD>',
+  p_enabled := true,
+  p_tenant_name := 'ReferidosAPP'
+);
+```
+
+Verificacion minima despues de configurar:
+```sql
+select tenant_id, runtime_base_url, enabled, updated_at
+from public.ops_sync_runtime_config;
+```
+
+Si necesitas desactivar temporalmente el cold dispatch:
+```sql
+select public.ops_sync_upsert_runtime_config(
+  p_runtime_base_url := 'https://<RUNTIME_PROJECT_REF>.supabase.co',
+  p_cron_token := '<CRON_TOKEN_LARGO>',
+  p_enabled := false,
+  p_tenant_name := 'ReferidosAPP'
+);
+```
