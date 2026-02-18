@@ -262,6 +262,7 @@ export default function VersioningOverviewPanel() {
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
   const [devReleaseDraft, setDevReleaseDraft] = useState(null);
   const [devReleaseDraftError, setDevReleaseDraftError] = useState("");
+  const [devReleaseSyncing, setDevReleaseSyncing] = useState(null);
   const [promoteSourceEnv, setPromoteSourceEnv] = useState("dev");
   const [promoteRows, setPromoteRows] = useState([]);
   const [promoteRowsLoading, setPromoteRowsLoading] = useState(false);
@@ -386,6 +387,70 @@ export default function VersioningOverviewPanel() {
   useEffect(() => {
     load(false);
   }, [load]);
+
+  const refreshLatestReleaseRows = useCallback(async () => {
+    const latest = await fetchLatestReleases();
+    setLatestReleases(latest);
+    return latest || [];
+  }, []);
+
+  useEffect(() => {
+    if (!devReleaseSyncing) return undefined;
+    let cancelled = false;
+    let timerId;
+    const POLL_INTERVAL_MS = 4000;
+    const MAX_WAIT_MS = 120000;
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const latest = await refreshLatestReleaseRows();
+        if (cancelled) return;
+
+        const devRow = (latest || []).find(
+          (row) =>
+            String(row.product_key || "") === String(devReleaseSyncing.productKey || "") &&
+            String(row.env_key || "").toLowerCase() === "dev"
+        );
+
+        const versionLabel = String(devRow?.version_label || "").trim();
+        const sourceCommitSha = String(devRow?.source_commit_sha || "").trim();
+        const hasAnyDevRelease = Boolean(devRow && versionLabel && versionLabel !== "-");
+        const isNewReleaseDetected = devReleaseSyncing.hadPreviousRelease
+          ? hasAnyDevRelease &&
+            (versionLabel !== String(devReleaseSyncing.previousVersionLabel || "").trim() ||
+              sourceCommitSha !== String(devReleaseSyncing.previousSourceCommitSha || "").trim())
+          : hasAnyDevRelease;
+
+        if (isNewReleaseDetected) {
+          await load(true);
+          if (cancelled) return;
+          setDevReleaseMessage(`Release DEVELOPMENT creada: ${versionLabel}.`);
+          setDevReleaseSyncing(null);
+          return;
+        }
+      } catch {
+        // Keep polling on transient errors.
+      }
+
+      if (Date.now() - Number(devReleaseSyncing.startedAt || 0) >= MAX_WAIT_MS) {
+        setDevReleaseMessage(
+          "Release en cola. Sigue en ejecucion; revisa el workflow si tarda mas de lo esperado."
+        );
+        setDevReleaseSyncing(null);
+        return;
+      }
+
+      timerId = setTimeout(tick, POLL_INTERVAL_MS);
+    };
+
+    tick();
+
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [devReleaseSyncing, refreshLatestReleaseRows, load]);
 
   useEffect(() => {
     if (!activeProductKey) {
@@ -905,6 +970,12 @@ export default function VersioningOverviewPanel() {
 
     setCreatingDevRelease(true);
     try {
+      const previousDevRelease = (latestReleases || []).find(
+        (row) =>
+          String(row.product_key || "") === String(activeProductKey || "") &&
+          String(row.env_key || "").toLowerCase() === "dev"
+      );
+
       const result = await createDevRelease({
         productKey: activeProductKey,
         ref: "dev",
@@ -912,8 +983,19 @@ export default function VersioningOverviewPanel() {
         releaseNotes: releaseNotes || "",
       });
       setDevReleaseMessage(
-        `Release de DEVELOPMENT en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}`
+        `Release de DEVELOPMENT en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}. Actualizando estado...`
       );
+      setDevReleaseSyncing({
+        productKey: activeProductKey,
+        hadPreviousRelease: Boolean(previousDevRelease),
+        previousVersionLabel: previousDevRelease
+          ? String(previousDevRelease.version_label || "").trim()
+          : "",
+        previousSourceCommitSha: previousDevRelease
+          ? String(previousDevRelease.source_commit_sha || "").trim()
+          : "",
+        startedAt: Date.now(),
+      });
       setDevReleaseDraft(null);
       setDevReleaseDraftError("");
     } catch (err) {
