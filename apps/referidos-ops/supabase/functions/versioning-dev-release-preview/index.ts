@@ -108,7 +108,11 @@ function semverToString(semver: { major: number; minor: number; patch: number })
 function bumpSemver(currentSemver: string, bumpLevel: BumpLevel) {
   const parsed = parseSemver(currentSemver);
   if (!parsed) return currentSemver;
-  if (bumpLevel === "major") return semverToString({ major: parsed.major + 1, minor: 0, patch: 0 });
+  if (bumpLevel === "major") {
+    // Pre-1.0 strategy: treat major as next minor (0.x -> 0.(x+1).0).
+    if (parsed.major === 0) return semverToString({ major: 0, minor: parsed.minor + 1, patch: 0 });
+    return semverToString({ major: parsed.major + 1, minor: 0, patch: 0 });
+  }
   if (bumpLevel === "minor") return semverToString({ major: parsed.major, minor: parsed.minor + 1, patch: 0 });
   if (bumpLevel === "patch") return semverToString({ major: parsed.major, minor: parsed.minor, patch: parsed.patch + 1 });
   return semverToString(parsed);

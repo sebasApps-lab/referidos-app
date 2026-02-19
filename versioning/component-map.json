@@ -39,7 +39,6 @@
       "contractGlobs": [
         "packages/support-sdk/src/**",
         "packages/api-client/src/**",
-        "apps/referidos-app/supabase/functions/**",
         "apps/referidos-app/src/lib/supabaseClient.js"
       ],
       "minorGlobs": [
