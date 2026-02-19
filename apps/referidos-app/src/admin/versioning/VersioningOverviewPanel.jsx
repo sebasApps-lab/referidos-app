@@ -876,7 +876,6 @@ export default function VersioningOverviewPanel() {
     setDeployTargetEnv(envKey);
 
     let normalizedRequestId = "";
-    let normalizedRequestStatus = "";
     try {
       await syncReleaseBranch({
         productKey: activeProductKey,
@@ -893,7 +892,6 @@ export default function VersioningOverviewPanel() {
 
       if (existingRequest?.id) {
         normalizedRequestId = existingRequest.id;
-        normalizedRequestStatus = String(existingRequest.status || "").toLowerCase();
       } else {
         const requestId = await requestDeploy({
           productKey: activeProductKey,
@@ -911,27 +909,10 @@ export default function VersioningOverviewPanel() {
           typeof requestId === "string"
             ? requestId
             : requestId?.request_id || requestId?.id || "";
-        normalizedRequestStatus = "pending";
       }
 
       if (!normalizedRequestId) {
         throw new Error("No se pudo resolver request_id para ejecutar deploy.");
-      }
-
-      if (normalizedRequestStatus === "pending") {
-        try {
-          await approveDeployRequest({
-            requestId: normalizedRequestId,
-            actor: "admin-ui-direct",
-            forceAdminOverride: true,
-            notes: "Auto-aprobado por deploy directo de admin",
-          });
-        } catch (approveErr) {
-          const approveMessage = String(approveErr?.message || "");
-          if (!approveMessage.includes("is not pending")) {
-            throw approveErr;
-          }
-        }
       }
 
       setActiveDeployRequestId(normalizedRequestId);
@@ -1571,7 +1552,7 @@ export default function VersioningOverviewPanel() {
                         <>
                           <button
                             type="button"
-                            onClick={() => handleApproveRequest(row.id, false)}
+                            onClick={() => handleApproveRequest(row.id, true)}
                             disabled={!isActiveProductInitialized || deployingActionId === `approve-${row.id}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 disabled:opacity-60"
                           >
