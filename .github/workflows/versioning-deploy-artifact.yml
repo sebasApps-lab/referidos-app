@@ -79,8 +79,6 @@ jobs:
       VITE_SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
       VITE_SUPABASE_ANON_KEY_STAGING: ${{ secrets.VITE_SUPABASE_ANON_KEY_STAGING }}
       VITE_SUPABASE_ANON_KEY_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
-      SUPABASE_ANON_KEY_STAGING: ${{ secrets.SUPABASE_ANON_KEY_STAGING }}
-      SUPABASE_ANON_KEY_PROD: ${{ secrets.SUPABASE_ANON_KEY_PROD }}
       OBS_TENANT_ID_STAGING: ${{ secrets.OBS_TENANT_ID_STAGING }}
       OBS_TENANT_ID_PROD: ${{ secrets.OBS_TENANT_ID_PROD }}
       OBS_TENANT_NAME_STAGING: ${{ secrets.OBS_TENANT_NAME_STAGING }}
@@ -205,20 +203,30 @@ jobs:
           vite_url=""
           vite_anon_key=""
 
+          has_value() {
+            if [[ -n "${1:-}" ]]; then
+              echo "yes"
+            else
+              echo "no"
+            fi
+          }
+
           if [[ "$env_key" == "staging" ]]; then
-            vite_url="${VITE_SUPABASE_URL_STAGING:-${SUPABASE_URL_STAGING:-}}"
-            vite_anon_key="${VITE_SUPABASE_ANON_KEY_STAGING:-${SUPABASE_ANON_KEY_STAGING:-}}"
+            vite_url="${VITE_SUPABASE_URL_STAGING:-}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_STAGING:-}"
           else
-            vite_url="${VITE_SUPABASE_URL_PROD:-${SUPABASE_URL_PROD:-}}"
-            vite_anon_key="${VITE_SUPABASE_ANON_KEY_PROD:-${SUPABASE_ANON_KEY_PROD:-}}"
+            vite_url="${VITE_SUPABASE_URL_PROD:-}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_PROD:-}"
           fi
 
           if [[ -z "$vite_url" ]]; then
             echo "Falta VITE_SUPABASE_URL para ${env_key}"
+            echo "Diagnostico URL keys: VITE_SUPABASE_URL_STAGING=$(has_value "${VITE_SUPABASE_URL_STAGING:-}") VITE_SUPABASE_URL_PROD=$(has_value "${VITE_SUPABASE_URL_PROD:-}")"
             exit 1
           fi
           if [[ -z "$vite_anon_key" ]]; then
-            echo "Falta VITE_SUPABASE_ANON_KEY/SUPABASE_ANON_KEY para ${env_key}"
+            echo "Falta VITE_SUPABASE_ANON_KEY para ${env_key}"
+            echo "Diagnostico ANON keys: VITE_SUPABASE_ANON_KEY_STAGING=$(has_value "${VITE_SUPABASE_ANON_KEY_STAGING:-}") VITE_SUPABASE_ANON_KEY_PROD=$(has_value "${VITE_SUPABASE_ANON_KEY_PROD:-}")"
             exit 1
           fi
 
