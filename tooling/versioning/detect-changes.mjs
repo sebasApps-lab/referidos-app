@@ -5,7 +5,7 @@ import {
   REPO_ROOT,
   computeBumpForProduct,
   ensureDir,
-  getChangedFiles,
+  getChangedFilesWithStatus,
   getCommitMessages,
   hashFiles,
   loadComponentMap,
@@ -64,6 +64,22 @@ function componentFromLogical(logical, files) {
   };
 }
 
+function classifyFileChange(status) {
+  if (status === "A") return "added";
+  if (status === "D") return "deleted";
+  return "modified";
+}
+
+function classifyLogicalChange(statuses = []) {
+  if (!statuses.length) return "modified";
+  const set = new Set(statuses);
+  if (set.size === 1 && set.has("D")) return "deleted";
+  if (set.size === 1 && set.has("A")) return "added";
+  if (set.has("D") && !set.has("A")) return "deleted";
+  if (set.has("A") && !set.has("D") && !set.has("M")) return "added";
+  return "modified";
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const map = loadComponentMap(args.map);
@@ -72,8 +88,14 @@ function main() {
     .map((item) => item.trim())
     .filter(Boolean);
 
-  const changedFromGit = getChangedFiles(args.base, args.head);
-  const changedFiles = changedFromGit.filter((file) => !matchesAnyGlob(file, map.globalIgnore || []));
+  const changedFromGit = getChangedFilesWithStatus(args.base, args.head);
+  const filteredChanges = changedFromGit.filter(
+    (item) => !matchesAnyGlob(item.path, map.globalIgnore || [])
+  );
+  const changedFiles = filteredChanges.map((item) => item.path);
+  const changedStatusByPath = new Map(
+    filteredChanges.map((item) => [item.path, item.status])
+  );
   const commitMessages = getCommitMessages(args.base, args.head);
   const branch = runGitCommand("rev-parse --abbrev-ref HEAD", "unknown");
   const commitSha = runGitCommand("rev-parse HEAD", "unknown");
@@ -106,7 +128,10 @@ function main() {
 
     for (const file of productChangedFiles) {
       mappedFiles.add(file);
-      componentCandidates.push(buildFileComponent(product.productKey, file));
+      componentCandidates.push({
+        ...buildFileComponent(product.productKey, file),
+        changeKind: classifyFileChange(changedStatusByPath.get(file)),
+      });
     }
 
     for (const logical of product.logicalComponents || []) {
@@ -115,7 +140,17 @@ function main() {
       );
       const touched = productChangedFiles.some((file) => matchesAnyGlob(file, logical.globs || []));
       if (!touched) continue;
-      componentCandidates.push(componentFromLogical(logical, logicalFiles));
+      const touchedFiles = productChangedFiles.filter((file) =>
+        matchesAnyGlob(file, logical.globs || [])
+      );
+      componentCandidates.push({
+        ...componentFromLogical(logical, logicalFiles),
+        changeKind: classifyLogicalChange(
+          touchedFiles
+            .map((file) => changedStatusByPath.get(file))
+            .filter(Boolean)
+        ),
+      });
       logicalFiles.forEach((file) => mappedFiles.add(file));
     }
 
@@ -132,6 +167,7 @@ function main() {
             : matchesAnyGlob(file, (product.logicalComponents || [])
               .find((item) => item.componentKey === component.componentKey)?.globs || [])
         ),
+        changeKind: component.changeKind || "modified",
       });
     }
 

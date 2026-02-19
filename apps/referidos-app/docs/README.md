@@ -52,7 +52,12 @@ Regla practica:
 
 1. compilar PWA
 2. revisar rutas nuevas y permisos
-3. si tocaste contrato, marcar label semver en PR
+3. usar commit message semantico (`feat`, `fix`, `feat!`, etc.) para bump correcto
+
+## Panel de versionado admin
+
+- El panel usa `versioning-ops-proxy` para operar sobre `referidos-ops`.
+- El resto de la app admin sigue usando el Supabase del entorno runtime.
 
 ## Referencias
 

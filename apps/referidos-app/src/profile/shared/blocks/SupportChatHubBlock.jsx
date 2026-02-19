@@ -6,6 +6,7 @@ import { useModal } from "../../../modals/useModal";
 import { SUPPORT_CHAT_CATEGORIES } from "../data/supportChatCategories";
 import { createSupportChatThread } from "../services/supportChatClient";
 import { cancelSupportThread } from "@referidos/support-sdk/supportClient";
+import { logCatalogBreadcrumb } from "../../../services/loggingClient";
 
 export default function SupportChatHubBlock({ role, onShowTickets }) {
   const usuario = useAppStore((s) => s.usuario);
@@ -48,6 +49,11 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
 
   const handleCreate = async () => {
     if (!canSubmit) return;
+    logCatalogBreadcrumb("support.flow.step", {
+      step: "create_ticket_click",
+      category,
+      include_context: includeContext,
+    });
     setLoading(true);
     const payload = {
       category,
@@ -71,11 +77,22 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
           onContinueQueue: () => openModal("SupportQueue", queueModalProps),
           onConfirmCancel: async () => {
             if (!threadPublicId) return;
+            logCatalogBreadcrumb("support.ticket.cancel.start", {
+              thread_public_id: threadPublicId,
+            });
             const cancelResult = await cancelSupportThread({
               thread_public_id: threadPublicId,
             });
             if (cancelResult.ok) {
+              logCatalogBreadcrumb("support.ticket.cancel.ok", {
+                thread_public_id: threadPublicId,
+              });
               setQueueCanceled(true);
+            } else {
+              logCatalogBreadcrumb("support.ticket.cancel.error", {
+                thread_public_id: threadPublicId,
+                error: cancelResult?.error || "cancel_failed",
+              });
             }
           },
         });
@@ -86,6 +103,9 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
 
   const handleOpenWhatsapp = () => {
     if (created?.wa_link) {
+      logCatalogBreadcrumb("support.ticket.whatsapp.open", {
+        thread_public_id: created?.thread_public_id || null,
+      });
       window.open(created.wa_link, "_blank", "noopener");
     }
   };
@@ -101,7 +121,13 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
             <button
               key={item.id}
               type="button"
-              onClick={() => setCategory(item.id)}
+              onClick={() => {
+                setCategory(item.id);
+                logCatalogBreadcrumb("support.help.select", {
+                  option: "chat_category",
+                  category: item.id,
+                });
+              }}
               className={`rounded-2xl border px-4 py-3 text-left transition ${
                 category === item.id
                   ? "border-[#5E30A5] bg-[#F5F0FF] text-[#2F1A55]"

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
@@ -78,6 +78,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const syncInFlightRef = useRef(false);
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -122,6 +123,63 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       active = false;
     };
   }, [usuario?.id]);
+
+  useEffect(() => {
+    if (!usuario?.id) return undefined;
+    if (!["admin", "soporte"].includes(usuario?.role || "")) return undefined;
+
+    let disposed = false;
+    const panelKey = isAdmin ? "admin_support_inbox" : "support_inbox";
+
+    const runHotSync = async (force = false) => {
+      if (disposed || syncInFlightRef.current) return;
+      if (
+        !force &&
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+
+      syncInFlightRef.current = true;
+      try {
+        await supabase.functions.invoke("ops-telemetry-sync-dispatch", {
+          body: {
+            mode: "hot",
+            panel_key: panelKey,
+          },
+        });
+      } catch {
+        // Silent fail: sync is best-effort and must not block inbox usage.
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    };
+
+    void runHotSync(true);
+
+    const timer = globalThis.setInterval(() => {
+      void runHotSync(false);
+    }, 60_000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void runHotSync(true);
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibility);
+    }
+
+    return () => {
+      disposed = true;
+      globalThis.clearInterval(timer);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibility);
+      }
+    };
+  }, [isAdmin, usuario?.id, usuario?.role]);
 
   const filtered = useMemo(
     () =>

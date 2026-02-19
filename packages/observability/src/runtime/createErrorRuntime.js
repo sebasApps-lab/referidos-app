@@ -84,6 +84,20 @@ export function createErrorRuntime({
     observabilityClient.init();
     if (captureUnhandled && typeof window !== "undefined") {
       const onError = (event) => {
+        if (typeof observabilityClient.setRuntimeHealth === "function") {
+          observabilityClient.setRuntimeHealth("runtime_error");
+        }
+        observabilityClient.addBreadcrumb({
+          code: "obs.window.error",
+          type: "error",
+          channel: "auto",
+          timestamp: new Date().toISOString(),
+          message: "Unhandled window error",
+          data: {
+            source: "window_error",
+            route: window.location?.pathname || null,
+          },
+        });
         void reportError(event?.error || event?.message || "window_error", {
           code: "unknown_error",
           context: {
@@ -93,6 +107,20 @@ export function createErrorRuntime({
         });
       };
       const onRejection = (event) => {
+        if (typeof observabilityClient.setRuntimeHealth === "function") {
+          observabilityClient.setRuntimeHealth("runtime_error");
+        }
+        observabilityClient.addBreadcrumb({
+          code: "obs.window.unhandled_rejection",
+          type: "error",
+          channel: "auto",
+          timestamp: new Date().toISOString(),
+          message: "Unhandled promise rejection",
+          data: {
+            source: "unhandled_rejection",
+            route: window.location?.pathname || null,
+          },
+        });
         void reportError(event?.reason || "unhandled_rejection", {
           code: "unknown_error",
           context: {

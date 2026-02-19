@@ -9,12 +9,23 @@ import {
 
 type DeployRequestRow = {
   id: string;
+  release_id: string;
   product_key: string;
   env_key: string;
   version_label: string;
   status: string;
   requested_by: string | null;
   admin_override: boolean | null;
+};
+
+type BranchCheckResult = {
+  ok: boolean;
+  inBranch: boolean;
+  statusCode: number;
+  statusText: string;
+  mergeBaseSha: string;
+  detail: string;
+  payload?: Record<string, unknown>;
 };
 
 function asString(value: unknown, fallback = ""): string {
@@ -31,29 +42,84 @@ function envVarKey(input: string): string {
   return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
 }
 
-function resolveNetlifyHook(productKey: string, envKey: string): string | null {
-  const productToken = envVarKey(productKey);
-  const envToken = envVarKey(envKey);
-  const specific = Deno.env.get(`NETLIFY_BUILD_HOOK_${productToken}_${envToken}`);
-  if (specific && specific.trim()) return specific.trim();
-  const generic = Deno.env.get(`NETLIFY_BUILD_HOOK_${envToken}`);
-  if (generic && generic.trim()) return generic.trim();
-  return null;
+function resolveWorkflowCallbackUrl() {
+  const explicit = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_URL"));
+  if (explicit) return explicit;
+
+  const supabaseUrl = asString(Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL"));
+  if (!supabaseUrl) return "";
+  return `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/versioning-deploy-callback`;
 }
 
-function resolveBranches(envKey: string, sourceBranchInput: string, targetBranchInput: string) {
+function resolveBranchForEnv({
+  productKey,
+  envKey,
+  kind,
+}: {
+  productKey: string;
+  envKey: string;
+  kind: "source" | "target";
+}) {
+  const productToken = envVarKey(productKey);
+  const envToken = envVarKey(envKey);
+  const specific = asString(Deno.env.get(`DEPLOY_${kind.toUpperCase()}_BRANCH_${productToken}_${envToken}`));
+  if (specific) return specific;
+
   const devBranch = Deno.env.get("DEPLOY_BRANCH_DEV")?.trim() || "dev";
   const stagingBranch = Deno.env.get("DEPLOY_BRANCH_STAGING")?.trim() || "staging";
   const prodBranch = Deno.env.get("DEPLOY_BRANCH_PROD")?.trim() || "main";
 
-  const targetBranch = targetBranchInput || (
-    envKey === "prod" ? prodBranch : envKey === "staging" ? stagingBranch : devBranch
-  );
-  const sourceBranch = sourceBranchInput || (
-    targetBranch === prodBranch ? stagingBranch : targetBranch === stagingBranch ? devBranch : devBranch
-  );
+  if (envKey === "prod") return prodBranch;
+  if (envKey === "staging") return stagingBranch;
+  return devBranch;
+}
+
+function resolveBranches({
+  productKey,
+  targetEnvKey,
+  sourceEnvKey,
+  sourceBranchInput,
+  targetBranchInput,
+}: {
+  productKey: string;
+  targetEnvKey: string;
+  sourceEnvKey: string;
+  sourceBranchInput: string;
+  targetBranchInput: string;
+}) {
+  const targetBranch =
+    targetBranchInput ||
+    resolveBranchForEnv({
+      productKey,
+      envKey: targetEnvKey,
+      kind: "target",
+    });
+
+  const fallbackSourceEnv = targetEnvKey === "prod" ? "staging" : "dev";
+  const sourceEnv = sourceEnvKey || fallbackSourceEnv;
+  const sourceBranch =
+    sourceBranchInput ||
+    resolveBranchForEnv({
+      productKey,
+      envKey: sourceEnv,
+      kind: "source",
+    });
 
   return { sourceBranch, targetBranch };
+}
+
+function getNestedString(input: Record<string, unknown>, path: string[]): string {
+  let current: unknown = input;
+  for (const key of path) {
+    if (!current || typeof current !== "object") return "";
+    current = (current as Record<string, unknown>)[key];
+  }
+  return asString(current);
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 async function mergeBranches({
@@ -114,34 +180,37 @@ async function mergeBranches({
   };
 }
 
-async function triggerNetlifyHook({
-  hookUrl,
-  request,
-  actor,
-  sourceBranch,
-  targetBranch,
+async function dispatchGithubWorkflow({
+  owner,
+  repo,
+  token,
+  workflowId,
+  workflowRef,
+  inputs,
 }: {
-  hookUrl: string;
-  request: DeployRequestRow;
-  actor: string;
-  sourceBranch: string;
-  targetBranch: string;
+  owner: string;
+  repo: string;
+  token: string;
+  workflowId: string;
+  workflowRef: string;
+  inputs: Record<string, string>;
 }) {
-  const response = await fetch(hookUrl, {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+    {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
       "Content-Type": "application/json",
+      "User-Agent": "referidos-versioning-edge",
     },
     body: JSON.stringify({
-      request_id: request.id,
-      product_key: request.product_key,
-      env_key: request.env_key,
-      version: request.version_label,
-      actor,
-      source_branch: sourceBranch,
-      target_branch: targetBranch,
+      ref: workflowRef,
+      inputs,
     }),
-  });
+  }
+  );
 
   const text = await response.text();
   let parsed: Record<string, unknown> = {};
@@ -155,26 +224,84 @@ async function triggerNetlifyHook({
     return {
       ok: false,
       status: response.status,
-      message: asString(parsed.message, "netlify_hook_failed"),
+      message: asString(parsed.message, "github_workflow_dispatch_failed"),
       payload: parsed,
     };
   }
 
-  const deploymentId = asString(
-    parsed.id ?? parsed.deploy_id ?? parsed.deployId,
-    `netlify-${Date.now()}-${request.id.slice(0, 8)}`
-  );
-  const logsUrl = asString(
-    parsed.deploy_ssl_url ?? parsed.deploy_url ?? parsed.url ?? parsed.logs_url,
-    ""
-  );
-
   return {
     ok: true,
     status: response.status,
-    deploymentId,
-    logsUrl,
+    message: "workflow_dispatched",
     payload: parsed,
+  };
+}
+
+async function checkCommitInBranch({
+  owner,
+  repo,
+  token,
+  commitSha,
+  branch,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  commitSha: string;
+  branch: string;
+}): Promise<BranchCheckResult> {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/compare/${encodeURIComponent(commitSha)}...${encodeURIComponent(branch)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-edge",
+      },
+    }
+  );
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      inBranch: false,
+      statusCode: response.status,
+      statusText: asString(parsed.message, "github_compare_failed"),
+      mergeBaseSha: "",
+      detail: asString(parsed.message, "No se pudo verificar commit en rama destino."),
+      payload: parsed,
+    };
+  }
+
+  const mergeBaseSha = getNestedString(parsed, ["merge_base_commit", "sha"]);
+  const baseCommitSha = getNestedString(parsed, ["base_commit", "sha"]);
+  const inBranch = mergeBaseSha === commitSha || baseCommitSha === commitSha;
+
+  return {
+    ok: true,
+    inBranch,
+    statusCode: response.status,
+    statusText: asString(parsed.status, "ok"),
+    mergeBaseSha,
+    detail: inBranch
+      ? `commit ${commitSha} encontrado en ${branch}`
+      : `commit ${commitSha} no esta en ${branch}`,
+    payload: {
+      status: parsed.status,
+      ahead_by: asNumber(parsed.ahead_by),
+      behind_by: asNumber(parsed.behind_by),
+      merge_base_sha: mergeBaseSha,
+    },
   };
 }
 
@@ -211,7 +338,8 @@ serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const requestId = asString(body.request_id);
   const forceAdminOverride = asBoolean(body.force_admin_override, false);
-  const skipMerge = asBoolean(body.skip_merge, false);
+  const syncRelease = asBoolean(body.sync_release, false);
+  const syncOnly = asBoolean(body.sync_only, false);
   const sourceBranchInput = asString(body.source_branch);
   const targetBranchInput = asString(body.target_branch);
 
@@ -221,13 +349,38 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestErr } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, product_key, env_key, version_label, status, requested_by, admin_override")
+    .select("id, release_id, product_key, env_key, version_label, status, requested_by, admin_override")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<DeployRequestRow>();
 
   if (requestErr || !requestRow) {
     return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
+  }
+
+  if (!["staging", "prod"].includes(requestRow.env_key)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "deploy_env_not_allowed",
+        detail: `Deploy solo permitido en staging/prod. env_key=${requestRow.env_key}`,
+      },
+      409,
+      cors
+    );
+  }
+
+  if (!["referidos_app", "prelaunch_web"].includes(requestRow.product_key)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "deploy_product_not_supported",
+        detail:
+          "Deploy exacto por artifact soportado solo para referidos_app y prelaunch_web.",
+      },
+      409,
+      cors
+    );
   }
 
   if (!["pending", "approved"].includes(requestRow.status)) {
@@ -253,38 +406,113 @@ serve(async (req) => {
   const githubOwner = asString(Deno.env.get("GITHUB_DEPLOY_OWNER"));
   const githubRepo = asString(Deno.env.get("GITHUB_DEPLOY_REPO"));
   const githubToken = asString(Deno.env.get("GITHUB_DEPLOY_TOKEN"));
-  const netlifyHookUrl = resolveNetlifyHook(requestRow.product_key, requestRow.env_key);
-
-  if (!netlifyHookUrl) {
+  if (!githubOwner || !githubRepo || !githubToken) {
     return jsonResponse(
-      {
-        ok: false,
-        error: "missing_netlify_hook",
-        detail: `Define NETLIFY_BUILD_HOOK_${envVarKey(requestRow.product_key)}_${envVarKey(requestRow.env_key)} o NETLIFY_BUILD_HOOK_${envVarKey(requestRow.env_key)}`,
-      },
+      { ok: false, error: "missing_github_deploy_env", detail: "Missing GITHUB_DEPLOY_OWNER/GITHUB_DEPLOY_REPO/GITHUB_DEPLOY_TOKEN" },
       500,
       cors
     );
   }
 
+  const { data: releaseRow, error: releaseErr } = await supabaseAdmin
+    .from("version_releases")
+    .select("id, source_commit_sha")
+    .eq("id", requestRow.release_id)
+    .limit(1)
+    .maybeSingle<{ id: string; source_commit_sha: string | null }>();
+
+  if (releaseErr || !releaseRow) {
+    return jsonResponse(
+      { ok: false, error: "release_not_found", detail: "No se encontro release para la solicitud de deploy." },
+      404,
+      cors
+    );
+  }
+
+  const sourceCommitSha = asString(releaseRow.source_commit_sha);
+  if (!sourceCommitSha) {
+    return jsonResponse(
+      { ok: false, error: "release_missing_source_commit", detail: "La release no tiene source_commit_sha." },
+      409,
+      cors
+    );
+  }
+
+  const { data: promotionRow } = await supabaseAdmin
+    .from("version_promotions")
+    .select("from_release_id, created_at")
+    .eq("to_release_id", requestRow.release_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ from_release_id: string }>();
+
+  let sourceEnvKey = "";
+  if (promotionRow?.from_release_id) {
+    const { data: sourceRelease } = await supabaseAdmin
+      .from("version_releases_labeled")
+      .select("env_key")
+      .eq("id", promotionRow.from_release_id)
+      .limit(1)
+      .maybeSingle<{ env_key: string }>();
+    sourceEnvKey = asString(sourceRelease?.env_key);
+  }
+
   const actor = `admin:${usuario.id}`;
-  const { sourceBranch, targetBranch } = resolveBranches(
-    requestRow.env_key,
+  const { sourceBranch, targetBranch } = resolveBranches({
+    productKey: requestRow.product_key,
+    targetEnvKey: requestRow.env_key,
+    sourceEnvKey,
     sourceBranchInput,
-    targetBranchInput
-  );
+    targetBranchInput,
+  });
+
+  const branchCheckBefore = await checkCommitInBranch({
+    owner: githubOwner,
+    repo: githubRepo,
+    token: githubToken,
+    commitSha: sourceCommitSha,
+    branch: targetBranch,
+  });
+
+  if (!branchCheckBefore.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "github_branch_check_failed",
+        detail: branchCheckBefore.detail,
+        branch_check: branchCheckBefore,
+      },
+      502,
+      cors
+    );
+  }
 
   let mergeSummary: Record<string, unknown> = {
-    skipped: skipMerge,
     source_branch: sourceBranch,
     target_branch: targetBranch,
+    source_env_key: sourceEnvKey || null,
+    source_commit_sha: sourceCommitSha,
+    sync_requested: syncRelease,
+    sync_only: syncOnly,
+    branch_check_before: branchCheckBefore,
   };
 
-  if (!skipMerge) {
-    if (!githubOwner || !githubRepo || !githubToken) {
+  if (!branchCheckBefore.inBranch) {
+    if (!syncRelease) {
       return jsonResponse(
-        { ok: false, error: "missing_github_deploy_env", detail: "Missing GITHUB_DEPLOY_OWNER/GITHUB_DEPLOY_REPO/GITHUB_DEPLOY_TOKEN" },
-        500,
+        {
+          ok: false,
+          error: "release_sync_required",
+          detail: `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}).`,
+          request_id: requestId,
+          source_commit_sha: sourceCommitSha,
+          branches: {
+            source: sourceBranch,
+            target: targetBranch,
+          },
+          branch_check: branchCheckBefore,
+        },
+        409,
         cors
       );
     }
@@ -301,7 +529,7 @@ serve(async (req) => {
 
     mergeSummary = {
       ...mergeSummary,
-      ...mergeResult,
+      merge: mergeResult,
     };
 
     if (!mergeResult.ok) {
@@ -309,33 +537,147 @@ serve(async (req) => {
         {
           ok: false,
           error: "github_merge_failed",
+          detail: mergeResult.message,
           merge: mergeSummary,
         },
         409,
         cors
       );
     }
+
+    const branchCheckAfter = await checkCommitInBranch({
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+      commitSha: sourceCommitSha,
+      branch: targetBranch,
+    });
+
+    mergeSummary = {
+      ...mergeSummary,
+      branch_check_after: branchCheckAfter,
+    };
+
+    if (!branchCheckAfter.ok || !branchCheckAfter.inBranch) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "release_sync_failed",
+          detail: "No se pudo verificar la release en la rama destino despues del merge.",
+          merge: mergeSummary,
+        },
+        409,
+        cors
+      );
+    }
+
+    if (syncOnly) {
+      return jsonResponse(
+        {
+          ok: true,
+          request_id: requestId,
+          release_synced: true,
+          sync_only: true,
+          source_commit_sha: sourceCommitSha,
+          branches: {
+            source: sourceBranch,
+            target: targetBranch,
+          },
+          merge: mergeSummary,
+        },
+        200,
+        cors
+      );
+    }
+  } else if (syncOnly) {
+    return jsonResponse(
+      {
+        ok: true,
+        request_id: requestId,
+        release_synced: true,
+        already_synced: true,
+        sync_only: true,
+        source_commit_sha: sourceCommitSha,
+        branches: {
+          source: sourceBranch,
+          target: targetBranch,
+        },
+        merge: mergeSummary,
+      },
+      200,
+      cors
+    );
   }
 
-  const netlifyResult = await triggerNetlifyHook({
-    hookUrl: netlifyHookUrl,
-    request: requestRow,
-    actor,
-    sourceBranch,
-    targetBranch,
-  });
-
-  if (!netlifyResult.ok) {
+  const workflowId = asString(
+    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW"),
+    "versioning-deploy-artifact.yml"
+  );
+  const workflowRef = asString(
+    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW_REF"),
+    targetBranch || asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev")
+  );
+  const callbackUrl = resolveWorkflowCallbackUrl();
+  if (!callbackUrl) {
     return jsonResponse(
       {
         ok: false,
-        error: "netlify_hook_failed",
-        netlify: netlifyResult,
+        error: "missing_callback_url",
+        detail:
+          "Define VERSIONING_DEPLOY_CALLBACK_URL o usa SUPABASE_URL/URL para construir el callback.",
+      },
+      500,
+      cors
+    );
+  }
+  const callbackToken = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_TOKEN"));
+  if (!callbackToken) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "missing_callback_token",
+        detail: "Define VERSIONING_DEPLOY_CALLBACK_TOKEN en secrets de Edge.",
+      },
+      500,
+      cors
+    );
+  }
+
+  const deployExecutionId = `gha-${Date.now()}-${requestRow.id.slice(0, 8)}`;
+  const dispatchResult = await dispatchGithubWorkflow({
+    owner: githubOwner,
+    repo: githubRepo,
+    token: githubToken,
+    workflowId,
+    workflowRef,
+    inputs: {
+      request_id: requestRow.id,
+      product_key: requestRow.product_key,
+      env_key: requestRow.env_key,
+      semver: requestRow.version_label,
+      source_commit_sha: sourceCommitSha,
+      source_branch: sourceBranch,
+      target_branch: targetBranch,
+      callback_url: callbackUrl,
+      deploy_execution_id: deployExecutionId,
+      actor,
+    },
+  });
+
+  if (!dispatchResult.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "github_workflow_dispatch_failed",
+        detail: dispatchResult.message,
+        github: dispatchResult,
       },
       502,
       cors
     );
   }
+
+  const workflowLogsUrl = `https://github.com/${githubOwner}/${githubRepo}/actions/workflows/${workflowId}`;
 
   const { data: deploymentRowId, error: deployErr } = await supabaseAdmin.rpc(
     "versioning_execute_deploy_request",
@@ -343,13 +685,21 @@ serve(async (req) => {
       p_request_id: requestId,
       p_actor: actor,
       p_status: "started",
-      p_deployment_id: netlifyResult.deploymentId,
-      p_logs_url: netlifyResult.logsUrl || null,
+      p_deployment_id: deployExecutionId,
+      p_logs_url: workflowLogsUrl,
       p_metadata: {
         trigger: "admin_panel_pipeline",
+        deploy_mode: "github_artifact_exact",
         force_admin_override: forceAdminOverride,
+        source_commit_sha: sourceCommitSha,
         merge: mergeSummary,
-        netlify: netlifyResult.payload,
+        workflow: {
+          id: workflowId,
+          ref: workflowRef,
+          callback_url: callbackUrl,
+          dispatched_at: new Date().toISOString(),
+        },
+        github: dispatchResult.payload,
       },
     }
   );
@@ -361,7 +711,7 @@ serve(async (req) => {
         error: "deploy_registration_failed",
         detail: deployErr.message,
         merge: mergeSummary,
-        netlify: netlifyResult,
+        github: dispatchResult,
       },
       500,
       cors
@@ -373,12 +723,14 @@ serve(async (req) => {
       ok: true,
       request_id: requestId,
       deployment_row_id: deploymentRowId,
-      deployment_id: netlifyResult.deploymentId,
-      logs_url: netlifyResult.logsUrl || null,
+      deployment_id: deployExecutionId,
+      logs_url: workflowLogsUrl,
       merge: mergeSummary,
-      netlify: {
-        status: netlifyResult.status,
-        payload: netlifyResult.payload,
+      workflow: {
+        id: workflowId,
+        ref: workflowRef,
+        callback_url: callbackUrl,
+        status: dispatchResult.status,
       },
       branches: {
         source: sourceBranch,

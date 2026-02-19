@@ -55,6 +55,11 @@ export default defineConfig({
   ],
   build: {
     sourcemap: "hidden",
+    rollupOptions: {
+      output: {
+        sourcemapExcludeSources: false,
+      },
+    },
   },
   server: {
     host: true,

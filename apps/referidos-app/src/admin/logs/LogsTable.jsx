@@ -53,7 +53,7 @@ export default function LogsTable() {
     const { data, error: fetchError } = await supabase
       .from("support_log_events")
       .select(
-        "id, level, category, message, occurred_at, created_at, route, source, app_id, user_id, thread_id, user_ref",
+        "id, level, category, message, occurred_at, created_at, route, source, app_id, user_id, thread_id, user_ref, release_version_label, release_source_commit_sha, resolved_component_key, resolved_component_revision_no, component_resolution_method",
       )
       .order("occurred_at", { ascending: false })
       .limit(200);
@@ -82,12 +82,16 @@ export default function LogsTable() {
       const route = String(log.route || "").toLowerCase();
       const actor = supportActorLabel(log).toLowerCase();
       const threadId = String(log.thread_id || "").toLowerCase();
+      const componentKey = String(log.resolved_component_key || "").toLowerCase();
+      const releaseVersion = String(log.release_version_label || "").toLowerCase();
       return (
         category.includes(term) ||
         message.includes(term) ||
         route.includes(term) ||
         actor.includes(term) ||
-        threadId.includes(term)
+        threadId.includes(term) ||
+        componentKey.includes(term) ||
+        releaseVersion.includes(term)
       );
     });
   }, [logs, query]);
@@ -149,6 +153,10 @@ export default function LogsTable() {
               <td className="px-4 py-3">
                 <div className="font-semibold text-slate-700">{log.category || "general"}</div>
                 <div className="text-xs text-slate-500">{compactMessage(log.message)}</div>
+                <div className="text-[11px] text-slate-400">
+                  release: {log.release_version_label || "-"} | componente:{" "}
+                  {log.resolved_component_key || "-"}
+                </div>
                 <div className="text-[11px] text-slate-400">{log.id}</div>
               </td>
               <td className="px-4 py-3 text-slate-500">
@@ -174,6 +182,10 @@ export default function LogsTable() {
                 <div>{log.route || "-"}</div>
                 <div className="text-[11px] text-slate-400">
                   {log.source || "-"} / {log.app_id || "-"}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {log.component_resolution_method || "unresolved"} / rev{" "}
+                  {log.resolved_component_revision_no ?? "-"}
                 </div>
               </td>
             </tr>

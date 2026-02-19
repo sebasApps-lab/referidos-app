@@ -3,6 +3,7 @@ import docsIndex from "../../../../../docs/README.md?raw";
 import docsVersioningQuick from "../../../../../docs/versioning-system.md?raw";
 import docsVersioningCore from "../../../../../docs/referidos-system/README.md?raw";
 import docsVersioningNoPrNetlify from "../../../../../docs/referidos-system/operacion-sin-pr-netlify.md?raw";
+import docsEnvsSecrets from "../../../../../docs/referidos-system/entornos-y-secrets.md?raw";
 import pwaDocsReadme from "../../../docs/README.md?raw";
 import prelaunchDocsReadme from "../../../../../apps/prelaunch/docs/README.md?raw";
 import androidDocsReadme from "../../../../../apps/referidos-android/docs/README.md?raw";
@@ -53,6 +54,13 @@ export const DOCS_REGISTRY = [
     title: "Versionado sin PR + Netlify (detallado)",
     pathLabel: "docs/referidos-system/operacion-sin-pr-netlify.md",
     markdown: docsVersioningNoPrNetlify,
+  },
+  {
+    id: "docs-envs-secrets",
+    group: "general",
+    title: "Entornos y secrets (dev/staging/prod)",
+    pathLabel: "docs/referidos-system/entornos-y-secrets.md",
+    markdown: docsEnvsSecrets,
   },
   {
     id: "pwa-docs-readme",

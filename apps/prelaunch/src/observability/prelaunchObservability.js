@@ -10,10 +10,27 @@ const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TENANT_HINT = import.meta.env.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
 const APP_ID = import.meta.env.VITE_APP_ID || "prelaunch";
+const APP_ENV = import.meta.env.MODE || import.meta.env.VITE_ENV || "development";
+const APP_VERSION =
+  import.meta.env.VITE_APP_VERSION ||
+  import.meta.env.VITE_VERSION_LABEL ||
+  import.meta.env.VITE_RELEASE ||
+  import.meta.env.VITE_COMMIT_SHA ||
+  "dev";
+const BUILD_ID =
+  import.meta.env.VITE_BUILD_ID ||
+  import.meta.env.VITE_SOURCE_COMMIT_SHA ||
+  import.meta.env.VITE_COMMIT_SHA ||
+  "";
+const RELEASE_ID =
+  import.meta.env.VITE_VERSION_RELEASE_ID || import.meta.env.VITE_RELEASE_ID || "";
+const SOURCE_COMMIT_SHA =
+  import.meta.env.VITE_SOURCE_COMMIT_SHA || import.meta.env.VITE_COMMIT_SHA || "";
 
 let client = null;
 let runtime = null;
 let initialized = false;
+let releaseRegistered = false;
 
 function createSupabaseInvokeAdapter() {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
@@ -42,6 +59,33 @@ function createSupabaseInvokeAdapter() {
       },
     },
   };
+}
+
+async function registerReleaseOnce(adapter) {
+  if (releaseRegistered) return;
+  releaseRegistered = true;
+  try {
+    await adapter.functions.invoke("obs-release", {
+      body: {
+        tenant_hint: TENANT_HINT,
+        app_id: APP_ID,
+        app_version: APP_VERSION,
+        build_id: BUILD_ID,
+        env: APP_ENV,
+        meta: {
+          versioning: {
+            release_id: RELEASE_ID || null,
+            source_commit_sha: SOURCE_COMMIT_SHA || null,
+            version_label: APP_VERSION,
+            env_key: APP_ENV,
+            app_id: APP_ID,
+          },
+        },
+      },
+    });
+  } catch {
+    // Best-effort only.
+  }
 }
 
 export function initPrelaunchObservability() {
@@ -81,6 +125,7 @@ export function initPrelaunchObservability() {
     message: "prelaunch_loaded",
     context: { route: window.location.pathname, source: "prelaunch_boot" },
   });
+  void registerReleaseOnce(adapter);
 
   return runtime;
 }

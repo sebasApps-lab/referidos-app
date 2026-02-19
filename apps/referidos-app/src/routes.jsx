@@ -46,6 +46,7 @@ const AdminPrelaunchAnalytics = lazy(() => import("./pages/admin/AdminPrelaunchA
 const AdminVersioningOverview = lazy(() => import("./pages/admin/AdminVersioningOverview"));
 const AdminVersioningReleases = lazy(() => import("./pages/admin/AdminVersioningReleases"));
 const AdminDocumentation = lazy(() => import("./pages/admin/AdminDocumentation"));
+const AdminLegal = lazy(() => import("./pages/admin/AdminLegal"));
 
 const PromoDetalle = lazy(() => import("./pages/PromoDetalle"));
 
@@ -192,7 +193,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/prelaunch-analytics"
+        path="/admin/analytics"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -202,7 +203,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/observability"
+        path="/admin/issues"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -212,7 +213,31 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/dev/errors"
+        path="/admin/issues/events"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminObservability />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/issues/events/details"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminObservability />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/observability"
+        element={<Navigate to="/admin/issues" replace />}
+      />
+      <Route
+        path="/admin/error-codes"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -252,6 +277,16 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/legal"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminLegal />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/admin/soporte"
         element={
           <RequireAuth>
@@ -272,7 +307,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/catalogo"
+        path="/admin/soporte/macros"
         element={
           <RequireAuth>
             <RequireRole role="admin">

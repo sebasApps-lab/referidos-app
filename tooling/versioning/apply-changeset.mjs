@@ -9,13 +9,18 @@ import {
 } from "./shared.mjs";
 import { getSupabaseAdminClient, mustData, mustSingle } from "./supabase-client.mjs";
 
+const EMPTY_COMPONENT_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
 function parseArgs(argv) {
   const out = {
     input: process.env.VERSIONING_INPUT || "versioning/out/changeset.json",
     env: process.env.VERSIONING_TARGET_ENV || "dev",
-    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.5.0",
+    baseline: process.env.VERSIONING_BASELINE_VERSION || "0.1.0",
     createRelease: process.env.VERSIONING_CREATE_RELEASE !== "0",
-    releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "validated",
+    releaseStatus: process.env.VERSIONING_RELEASE_STATUS || "released",
+    productFilter: (process.env.VERSIONING_PRODUCT_FILTER || "").trim(),
+    overrideSemver: (process.env.VERSIONING_OVERRIDE_SEMVER || "").trim(),
+    releaseNotes: (process.env.VERSIONING_RELEASE_NOTES || "").trim(),
   };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
@@ -24,12 +29,23 @@ function parseArgs(argv) {
     if (token === "--baseline") out.baseline = argv[i + 1];
     if (token === "--no-release") out.createRelease = false;
     if (token === "--release-status") out.releaseStatus = argv[i + 1];
+    if (token === "--product") out.productFilter = (argv[i + 1] || "").trim();
+    if (token === "--override-semver") out.overrideSemver = (argv[i + 1] || "").trim();
+    if (token === "--release-notes") out.releaseNotes = (argv[i + 1] || "").trim();
   }
   return out;
 }
 
 function semverLabel(major, minor, patch) {
   return `${major}.${minor}.${patch}`;
+}
+
+function compareSemver(a, b) {
+  const aParsed = parseSemver(a);
+  const bParsed = parseSemver(b);
+  if (aParsed.major !== bParsed.major) return aParsed.major - bParsed.major;
+  if (aParsed.minor !== bParsed.minor) return aParsed.minor - bParsed.minor;
+  return aParsed.patch - bParsed.patch;
 }
 
 async function getLatestRelease(supabase, tenantId, productId, envId) {
@@ -105,6 +121,14 @@ async function createComponentRevision({
   branch,
   commitSha,
 }) {
+  const normalizedChangeKind = String(component.changeKind || "modified").toLowerCase();
+  const lifecycleAction = !latestRevision
+    ? "created"
+    : normalizedChangeKind === "deleted" || component.contentHash === EMPTY_COMPONENT_HASH
+      ? "deleted"
+      : normalizedChangeKind === "added"
+        ? "created"
+        : "updated";
   const nextRevisionNo = (latestRevision?.revision_no || 0) + 1;
   const rows = await mustData(
     supabase
@@ -117,7 +141,12 @@ async function createComponentRevision({
         source_commit_sha: commitSha,
         source_branch: branch,
         bump_level: component.bumpLevel || "patch",
-        change_summary: `Auto revision from ${branch}`,
+        change_summary: `Auto ${lifecycleAction} from ${branch}`,
+        metadata: {
+          lifecycle_action: lifecycleAction,
+          change_kind: normalizedChangeKind,
+          changed_paths: component.changedPaths || [],
+        },
         created_by: "ci",
       })
       .select("id, revision_no, content_hash")
@@ -205,10 +234,18 @@ async function main() {
       .eq("env_key", args.env)
       .limit(1)
       .single(),
-    `find environment ${args.env}`
+      `find environment ${args.env}`
   );
 
+  let processedProducts = 0;
+
   for (const productChange of changeset.products || []) {
+    if (args.productFilter && productChange.productKey !== args.productFilter) {
+      continue;
+    }
+
+    processedProducts += 1;
+
     const product = await mustSingle(
       supabase
         .from("version_products")
@@ -305,6 +342,7 @@ async function main() {
         targetEnv.id
       );
 
+      const isInitialRelease = !latestRelease;
       const currentSemver = latestRelease
         ? semverLabel(
             latestRelease.semver_major,
@@ -312,15 +350,29 @@ async function main() {
             latestRelease.semver_patch
           )
         : args.baseline;
-      const nextSemver = bumpSemver(currentSemver, productChange.bumpLevel || "patch");
+      const suggestedSemver = isInitialRelease
+        ? currentSemver
+        : bumpSemver(currentSemver, productChange.bumpLevel || "patch");
+      let nextSemver = suggestedSemver;
+      if (args.overrideSemver) {
+        parseSemver(args.overrideSemver);
+        if (latestRelease && compareSemver(args.overrideSemver, currentSemver) <= 0) {
+          throw new Error(
+            `Invalid override semver ${args.overrideSemver} for ${product.product_key}: must be greater than ${currentSemver}`
+          );
+        }
+        nextSemver = args.overrideSemver;
+      }
       const nextParts = parseSemver(nextSemver);
 
       const shouldCreate =
-        changedRevisionMap.size > 0 &&
+        isInitialRelease ||
         (
-          !latestRelease ||
-          productChange.bumpLevel !== "none" ||
-          currentSemver !== nextSemver
+          changedRevisionMap.size > 0 &&
+          (
+            productChange.bumpLevel !== "none" ||
+            currentSemver !== nextSemver
+          )
         );
 
       if (shouldCreate) {
@@ -339,6 +391,14 @@ async function main() {
               status: args.releaseStatus,
               source_changeset_id: createdChangeset.id,
               source_commit_sha: changeset.commitSha || "unknown",
+              metadata: {
+                bump_source: productChange.bumpSource || "unknown",
+                detected_bump_level: productChange.bumpLevel || "patch",
+                suggested_semver: suggestedSemver,
+                applied_semver: nextSemver,
+                override_semver: args.overrideSemver || null,
+                release_notes: args.releaseNotes || null,
+              },
               created_by: "ci",
             })
             .select("id, semver_major, semver_minor, semver_patch")
@@ -370,7 +430,7 @@ async function main() {
         .update({
           status: createdReleaseId ? "applied" : "validated",
           notes: createdReleaseId
-            ? `release=${createdReleaseVersion} id=${createdReleaseId}`
+            ? `release=${createdReleaseVersion} id=${createdReleaseId} override=${args.overrideSemver || "-"} notes=${args.releaseNotes || "-"}`
             : "validated without release creation",
         })
         .eq("id", createdChangeset.id),
@@ -380,6 +440,11 @@ async function main() {
     console.log(
       `VERSIONING_APPLIED product=${product.product_key} components=${changedRevisionMap.size} release=${createdReleaseVersion || "-"}`
     );
+  }
+
+  if (processedProducts === 0) {
+    const filterLabel = args.productFilter || "none";
+    console.log(`VERSIONING_APPLY_NO_PRODUCTS filter=${filterLabel}`);
   }
 }
 
