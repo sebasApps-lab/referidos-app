@@ -301,6 +301,10 @@ export function bumpSemver(currentSemver, bumpLevel) {
     return formatSemver({ major: base.major + 1, minor: 0, patch: 0 });
   }
   if (bumpLevel === "minor") {
+    // Pre-1.0 strategy: treat minor as patch (0.x.y -> 0.x.(y+1)).
+    if (base.major === 0) {
+      return formatSemver({ major: 0, minor: base.minor, patch: base.patch + 1 });
+    }
     return formatSemver({ major: base.major, minor: base.minor + 1, patch: 0 });
   }
   if (bumpLevel === "patch") {
