@@ -6,6 +6,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { getGithubAuthConfig } from "../_shared/github-auth.ts";
 
 type JsonObject = Record<string, unknown>;
 type BumpLevel = "none" | "patch" | "minor" | "major";
@@ -23,48 +24,6 @@ function asString(value: unknown, fallback = ""): string {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim();
   return normalized || fallback;
-}
-
-function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
-  const ownerRaw = asString(ownerInput);
-  const repoRaw = asString(repoInput);
-
-  if (!repoRaw) {
-    return { owner: ownerRaw, repo: "" };
-  }
-
-  try {
-    const parsed = new URL(repoRaw);
-    if (parsed.hostname.includes("github.com")) {
-      const parts = parsed.pathname
-        .split("/")
-        .map((part) => part.trim())
-        .filter(Boolean);
-      if (parts.length >= 2) {
-        return {
-          owner: asString(parts[0]),
-          repo: asString(parts[1]).replace(/\.git$/i, ""),
-        };
-      }
-    }
-  } catch {
-    // Non-URL format.
-  }
-
-  const normalizedRepo = repoRaw.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "");
-  const slashParts = normalizedRepo
-    .split("/")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (slashParts.length >= 2) {
-    return {
-      owner: asString(slashParts[0]),
-      repo: asString(slashParts[1]),
-    };
-  }
-
-  return { owner: ownerRaw, repo: normalizedRepo };
 }
 
 function toPosixPath(value: string) {
@@ -363,31 +322,27 @@ serve(async (req) => {
     );
   }
 
-  const githubConfig = resolveGithubOwnerRepo(
-    asString(Deno.env.get("GITHUB_DEPLOY_OWNER")),
-    asString(Deno.env.get("GITHUB_DEPLOY_REPO"))
-  );
-  const owner = githubConfig.owner;
-  const repo = githubConfig.repo;
-  const tokenGithub = asString(Deno.env.get("GITHUB_DEPLOY_TOKEN"));
-  const defaultDevRef = asString(
-    Deno.env.get("VERSIONING_DEV_RELEASE_REF"),
-    asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev")
-  );
-  const requestedRef = asString(body.ref, defaultDevRef);
-
-  if (!owner || !repo || !tokenGithub) {
+  const githubAuth = await getGithubAuthConfig();
+  if (!githubAuth.ok) {
     return jsonResponse(
       {
         ok: false,
-        error: "missing_github_env",
-        detail:
-          "Missing GITHUB_DEPLOY_OWNER/GITHUB_DEPLOY_REPO/GITHUB_DEPLOY_TOKEN. GITHUB_DEPLOY_REPO accepts: repo, owner/repo, or full github URL.",
+        error: githubAuth.data.error,
+        detail: githubAuth.data.detail,
       },
       500,
       cors
     );
   }
+
+  const owner = githubAuth.data.owner;
+  const repo = githubAuth.data.repo;
+  const tokenGithub = githubAuth.data.token;
+  const defaultDevRef = asString(
+    Deno.env.get("VERSIONING_DEV_RELEASE_REF"),
+    asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev")
+  );
+  const requestedRef = asString(body.ref, defaultDevRef);
 
   const allowRefsRaw = asString(
     Deno.env.get("VERSIONING_DEV_RELEASE_ALLOWED_REFS"),

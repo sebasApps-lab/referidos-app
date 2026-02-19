@@ -6,6 +6,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { getGithubAuthConfig } from "../_shared/github-auth.ts";
 
 type DeployRequestRow = {
   id: string;
@@ -36,48 +37,6 @@ function asString(value: unknown, fallback = ""): string {
 function asBoolean(value: unknown, fallback = false): boolean {
   if (typeof value === "boolean") return value;
   return fallback;
-}
-
-function resolveGithubOwnerRepo(ownerInput: string, repoInput: string) {
-  const ownerRaw = asString(ownerInput);
-  const repoRaw = asString(repoInput);
-
-  if (!repoRaw) {
-    return { owner: ownerRaw, repo: "" };
-  }
-
-  try {
-    const parsed = new URL(repoRaw);
-    if (parsed.hostname.includes("github.com")) {
-      const parts = parsed.pathname
-        .split("/")
-        .map((part) => part.trim())
-        .filter(Boolean);
-      if (parts.length >= 2) {
-        return {
-          owner: asString(parts[0]),
-          repo: asString(parts[1]).replace(/\.git$/i, ""),
-        };
-      }
-    }
-  } catch {
-    // Non-URL format: continue with owner/repo parsing.
-  }
-
-  const normalizedRepo = repoRaw.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "");
-  const slashParts = normalizedRepo
-    .split("/")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (slashParts.length >= 2) {
-    return {
-      owner: asString(slashParts[0]),
-      repo: asString(slashParts[1]),
-    };
-  }
-
-  return { owner: ownerRaw, repo: normalizedRepo };
 }
 
 function isInternalProxyAuthorized(req: Request) {
@@ -458,25 +417,22 @@ serve(async (req) => {
     );
   }
 
-  const githubConfig = resolveGithubOwnerRepo(
-    asString(Deno.env.get("GITHUB_DEPLOY_OWNER")),
-    asString(Deno.env.get("GITHUB_DEPLOY_REPO"))
-  );
-  const githubOwner = githubConfig.owner;
-  const githubRepo = githubConfig.repo;
-  const githubToken = asString(Deno.env.get("GITHUB_DEPLOY_TOKEN"));
-  if (!githubOwner || !githubRepo || !githubToken) {
+  const githubAuth = await getGithubAuthConfig();
+  if (!githubAuth.ok) {
     return jsonResponse(
       {
         ok: false,
-        error: "missing_github_deploy_env",
-        detail:
-          "Missing GITHUB_DEPLOY_OWNER/GITHUB_DEPLOY_REPO/GITHUB_DEPLOY_TOKEN. GITHUB_DEPLOY_REPO accepts: repo, owner/repo, or full github URL.",
+        error: githubAuth.data.error,
+        detail: githubAuth.data.detail,
       },
       500,
       cors
     );
   }
+  const githubOwner = githubAuth.data.owner;
+  const githubRepo = githubAuth.data.repo;
+  const githubToken = githubAuth.data.token;
+  const githubAuthMode = githubAuth.data.authMode;
 
   const { data: releaseRow, error: releaseErr } = await supabaseAdmin
     .from("version_releases")
@@ -739,6 +695,7 @@ serve(async (req) => {
           repo: githubRepo,
           workflow_id: workflowId,
           workflow_ref: workflowRef,
+          auth_mode: githubAuthMode,
         },
         github: dispatchResult,
       },
@@ -769,6 +726,7 @@ serve(async (req) => {
           callback_url: callbackUrl,
           dispatched_at: new Date().toISOString(),
         },
+        github_auth_mode: githubAuthMode,
         github: dispatchResult.payload,
       },
     }
