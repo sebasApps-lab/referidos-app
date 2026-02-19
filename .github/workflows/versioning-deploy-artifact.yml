@@ -97,6 +97,7 @@ jobs:
           fi
 
           workspace=""
+          netlify_filter=""
           publish_dir=""
           upload_app=""
           obs_app_id=""
@@ -104,6 +105,7 @@ jobs:
 
           if [[ "$product" == "referidos_app" ]]; then
             workspace="@referidos/referidos-app"
+            netlify_filter="@referidos/referidos-app"
             publish_dir="apps/referidos-app/dist"
             upload_app="referidos-app"
             obs_app_id="referidos-app"
@@ -114,6 +116,7 @@ jobs:
             fi
           elif [[ "$product" == "prelaunch_web" ]]; then
             workspace="@referidos/prelaunch"
+            netlify_filter="@referidos/prelaunch"
             publish_dir="apps/prelaunch/dist"
             upload_app="prelaunch"
             obs_app_id="prelaunch"
@@ -146,6 +149,7 @@ jobs:
           fi
 
           echo "workspace=${workspace}" >> "$GITHUB_OUTPUT"
+          echo "netlify_filter=${netlify_filter}" >> "$GITHUB_OUTPUT"
           echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
           echo "upload_app=${upload_app}" >> "$GITHUB_OUTPUT"
           echo "obs_app_id=${obs_app_id}" >> "$GITHUB_OUTPUT"
@@ -249,6 +253,7 @@ jobs:
           set -euo pipefail
 
           npx --yes netlify-cli@latest deploy \
+            --filter "${{ steps.plan.outputs.netlify_filter }}" \
             --site "${{ steps.plan.outputs.site_id }}" \
             --auth "${NETLIFY_AUTH_TOKEN}" \
             --dir "${{ steps.build.outputs.publish_dir }}" \

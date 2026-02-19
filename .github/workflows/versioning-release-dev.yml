@@ -7,6 +7,10 @@ on:
         description: "Branch/ref to release from (default: dev)"
         required: false
         type: string
+      base_ref:
+        description: "Optional base commit/ref for changeset diff (default: HEAD~1)"
+        required: false
+        type: string
       product_filter:
         description: "Optional product key filter (referidos_app | prelaunch_web | android_app)"
         required: false
@@ -40,7 +44,7 @@ jobs:
 
       - name: Detect versioning changeset
         env:
-          VERSIONING_BASE_REF: HEAD~1
+          VERSIONING_BASE_REF: ${{ inputs.base_ref || 'HEAD~1' }}
           VERSIONING_HEAD_REF: HEAD
           VERSIONING_STRICT_MAJOR_ACK: "0"
         run: |

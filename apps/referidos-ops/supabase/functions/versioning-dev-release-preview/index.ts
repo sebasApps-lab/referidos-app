@@ -368,23 +368,62 @@ serve(async (req) => {
   }
 
   try {
+    const { data: latestRows, error: latestError } = await supabaseAdmin
+      .from("version_releases_labeled")
+      .select("semver_major, semver_minor, semver_patch, version_label, source_commit_sha")
+      .eq("product_key", productKey)
+      .eq("env_key", "dev")
+      .order("semver_major", { ascending: false })
+      .order("semver_minor", { ascending: false })
+      .order("semver_patch", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (latestError) throw new Error(latestError.message);
+    const latestRow = latestRows?.[0] || null;
+
     const commitsResponse = await githubJson(
-      `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(ref)}&per_page=6`,
+      `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(ref)}&per_page=10`,
       tokenGithub
     );
     const commits = Array.isArray(commitsResponse) ? commitsResponse as JsonObject[] : [];
-    if (commits.length < 2) {
-      throw new Error("not_enough_commits_on_ref");
+    if (commits.length < 1) {
+      throw new Error("no_commits_on_ref");
     }
 
     const headSha = asString(commits[0]?.sha);
-    const baseSha = asString(commits[1]?.sha);
-    if (!headSha || !baseSha) throw new Error("unable_to_resolve_commit_range");
+    const parentSha = asString(commits[1]?.sha);
+    if (!headSha) throw new Error("unable_to_resolve_head_commit");
 
-    const compare = await githubJson(
-      `https://api.github.com/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
-      tokenGithub
-    );
+    let baseSha = asString(latestRow?.source_commit_sha);
+    let compareBaseMode = baseSha ? "latest_release_commit" : "head_parent";
+    let compareFallbackReason = "";
+    if (!baseSha) {
+      baseSha = parentSha;
+    }
+    if (!baseSha) {
+      throw new Error("not_enough_commits_on_ref");
+    }
+
+    let compare: JsonObject;
+    try {
+      compare = await githubJson(
+        `https://api.github.com/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
+        tokenGithub
+      );
+    } catch (compareError) {
+      if (compareBaseMode === "latest_release_commit" && parentSha && parentSha !== baseSha) {
+        compareFallbackReason =
+          compareError instanceof Error ? compareError.message : "compare_failed";
+        baseSha = parentSha;
+        compareBaseMode = "head_parent_fallback";
+        compare = await githubJson(
+          `https://api.github.com/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
+          tokenGithub
+        );
+      } else {
+        throw compareError;
+      }
+    }
 
     const compareFiles = Array.isArray(compare.files) ? compare.files as JsonObject[] : [];
     const changedFilesRaw: ChangedFile[] = [];
@@ -430,20 +469,6 @@ serve(async (req) => {
       contractGlobs: productMap.contractGlobs || [],
       minorGlobs: productMap.minorGlobs || [],
     });
-
-    const { data: latestRows, error: latestError } = await supabaseAdmin
-      .from("version_releases_labeled")
-      .select("semver_major, semver_minor, semver_patch, version_label")
-      .eq("product_key", productKey)
-      .eq("env_key", "dev")
-      .order("semver_major", { ascending: false })
-      .order("semver_minor", { ascending: false })
-      .order("semver_patch", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (latestError) throw new Error(latestError.message);
-
-    const latestRow = latestRows?.[0] || null;
     const baseline = asString(map.baselineVersion, "0.1.0");
     const isInitialRelease = !latestRow;
     const currentSemver = latestRow
@@ -467,6 +492,8 @@ serve(async (req) => {
         ref,
         compare_base_sha: baseSha,
         compare_head_sha: headSha,
+        compare_base_mode: compareBaseMode,
+        compare_fallback_reason: compareFallbackReason || null,
         current_semver: currentSemver,
         suggested_semver: suggestedSemver,
         suggested_bump: isInitialRelease ? "none" : bumpInfo.bumpLevel,
