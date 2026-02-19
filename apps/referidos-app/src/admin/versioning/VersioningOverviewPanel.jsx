@@ -294,6 +294,9 @@ export default function VersioningOverviewPanel() {
 
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
+  const [devReleasePreviewInfo, setDevReleasePreviewInfo] = useState(null);
+  const [devReleasePreviewLoading, setDevReleasePreviewLoading] = useState(false);
+  const [devReleasePreviewError, setDevReleasePreviewError] = useState("");
   const [devReleaseDraft, setDevReleaseDraft] = useState(null);
   const [devReleaseDraftError, setDevReleaseDraftError] = useState("");
   const [devReleaseSyncing, setDevReleaseSyncing] = useState(null);
@@ -534,6 +537,44 @@ export default function VersioningOverviewPanel() {
     setPromoteDraft(null);
   }, [promoteSourceEnv, releaseOpsMode]);
 
+  useEffect(() => {
+    const productInitialized = initializedByProduct.get(activeProductKey) === true;
+    if (!activeProductKey || !productInitialized) {
+      setDevReleasePreviewInfo(null);
+      setDevReleasePreviewError("");
+      setDevReleasePreviewLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setDevReleasePreviewLoading(true);
+    setDevReleasePreviewError("");
+
+    previewDevRelease({
+      productKey: activeProductKey,
+      ref: "dev",
+    })
+      .then((preview) => {
+        if (cancelled) return;
+        setDevReleasePreviewInfo(preview || null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setDevReleasePreviewInfo(null);
+        setDevReleasePreviewError(
+          err?.message || "No se pudo revisar cambios pendientes en DEVELOPMENT."
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDevReleasePreviewLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProductKey, initializedByProduct, latestReleases]);
+
   const driftSummary = useMemo(() => {
     const total = driftRows.length;
     const differs = driftRows.filter((row) => row.differs).length;
@@ -624,6 +665,37 @@ export default function VersioningOverviewPanel() {
     () => initializedByProduct.get(activeProductKey) === true,
     [activeProductKey, initializedByProduct]
   );
+
+  const devPreviewHasPendingRelease = useMemo(() => {
+    if (!devReleasePreviewInfo || !isActiveProductInitialized) return false;
+    const shouldCreate = devReleasePreviewInfo?.should_create_release === true;
+    const changedCount = Number(devReleasePreviewInfo?.changed_files_count || 0);
+    const initialPending = devReleasePreviewInfo?.initial_release_pending === true;
+    return initialPending || (shouldCreate && changedCount > 0);
+  }, [devReleasePreviewInfo, isActiveProductInitialized]);
+
+  const devPreviewSummaryMessage = useMemo(() => {
+    if (!isActiveProductInitialized) return "";
+    if (devReleasePreviewLoading) return "Revisando cambios pendientes en DEVELOPMENT...";
+    if (devReleasePreviewError) return devReleasePreviewError;
+    if (!devReleasePreviewInfo) return "";
+
+    if (devPreviewHasPendingRelease) {
+      const suggestedSemver = String(devReleasePreviewInfo?.suggested_semver || "").trim();
+      const changedCount = Number(devReleasePreviewInfo?.changed_files_count || 0);
+      if (suggestedSemver) {
+        return `Cambios pendientes detectados (${changedCount}). Sugerida: ${suggestedSemver}.`;
+      }
+      return `Cambios pendientes detectados (${changedCount}).`;
+    }
+    return "";
+  }, [
+    devPreviewHasPendingRelease,
+    devReleasePreviewError,
+    devReleasePreviewInfo,
+    devReleasePreviewLoading,
+    isActiveProductInitialized,
+  ]);
 
   const refreshMergeStatuses = useCallback(async () => {
     if (!activeProductKey || !isActiveProductInitialized || !DEPLOYABLE_PRODUCTS.includes(activeProductKey)) {
@@ -1331,7 +1403,25 @@ export default function VersioningOverviewPanel() {
                 if (!isActiveProductInitialized) {
                   // no-op
                 } else if (envKey === "dev") {
-                  if (normalizedStatus === "released" && hasValidVersion) {
+                  const showReleaseAction =
+                    devPreviewHasPendingRelease ||
+                    (normalizedStatus !== "released" && normalizedStatus !== "promoted");
+                  const showPromoteAction =
+                    normalizedStatus === "released" &&
+                    hasValidVersion &&
+                    !devPreviewHasPendingRelease;
+
+                  if (showReleaseAction) {
+                    const releaseActionId = actionKey("release", "quick-dev-card", releaseVersion || "pending");
+                    actions.push({
+                      key: releaseActionId,
+                      label: "Release",
+                      loadingLabel: "Creando...",
+                      loading: creatingDevRelease,
+                      disabled: creatingDevRelease,
+                      onClick: requestCreateDevRelease,
+                    });
+                  } else if (showPromoteAction) {
                     const promoteActionId = actionKey(
                       "promote",
                       "quick-dev-card",
@@ -1352,16 +1442,6 @@ export default function VersioningOverviewPanel() {
                           toEnv: "staging",
                           source: "quick-dev-card",
                         }),
-                    });
-                  } else if (normalizedStatus !== "promoted") {
-                    const releaseActionId = actionKey("release", "quick-dev-card", releaseVersion || "pending");
-                    actions.push({
-                      key: releaseActionId,
-                      label: "Release",
-                      loadingLabel: "Creando...",
-                      loading: creatingDevRelease,
-                      disabled: creatingDevRelease,
-                      onClick: requestCreateDevRelease,
                     });
                   }
                 } else if (
@@ -1436,7 +1516,12 @@ export default function VersioningOverviewPanel() {
                     actions={actions}
                     deployState={deployStateForCard}
                     mergeState={mergeStateForCard}
-                    message={envCardMessages[envKey] || (envKey === "dev" ? devReleaseMessage : "")}
+                    message={
+                      envCardMessages[envKey] ||
+                      (envKey === "dev"
+                        ? devReleaseMessage || devPreviewSummaryMessage
+                        : "")
+                    }
                     disabled={!isActiveProductInitialized}
                   />
                 );
