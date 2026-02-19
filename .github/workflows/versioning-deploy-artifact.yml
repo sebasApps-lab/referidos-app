@@ -75,6 +75,12 @@ jobs:
       OBS_SUPABASE_SECRET_KEY_PROD: ${{ secrets.OBS_SUPABASE_SECRET_KEY_PROD }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_PROD }}
+      VITE_SUPABASE_URL_STAGING: ${{ secrets.VITE_SUPABASE_URL_STAGING }}
+      VITE_SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+      VITE_SUPABASE_ANON_KEY_STAGING: ${{ secrets.VITE_SUPABASE_ANON_KEY_STAGING }}
+      VITE_SUPABASE_ANON_KEY_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+      SUPABASE_ANON_KEY_STAGING: ${{ secrets.SUPABASE_ANON_KEY_STAGING }}
+      SUPABASE_ANON_KEY_PROD: ${{ secrets.SUPABASE_ANON_KEY_PROD }}
       OBS_TENANT_ID_STAGING: ${{ secrets.OBS_TENANT_ID_STAGING }}
       OBS_TENANT_ID_PROD: ${{ secrets.OBS_TENANT_ID_PROD }}
       OBS_TENANT_NAME_STAGING: ${{ secrets.OBS_TENANT_NAME_STAGING }}
@@ -189,6 +195,36 @@ jobs:
           echo "obs_url=${obs_url}" >> "$GITHUB_OUTPUT"
           echo "obs_secret=${obs_secret}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolver variables Vite Supabase
+        id: vite_supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_key="${ENV_KEY}"
+          vite_url=""
+          vite_anon_key=""
+
+          if [[ "$env_key" == "staging" ]]; then
+            vite_url="${VITE_SUPABASE_URL_STAGING:-${SUPABASE_URL_STAGING:-}}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_STAGING:-${SUPABASE_ANON_KEY_STAGING:-}}"
+          else
+            vite_url="${VITE_SUPABASE_URL_PROD:-${SUPABASE_URL_PROD:-}}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_PROD:-${SUPABASE_ANON_KEY_PROD:-}}"
+          fi
+
+          if [[ -z "$vite_url" ]]; then
+            echo "Falta VITE_SUPABASE_URL para ${env_key}"
+            exit 1
+          fi
+          if [[ -z "$vite_anon_key" ]]; then
+            echo "Falta VITE_SUPABASE_ANON_KEY/SUPABASE_ANON_KEY para ${env_key}"
+            exit 1
+          fi
+
+          echo "vite_supabase_url=${vite_url}" >> "$GITHUB_OUTPUT"
+          echo "vite_supabase_anon_key=${vite_anon_key}" >> "$GITHUB_OUTPUT"
+
       - name: Resolver tenant observability
         id: obs_tenant
         shell: bash
@@ -234,6 +270,8 @@ jobs:
           VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
           VITE_ENV: ${{ inputs.env_key }}
           VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          VITE_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
         run: |
           set -euo pipefail
           npm --workspace "${{ steps.plan.outputs.workspace }}" run build

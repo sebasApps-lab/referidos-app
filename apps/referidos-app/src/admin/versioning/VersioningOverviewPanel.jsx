@@ -1490,23 +1490,27 @@ export default function VersioningOverviewPanel() {
                     });
                   }
 
-                  if (deployStateForCard !== "deployed") {
-                    const deployActionId = actionKey("deploy", "quick-card", envKey, releaseVersion);
-                    actions.push({
-                      key: deployActionId,
-                      label: "Deploy",
-                      loadingLabel: "Ejecutando...",
-                      loading: deployingActionId === deployActionId,
-                      disabled: deployingActionId === deployActionId,
-                      onClick: () =>
-                        requestDeployVersion({
-                          envKey,
-                          semver: releaseVersion,
-                          source: "quick-card",
-                          notes: "quick_env_card",
-                        }),
-                    });
-                  }
+                  const isRedeploy = deployStateForCard === "deployed";
+                  const deployActionId = actionKey(
+                    isRedeploy ? "redeploy" : "deploy",
+                    "quick-card",
+                    envKey,
+                    releaseVersion
+                  );
+                  actions.push({
+                    key: deployActionId,
+                    label: isRedeploy ? "Redeploy" : "Deploy",
+                    loadingLabel: "Ejecutando...",
+                    loading: deployingActionId === deployActionId,
+                    disabled: deployingActionId === deployActionId,
+                    onClick: () =>
+                      requestDeployVersion({
+                        envKey,
+                        semver: releaseVersion,
+                        source: "quick-card",
+                        notes: isRedeploy ? "quick_env_card_redeploy" : "quick_env_card",
+                      }),
+                  });
                 }
 
                 return (
