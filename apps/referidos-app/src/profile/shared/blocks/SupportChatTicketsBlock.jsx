@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchSupportChatTickets } from "../services/supportChatClient";
+import { logCatalogBreadcrumb } from "../../../services/loggingClient";
 
 export default function SupportChatTicketsBlock({ onBackToHub }) {
   const [tickets, setTickets] = useState([]);
@@ -28,7 +29,12 @@ export default function SupportChatTicketsBlock({ onBackToHub }) {
         <div className="text-sm font-semibold text-[#2F1A55]">Mis tickets</div>
         <button
           type="button"
-          onClick={onBackToHub}
+          onClick={() => {
+            logCatalogBreadcrumb("support.flow.step", {
+              step: "tickets_back_to_hub",
+            });
+            onBackToHub?.();
+          }}
           className="text-xs font-semibold text-[#5E30A5]"
         >
           Crear nuevo ticket
@@ -77,6 +83,11 @@ export default function SupportChatTicketsBlock({ onBackToHub }) {
                         ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
                         : ticket.wa_link;
                       if (waLink) {
+                        logCatalogBreadcrumb("support.ticket.whatsapp.open", {
+                          source: "ticket_list",
+                          thread_public_id: ticket.public_id || null,
+                          status: ticket.status || null,
+                        });
                         window.open(waLink, "_blank", "noopener");
                       }
                     }}

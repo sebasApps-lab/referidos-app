@@ -1,5 +1,6 @@
 // src/services/authService.js
 import { supabase } from "../lib/supabaseClient";
+import { logCatalogBreadcrumb } from "./loggingClient";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,6 +27,10 @@ export async function signInWithOAuth(provider, opts = {}) {
     scopes,
     queryParams,
   } = opts;
+  logCatalogBreadcrumb("auth.signin.start", {
+    method: "oauth",
+    provider: provider || "unknown",
+  });
 
   const { data: res, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -38,26 +43,59 @@ export async function signInWithOAuth(provider, opts = {}) {
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    logCatalogBreadcrumb("auth.signin.error", {
+      method: "oauth",
+      provider: provider || "unknown",
+      error: error.message || "oauth_failed",
+    });
+    throw error;
+  }
   if (res?.url) {
+    logCatalogBreadcrumb("auth.signin.ok", {
+      method: "oauth",
+      provider: provider || "unknown",
+      redirected: true,
+    });
     window.location.assign(res.url);
     return { ok: true, redirected: true };
   }
+  logCatalogBreadcrumb("auth.signin.error", {
+    method: "oauth",
+    provider: provider || "unknown",
+    error: "oauth_url_missing",
+  });
   return { ok: false, error: "No se pudo iniciar el flujo OAuth" };
 }
 
 export async function signInWithGoogleIdToken({ token, nonce }) {
+  logCatalogBreadcrumb("auth.signin.start", {
+    method: "google_id_token",
+    has_nonce: Boolean(nonce),
+  });
   const payload = {
     provider: "google",
     token,
   };
   if (nonce) payload.nonce = nonce;
   const { data, error } = await supabase.auth.signInWithIdToken(payload);
-  if (error) throw error;
+  if (error) {
+    logCatalogBreadcrumb("auth.signin.error", {
+      method: "google_id_token",
+      error: error.message || "id_token_failed",
+    });
+    throw error;
+  }
+  logCatalogBreadcrumb("auth.signin.ok", {
+    method: "google_id_token",
+  });
   return data;
 }
 
 export async function signInWithEmail(email, password) {
+  logCatalogBreadcrumb("auth.signin.start", {
+    method: "email_password",
+  });
   try {
     const {
       data: signInData,
@@ -73,6 +111,10 @@ export async function signInWithEmail(email, password) {
     const provider = signInData.user.app_metadata?.provider ?? null;
 
     if (!userData) {
+      logCatalogBreadcrumb("auth.signin.ok", {
+        method: "email_password",
+        pending_profile: true,
+      });
       return {
         ok: true,
         user: {
@@ -84,13 +126,24 @@ export async function signInWithEmail(email, password) {
       };
     }
     const userWithProvider = { ...userData, provider };
+    logCatalogBreadcrumb("auth.signin.ok", {
+      method: "email_password",
+      pending_profile: false,
+    });
     return { ok: true, user: userWithProvider };
   } catch (error) {
+    logCatalogBreadcrumb("auth.signin.error", {
+      method: "email_password",
+      error: error.message ?? String(error),
+    });
     return { ok: false, error: error.message ?? String(error) };
   }
 }
 
 export async function signUpWithEmail({ email, password }) {
+  logCatalogBreadcrumb("auth.signup.start", {
+    method: "email_password",
+  });
   try {
     const {
       data: signUpData,
@@ -101,20 +154,40 @@ export async function signUpWithEmail({ email, password }) {
     });
 
     if (signUpError) throw signUpError;
+    logCatalogBreadcrumb("auth.signup.ok", {
+      method: "email_password",
+      has_session: Boolean(signUpData?.session),
+      needs_email_confirm: Boolean(signUpData?.user && !signUpData?.session),
+    });
     return { ok: true, data: signUpData };
 
   } catch (error) {
+    logCatalogBreadcrumb("auth.signup.error", {
+      method: "email_password",
+      error: error.message ?? String(error),
+    });
     return { ok: false, error: error.message ?? String(error) };
   }  
 }
 
 export async function signOut({ scope = "local" } = {}) {
   const normalizedScope = scope === "global" ? "global" : "local";
+  logCatalogBreadcrumb("auth.signout.start", { scope: normalizedScope });
   const { error } = await supabase.auth.signOut({ scope: normalizedScope });
-  if (error) throw error;
+  if (error) {
+    logCatalogBreadcrumb("auth.signout.error", {
+      scope: normalizedScope,
+      error: error.message || "signout_failed",
+    });
+    throw error;
+  }
+  logCatalogBreadcrumb("auth.signout.ok", { scope: normalizedScope });
 }
 
 export async function deleteUserAccount(id_auth) {
+  logCatalogBreadcrumb("auth.account_delete.start", {
+    has_user_id: Boolean(id_auth),
+  });
   if (!id_auth) return { ok: false, error: "No se pudo identificar la cuenta" };
 
   try {
@@ -123,6 +196,9 @@ export async function deleteUserAccount(id_auth) {
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
+      logCatalogBreadcrumb("auth.account_delete.error", {
+        error: "missing_session_access_token",
+      });
       return {
         ok: false,
         error: "Tu sesi\u00f3n expir\u00f3. Vuelve a iniciar sesi\u00f3n e intenta de nuevo.",
@@ -138,6 +214,9 @@ export async function deleteUserAccount(id_auth) {
 
     if (error) {
       //error de Edge invocada (network / non-2xx)
+      logCatalogBreadcrumb("auth.account_delete.error", {
+        error: error.message ?? String(error),
+      });
       return { ok: false, error: error.message ?? String(error) };
     }
 
@@ -146,18 +225,34 @@ export async function deleteUserAccount(id_auth) {
       const msg = (data?.message || "").toLowerCase();
       //Si la función dice que ya estaba eliminada, tratamos como éxito
       if (msg.includes("ya fue eliminada") || msg.includes("already") || msg.includes("not found")) {
+        logCatalogBreadcrumb("auth.account_delete.ok", {
+          already_deleted: true,
+        });
         return { ok: true };
       }
+      logCatalogBreadcrumb("auth.account_delete.error", {
+        error: data?.message || "delete_account_failed",
+      });
       return { ok: false, error: data?.message || "No se pudo eliminar la cuenta" };
     }
 
+    logCatalogBreadcrumb("auth.account_delete.ok", {
+      already_deleted: false,
+    });
     return { ok: true };
   } catch (error) {
+    logCatalogBreadcrumb("auth.account_delete.error", {
+      error: error?.message ?? String(error),
+    });
     return { ok: false, error: error?.message ?? String(error) };
   }
 }
 
 export async function updateUserProfile({ id_auth, ...payload }) {
+  logCatalogBreadcrumb("auth.profile_update.start", {
+    has_user_id: Boolean(id_auth),
+    fields: Object.keys(payload || {}).slice(0, 20),
+  });
   if (!id_auth) return { ok: false, error: "Falta id_auth para actualizar perfil" };
   try {
     const { data, error } = await supabase
@@ -168,8 +263,14 @@ export async function updateUserProfile({ id_auth, ...payload }) {
       .maybeSingle();
 
     if (error) throw error;
+    logCatalogBreadcrumb("auth.profile_update.ok", {
+      has_user: Boolean(data),
+    });
     return { ok: true, user: data };
   } catch (error) {
+    logCatalogBreadcrumb("auth.profile_update.error", {
+      error: error.message ?? String(error),
+    });
     return { ok: false, error: error.message ?? String(error) };
   }
 }

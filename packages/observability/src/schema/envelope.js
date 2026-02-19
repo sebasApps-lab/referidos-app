@@ -7,15 +7,31 @@ const ALLOWED_SOURCE = new Set(["web", "edge", "worker"]);
 export function buildReleaseFromEnv(importMetaEnv = {}) {
   const appVersion =
     importMetaEnv.VITE_APP_VERSION ||
+    importMetaEnv.VITE_VERSION_LABEL ||
     importMetaEnv.VITE_RELEASE ||
     importMetaEnv.VITE_COMMIT_SHA ||
     "dev";
   const buildId =
-    importMetaEnv.VITE_BUILD_ID || importMetaEnv.VITE_COMMIT_SHA || "";
+    importMetaEnv.VITE_BUILD_ID ||
+    importMetaEnv.VITE_SOURCE_COMMIT_SHA ||
+    importMetaEnv.VITE_COMMIT_SHA ||
+    "";
+  const versionReleaseId =
+    importMetaEnv.VITE_VERSION_RELEASE_ID ||
+    importMetaEnv.VITE_RELEASE_ID ||
+    "";
+  const sourceCommitSha =
+    importMetaEnv.VITE_SOURCE_COMMIT_SHA ||
+    importMetaEnv.VITE_COMMIT_SHA ||
+    "";
   const env = importMetaEnv.MODE || importMetaEnv.VITE_ENV || "development";
   const appId = importMetaEnv.VITE_APP_ID || "referidos-app";
   return {
     app_version: appVersion,
+    version_label: appVersion,
+    semver: appVersion,
+    version_release_id: versionReleaseId,
+    source_commit_sha: sourceCommitSha,
     build_id: buildId,
     env,
     app_id: appId,
@@ -57,6 +73,9 @@ export function normalizeEnvelope(input = {}, defaults = {}) {
   const breadcrumbs = Array.isArray(input.breadcrumbs)
     ? scrubUnknown(input.breadcrumbs).slice(-50)
     : [];
+  const breadcrumbsMeta = scrubUnknown(
+    input.breadcrumbs_meta || input.breadcrumbsMeta || {},
+  );
   const error = scrubUnknown(input.error || {});
 
   return {
@@ -78,6 +97,7 @@ export function normalizeEnvelope(input = {}, defaults = {}) {
     }),
     tags: scrubUnknown(input.tags || {}),
     breadcrumbs,
+    breadcrumbs_meta: breadcrumbsMeta,
     request_id: clampText(input.request_id, 120),
     trace_id: clampText(input.trace_id, 120),
     session_id: clampText(input.session_id, 120),

@@ -5,8 +5,8 @@ export default function AdminSupportCatalogPanel() {
   return (
     <AdminSupportControlPanel
       lockedPanel="catalogo"
-      title="Catalogo de Soporte"
-      subtitle="Categorias, macros y configuracion operativa"
+      title="Macros"
+      subtitle="Categorias y catalogo operativo de macros"
     />
   );
 }

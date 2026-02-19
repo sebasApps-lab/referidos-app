@@ -28,6 +28,9 @@ async function main() {
   if (!args.product) throw new Error("Missing --product");
   if (!args.semver) throw new Error("Missing --semver");
   if (!args.deploymentId) throw new Error("Missing --deployment-id");
+  if (String(args.env || "").toLowerCase() === "dev") {
+    throw new Error("record-deployment: env dev no admite estado deployed");
+  }
 
   const semver = parseSemver(args.semver);
   const supabase = getSupabaseAdminClient();
@@ -84,16 +87,6 @@ async function main() {
       }),
     "insert deployment"
   );
-
-  if (args.status === "success") {
-    await mustData(
-      supabase
-        .from("version_releases")
-        .update({ status: "deployed" })
-        .eq("id", releaseId),
-      "mark release deployed"
-    );
-  }
 
   console.log(
     `VERSIONING_DEPLOYMENT_RECORDED product=${args.product} env=${args.env} semver=${args.semver} status=${args.status}`

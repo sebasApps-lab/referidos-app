@@ -111,17 +111,68 @@ export function runGitCommand(args, fallback = "") {
   }
 }
 
-export function getChangedFiles(baseRef, headRef) {
+export function getChangedFilesWithStatus(baseRef, headRef) {
   const from = baseRef || "HEAD~1";
   const to = headRef || "HEAD";
-  const diff = runGitCommand(`diff --name-only ${from}...${to}`);
-  if (!diff) return [];
-  return unique(
-    diff
-      .split(/\r?\n/)
-      .map((line) => toPosixPath(line.trim()))
-      .filter(Boolean)
-  );
+  const raw = runGitCommand(`diff --name-status --find-renames ${from}...${to}`);
+  if (!raw) return [];
+
+  const rows = [];
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const parts = line.split(/\t+/).map((item) => item.trim());
+    if (parts.length < 2) continue;
+
+    const statusToken = String(parts[0] || "").toUpperCase();
+    const statusCode = statusToken[0] || "M";
+
+    if (statusCode === "R" && parts.length >= 3) {
+      const oldPath = toPosixPath(parts[1]);
+      const newPath = toPosixPath(parts[2]);
+      if (oldPath) rows.push({ path: oldPath, status: "D" });
+      if (newPath) rows.push({ path: newPath, status: "A" });
+      continue;
+    }
+
+    if (statusCode === "C" && parts.length >= 3) {
+      const copiedPath = toPosixPath(parts[2]);
+      if (copiedPath) rows.push({ path: copiedPath, status: "A" });
+      continue;
+    }
+
+    const filePath = toPosixPath(parts[1]);
+    if (!filePath) continue;
+    const normalizedStatus = ["A", "M", "D"].includes(statusCode) ? statusCode : "M";
+    rows.push({ path: filePath, status: normalizedStatus });
+  }
+
+  const statusRank = {
+    D: 3,
+    A: 2,
+    M: 1,
+  };
+
+  const dedup = new Map();
+  for (const row of rows) {
+    const prev = dedup.get(row.path);
+    if (!prev) {
+      dedup.set(row.path, row);
+      continue;
+    }
+    const prevRank = statusRank[prev.status] || 0;
+    const nextRank = statusRank[row.status] || 0;
+    if (nextRank >= prevRank) dedup.set(row.path, row);
+  }
+
+  return [...dedup.values()];
+}
+
+export function getChangedFiles(baseRef, headRef) {
+  return unique(getChangedFilesWithStatus(baseRef, headRef).map((item) => item.path));
 }
 
 export function getCommitMessages(baseRef, headRef) {

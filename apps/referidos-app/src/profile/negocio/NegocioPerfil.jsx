@@ -103,6 +103,7 @@ import {
   saveDeviceSecret,
   savePinHash,
 } from "../../services/secureStorageService";
+import { logCatalogBreadcrumb } from "../../services/loggingClient";
 
 const getDeviceIcon = (session) => {
   const raw = `${session?.device || ""} ${session?.platform || ""}`.toLowerCase();
@@ -1213,6 +1214,10 @@ export default function NegocioPerfil() {
   }, []);
 
   const handleHelpSelect = useCallback((option) => {
+    logCatalogBreadcrumb("support.help.select", {
+      option: option || "unknown",
+      role: "negocio",
+    });
     if (option === "Preguntas frecuentes") {
       setHelpView("faq");
       return;

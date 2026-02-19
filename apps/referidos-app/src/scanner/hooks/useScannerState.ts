@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "../../store/appStore";
 import { redeemValidQr } from "../../services/qrService";
+import { logCatalogBreadcrumb } from "../../services/loggingClient";
 import { handleError } from "../../utils/errorUtils";
 import { scannerCopy } from "../constants/scannerCopy";
 import type {
@@ -65,11 +66,19 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
       .then((status) => {
         if (!active) return;
         if (status.state === "granted") {
+          logCatalogBreadcrumb("scanner.permission.granted", {
+            source: "permissions_api",
+            role,
+          });
           setCamGranted(true);
           if (!scannerPermissionPrompted) {
             setScannerPermissionPrompted(true);
           }
         } else if (status.state === "denied") {
+          logCatalogBreadcrumb("scanner.permission.denied", {
+            source: "permissions_api",
+            role,
+          });
           setCamGranted(false);
           if (!scannerPermissionPrompted) {
             setScannerPermissionPrompted(true);
@@ -95,14 +104,23 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
   }, []);
 
   const requestCameraPermission = useCallback(() => {
+    logCatalogBreadcrumb("scanner.permission.request", { role });
     setScannerPermissionPrompted(true);
     if (typeof navigator === "undefined") return;
     if (isPwaAndroid) {
+      logCatalogBreadcrumb("scanner.permission.settings_redirect", {
+        role,
+        source: "pwa_android",
+      });
       window.location.href =
         "intent://settings#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;end";
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
+      logCatalogBreadcrumb("scanner.permission.denied", {
+        role,
+        source: "media_devices_unavailable",
+      });
       setCameraAvailable(false);
       setCamGranted(false);
       return;
@@ -111,16 +129,25 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
       .getUserMedia({ video: { facingMode: "environment" } })
       .then((stream) => {
         stream.getTracks().forEach((track) => track.stop());
+        logCatalogBreadcrumb("scanner.permission.granted", {
+          role,
+          source: "get_user_media",
+        });
         setCamGranted(true);
       })
       .catch(() => {
+        logCatalogBreadcrumb("scanner.permission.denied", {
+          role,
+          source: "get_user_media",
+        });
         setCamGranted(false);
       });
-  }, [isPwaAndroid, setScannerPermissionPrompted]);
+  }, [isPwaAndroid, role, setScannerPermissionPrompted]);
 
   const skipPermissionIntro = useCallback(() => {
+    logCatalogBreadcrumb("scanner.permission.skip_intro", { role });
     setScannerPermissionPrompted(true);
-  }, [setScannerPermissionPrompted]);
+  }, [role, setScannerPermissionPrompted]);
 
   const handleStatusInfo = useCallback((msg: string) => {
     setStatusMsg(msg);
@@ -130,6 +157,11 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
   const handleCode = useCallback(
     async (raw: string) => {
       if (!raw || processing) return;
+      logCatalogBreadcrumb("scanner.start", {
+        role,
+        source: manualRequested ? "manual" : "camera",
+        input_length: raw.length,
+      });
       setProcessing(true);
       setStatusMsg("");
       setResult(null);
@@ -142,12 +174,22 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
             setStatusMsg(copy.status.cliente.static);
           }
           setStatusType("info");
+          logCatalogBreadcrumb("scanner.ok", {
+            role,
+            mode: "cliente",
+            parsed_type: parsed.type,
+          });
           return;
         }
 
         if (parsed.type !== "valid") {
           setStatusMsg(copy.status.negocio.invalid);
           setStatusType("info");
+          logCatalogBreadcrumb("scanner.invalid", {
+            role,
+            reason: "qr_not_valid_type",
+            parsed_type: parsed.type,
+          });
           return;
         }
 
@@ -163,6 +205,11 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
             setStatusMsg(error || copy.status.negocio.generic);
             setStatusType("info");
           }
+          logCatalogBreadcrumb("scanner.error", {
+            role,
+            reason: "redeem_failed",
+            error: error || "unknown_redeem_error",
+          });
           return;
         }
 
@@ -182,14 +229,33 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
           setStatusMsg(copy.status.negocio.expired);
           setStatusType("expirado");
         }
+        logCatalogBreadcrumb("scanner.ok", {
+          role,
+          mode: "negocio",
+          status: data.status || "unknown",
+          promo_id: data?.promoId || null,
+        });
       } catch (err) {
-        setStatusMsg(handleError(err));
+        const message = handleError(err);
+        setStatusMsg(message);
         setStatusType("info");
+        const reason = String((err as Error)?.message || message || "").toLowerCase();
+        if (reason.includes("qr no reconocido") || reason.includes("qr vacio")) {
+          logCatalogBreadcrumb("scanner.invalid", {
+            role,
+            reason: (err as Error)?.message || message,
+          });
+        } else {
+          logCatalogBreadcrumb("scanner.error", {
+            role,
+            reason: (err as Error)?.message || message,
+          });
+        }
       } finally {
         setProcessing(false);
       }
     },
-    [copy, isNegocio, processing]
+    [copy, isNegocio, manualRequested, processing, role]
   );
 
   const canScan = scanSupported !== false && cameraAvailable !== false;
@@ -206,7 +272,8 @@ export function useScannerState({ role, copy = scannerCopy }: ScannerStateOption
     if (manualRequested) return;
     setManualRequested(true);
     setManualFallbackShown(true);
-  }, [manualRequested, setManualFallbackShown]);
+    logCatalogBreadcrumb("scanner.manual.open", { role });
+  }, [manualRequested, role, setManualFallbackShown]);
 
   return {
     cameraAvailable,

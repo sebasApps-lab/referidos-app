@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronLeft, Mail } from "lucide-react";
+import { logCatalogBreadcrumb } from "../../../services/loggingClient";
 
 const SUPPORT_EMAIL = "soporte@referidosapp.ec";
 
@@ -37,6 +38,10 @@ export default function SupportEmail({ onBack }) {
         <button
           type="button"
           onClick={() => {
+            logCatalogBreadcrumb("support.email.open", {
+              channel: "mailto",
+              target: SUPPORT_EMAIL,
+            });
             window.location.href = `mailto:${SUPPORT_EMAIL}`;
           }}
           className="inline-flex items-center gap-2 rounded-2xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white"
