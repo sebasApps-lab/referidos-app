@@ -75,6 +75,10 @@ jobs:
       OBS_SUPABASE_SECRET_KEY_PROD: ${{ secrets.OBS_SUPABASE_SECRET_KEY_PROD }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_PROD }}
+      OBS_TENANT_ID_STAGING: ${{ secrets.OBS_TENANT_ID_STAGING }}
+      OBS_TENANT_ID_PROD: ${{ secrets.OBS_TENANT_ID_PROD }}
+      OBS_TENANT_NAME_STAGING: ${{ secrets.OBS_TENANT_NAME_STAGING }}
+      OBS_TENANT_NAME_PROD: ${{ secrets.OBS_TENANT_NAME_PROD }}
       SUPABASE_URL_STAGING: ${{ secrets.SUPABASE_URL_STAGING }}
       SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
       SUPABASE_SECRET_KEY_STAGING: ${{ secrets.SUPABASE_SECRET_KEY_STAGING }}
@@ -185,6 +189,27 @@ jobs:
           echo "obs_url=${obs_url}" >> "$GITHUB_OUTPUT"
           echo "obs_secret=${obs_secret}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolver tenant observability
+        id: obs_tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_key="${ENV_KEY}"
+          tenant_id=""
+          tenant_name=""
+
+          if [[ "$env_key" == "staging" ]]; then
+            tenant_id="${OBS_TENANT_ID_STAGING:-}"
+            tenant_name="${OBS_TENANT_NAME_STAGING:-ReferidosAPP}"
+          else
+            tenant_id="${OBS_TENANT_ID_PROD:-}"
+            tenant_name="${OBS_TENANT_NAME_PROD:-ReferidosAPP}"
+          fi
+
+          echo "tenant_id=${tenant_id}" >> "$GITHUB_OUTPUT"
+          echo "tenant_name=${tenant_name}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout commit exacto
         uses: actions/checkout@v4
         with:
@@ -231,7 +256,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
           SUPABASE_SECRET_KEY: ${{ steps.obs.outputs.obs_secret }}
-          OBS_TENANT_NAME: ReferidosAPP
+          OBS_TENANT_ID: ${{ steps.obs_tenant.outputs.tenant_id }}
+          OBS_TENANT_NAME: ${{ steps.obs_tenant.outputs.tenant_name }}
           APP_ID: ${{ steps.plan.outputs.obs_app_id }}
           APP_VERSION: ${{ inputs.semver }}
           BUILD_ID: ${{ inputs.source_commit_sha }}
