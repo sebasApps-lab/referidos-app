@@ -534,6 +534,31 @@ export const useAppStore = create(
               return { ok: true, usuario: null };
             }
 
+            // Hard guard: si hay session cacheada pero token invalido para este proyecto,
+            // limpiamos session local para evitar loops de 401 en Edge Functions protegidas.
+            const {
+              data: userProbeData,
+              error: userProbeError,
+            } = await supabase.auth.getUser(session.access_token);
+            if (userProbeError || !userProbeData?.user?.id) {
+              try {
+                await supabase.auth.signOut({ scope: "local" });
+              } catch {
+                // no-op
+              }
+              logCatalogBreadcrumb("auth.bootstrap.ok", {
+                has_session: false,
+                cleared_invalid_session: true,
+              });
+              set({
+                bootstrap: false,
+                bootstrapError: false,
+                usuario: null,
+                onboarding: null,
+              });
+              return { ok: true, usuario: null };
+            }
+
             let sessionRegister = { ok: false };
             const canStart = beginPolicyAction(SESSION_BOOTSTRAP_ACTION_KEY);
             if (!canStart) {
