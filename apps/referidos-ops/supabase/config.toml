@@ -53,3 +53,7 @@ verify_jwt = false
 
 [functions.ops-telemetry-ingest]
 verify_jwt = false
+
+[functions.versioning-release-sync]
+verify_jwt = false
+

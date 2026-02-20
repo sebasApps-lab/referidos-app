@@ -217,6 +217,129 @@ async function createReleaseSnapshot({
   return inserts.length;
 }
 
+async function createInitialReleaseWithoutDiff({
+  supabase,
+  args,
+  targetEnv,
+  changeset,
+}) {
+  if (!args.productFilter || !args.createRelease) {
+    return false;
+  }
+
+  const product = await mustSingle(
+    supabase
+      .from("version_products")
+      .select("id, tenant_id, product_key")
+      .eq("product_key", args.productFilter)
+      .eq("tenant_id", targetEnv.tenant_id)
+      .limit(1)
+      .single(),
+    `find product ${args.productFilter}`
+  );
+
+  const latestRelease = await getLatestRelease(
+    supabase,
+    product.tenant_id,
+    product.id,
+    targetEnv.id
+  );
+  if (latestRelease) {
+    return false;
+  }
+
+  const suggestedSemver = args.baseline;
+  let nextSemver = suggestedSemver;
+  if (args.overrideSemver) {
+    parseSemver(args.overrideSemver);
+    nextSemver = args.overrideSemver;
+  }
+  const nextParts = parseSemver(nextSemver);
+
+  const createdChangeset = await mustSingle(
+    supabase
+      .from("version_changesets")
+      .insert({
+        tenant_id: product.tenant_id,
+        product_id: product.id,
+        env_id: targetEnv.id,
+        branch: changeset.branch || "unknown",
+        commit_sha: changeset.commitSha || "unknown",
+        pr_number: null,
+        status: "detected",
+        bump_level: "none",
+        notes: "auto detect source=initial-no-diff",
+        created_by: "ci",
+      })
+      .select("id")
+      .single(),
+    `create initial changeset ${product.product_key}`
+  );
+
+  const createdRelease = await mustSingle(
+    supabase
+      .from("version_releases")
+      .insert({
+        tenant_id: product.tenant_id,
+        product_id: product.id,
+        env_id: targetEnv.id,
+        semver_major: nextParts.major,
+        semver_minor: nextParts.minor,
+        semver_patch: nextParts.patch,
+        prerelease_tag: null,
+        prerelease_no: null,
+        status: args.releaseStatus,
+        source_changeset_id: createdChangeset.id,
+        source_commit_sha: changeset.commitSha || "unknown",
+        metadata: {
+          bump_source: "initial-no-diff",
+          detected_bump_level: "none",
+          suggested_semver: suggestedSemver,
+          applied_semver: nextSemver,
+          override_semver: args.overrideSemver || null,
+          release_notes: args.releaseNotes || null,
+          empty_changeset: true,
+        },
+        created_by: "ci",
+      })
+      .select("id, semver_major, semver_minor, semver_patch")
+      .single(),
+    `create initial release ${product.product_key}`
+  );
+
+  const changedRevisionMap = new Map();
+  await createReleaseSnapshot({
+    supabase,
+    tenantId: product.tenant_id,
+    releaseId: createdRelease.id,
+    previousReleaseId: null,
+    productId: product.id,
+    changedRevisionMap,
+  });
+
+  const createdReleaseVersion = semverLabel(
+    createdRelease.semver_major,
+    createdRelease.semver_minor,
+    createdRelease.semver_patch
+  );
+
+  await mustData(
+    supabase
+      .from("version_changesets")
+      .update({
+        status: "applied",
+        notes: `release=${createdReleaseVersion} id=${createdRelease.id} override=${args.overrideSemver || "-"} notes=${args.releaseNotes || "-"} empty_changeset=true`,
+      })
+      .eq("id", createdChangeset.id),
+    `update initial changeset status ${createdChangeset.id}`
+  );
+
+  console.log(
+    `VERSIONING_APPLIED product=${product.product_key} components=0 release=${createdReleaseVersion}`
+  );
+  return true;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const inputAbs = path.resolve(REPO_ROOT, args.input);
@@ -443,6 +566,16 @@ async function main() {
   }
 
   if (processedProducts === 0) {
+    const initialReleaseCreated = await createInitialReleaseWithoutDiff({
+      supabase,
+      args,
+      targetEnv,
+      changeset,
+    });
+    if (initialReleaseCreated) {
+      return;
+    }
+
     const filterLabel = args.productFilter || "none";
     console.log(`VERSIONING_APPLY_NO_PRODUCTS filter=${filterLabel}`);
   }
