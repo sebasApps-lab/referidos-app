@@ -291,9 +291,9 @@ async function checkCommitInBranch({
     };
   }
 
+  const compareStatus = asString(parsed.status, "").toLowerCase();
   const mergeBaseSha = getNestedString(parsed, ["merge_base_commit", "sha"]);
-  const baseCommitSha = getNestedString(parsed, ["base_commit", "sha"]);
-  const inBranch = mergeBaseSha === commitSha || baseCommitSha === commitSha;
+  const inBranch = mergeBaseSha === commitSha;
 
   return {
     ok: true,
@@ -306,6 +306,7 @@ async function checkCommitInBranch({
       : `commit ${commitSha} no esta en ${branch}`,
     payload: {
       status: parsed.status,
+      compare_status: compareStatus,
       ahead_by: asNumber(parsed.ahead_by),
       behind_by: asNumber(parsed.behind_by),
       merge_base_sha: mergeBaseSha,

@@ -371,6 +371,15 @@ backend = "postgres"
 [functions.versioning-deploy-callback]
 verify_jwt = false
 
+[functions.obs-release]
+verify_jwt = false
+
+[functions.obs-policy]
+verify_jwt = false
+
+[functions.obs-ingest]
+verify_jwt = false
+
 [functions.obs-release-sync]
 verify_jwt = false
 

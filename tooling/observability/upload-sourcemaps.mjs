@@ -74,6 +74,12 @@ function chunk(items, size) {
   return out;
 }
 
+function normalizeTenantLabel(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function hasUsableSourcesContent(mapJson) {
   if (!mapJson || typeof mapJson !== "object") return false;
   const sourcesContent = mapJson.sourcesContent;
@@ -103,6 +109,69 @@ async function removeStoragePaths(supabase, bucket, paths) {
   }
 }
 
+async function resolveTenant({
+  supabase,
+  tenantIdHint,
+  tenantNameHint,
+}) {
+  const tenantId = String(tenantIdHint || "").trim();
+  const tenantName = String(tenantNameHint || "").trim();
+
+  if (tenantId) {
+    const { data: byId, error: byIdError } = await supabase
+      .from("tenants")
+      .select("id,name")
+      .eq("id", tenantId)
+      .limit(1)
+      .maybeSingle();
+    if (!byIdError && byId?.id) return byId;
+    throw new Error(`Could not resolve tenant id ${tenantId}`);
+  }
+
+  if (tenantName) {
+    const { data: byName, error: byNameError } = await supabase
+      .from("tenants")
+      .select("id,name")
+      .ilike("name", tenantName)
+      .limit(1)
+      .maybeSingle();
+    if (!byNameError && byName?.id) return byName;
+  }
+
+  const { data: allTenants, error: allTenantsError } = await supabase
+    .from("tenants")
+    .select("id,name")
+    .order("created_at", { ascending: true })
+    .limit(50);
+
+  if (allTenantsError || !Array.isArray(allTenants) || allTenants.length === 0) {
+    throw new Error(
+      `Could not resolve tenant ${tenantName || tenantId || "(empty)"}`
+    );
+  }
+
+  if (tenantName) {
+    const wanted = normalizeTenantLabel(tenantName);
+    const normalizedMatches = allTenants.filter(
+      (tenant) => normalizeTenantLabel(tenant.name) === wanted
+    );
+    if (normalizedMatches.length === 1) {
+      return normalizedMatches[0];
+    }
+  }
+
+  if (allTenants.length === 1) {
+    return allTenants[0];
+  }
+
+  const labels = allTenants
+    .map((tenant) => `${tenant.name} (${tenant.id})`)
+    .join(", ");
+  throw new Error(
+    `Could not resolve tenant ${tenantName || tenantId || "(empty)"}; available tenants: ${labels}`
+  );
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const app = args.app || args.appId;
@@ -127,7 +196,8 @@ async function main() {
     process.env.MODE ||
     process.env.NODE_ENV ||
     "production";
-  const tenantName =
+  const tenantIdHint = process.env.OBS_TENANT_ID || "";
+  const tenantNameHint =
     process.env.OBS_TENANT_NAME ||
     process.env.VITE_DEFAULT_TENANT_ID ||
     "ReferidosAPP";
@@ -152,14 +222,15 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from("tenants")
-    .select("id,name")
-    .ilike("name", tenantName)
-    .limit(1)
-    .maybeSingle();
-  if (tenantError || !tenant?.id) {
-    throw new Error(`Could not resolve tenant ${tenantName}`);
+  const tenant = await resolveTenant({
+    supabase,
+    tenantIdHint,
+    tenantNameHint,
+  });
+  if (!tenant?.id) {
+    throw new Error(
+      `Could not resolve tenant ${tenantNameHint || tenantIdHint || "(empty)"}`
+    );
   }
 
   const releaseKey = safeSegment(`${appId}@${appVersion}+${buildId}`);

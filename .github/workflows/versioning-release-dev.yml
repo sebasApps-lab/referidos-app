@@ -7,6 +7,10 @@ on:
         description: "Branch/ref to release from (default: dev)"
         required: false
         type: string
+      base_ref:
+        description: "Optional base commit/ref for changeset diff (default: HEAD~1)"
+        required: false
+        type: string
       product_filter:
         description: "Optional product key filter (referidos_app | prelaunch_web | android_app)"
         required: false
@@ -38,13 +42,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Resolve effective base ref
+        id: base_ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          requested_base="${{ inputs.base_ref }}"
+          fallback_base="HEAD~1"
+          effective_base="${requested_base:-$fallback_base}"
+          fallback_reason=""
+
+          if ! git rev-parse --verify "${effective_base}^{commit}" >/dev/null 2>&1; then
+            fallback_reason="base_ref_not_found"
+            effective_base="${fallback_base}"
+          fi
+
+          if ! git diff --name-status --find-renames "${effective_base}"...HEAD >/dev/null 2>&1; then
+            fallback_reason="${fallback_reason:+${fallback_reason},}base_ref_compare_failed"
+            effective_base="${fallback_base}"
+          fi
+
+          if ! git rev-parse --verify "${effective_base}^{commit}" >/dev/null 2>&1; then
+            echo "No se pudo resolver base ref efectiva para detect-changes"
+            exit 1
+          fi
+
+          echo "effective_base_ref=${effective_base}" >> "$GITHUB_OUTPUT"
+          echo "fallback_reason=${fallback_reason}" >> "$GITHUB_OUTPUT"
+
       - name: Detect versioning changeset
         env:
-          VERSIONING_BASE_REF: HEAD~1
+          VERSIONING_BASE_REF: ${{ steps.base_ref.outputs.effective_base_ref }}
           VERSIONING_HEAD_REF: HEAD
+          VERSIONING_PRODUCT_FILTER: ${{ inputs.product_filter }}
           VERSIONING_STRICT_MAJOR_ACK: "0"
         run: |
           node tooling/versioning/detect-changes.mjs \
+            --product "${{ inputs.product_filter }}" \
             --output "versioning/out/changeset.json"
 
       - name: Apply changeset and create dev release
