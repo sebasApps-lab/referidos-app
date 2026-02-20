@@ -351,8 +351,8 @@ allow_dynamic_registration = false
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
-# `per_worker` (default) — enables hot reload during local development.
-# `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
+# `per_worker` (default) ??? enables hot reload during local development.
+# `oneshot` ??? fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
 policy = "per_worker"
 # Port to attach the Chrome inspector for debugging edge functions.
 inspector_port = 8083
@@ -398,3 +398,115 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+[functions.onboarding]
+verify_jwt = false
+
+[functions.session-register]
+verify_jwt = false
+
+[functions.session-list]
+verify_jwt = false
+
+[functions.session-revoke]
+verify_jwt = false
+
+[functions.session-revoke-all]
+verify_jwt = false
+
+[functions.validate-registration]
+verify_jwt = false
+
+[functions.validate-registration-code]
+verify_jwt = false
+
+[functions.set-password]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.address-search]
+verify_jwt = false
+
+[functions.address-reverse]
+verify_jwt = false
+
+[functions.create-registration-code]
+verify_jwt = false
+
+[functions.list-registration-codes]
+verify_jwt = false
+
+[functions.revoke-registration-code]
+verify_jwt = false
+
+[functions.admin-prelaunch-metrics]
+verify_jwt = false
+
+[functions.obs-symbolicate]
+verify_jwt = false
+
+[functions.support-create-thread]
+verify_jwt = false
+
+[functions.support-assign-thread]
+verify_jwt = false
+
+[functions.support-update-status]
+verify_jwt = false
+
+[functions.support-add-note]
+verify_jwt = false
+
+[functions.support-close-thread]
+verify_jwt = false
+
+[functions.support-create-irregular-thread]
+verify_jwt = false
+
+[functions.support-start-session]
+verify_jwt = false
+
+[functions.support-end-session]
+verify_jwt = false
+
+[functions.support-agent-ping]
+verify_jwt = false
+
+[functions.support-admin-start-session]
+verify_jwt = false
+
+[functions.support-admin-end-session]
+verify_jwt = false
+
+[functions.support-admin-ping]
+verify_jwt = false
+
+[functions.support-admin-deny-session]
+verify_jwt = false
+
+[functions.support-admin-create-user]
+verify_jwt = false
+
+[functions.support-cancel-thread]
+verify_jwt = false
+
+[functions.support-link-anon-to-user]
+verify_jwt = false
+
+[functions.admin-update-negocio]
+verify_jwt = false
+
+[functions.admin-update-promo]
+verify_jwt = false
+
+[functions.admin-update-reporte]
+verify_jwt = false
+
+[functions.admin-revoke-qr]
+verify_jwt = false
+
+[functions.versioning-ops-proxy]
+verify_jwt = false
+
