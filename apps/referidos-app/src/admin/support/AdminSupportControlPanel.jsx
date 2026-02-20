@@ -15,8 +15,6 @@ import {
 } from "lucide-react";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
-import { SUPPORT_CATEGORIES } from "@referidos/support-sdk/data/supportCategories";
-import { SUPPORT_MACROS } from "@referidos/support-sdk/data/supportMacros";
 
 const ACTIVE = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 const FLOW = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed"];
@@ -117,7 +115,7 @@ export default function AdminSupportControlPanel({
   subtitle = "Panel de control de flujo de tickets",
 }) {
   const [panel, setPanel] = useState(lockedPanel || "tickets");
-  const [viewByPanel, setViewByPanel] = useState({ tickets: "basic", catalogo: "basic" });
+  const [viewByPanel, setViewByPanel] = useState({ tickets: "basic" });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -125,6 +123,7 @@ export default function AdminSupportControlPanel({
   const [events, setEvents] = useState([]);
   const [inbox, setInbox] = useState([]);
   const [macros, setMacros] = useState([]);
+  const [macroCategories, setMacroCategories] = useState([]);
   const [usersById, setUsersById] = useState({});
   const [selectedPublicId, setSelectedPublicId] = useState(null);
   const [catalogGroupBy, setCatalogGroupBy] = useState("categoria");
@@ -135,11 +134,11 @@ export default function AdminSupportControlPanel({
     else setLoading(true);
     setError("");
     try {
-      const [tRes, eRes, iRes, mRes] = await Promise.all([
+      const [tRes, eRes, iRes, mRes, cRes] = await Promise.all([
         supabase
           .from("support_threads")
           .select(
-            "id, public_id, user_public_id, category, severity, status, summary, request_origin, origin_source, created_at, updated_at, assigned_agent_id, closed_at, cancelled_at, resolution, root_cause, anon_profile_id"
+            "id, public_id, user_public_id, category, severity, status, summary, request_origin, origin_source, app_channel, created_at, updated_at, assigned_agent_id, closed_at, cancelled_at, resolution, root_cause, anon_profile_id"
           )
           .order("created_at", { ascending: false })
           .limit(700),
@@ -154,20 +153,47 @@ export default function AdminSupportControlPanel({
           .order("created_at", { ascending: false })
           .limit(700),
         supabase
-          .from("support_macros")
-          .select("id, title, body, category, status, audience, active, created_at")
+          .from("support_macros_cache")
+          .select(
+            "id, title, body, category_code, thread_status, audience_roles, status, app_targets, env_targets, sort_order, created_at"
+          )
+          .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(600),
+        supabase
+          .from("support_macro_categories_cache")
+          .select("id, code, label, description, status, sort_order")
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: false })
+          .limit(300),
       ]);
 
       const nextThreads = (tRes.data || []).map((t) => ({
         ...t,
         request_origin: t.request_origin || "registered",
         origin_source: t.origin_source || "app",
+        app_channel: t.app_channel || (t.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
       }));
       const nextEvents = eRes.data || [];
       const nextInbox = iRes.data || [];
-      const nextMacros = mRes.data?.length ? mRes.data : SUPPORT_MACROS.map((m) => ({ ...m, active: true }));
+      const nextMacros = (mRes.data || []).map((macro) => ({
+        id: macro.id,
+        title: macro.title,
+        body: macro.body,
+        category: macro.category_code || "general",
+        status: macro.thread_status || "sin_estado",
+        audience: macro.audience_roles || ["cliente", "negocio"],
+        active: macro.status === "published",
+        app_targets: macro.app_targets || ["all"],
+        env_targets: macro.env_targets || ["all"],
+        created_at: macro.created_at,
+      }));
+      const nextCategories = (cRes.data || []).map((category) => ({
+        id: category.code || category.id,
+        label: category.label || category.code || "Sin label",
+        description: category.description || "",
+        status: category.status || "draft",
+      }));
 
       const ids = Array.from(
         new Set(
@@ -189,12 +215,13 @@ export default function AdminSupportControlPanel({
         }, {});
       }
 
-      if (tRes.error || eRes.error || mRes.error || iRes.error) {
+      if (tRes.error || eRes.error || mRes.error || iRes.error || cRes.error) {
         setError(
           tRes.error?.message ||
           eRes.error?.message ||
           mRes.error?.message ||
           iRes.error?.message ||
+          cRes.error?.message ||
           "Error de carga"
         );
       }
@@ -203,6 +230,7 @@ export default function AdminSupportControlPanel({
       setEvents(nextEvents);
       setInbox(nextInbox);
       setMacros(nextMacros);
+      setMacroCategories(nextCategories);
       setUsersById(users);
     } catch (err) {
       setError(err?.message || "Error de carga");
@@ -335,7 +363,7 @@ export default function AdminSupportControlPanel({
         id: "general",
         label: "General",
       },
-      ...SUPPORT_CATEGORIES,
+      ...macroCategories,
     ];
 
     const top = (obj, n = 6) =>
@@ -385,11 +413,11 @@ export default function AdminSupportControlPanel({
         categoriesNoMacro: configCategories.filter((c) => !macrosByCat[c.id]),
       },
     };
-  }, [threads, events, macros, activeTickets, usersById, eventsByThread, inboxByPublic]);
+  }, [threads, events, macros, activeTickets, usersById, eventsByThread, inboxByPublic, macroCategories]);
 
   const catalogMacros = useMemo(
     () =>
-      (macros.length ? macros : SUPPORT_MACROS).map((m) => ({
+      macros.map((m) => ({
         ...m,
         category: m.category || "general",
         status: m.status || "sin_estado",
@@ -436,7 +464,7 @@ export default function AdminSupportControlPanel({
         description: "Consultas generales sin categoria especifica.",
         roles: ["cliente", "negocio"],
       },
-      ...SUPPORT_CATEGORIES,
+      ...macroCategories,
     ];
     const known = new Set(baseCategories.map((c) => c.id));
     const extraIds = Array.from(
@@ -458,7 +486,7 @@ export default function AdminSupportControlPanel({
       macrosList: macroListByCategory[c.id] || [],
       rolesWithMacros: Array.from(roleSetByCategory[c.id] || []).sort((a, b) => roleRank(a) - roleRank(b)),
     }));
-  }, [threads, activeTickets, catalogMacros]);
+  }, [threads, activeTickets, catalogMacros, macroCategories]);
 
   const catalogMacroSummary = useMemo(() => {
     const categoriesCovered = new Set(catalogMacros.map((m) => m.category || "general")).size;
@@ -722,19 +750,12 @@ export default function AdminSupportControlPanel({
         ) : (
           <Card
             title={lockedPanel === "tickets" ? "Panel Tickets" : "Control de tickets"}
-            subtitle={
-              lockedPanel
-                ? "Vista basica (default) y avanzada."
-                : "Panel Tickets y Catalogo con vista basica (default) y avanzada."
-            }
+            subtitle={"Vista basica (default) y avanzada."}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               {lockedPanel ? <div /> : (
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: "tickets", label: "Panel Tickets" },
-                    { id: "catalogo", label: "Catalogo" },
-                  ].map((p) => (
+                  {[{ id: "tickets", label: "Panel Tickets" }].map((p) => (
                     <button
                       key={p.id}
                       type="button"

@@ -26,6 +26,9 @@ function normalizeThreadRow(thread) {
     ...thread,
     request_origin: thread?.request_origin || "registered",
     origin_source: thread?.origin_source || "app",
+    app_channel:
+      thread?.app_channel ||
+      (thread?.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
     contact_display: thread?.contact_display || null,
     anon_public_id: thread?.anon_public_id || null,
   };
@@ -35,7 +38,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   let inboxQuery = supabase
     .from("support_threads_inbox")
     .select(
-      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, contact_display, anon_public_id"
+      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id"
     )
     .order("created_at", { ascending: false });
 
@@ -53,7 +56,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   let legacyQuery = supabase
     .from("support_threads")
     .select(
-      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id"
+      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel"
     )
     .order("created_at", { ascending: false });
 
@@ -143,12 +146,20 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
 
       syncInFlightRef.current = true;
       try {
-        await supabase.functions.invoke("ops-telemetry-sync-dispatch", {
-          body: {
-            mode: "hot",
-            panel_key: panelKey,
-          },
-        });
+        await Promise.all([
+          supabase.functions.invoke("ops-telemetry-sync-dispatch", {
+            body: {
+              mode: "hot",
+              panel_key: panelKey,
+            },
+          }),
+          supabase.functions.invoke("ops-support-macros-sync-dispatch", {
+            body: {
+              mode: "hot",
+              panel_key: panelKey,
+            },
+          }),
+        ]);
       } catch {
         // Silent fail: sync is best-effort and must not block inbox usage.
       } finally {
@@ -336,6 +347,11 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                 {thread.origin_source ? (
                   <span className="rounded-full bg-[#F0EBFF] px-2 py-1 text-[#5E30A5]">
                     {thread.origin_source}
+                  </span>
+                ) : null}
+                {thread.app_channel ? (
+                  <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[#0D4F9A]">
+                    {thread.app_channel}
                   </span>
                 ) : null}
               </div>

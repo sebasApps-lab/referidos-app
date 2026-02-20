@@ -1,19 +1,63 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createIrregularThread } from "../supportClient";
-import { SUPPORT_CATEGORIES } from "../data/supportCategories";
+import {
+  loadSupportCatalogFromCache,
+  normalizeSupportAppKey,
+} from "../data/supportCatalog";
 
 export default function SupportIrregular() {
   const [userPublicId, setUserPublicId] = useState("");
   const [summary, setSummary] = useState("");
   const [category, setCategory] = useState("acceso");
+  const [appChannel, setAppChannel] = useState("referidos_app");
   const [status, setStatus] = useState(null);
-  const categories = useMemo(() => SUPPORT_CATEGORIES, []);
+  const [catalogCategories, setCatalogCategories] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const loadCatalog = async () => {
+      const result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      if (!active) return;
+      setCatalogCategories(result.categories || []);
+    };
+    loadCatalog();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    return catalogCategories
+      .filter((item) => {
+        const targets = Array.isArray(item.app_targets) ? item.app_targets : ["all"];
+        return targets.includes("all") || targets.includes(appChannel);
+      })
+      .map((item) => ({
+        id: item.code || item.id,
+        label: item.label || item.code || item.id,
+        description: item.description || "",
+      }));
+  }, [appChannel, catalogCategories]);
+
+  useEffect(() => {
+    if (!categories.length) return;
+    if (!categories.some((item) => item.id === category)) {
+      setCategory(categories[0].id);
+    }
+  }, [categories, category]);
 
   const handleCreate = async () => {
+    if (!categories.length) {
+      setStatus("No hay categorias publicadas para esta app.");
+      return;
+    }
+
     const result = await createIrregularThread({
       user_public_id: userPublicId.trim(),
       summary: summary.trim(),
       category,
+      app_channel: appChannel,
+      origin_source: "admin_support",
     });
     if (result.ok) {
       setStatus("Ticket irregular creado.");
@@ -49,6 +93,20 @@ export default function SupportIrregular() {
           className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-2 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
         />
         <label className="text-xs font-semibold text-[#2F1A55]">
+          Aplicacion
+        </label>
+        <select
+          value={appChannel}
+          onChange={(e) =>
+            setAppChannel(normalizeSupportAppKey(e.target.value, "referidos_app"))
+          }
+          className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-2 text-sm text-slate-700 outline-none focus:border-[#5E30A5]"
+        >
+          <option value="referidos_app">PWA principal</option>
+          <option value="prelaunch_web">Prelaunch web</option>
+          <option value="android_app">Android</option>
+        </select>
+        <label className="text-xs font-semibold text-[#2F1A55]">
           Categoria
         </label>
         <select
@@ -74,6 +132,7 @@ export default function SupportIrregular() {
         <button
           type="button"
           onClick={handleCreate}
+          disabled={!categories.length}
           className="rounded-2xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
         >
           Crear ticket irregular

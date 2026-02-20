@@ -348,3 +348,69 @@ select public.ops_sync_upsert_runtime_config(
   p_tenant_name := 'ReferidosAPP'
 );
 ```
+
+## 12) Macros de soporte en OPS + cache runtime (nuevo)
+
+Arquitectura:
+- escritura: panel admin -> `support-ops-proxy` (runtime) -> `ops-support-macros-admin` (ops)
+- lectura soporte/admin: `support_macro_categories_cache` + `support_macros_cache` (runtime local)
+- sync: `ops-support-macros-sync-dispatch` (runtime) <- `ops-support-macros-sync` (ops)
+
+### 12.1 Secrets runtime (`dev/staging/prod`)
+
+Obligatorios:
+- `SUPPORT_OPS_URL` = `https://ymhaveuksdzlfuecvkmx.supabase.co`
+- `SUPPORT_OPS_SECRET_KEY` = secret key de `referidos-ops`
+- `SUPPORT_OPS_SHARED_TOKEN` = token compartido runtime <-> ops
+- `SUPPORT_MACROS_SOURCE_PROJECT_REF` = ref del runtime (`btvrtxdizqsqrzdsgvsj` / `iegjfeaadayfvqockwov` / `ztcsrfwvjgqnmhnlpeye`)
+- `SUPPORT_MACROS_SOURCE_ENV_KEY` = `dev|staging|prod`
+
+Opcionales recomendados:
+- `SUPPORT_MACROS_HOT_BATCH_LIMIT` (default `400`)
+- `SUPPORT_MACROS_COLD_BATCH_LIMIT` (default `1000`)
+- `SUPPORT_MACROS_CRON_TOKEN` (si quieres token fijo adicional al guardado en `ops_sync_runtime_config`)
+
+### 12.2 Secrets OPS
+
+Obligatorio:
+- `SUPPORT_OPS_SHARED_TOKEN` = mismo valor que runtime
+
+### 12.3 Config de funciones
+
+`apps/referidos-app/supabase/config.toml`
+- `[functions.support-ops-proxy] verify_jwt = false`
+- `[functions.ops-support-macros-sync-dispatch] verify_jwt = false`
+
+`apps/referidos-ops/supabase/config.toml`
+- `[functions.ops-support-macros-admin] verify_jwt = false`
+- `[functions.ops-support-macros-sync] verify_jwt = false`
+
+### 12.4 Deploy de funciones
+
+OPS:
+```powershell
+cd apps/referidos-ops
+supabase functions deploy ops-support-macros-admin --project-ref ymhaveuksdzlfuecvkmx --no-verify-jwt
+supabase functions deploy ops-support-macros-sync --project-ref ymhaveuksdzlfuecvkmx --no-verify-jwt
+```
+
+Runtime `dev`:
+```powershell
+cd apps/referidos-app
+supabase functions deploy support-ops-proxy --project-ref btvrtxdizqsqrzdsgvsj --no-verify-jwt
+supabase functions deploy ops-support-macros-sync-dispatch --project-ref btvrtxdizqsqrzdsgvsj --no-verify-jwt
+```
+
+Runtime `staging`:
+```powershell
+cd apps/referidos-app
+supabase functions deploy support-ops-proxy --project-ref iegjfeaadayfvqockwov --no-verify-jwt
+supabase functions deploy ops-support-macros-sync-dispatch --project-ref iegjfeaadayfvqockwov --no-verify-jwt
+```
+
+Runtime `prod`:
+```powershell
+cd apps/referidos-app
+supabase functions deploy support-ops-proxy --project-ref ztcsrfwvjgqnmhnlpeye --no-verify-jwt
+supabase functions deploy ops-support-macros-sync-dispatch --project-ref ztcsrfwvjgqnmhnlpeye --no-verify-jwt
+```
