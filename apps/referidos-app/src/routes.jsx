@@ -317,6 +317,16 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/soporte/macros/:macroId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/admin/soporte/ticket/:threadId"
         element={
           <RequireAuth>
