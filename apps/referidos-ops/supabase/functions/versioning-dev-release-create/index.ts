@@ -132,9 +132,36 @@ serve(async (req) => {
     );
   }
 
+  let releaseBaseRef = "";
+  if (productKey) {
+    const { data: latestRows, error: latestError } = await supabaseAdmin
+      .from("version_releases_labeled")
+      .select("source_commit_sha")
+      .eq("product_key", productKey)
+      .eq("env_key", "dev")
+      .order("semver_major", { ascending: false })
+      .order("semver_minor", { ascending: false })
+      .order("semver_patch", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (latestError) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "load_latest_release_failed",
+          detail: latestError.message,
+        },
+        500,
+        cors
+      );
+    }
+    releaseBaseRef = asString(latestRows?.[0]?.source_commit_sha);
+  }
+
   const payload = {
     ref,
     inputs: {
+      base_ref: releaseBaseRef || "",
       product_filter: productKey || "",
       override_semver: overrideSemver || "",
       release_notes: releaseNotes || "",
@@ -195,6 +222,7 @@ serve(async (req) => {
       entity_id: workflowId,
       payload: {
         ref,
+        base_ref: releaseBaseRef || null,
         product_key: productKey || null,
         override_semver: overrideSemver || null,
         release_notes: releaseNotes || null,
@@ -207,6 +235,7 @@ serve(async (req) => {
       ok: true,
       workflow: workflowId,
       ref,
+      base_ref: releaseBaseRef || null,
       product_key: productKey || null,
       override_semver: overrideSemver || null,
       detail: "Workflow de release dev disparado correctamente.",

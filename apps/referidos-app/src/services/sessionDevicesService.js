@@ -84,6 +84,12 @@ async function normalizeFunctionError(error) {
     }
   }
 
+  const normalizedMessage = String(message || "").toLowerCase();
+  if (code === 401 || String(code) === "401" || normalizedMessage.includes("invalid jwt")) {
+    code = "auth_token_invalid";
+    if (!status) status = 401;
+  }
+
   return {
     ok: false,
     code,

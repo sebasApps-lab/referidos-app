@@ -75,6 +75,14 @@ jobs:
       OBS_SUPABASE_SECRET_KEY_PROD: ${{ secrets.OBS_SUPABASE_SECRET_KEY_PROD }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_STAGING }}
       OBS_SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.OBS_SUPABASE_SERVICE_ROLE_KEY_PROD }}
+      VITE_SUPABASE_URL_STAGING: ${{ secrets.VITE_SUPABASE_URL_STAGING }}
+      VITE_SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+      VITE_SUPABASE_ANON_KEY_STAGING: ${{ secrets.VITE_SUPABASE_ANON_KEY_STAGING }}
+      VITE_SUPABASE_ANON_KEY_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+      OBS_TENANT_ID_STAGING: ${{ secrets.OBS_TENANT_ID_STAGING }}
+      OBS_TENANT_ID_PROD: ${{ secrets.OBS_TENANT_ID_PROD }}
+      OBS_TENANT_NAME_STAGING: ${{ secrets.OBS_TENANT_NAME_STAGING }}
+      OBS_TENANT_NAME_PROD: ${{ secrets.OBS_TENANT_NAME_PROD }}
       SUPABASE_URL_STAGING: ${{ secrets.SUPABASE_URL_STAGING }}
       SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
       SUPABASE_SECRET_KEY_STAGING: ${{ secrets.SUPABASE_SECRET_KEY_STAGING }}
@@ -97,6 +105,7 @@ jobs:
           fi
 
           workspace=""
+          netlify_filter=""
           publish_dir=""
           upload_app=""
           obs_app_id=""
@@ -104,6 +113,7 @@ jobs:
 
           if [[ "$product" == "referidos_app" ]]; then
             workspace="@referidos/referidos-app"
+            netlify_filter="@referidos/referidos-app"
             publish_dir="apps/referidos-app/dist"
             upload_app="referidos-app"
             obs_app_id="referidos-app"
@@ -114,6 +124,7 @@ jobs:
             fi
           elif [[ "$product" == "prelaunch_web" ]]; then
             workspace="@referidos/prelaunch"
+            netlify_filter="@referidos/prelaunch"
             publish_dir="apps/prelaunch/dist"
             upload_app="prelaunch"
             obs_app_id="prelaunch"
@@ -146,6 +157,7 @@ jobs:
           fi
 
           echo "workspace=${workspace}" >> "$GITHUB_OUTPUT"
+          echo "netlify_filter=${netlify_filter}" >> "$GITHUB_OUTPUT"
           echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
           echo "upload_app=${upload_app}" >> "$GITHUB_OUTPUT"
           echo "obs_app_id=${obs_app_id}" >> "$GITHUB_OUTPUT"
@@ -181,6 +193,67 @@ jobs:
           echo "obs_url=${obs_url}" >> "$GITHUB_OUTPUT"
           echo "obs_secret=${obs_secret}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolver variables Vite Supabase
+        id: vite_supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_key="${ENV_KEY}"
+          vite_url=""
+          vite_anon_key=""
+
+          has_value() {
+            if [[ -n "${1:-}" ]]; then
+              echo "yes"
+            else
+              echo "no"
+            fi
+          }
+
+          if [[ "$env_key" == "staging" ]]; then
+            vite_url="${VITE_SUPABASE_URL_STAGING:-}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_STAGING:-}"
+          else
+            vite_url="${VITE_SUPABASE_URL_PROD:-}"
+            vite_anon_key="${VITE_SUPABASE_ANON_KEY_PROD:-}"
+          fi
+
+          if [[ -z "$vite_url" ]]; then
+            echo "Falta VITE_SUPABASE_URL para ${env_key}"
+            echo "Diagnostico URL keys: VITE_SUPABASE_URL_STAGING=$(has_value "${VITE_SUPABASE_URL_STAGING:-}") VITE_SUPABASE_URL_PROD=$(has_value "${VITE_SUPABASE_URL_PROD:-}")"
+            exit 1
+          fi
+          if [[ -z "$vite_anon_key" ]]; then
+            echo "Falta VITE_SUPABASE_ANON_KEY para ${env_key}"
+            echo "Diagnostico ANON keys: VITE_SUPABASE_ANON_KEY_STAGING=$(has_value "${VITE_SUPABASE_ANON_KEY_STAGING:-}") VITE_SUPABASE_ANON_KEY_PROD=$(has_value "${VITE_SUPABASE_ANON_KEY_PROD:-}")"
+            exit 1
+          fi
+
+          echo "vite_supabase_url=${vite_url}" >> "$GITHUB_OUTPUT"
+          echo "vite_supabase_anon_key=${vite_anon_key}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolver tenant observability
+        id: obs_tenant
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_key="${ENV_KEY}"
+          tenant_id=""
+          tenant_name=""
+
+          if [[ "$env_key" == "staging" ]]; then
+            tenant_id="${OBS_TENANT_ID_STAGING:-}"
+            tenant_name="${OBS_TENANT_NAME_STAGING:-ReferidosAPP}"
+          else
+            tenant_id="${OBS_TENANT_ID_PROD:-}"
+            tenant_name="${OBS_TENANT_NAME_PROD:-ReferidosAPP}"
+          fi
+
+          echo "tenant_id=${tenant_id}" >> "$GITHUB_OUTPUT"
+          echo "tenant_name=${tenant_name}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout commit exacto
         uses: actions/checkout@v4
         with:
@@ -205,6 +278,8 @@ jobs:
           VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
           VITE_ENV: ${{ inputs.env_key }}
           VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          VITE_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
         run: |
           set -euo pipefail
           npm --workspace "${{ steps.plan.outputs.workspace }}" run build
@@ -227,7 +302,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
           SUPABASE_SECRET_KEY: ${{ steps.obs.outputs.obs_secret }}
-          OBS_TENANT_NAME: ReferidosAPP
+          OBS_TENANT_ID: ${{ steps.obs_tenant.outputs.tenant_id }}
+          OBS_TENANT_NAME: ${{ steps.obs_tenant.outputs.tenant_name }}
           APP_ID: ${{ steps.plan.outputs.obs_app_id }}
           APP_VERSION: ${{ inputs.semver }}
           BUILD_ID: ${{ inputs.source_commit_sha }}
@@ -249,6 +325,7 @@ jobs:
           set -euo pipefail
 
           npx --yes netlify-cli@latest deploy \
+            --filter "${{ steps.plan.outputs.netlify_filter }}" \
             --site "${{ steps.plan.outputs.site_id }}" \
             --auth "${NETLIFY_AUTH_TOKEN}" \
             --dir "${{ steps.build.outputs.publish_dir }}" \
