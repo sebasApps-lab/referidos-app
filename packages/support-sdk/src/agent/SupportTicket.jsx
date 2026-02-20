@@ -7,7 +7,12 @@ import {
   closeSupportThread,
   updateSupportStatus,
 } from "../supportClient";
-import { SUPPORT_MACROS } from "../data/supportMacros";
+import {
+  filterSupportMacrosForThread,
+  loadSupportCatalogFromCache,
+  normalizeSupportAppKey,
+  normalizeSupportEnvKey,
+} from "../data/supportCatalog";
 
 function normalizeThreadRow(thread) {
   if (!thread) return null;
@@ -30,6 +35,7 @@ export default function SupportTicket() {
   const [resolution, setResolution] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
+  const [catalog, setCatalog] = useState({ categories: [], macros: [] });
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -127,14 +133,43 @@ export default function SupportTicket() {
     };
   }, [threadId]);
 
-  const macros = useMemo(() => {
-    if (!thread) return [];
-    return SUPPORT_MACROS.filter((macro) => {
-      if (macro.status && macro.status !== thread.status) return false;
-      if (macro.category && macro.category !== thread.category) return false;
-      return true;
-    });
+  useEffect(() => {
+    let active = true;
+    const loadCatalog = async () => {
+      const result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      if (!active) return;
+      setCatalog({
+        categories: result.categories || [],
+        macros: result.macros || [],
+      });
+    };
+    loadCatalog();
+    return () => {
+      active = false;
+    };
+  }, [threadId]);
+
+  const runtimeEnvKey = normalizeSupportEnvKey(
+    import.meta.env.VITE_ENV || import.meta.env.MODE || "dev",
+    "dev"
+  );
+
+  const ticketAppKey = useMemo(() => {
+    if (!thread) return "referidos_app";
+    return normalizeSupportAppKey(
+      thread.app_channel || thread.origin_source || "",
+      thread.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"
+    );
   }, [thread]);
+
+  const macros = useMemo(() => {
+    return filterSupportMacrosForThread({
+      thread,
+      macros: catalog.macros,
+      categories: catalog.categories,
+      runtimeEnvKey,
+    });
+  }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
 
   const handleCopy = async (text, id) => {
     await navigator.clipboard.writeText(text);
@@ -205,6 +240,9 @@ export default function SupportTicket() {
               {thread.origin_source}
             </span>
           ) : null}
+          <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D4F9A]">
+            app: {ticketAppKey}
+          </span>
         </div>
       </div>
 
@@ -350,32 +388,38 @@ export default function SupportTicket() {
               Macros sugeridas
             </div>
             <div className="space-y-3">
-              {macros.map((macro) => (
-                <div
-                  key={macro.id}
-                  className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600 space-y-2"
-                >
-                  <div className="font-semibold text-[#2F1A55]">
-                    {macro.title}
-                  </div>
-                  <div>{macro.body}</div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(macro.body, macro.id)}
-                    className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
-                  >
-                    {copiedId === macro.id ? (
-                      <>
-                        <ClipboardCheck size={14} /> Copiado
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={14} /> Copiar
-                      </>
-                    )}
-                  </button>
+              {macros.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
+                  No hay macros publicadas para este estado/app.
                 </div>
-              ))}
+              ) : (
+                macros.map((macro) => (
+                  <div
+                    key={macro.id}
+                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600 space-y-2"
+                  >
+                    <div className="font-semibold text-[#2F1A55]">
+                      {macro.title}
+                    </div>
+                    <div>{macro.body}</div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(macro.body, macro.id)}
+                      className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                    >
+                      {copiedId === macro.id ? (
+                        <>
+                          <ClipboardCheck size={14} /> Copiado
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} /> Copiar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -510,3 +510,9 @@ verify_jwt = false
 [functions.versioning-ops-proxy]
 verify_jwt = false
 
+[functions.support-ops-proxy]
+verify_jwt = false
+
+[functions.ops-support-macros-sync-dispatch]
+verify_jwt = false
+

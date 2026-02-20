@@ -12,6 +12,21 @@ import {
 
 const SUPPORT_PHONE = "593995705833";
 
+function normalizeAppChannel(rawValue: unknown) {
+  const normalized = safeTrim(typeof rawValue === "string" ? rawValue : "", 60).toLowerCase();
+  if (!normalized) return "referidos_app";
+  if (["referidos_app", "referidos-app", "referidos-pwa", "app", "pwa"].includes(normalized)) {
+    return "referidos_app";
+  }
+  if (["prelaunch_web", "prelaunch-web", "prelaunch", "landing"].includes(normalized)) {
+    return "prelaunch_web";
+  }
+  if (["android_app", "android-app", "android", "referidos-android"].includes(normalized)) {
+    return "android_app";
+  }
+  return "referidos_app";
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -39,6 +54,7 @@ serve(async (req) => {
   const severity = body.severity ?? "s2";
   const summary = safeTrim(body.summary, 240);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
+  const appChannel = normalizeAppChannel(body.app_channel);
   const context = typeof body.context === "object" && body.context
     ? body.context
     : {};
@@ -130,7 +146,9 @@ serve(async (req) => {
       created_by_user_id: usuario.id,
       client_request_id: clientRequestId,
       suggested_contact_name: usuario.public_id,
-      suggested_tags: [category, severity, "new"],
+      suggested_tags: [category, severity, "new", appChannel],
+      app_channel: appChannel,
+      origin_source: "app",
     })
     .select(
       "id, public_id, user_id, user_public_id, category, severity, status"
@@ -172,12 +190,13 @@ serve(async (req) => {
     event_type: "created",
     actor_role: usuario.role,
     actor_id: usuario.id,
-    details: {
-      category,
-      severity,
-      wa_link: waLink,
-      wa_message_text: messageText,
-    },
+      details: {
+        category,
+        severity,
+        app_channel: appChannel,
+        wa_link: waLink,
+        wa_message_text: messageText,
+      },
   });
 
   return jsonResponse(

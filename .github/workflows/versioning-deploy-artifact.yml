@@ -63,8 +63,6 @@ jobs:
       WORKFLOW_ACTOR: ${{ inputs.actor }}
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
-      NETLIFY_SITE_ID_STAGING: ${{ secrets.NETLIFY_SITE_ID_STAGING }}
-      NETLIFY_SITE_ID_PROD: ${{ secrets.NETLIFY_SITE_ID_PROD }}
       NETLIFY_SITE_ID_REFERIDOS_APP_STAGING: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_STAGING }}
       NETLIFY_SITE_ID_REFERIDOS_APP_PROD: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_PROD }}
       NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING }}
@@ -110,6 +108,7 @@ jobs:
           upload_app=""
           obs_app_id=""
           specific_site_id=""
+          required_site_secret=""
 
           if [[ "$product" == "referidos_app" ]]; then
             workspace="@referidos/referidos-app"
@@ -119,8 +118,10 @@ jobs:
             obs_app_id="referidos-app"
             if [[ "$env_key" == "staging" ]]; then
               specific_site_id="${NETLIFY_SITE_ID_REFERIDOS_APP_STAGING}"
+              required_site_secret="NETLIFY_SITE_ID_REFERIDOS_APP_STAGING"
             else
               specific_site_id="${NETLIFY_SITE_ID_REFERIDOS_APP_PROD}"
+              required_site_secret="NETLIFY_SITE_ID_REFERIDOS_APP_PROD"
             fi
           elif [[ "$product" == "prelaunch_web" ]]; then
             workspace="@referidos/prelaunch"
@@ -130,24 +131,19 @@ jobs:
             obs_app_id="prelaunch"
             if [[ "$env_key" == "staging" ]]; then
               specific_site_id="${NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING}"
+              required_site_secret="NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING"
             else
               specific_site_id="${NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD}"
+              required_site_secret="NETLIFY_SITE_ID_PRELAUNCH_WEB_PROD"
             fi
           else
             echo "Producto no soportado para deploy web por artifact exacto: $product"
             exit 1
           fi
 
-          fallback_site_id=""
-          if [[ "$env_key" == "staging" ]]; then
-            fallback_site_id="${NETLIFY_SITE_ID_STAGING}"
-          else
-            fallback_site_id="${NETLIFY_SITE_ID_PROD}"
-          fi
-
-          site_id="${specific_site_id:-$fallback_site_id}"
+          site_id="${specific_site_id}"
           if [[ -z "$site_id" ]]; then
-            echo "No se encontro NETLIFY_SITE_ID para product=${product} env=${env_key}"
+            echo "Falta secret requerido ${required_site_secret} para product=${product} env=${env_key}"
             exit 1
           fi
 
