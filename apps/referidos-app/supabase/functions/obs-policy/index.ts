@@ -157,14 +157,14 @@ serve(async (req) => {
   let tenantId: string | null = null;
   if (auth.authUser?.id) {
     const profile = await getUsuarioByAuthId(auth.authUser.id);
-    if (profile.error || !profile.usuario) {
-      return jsonResponse(
-        { ok: false, code: "profile_not_found", message: "Auth profile not found" },
-        404,
-        cors,
+    if (!profile.error && profile.usuario) {
+      const tenantFromProfile = String(
+        (profile.usuario as Record<string, unknown>).tenant_id || "",
       );
+      if (tenantFromProfile) {
+        tenantId = tenantFromProfile;
+      }
     }
-    tenantId = String((profile.usuario as Record<string, unknown>).tenant_id || "");
   }
 
   if (!tenantId) tenantId = await resolveTenantIdByOrigin(req);

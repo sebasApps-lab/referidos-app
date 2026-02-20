@@ -119,17 +119,6 @@ export function getUserIdFromToken(token: string): string | null {
   return trimmed || null;
 }
 
-function tokenLooksLikeAuthenticatedSession(token: string): boolean {
-  const payload = decodeJwtPayload(token);
-  if (!payload) return false;
-  const aud = typeof payload.aud === "string" ? payload.aud.trim() : "";
-  const sub = typeof payload.sub === "string" ? payload.sub.trim() : "";
-  const sessionId = typeof payload.session_id === "string"
-    ? payload.session_id.trim()
-    : "";
-  return aud === "authenticated" && sub.length > 0 && sessionId.length > 0;
-}
-
 export async function getAuthedUser(req: Request, cors: Record<string, string>) {
   const token = getTokenFromRequest(req);
   if (!token) {
@@ -179,18 +168,6 @@ export async function getAuthedUser(req: Request, cors: Record<string, string>) 
   }
 
   if (!resolvedUser) {
-    // Edge gateway already enforces JWT validity before invoking the function.
-    // If Auth lookup is temporarily inconsistent (e.g. session_not_found), we
-    // still proceed with JWT claims for bootstrap/session flows.
-    const fallbackUserId = getUserIdFromToken(token);
-    if (fallbackUserId && tokenLooksLikeAuthenticatedSession(token)) {
-      return {
-        ok: true as const,
-        token,
-        user: { id: fallbackUserId },
-      };
-    }
-
     return {
       ok: false as const,
       response: json(
