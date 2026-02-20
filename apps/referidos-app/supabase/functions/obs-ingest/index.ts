@@ -468,21 +468,14 @@ serve(async (req) => {
   let tenantId: string | null = null;
   if (auth.authUser?.id) {
     const profile = await getUsuarioByAuthId(auth.authUser.id);
-    if (profile.error || !profile.usuario) {
-      return jsonResponse(
-        { ok: false, code: "profile_not_found", message: "Auth profile not found" },
-        404,
-        cors,
+    if (!profile.error && profile.usuario) {
+      usuario = profile.usuario;
+      const tenantFromProfile = String(
+        (profile.usuario as Record<string, unknown>).tenant_id || "",
       );
-    }
-    usuario = profile.usuario;
-    tenantId = String((profile.usuario as Record<string, unknown>).tenant_id || "");
-    if (!tenantId) {
-      return jsonResponse(
-        { ok: false, code: "tenant_missing", message: "Auth profile has no tenant" },
-        400,
-        cors,
-      );
+      if (tenantFromProfile) {
+        tenantId = tenantFromProfile;
+      }
     }
   }
 

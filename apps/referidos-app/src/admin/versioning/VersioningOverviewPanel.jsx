@@ -698,7 +698,7 @@ export default function VersioningOverviewPanel() {
   ]);
 
   const refreshMergeStatuses = useCallback(async () => {
-    if (devReleaseSyncing) {
+    if (devReleaseSyncing || promotingActionId) {
       return;
     }
 
@@ -762,7 +762,7 @@ export default function VersioningOverviewPanel() {
     );
 
     setMergeStatusByVersion(Object.fromEntries(statusEntries));
-  }, [activeProductKey, envCards, isActiveProductInitialized, devReleaseSyncing]);
+  }, [activeProductKey, envCards, isActiveProductInitialized, devReleaseSyncing, promotingActionId]);
 
   useEffect(() => {
     refreshMergeStatuses();
