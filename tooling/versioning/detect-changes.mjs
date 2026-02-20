@@ -22,6 +22,7 @@ function parseArgs(argv) {
     head: process.env.VERSIONING_HEAD_REF || "HEAD",
     output: process.env.VERSIONING_OUTPUT || "versioning/out/changeset.json",
     map: process.env.VERSIONING_COMPONENT_MAP || "versioning/component-map.json",
+    productFilter: (process.env.VERSIONING_PRODUCT_FILTER || "").trim(),
     strictUnmapped: process.env.VERSIONING_STRICT_UNMAPPED !== "0",
     strictMajorAck: process.env.VERSIONING_STRICT_MAJOR_ACK !== "0",
   };
@@ -32,6 +33,7 @@ function parseArgs(argv) {
     if (token === "--head") out.head = argv[i + 1];
     if (token === "--output") out.output = argv[i + 1];
     if (token === "--map") out.map = argv[i + 1];
+    if (token === "--product") out.productFilter = (argv[i + 1] || "").trim();
     if (token === "--no-strict-unmapped") out.strictUnmapped = false;
     if (token === "--no-strict-major-ack") out.strictMajorAck = false;
   }
@@ -102,8 +104,15 @@ function main() {
 
   const productResults = [];
   const mappedFiles = new Set();
+  const selectedProducts = args.productFilter
+    ? (map.products || []).filter((product) => product.productKey === args.productFilter)
+    : (map.products || []);
 
-  for (const product of map.products) {
+  if (args.productFilter && selectedProducts.length === 0) {
+    throw new Error(`Invalid --product filter "${args.productFilter}" for component map`);
+  }
+
+  for (const product of selectedProducts) {
     const productRoots = product.roots || [];
     const productChangedFiles = changedFiles.filter((file) =>
       productRoots.some((root) => rootContainsFile(root, file))
@@ -188,7 +197,14 @@ function main() {
     });
   }
 
-  const unmappedFiles = changedFiles.filter((file) => {
+  const selectedRoots = unique(
+    selectedProducts.flatMap((product) => product.roots || [])
+  );
+  const changedFilesForUnmapped = args.productFilter
+    ? changedFiles.filter((file) => selectedRoots.some((root) => rootContainsFile(root, file)))
+    : changedFiles;
+
+  const unmappedFiles = changedFilesForUnmapped.filter((file) => {
     if (mappedFiles.has(file)) return false;
     if (matchesAnyGlob(file, map.docOnlyGlobs || [])) return false;
     return !matchesAnyGlob(file, map.globalIgnore || []);
@@ -221,6 +237,7 @@ function main() {
     branch,
     commitSha,
     labels,
+    productFilter: args.productFilter || null,
     changedFiles: unique(changedFiles),
     unmappedFiles,
     products: productResults,
@@ -233,6 +250,7 @@ function main() {
   console.log("VERSIONING_CHANGESET_WRITTEN");
   console.log(`output=${toPosixPath(path.relative(REPO_ROOT, outAbs))}`);
   console.log(`products=${productResults.length}`);
+  console.log(`product_filter=${args.productFilter || "-"}`);
   console.log(`changed_files=${changedFiles.length}`);
   console.log(`unmapped_files=${unmappedFiles.length}`);
 }
