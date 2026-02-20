@@ -7,6 +7,7 @@ import {
   createSupportMacro,
   createSupportMacroCategory,
   deleteSupportMacro,
+  dispatchSupportMacrosSync,
   listSupportMacroCatalog,
   setSupportMacroStatus,
   updateSupportMacro,
@@ -145,6 +146,7 @@ export default function AdminSupportCatalogPanel() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
+  const [catalogHint, setCatalogHint] = useState("");
 
   const [groupBy, setGroupBy] = useState("categoria");
   const [expanded, setExpanded] = useState({});
@@ -183,8 +185,9 @@ export default function AdminSupportCatalogPanel() {
   const load = useCallback(async (manual = false) => {
     manual ? setRefreshing(true) : setLoading(true);
     setError("");
+    setCatalogHint("");
     try {
-      const [catalog, threadRes] = await Promise.all([
+      const [initialCatalog, threadRes] = await Promise.all([
         listSupportMacroCatalog({ includeArchived: true, includeDraft: true }),
         supabase
           .from("support_threads")
@@ -192,6 +195,24 @@ export default function AdminSupportCatalogPanel() {
           .order("created_at", { ascending: false })
           .limit(3000),
       ]);
+
+      let catalog = initialCatalog;
+      const initialMacroCount = Array.isArray(initialCatalog?.macros) ? initialCatalog.macros.length : 0;
+      const initialCategoryCount = Array.isArray(initialCatalog?.categories) ? initialCatalog.categories.length : 0;
+
+      if (initialMacroCount === 0) {
+        try {
+          await dispatchSupportMacrosSync({
+            mode: "hot",
+            panelKey: "admin_support_macros",
+          });
+          catalog = await listSupportMacroCatalog({ includeArchived: true, includeDraft: true });
+        } catch (syncErr) {
+          setCatalogHint(
+            `No se pudo sincronizar macros desde OPS (${syncErr?.message || "error_sync"}).`,
+          );
+        }
+      }
 
       const nextCategories = (catalog?.categories || []).map((c) => ({
         id: s(c.id),
@@ -222,6 +243,19 @@ export default function AdminSupportCatalogPanel() {
         status: s(t.status, "new"),
         app_key: appKey(s(t.app_channel || t.origin_source), t.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
       }));
+
+      if (nextMacros.length === 0) {
+        if (initialCategoryCount > 0 || nextCategories.length > 0) {
+          setCatalogHint(
+            "No hay macros en OPS para este tenant. El catalogo ahora vive en OPS y los macros legacy no se migran automaticamente.",
+          );
+        } else {
+          setCatalogHint(
+            "Catalogo OPS vacio (sin categorias ni macros). Crea categorias/macros en la tab Anadir o ejecuta un seed inicial.",
+          );
+        }
+      }
+
       setCategories(nextCategories);
       setMacros(nextMacros);
       setThreads(nextThreads);
@@ -536,8 +570,8 @@ export default function AdminSupportCatalogPanel() {
         </div>
       )}
     >
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="md:col-span-1">
+      <div className="flex items-end gap-3 overflow-x-auto pb-1">
+        <div className="min-w-[180px] shrink-0">
           <label className="text-xs font-semibold text-slate-500">App</label>
           <select
             value={appFilter}
@@ -551,7 +585,7 @@ export default function AdminSupportCatalogPanel() {
             ))}
           </select>
         </div>
-        <div className="md:col-span-1">
+        <div className="min-w-[180px] shrink-0">
           <label className="text-xs font-semibold text-slate-500">Estado macro</label>
           <select
             value={macroStatusFilter}
@@ -566,7 +600,7 @@ export default function AdminSupportCatalogPanel() {
             ))}
           </select>
         </div>
-        <div className="md:col-span-2">
+        <div className="min-w-[280px] flex-1">
           <label className="text-xs font-semibold text-slate-500">Buscar</label>
           <div className="relative mt-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -781,6 +815,7 @@ export default function AdminSupportCatalogPanel() {
             </div>
           )}
           {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div> : null}
+          {catalogHint ? <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">{catalogHint}</div> : null}
           {ok ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{ok}</div> : null}
         </div>
         {macroId ? renderEdit() : tab === "catalogo" ? renderCatalog() : renderAdd()}

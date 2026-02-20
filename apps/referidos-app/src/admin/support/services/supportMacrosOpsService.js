@@ -66,3 +66,35 @@ export async function deleteSupportMacro({ macroId }) {
     macro_id: macroId,
   });
 }
+
+export async function dispatchSupportMacrosSync({
+  mode = "hot",
+  panelKey = "admin_support_macros",
+  forceFull = false,
+  limit,
+} = {}) {
+  const body = {
+    mode,
+    panel_key: panelKey,
+    force_full: Boolean(forceFull),
+  };
+  if (Number.isFinite(limit)) {
+    body.limit = Number(limit);
+  }
+
+  const { data, error } = await supabase.functions.invoke("ops-support-macros-sync-dispatch", {
+    body,
+  });
+
+  if (error) {
+    throw new Error(error.message || "No se pudo ejecutar ops-support-macros-sync-dispatch.");
+  }
+  if (!data?.ok) {
+    const syncError = new Error(data?.detail || data?.error || "ops-support-macros-sync-dispatch failed");
+    syncError.code = data?.error || "ops_support_macros_sync_failed";
+    syncError.payload = data || null;
+    throw syncError;
+  }
+
+  return data;
+}
