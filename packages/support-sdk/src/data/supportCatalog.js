@@ -2,6 +2,8 @@ import { supabase } from "../../lib/supabaseClient";
 
 const APP_ALIASES = new Map([
   ["all", "all"],
+  ["undetermined", "undetermined"],
+  ["unknown", "undetermined"],
   ["app", "referidos_app"],
   ["pwa", "referidos_app"],
   ["referidos-pwa", "referidos_app"],
@@ -40,7 +42,7 @@ function normalizeArray(values, fallback = []) {
   return normalized.length ? normalized : fallback;
 }
 
-export function normalizeSupportAppKey(value, fallback = "referidos_app") {
+export function normalizeSupportAppKey(value, fallback = "undetermined") {
   const normalized = asString(value).toLowerCase();
   if (!normalized) return fallback;
   return APP_ALIASES.get(normalized) || fallback;
@@ -114,7 +116,7 @@ export function filterSupportMacrosForThread({
 
   const appKey = normalizeSupportAppKey(
     thread.app_channel || thread.origin_source || "",
-    thread.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"
+    "undetermined"
   );
   const normalizedEnv = normalizeSupportEnvKey(runtimeEnvKey, "dev");
   const publishedCategoryCodes = new Set(

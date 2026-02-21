@@ -13,8 +13,15 @@ import {
   ShieldAlert,
   Users,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  createSupportMacroCategory,
+  deleteSupportMacroCategory,
+  setSupportMacroCategoryStatus,
+  updateSupportMacroCategory,
+} from "./services/supportMacrosOpsService";
 
 const ACTIVE = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 const FLOW = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed"];
@@ -36,6 +43,13 @@ const CATALOG_GROUP_OPTIONS = [
   { id: "categoria", label: "categoria" },
   { id: "estado", label: "estado" },
   { id: "rol", label: "rol" },
+];
+const CATEGORY_STATUS_OPTIONS = ["draft", "published", "archived"];
+const CATEGORY_APP_OPTIONS = [
+  { id: "all", label: "Todas apps" },
+  { id: "referidos_app", label: "PWA" },
+  { id: "prelaunch_web", label: "Prelaunch web" },
+  { id: "android_app", label: "Android app" },
 ];
 const SEV_RANK = { s0: 0, s1: 1, s2: 2, s3: 3 };
 const statusRank = (status) => {
@@ -114,11 +128,28 @@ export default function AdminSupportControlPanel({
   title = "Soporte",
   subtitle = "Panel de control de flujo de tickets",
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [panel, setPanel] = useState(lockedPanel || "tickets");
   const [viewByPanel, setViewByPanel] = useState({ tickets: "basic" });
+  const [ticketsTab, setTicketsTab] = useState(() => {
+    if (typeof window === "undefined") return "analytics";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "categorias" ? "categorias" : "analytics";
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [categoryOk, setCategoryOk] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryEditId, setCategoryEditId] = useState("");
+  const [categoryForm, setCategoryForm] = useState({
+    label: "",
+    description: "",
+    app_targets: ["all"],
+    status: "draft",
+  });
   const [threads, setThreads] = useState([]);
   const [events, setEvents] = useState([]);
   const [inbox, setInbox] = useState([]);
@@ -162,7 +193,7 @@ export default function AdminSupportControlPanel({
           .limit(600),
         supabase
           .from("support_macro_categories_cache")
-          .select("id, code, label, description, status, sort_order")
+          .select("id, code, label, description, status, sort_order, app_targets")
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(300),
@@ -172,7 +203,7 @@ export default function AdminSupportControlPanel({
         ...t,
         request_origin: t.request_origin || "registered",
         origin_source: t.origin_source || "app",
-        app_channel: t.app_channel || (t.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
+        app_channel: t.app_channel || "undetermined",
       }));
       const nextEvents = eRes.data || [];
       const nextInbox = iRes.data || [];
@@ -190,9 +221,14 @@ export default function AdminSupportControlPanel({
       }));
       const nextCategories = (cRes.data || []).map((category) => ({
         id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
         label: category.label || category.code || "Sin label",
         description: category.description || "",
         status: category.status || "draft",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
       }));
 
       const ids = Array.from(
@@ -247,6 +283,43 @@ export default function AdminSupportControlPanel({
   const activePanel = lockedPanel || panel;
   const view = viewByPanel[activePanel] || "basic";
   const isCatalogLocked = lockedPanel === "catalogo";
+  const isTicketsLocked = lockedPanel === "tickets";
+
+  const resetCategoryForm = useCallback(() => {
+    setCategoryEditId("");
+    setCategoryForm({
+      label: "",
+      description: "",
+      app_targets: ["all"],
+      status: "draft",
+    });
+  }, []);
+
+  const setTicketsTabWithUrl = useCallback(
+    (nextTab) => {
+      const normalized = nextTab === "categorias" ? "categorias" : "analytics";
+      setTicketsTab(normalized);
+      if (!isTicketsLocked) return;
+      const params = new URLSearchParams(location.search);
+      if (normalized === "categorias") params.set("tab", "categorias");
+      else params.delete("tab");
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true }
+      );
+    },
+    [isTicketsLocked, location.pathname, location.search, navigate]
+  );
+
+  useEffect(() => {
+    if (!isTicketsLocked) return;
+    const tab = new URLSearchParams(location.search).get("tab");
+    setTicketsTab(tab === "categorias" ? "categorias" : "analytics");
+  }, [isTicketsLocked, location.search]);
 
   const inboxByPublic = useMemo(
     () => inbox.reduce((acc, r) => ((acc[r.public_id] = r), acc), {}),
@@ -497,6 +570,22 @@ export default function AdminSupportControlPanel({
     };
   }, [catalogMacros]);
 
+  const ticketCategoryRows = useMemo(() => {
+    const dynamic = [...macroCategories].sort((a, b) => {
+      const aSort = Number(a.sort_order || 100);
+      const bSort = Number(b.sort_order || 100);
+      if (aSort !== bSort) return aSort - bSort;
+      return String(a.label || a.code || "").localeCompare(String(b.label || b.code || ""), "es", {
+        sensitivity: "base",
+      });
+    });
+
+    return dynamic.map((category) => ({
+      ...category,
+      readonly: false,
+    }));
+  }, [macroCategories]);
+
   const groupedByStatus = useMemo(() => {
     const groups = {};
     catalogMacros.forEach((m) => {
@@ -542,6 +631,143 @@ export default function AdminSupportControlPanel({
     const roles = Array.isArray(audience) && audience.length ? audience.map((r) => roleLabel(r)) : ["sin_rol"];
     return roles.join(", ");
   }, []);
+
+  const toggleCategoryTarget = useCallback((targetId) => {
+    setCategoryForm((prev) => {
+      const current = Array.isArray(prev.app_targets) && prev.app_targets.length
+        ? prev.app_targets
+        : ["all"];
+      if (targetId === "all") {
+        return {
+          ...prev,
+          app_targets: current.includes("all") ? ["referidos_app"] : ["all"],
+        };
+      }
+      const withoutAll = current.filter((value) => value !== "all");
+      const hasTarget = withoutAll.includes(targetId);
+      const next = hasTarget
+        ? withoutAll.filter((value) => value !== targetId)
+        : [...withoutAll, targetId];
+      return {
+        ...prev,
+        app_targets: next.length ? next : ["all"],
+      };
+    });
+  }, []);
+
+  const beginEditCategory = useCallback((category) => {
+    const categoryId = String(category?.category_id || category?.id || "").trim();
+    if (!categoryId) return;
+    setCategoryEditId(categoryId);
+    setCategoryForm({
+      label: String(category?.label || "").trim(),
+      description: String(category?.description || "").trim(),
+      app_targets:
+        Array.isArray(category?.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      status: String(category?.status || "draft").trim() || "draft",
+    });
+    setCategoryError("");
+    setCategoryOk("");
+  }, []);
+
+  const submitCategory = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const label = String(categoryForm.label || "").trim();
+      if (!label) {
+        setCategoryError("El label de categoria es requerido.");
+        return;
+      }
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        const payload = {
+          label,
+          description: String(categoryForm.description || "").trim(),
+          app_targets:
+            Array.isArray(categoryForm.app_targets) && categoryForm.app_targets.length
+              ? categoryForm.app_targets
+              : ["all"],
+          status:
+            CATEGORY_STATUS_OPTIONS.includes(categoryForm.status)
+              ? categoryForm.status
+              : "draft",
+        };
+
+        if (categoryEditId) {
+          await updateSupportMacroCategory({
+            category_id: categoryEditId,
+            ...payload,
+          });
+          setCategoryOk("Categoria actualizada.");
+        } else {
+          await createSupportMacroCategory(payload);
+          setCategoryOk("Categoria creada.");
+        }
+        resetCategoryForm();
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo guardar categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, categoryForm, load, resetCategoryForm]
+  );
+
+  const changeCategoryStatus = useCallback(
+    async (category, status) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      if (!CATEGORY_STATUS_OPTIONS.includes(status)) return;
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await setSupportMacroCategoryStatus({ categoryId, status });
+        setCategoryOk(`Categoria movida a ${status}.`);
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo cambiar estado de categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [load]
+  );
+
+  const removeCategory = useCallback(
+    async (category) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      const label = String(category?.label || category?.code || categoryId).trim();
+      const confirmed = globalThis.confirm(
+        `Eliminar categoria "${label}"? Esta accion elimina tambien sus macros asociados.`
+      );
+      if (!confirmed) return;
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await deleteSupportMacroCategory({ categoryId });
+        setCategoryOk("Categoria eliminada.");
+        if (categoryEditId === categoryId) {
+          resetCategoryForm();
+        }
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo eliminar categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, load, resetCategoryForm]
+  );
 
   const visitedFlow = useMemo(() => {
     if (!selected) return new Set();
@@ -685,6 +911,168 @@ export default function AdminSupportControlPanel({
     </div>
   );
 
+  const renderTicketCategories = () => (
+    <div className="space-y-5">
+      <Card title="Categorias" subtitle="Gestion centralizada de categorias para tickets y macros.">
+        {categoryError ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {categoryError}
+          </div>
+        ) : null}
+        {categoryOk ? (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            {categoryOk}
+          </div>
+        ) : null}
+
+        <form className="space-y-3 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4" onSubmit={submitCategory}>
+          <div className="grid gap-3 md:grid-cols-3">
+            <input
+              value={categoryForm.label}
+              onChange={(event) =>
+                setCategoryForm((prev) => ({
+                  ...prev,
+                  label: event.target.value,
+                }))
+              }
+              placeholder="Label categoria"
+              className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+            />
+            <select
+              value={categoryForm.status}
+              onChange={(event) =>
+                setCategoryForm((prev) => ({
+                  ...prev,
+                  status: event.target.value,
+                }))
+              }
+              className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+            >
+              {CATEGORY_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={categorySaving}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold text-white ${
+                categorySaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+              }`}
+            >
+              {categoryEditId ? "Guardar categoria" : "Crear categoria"}
+            </button>
+          </div>
+          <textarea
+            rows={3}
+            value={categoryForm.description}
+            onChange={(event) =>
+              setCategoryForm((prev) => ({
+                ...prev,
+                description: event.target.value,
+              }))
+            }
+            placeholder="Descripcion"
+            className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+          />
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_APP_OPTIONS.map((appOption) => {
+              const active = (categoryForm.app_targets || []).includes(appOption.id);
+              return (
+                <button
+                  key={`category-target-${appOption.id}`}
+                  type="button"
+                  onClick={() => toggleCategoryTarget(appOption.id)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                    active
+                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                      : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                  }`}
+                >
+                  {appOption.label}
+                </button>
+              );
+            })}
+          </div>
+          {categoryEditId ? (
+            <button
+              type="button"
+              onClick={resetCategoryForm}
+              className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+            >
+              Cancelar edicion
+            </button>
+          ) : null}
+        </form>
+
+        <div className="space-y-2">
+          {ticketCategoryRows.map((category) => (
+            <div key={`category-row-${category.code || category.id}`} className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-[#2F1A55]">{category.label}</span>
+                    <span className="text-xs text-slate-400">({category.code || category.id})</span>
+                    <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
+                      {category.status}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500">{category.description || "Sin descripcion"}</div>
+                  <div className="mt-1 text-[11px] text-slate-500">
+                    Apps:{" "}
+                    {Array.isArray(category.app_targets) && category.app_targets.length
+                      ? category.app_targets.join(", ")
+                      : "all"}
+                  </div>
+                </div>
+                {!category.readonly ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => beginEditCategory(category)}
+                      className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeCategoryStatus(category, "draft")}
+                      className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+                    >
+                      Draft
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeCategoryStatus(category, "published")}
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
+                    >
+                      Publicar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeCategoryStatus(category, "archived")}
+                      className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      Archivar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeCategory(category)}
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+
   const renderCatalogMacroCard = (m, key) => (
     <div
       key={key}
@@ -750,7 +1138,7 @@ export default function AdminSupportControlPanel({
         ) : (
           <Card
             title={lockedPanel === "tickets" ? "Panel Tickets" : "Control de tickets"}
-            subtitle={"Vista basica (default) y avanzada."}
+            subtitle={isTicketsLocked ? "Vista unica con Analytics y Categorias." : "Vista basica (default) y avanzada."}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               {lockedPanel ? <div /> : (
@@ -784,30 +1172,52 @@ export default function AdminSupportControlPanel({
                 Refrescar
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: "basic", label: "Basica" },
-                { id: "advanced", label: "Avanzada" },
-              ].map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() =>
-                    setViewByPanel((prev) => ({
-                      ...prev,
-                      [activePanel]: v.id,
-                    }))
-                  }
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    view === v.id
-                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                      : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
+            {isTicketsLocked ? (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "analytics", label: "Analytics" },
+                  { id: "categorias", label: "Categorias" },
+                ].map((tabOption) => (
+                  <button
+                    key={tabOption.id}
+                    type="button"
+                    onClick={() => setTicketsTabWithUrl(tabOption.id)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      ticketsTab === tabOption.id
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {tabOption.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "basic", label: "Basica" },
+                  { id: "advanced", label: "Avanzada" },
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() =>
+                      setViewByPanel((prev) => ({
+                        ...prev,
+                        [activePanel]: v.id,
+                      }))
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      view === v.id
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {error ? (
               <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
                 {error}
@@ -818,6 +1228,8 @@ export default function AdminSupportControlPanel({
 
         {loading ? (
           <Card title="Cargando..." subtitle="Obteniendo datos de soporte." />
+        ) : isTicketsLocked ? (
+          ticketsTab === "categorias" ? renderTicketCategories() : renderAdvancedTickets()
         ) : activePanel === "tickets" ? (
           selected ? (
             <div className="space-y-5">
@@ -1134,7 +1546,7 @@ export default function AdminSupportControlPanel({
           </div>
         )}
 
-        {view === "advanced" && !loading && activePanel === "tickets"
+        {!isTicketsLocked && view === "advanced" && !loading && activePanel === "tickets"
           ? renderAdvancedTickets()
           : null}
       </div>

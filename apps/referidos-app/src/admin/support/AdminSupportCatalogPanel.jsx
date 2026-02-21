@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronUp, Plus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronUp, Plus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
   createSupportMacro,
   createSupportMacroCategory,
+  deleteSupportMacroCategory,
   deleteSupportMacro,
   dispatchSupportMacrosSync,
   listSupportMacroCatalog,
+  setSupportMacroCategoryStatus,
   setSupportMacroStatus,
+  updateSupportMacroCategory,
   updateSupportMacro,
 } from "./services/supportMacrosOpsService";
 
@@ -36,8 +39,6 @@ const ENV_OPTIONS = [
 const ROLE_OPTIONS = [
   { id: "cliente", label: "cliente" },
   { id: "negocio", label: "negocio" },
-  { id: "soporte", label: "soporte" },
-  { id: "admin", label: "admin" },
 ];
 
 const THREAD_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
@@ -52,31 +53,39 @@ const THREAD_STATUS_LABEL = {
   sin_estado: "Sin estado",
 };
 
-const APP_ALIAS = new Map([
-  ["all", "all"],
-  ["app", "referidos_app"],
-  ["pwa", "referidos_app"],
-  ["referidos_app", "referidos_app"],
-  ["referidos-app", "referidos_app"],
-  ["prelaunch", "prelaunch_web"],
-  ["prelaunch_web", "prelaunch_web"],
-  ["prelaunch-web", "prelaunch_web"],
-  ["android", "android_app"],
-  ["android_app", "android_app"],
-  ["android-app", "android_app"],
-]);
-
 const LIFECYCLE_OPTIONS = ["draft", "published", "archived"];
+const USAGE_WINDOWS = ["1d", "7d", "15d", "30d"];
+const EMPTY_USAGE = {
+  shown_1d: 0,
+  shown_7d: 0,
+  shown_15d: 0,
+  shown_30d: 0,
+  copied_1d: 0,
+  copied_7d: 0,
+  copied_15d: 0,
+  copied_30d: 0,
+};
 
 const s = (v, d = "") => (typeof v === "string" && v.trim() ? v.trim() : d);
 const arr = (v, d = []) => (Array.isArray(v) ? Array.from(new Set(v.map((x) => s(x).toLowerCase()).filter(Boolean))) : d);
 const code = (v) => s(v).toLowerCase().replace(/\s+/g, "_");
+const normCategoryCode = (value) => code(value).replace(/[^a-z0-9_]/g, "") || "general";
 const short = (v, n = 180) => (s(v).length > n ? `${s(v).slice(0, n)}...` : s(v, "-"));
-const appKey = (v, d = "referidos_app") => APP_ALIAS.get(s(v).toLowerCase()) || d;
 const matchApp = (targets, appFilter) => appFilter === "all" || arr(targets, ["all"]).includes("all") || arr(targets, ["all"]).includes(appFilter);
+const normalizeAudienceRoles = (values) => {
+  const allowed = new Set(["cliente", "negocio"]);
+  const normalized = arr(values, []).filter((role) => allowed.has(role));
+  return normalized.length ? normalized : ["cliente", "negocio"];
+};
 const rank = (status) => {
   const idx = THREAD_STATUS_ORDER.indexOf(status);
   return idx === -1 ? THREAD_STATUS_ORDER.length + 1 : idx;
+};
+const sortByPriority = (a, b) => {
+  const aSort = Number(a.sort_order || 100);
+  const bSort = Number(b.sort_order || 100);
+  if (aSort !== bSort) return aSort - bSort;
+  return s(a.title).localeCompare(s(b.title), "es", { sensitivity: "base" });
 };
 const badge = (status) => {
   if (status === "published") return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -138,7 +147,7 @@ function TogglePills({ options, values, onChange }) {
 
 export default function AdminSupportCatalogPanel() {
   const navigate = useNavigate();
-  const { macroId = "" } = useParams();
+  const { macroId = "", categoryId = "" } = useParams();
 
   const [tab, setTab] = useState("catalogo");
   const [loading, setLoading] = useState(true);
@@ -154,13 +163,12 @@ export default function AdminSupportCatalogPanel() {
   const [macroStatusFilter, setMacroStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
 
-  const [threads, setThreads] = useState([]);
   const [categories, setCategories] = useState([]);
   const [macros, setMacros] = useState([]);
+  const [baselineSortOrders, setBaselineSortOrders] = useState({});
 
-  const [categoryForm, setCategoryForm] = useState({ code: "", label: "", description: "", app_targets: ["all"], sort_order: 100 });
+  const [categoryForm, setCategoryForm] = useState({ label: "", description: "", app_targets: ["all"] });
   const [macroForm, setMacroForm] = useState({
-    code: "",
     title: "",
     body: "",
     category_id: "",
@@ -168,7 +176,6 @@ export default function AdminSupportCatalogPanel() {
     audience_roles: ["cliente", "negocio"],
     app_targets: ["all"],
     env_targets: ["all"],
-    sort_order: 100,
   });
   const [editForm, setEditForm] = useState({
     code: "",
@@ -179,22 +186,73 @@ export default function AdminSupportCatalogPanel() {
     audience_roles: ["cliente", "negocio"],
     app_targets: ["all"],
     env_targets: ["all"],
-    sort_order: 100,
   });
+  const [categoryEditForm, setCategoryEditForm] = useState({
+    code: "",
+    label: "",
+    description: "",
+    app_targets: ["all"],
+  });
+  const [categoryConfirm, setCategoryConfirm] = useState({
+    open: false,
+    action: "",
+    title: "",
+    confirmLabel: "",
+    message: "",
+    macros: [],
+    payload: {},
+  });
+  const [usageByMacroId, setUsageByMacroId] = useState({});
+  const [usageWindowByMacroId, setUsageWindowByMacroId] = useState({});
+
+  const loadMacroUsageSummary = useCallback(async (macroList, selectedAppFilter) => {
+    const macroIds = Array.from(
+      new Set((macroList || []).map((macro) => s(macro.id)).filter(Boolean))
+    );
+    if (!macroIds.length) {
+      setUsageByMacroId({});
+      return;
+    }
+
+    const payload = { p_macro_ids: macroIds };
+    if (selectedAppFilter && selectedAppFilter !== "all") {
+      payload.p_app_key = selectedAppFilter;
+    }
+
+    const { data, error: usageError } = await supabase.rpc("support_macro_usage_summary", payload);
+    if (usageError) {
+      setCatalogHint((prev) =>
+        prev ||
+        `No se pudo cargar analitica de macros (${usageError.message || "summary_failed"}).`
+      );
+      setUsageByMacroId({});
+      return;
+    }
+
+    const next = {};
+    (data || []).forEach((row) => {
+      const macroId = s(row.macro_id);
+      if (!macroId) return;
+      next[macroId] = {
+        shown_1d: Number(row.shown_1d || 0),
+        shown_7d: Number(row.shown_7d || 0),
+        shown_15d: Number(row.shown_15d || 0),
+        shown_30d: Number(row.shown_30d || 0),
+        copied_1d: Number(row.copied_1d || 0),
+        copied_7d: Number(row.copied_7d || 0),
+        copied_15d: Number(row.copied_15d || 0),
+        copied_30d: Number(row.copied_30d || 0),
+      };
+    });
+    setUsageByMacroId(next);
+  }, []);
 
   const load = useCallback(async (manual = false) => {
     manual ? setRefreshing(true) : setLoading(true);
     setError("");
     setCatalogHint("");
     try {
-      const [initialCatalog, threadRes] = await Promise.all([
-        listSupportMacroCatalog({ includeArchived: true, includeDraft: true }),
-        supabase
-          .from("support_threads")
-          .select("category,status,request_origin,origin_source,app_channel")
-          .order("created_at", { ascending: false })
-          .limit(3000),
-      ]);
+      const initialCatalog = await listSupportMacroCatalog({ includeArchived: true, includeDraft: true });
 
       let catalog = initialCatalog;
       const initialMacroCount = Array.isArray(initialCatalog?.macros) ? initialCatalog.macros.length : 0;
@@ -216,12 +274,11 @@ export default function AdminSupportCatalogPanel() {
 
       const nextCategories = (catalog?.categories || []).map((c) => ({
         id: s(c.id),
-        code: s(c.code, s(c.id)),
+        code: normCategoryCode(s(c.code, s(c.id))),
         label: s(c.label, s(c.code, "Sin label")),
         description: s(c.description),
         status: s(c.status, "draft"),
         app_targets: arr(c.app_targets, ["all"]),
-        sort_order: Number(c.sort_order || 100),
       }));
       const byId = nextCategories.reduce((acc, c) => ((acc[c.id] = c.code), acc), {});
       const nextMacros = (catalog?.macros || []).map((m) => ({
@@ -230,18 +287,13 @@ export default function AdminSupportCatalogPanel() {
         title: s(m.title, "Sin titulo"),
         body: s(m.body),
         category_id: s(m.category_id),
-        category_code: s(m.category_code, s(byId[s(m.category_id)], "general")),
+        category_code: normCategoryCode(s(m.category_code, s(byId[s(m.category_id)], "general"))),
         thread_status: s(m.thread_status, "sin_estado"),
-        audience_roles: arr(m.audience_roles, ["cliente", "negocio"]),
+        audience_roles: normalizeAudienceRoles(m.audience_roles),
         app_targets: arr(m.app_targets, ["all"]),
         env_targets: arr(m.env_targets, ["all"]),
         sort_order: Number(m.sort_order || 100),
         status: s(m.status, "draft"),
-      }));
-      const nextThreads = (threadRes.data || []).map((t) => ({
-        category: s(t.category, "general"),
-        status: s(t.status, "new"),
-        app_key: appKey(s(t.app_channel || t.origin_source), t.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
       }));
 
       if (nextMacros.length === 0) {
@@ -258,8 +310,12 @@ export default function AdminSupportCatalogPanel() {
 
       setCategories(nextCategories);
       setMacros(nextMacros);
-      setThreads(nextThreads);
-      if (threadRes.error) setError(threadRes.error.message || "No se pudieron cargar metricas.");
+      setBaselineSortOrders(
+        nextMacros.reduce((acc, macro) => {
+          acc[s(macro.id)] = Number(macro.sort_order || 100);
+          return acc;
+        }, {})
+      );
     } catch (err) {
       setError(err?.message || "No se pudo cargar catalogo.");
     } finally {
@@ -273,13 +329,18 @@ export default function AdminSupportCatalogPanel() {
   }, [load]);
 
   useEffect(() => {
-    if (!macroId) setTab("catalogo");
-  }, [macroId]);
+    if (!macroId && !categoryId) setTab("catalogo");
+  }, [macroId, categoryId]);
 
-  const filteredThreads = useMemo(
-    () => threads.filter((t) => appFilter === "all" || t.app_key === appFilter),
-    [threads, appFilter]
-  );
+  useEffect(() => {
+    if (!categoryId) return;
+    navigate("/admin/soporte/panel-tickets?tab=categorias", { replace: true });
+  }, [categoryId, navigate]);
+
+  useEffect(() => {
+    if (loading) return;
+    loadMacroUsageSummary(macros, appFilter);
+  }, [appFilter, loading, loadMacroUsageSummary, macros]);
 
   const filteredCategories = useMemo(
     () => categories.filter((c) => matchApp(c.app_targets, appFilter)),
@@ -292,22 +353,12 @@ export default function AdminSupportCatalogPanel() {
       .filter((m) => matchApp(m.app_targets, appFilter))
       .filter((m) => macroStatusFilter === "all" || m.status === macroStatusFilter)
       .filter((m) => !query || `${m.title} ${m.body} ${m.code} ${m.category_code}`.toLowerCase().includes(query))
-      .sort((a, b) => (a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.title.localeCompare(b.title, "es")));
+      .sort(sortByPriority);
   }, [macros, appFilter, macroStatusFilter, search]);
 
   const categoryStats = useMemo(() => {
-    const total = {};
-    const active = {};
     const macroCount = {};
     const byThreadStatus = {};
-    const roleSet = {};
-
-    filteredThreads.forEach((t) => {
-      total[t.category] = (total[t.category] || 0) + 1;
-      if (["new", "assigned", "in_progress", "waiting_user", "queued"].includes(t.status)) {
-        active[t.category] = (active[t.category] || 0) + 1;
-      }
-    });
 
     filteredMacros.forEach((m) => {
       const c = s(m.category_code, "general");
@@ -315,8 +366,6 @@ export default function AdminSupportCatalogPanel() {
       byThreadStatus[c] ||= {};
       byThreadStatus[c][m.thread_status] ||= [];
       byThreadStatus[c][m.thread_status].push(m);
-      roleSet[c] ||= new Set();
-      m.audience_roles.forEach((r) => roleSet[c].add(r));
     });
 
     const base = [
@@ -333,13 +382,10 @@ export default function AdminSupportCatalogPanel() {
 
     return base.map((c) => ({
       ...c,
-      total: total[c.code] || 0,
-      active: active[c.code] || 0,
       macros: macroCount[c.code] || 0,
       byThreadStatus: byThreadStatus[c.code] || {},
-      roles: Array.from(roleSet[c.code] || []).sort((a, b) => a.localeCompare(b)),
     }));
-  }, [filteredThreads, filteredMacros, filteredCategories]);
+  }, [filteredMacros, filteredCategories]);
 
   const groupedStatus = useMemo(() => {
     const groups = {};
@@ -349,7 +395,7 @@ export default function AdminSupportCatalogPanel() {
     });
     return Object.entries(groups)
       .sort((a, b) => rank(a[0]) - rank(b[0]))
-      .map(([id, list]) => ({ id, label: THREAD_STATUS_LABEL[id] || id, list }));
+      .map(([id, list]) => ({ id, label: THREAD_STATUS_LABEL[id] || id, list: [...list].sort(sortByPriority) }));
   }, [filteredMacros]);
 
   const groupedRole = useMemo(() => {
@@ -362,10 +408,23 @@ export default function AdminSupportCatalogPanel() {
     });
     return Object.entries(groups)
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([id, list]) => ({ id, label: id, list }));
+      .map(([id, list]) => ({ id, label: id, list: [...list].sort(sortByPriority) }));
   }, [filteredMacros]);
 
   const editing = useMemo(() => macros.find((m) => m.id === macroId) || null, [macros, macroId]);
+  const editingCategory = useMemo(
+    () => categories.find((category) => category.id === categoryId) || null,
+    [categories, categoryId]
+  );
+  const categoryMacros = useMemo(() => {
+    if (!editingCategory) return [];
+    const categoryCode = normCategoryCode(editingCategory.code);
+    return macros.filter(
+      (macro) =>
+        s(macro.category_id) === editingCategory.id ||
+        normCategoryCode(macro.category_code) === categoryCode
+    );
+  }, [editingCategory, macros]);
 
   useEffect(() => {
     if (!editing) return;
@@ -375,12 +434,21 @@ export default function AdminSupportCatalogPanel() {
       body: editing.body,
       category_id: editing.category_id || "",
       thread_status: editing.thread_status === "sin_estado" ? "" : editing.thread_status,
-      audience_roles: arr(editing.audience_roles, ["cliente", "negocio"]),
+      audience_roles: normalizeAudienceRoles(editing.audience_roles),
       app_targets: arr(editing.app_targets, ["all"]),
       env_targets: arr(editing.env_targets, ["all"]),
-      sort_order: Number(editing.sort_order || 100),
     });
   }, [editing]);
+
+  useEffect(() => {
+    if (!editingCategory) return;
+    setCategoryEditForm({
+      code: editingCategory.code,
+      label: editingCategory.label,
+      description: editingCategory.description || "",
+      app_targets: arr(editingCategory.app_targets, ["all"]),
+    });
+  }, [editingCategory]);
 
   const categoryOptions = useMemo(
     () => [{ id: "", label: "Sin categoria (general)" }, ...categories.map((c) => ({ id: c.id, label: `${c.label} (${c.code})` }))],
@@ -391,23 +459,20 @@ export default function AdminSupportCatalogPanel() {
     event.preventDefault();
     setError("");
     setOk("");
-    const c = code(categoryForm.code);
-    if (!c || !/^[a-z0-9_]+$/.test(c) || !s(categoryForm.label)) {
-      setError("Code/label de categoria invalidos.");
+    if (!s(categoryForm.label)) {
+      setError("Label de categoria invalido.");
       return;
     }
     setSaving(true);
     try {
       await createSupportMacroCategory({
-        code: c,
         label: s(categoryForm.label),
         description: s(categoryForm.description),
         app_targets: arr(categoryForm.app_targets, ["all"]),
-        sort_order: Number(categoryForm.sort_order || 100),
         status: "draft",
       });
-      setOk(`Categoria ${c} creada en draft.`);
-      setCategoryForm({ code: "", label: "", description: "", app_targets: ["all"], sort_order: 100 });
+      setOk("Categoria creada en draft con code automatico.");
+      setCategoryForm({ label: "", description: "", app_targets: ["all"] });
       await load(true);
     } catch (err) {
       setError(err?.message || "No se pudo crear categoria.");
@@ -420,28 +485,24 @@ export default function AdminSupportCatalogPanel() {
     event.preventDefault();
     setError("");
     setOk("");
-    const c = code(macroForm.code);
-    if (!c || !/^[a-z0-9_]+$/.test(c) || !s(macroForm.title) || !s(macroForm.body)) {
-      setError("Code/titulo/body de macro invalidos.");
+    if (!s(macroForm.title) || !s(macroForm.body)) {
+      setError("Titulo/body de macro invalidos.");
       return;
     }
     setSaving(true);
     try {
       await createSupportMacro({
-        code: c,
         title: s(macroForm.title),
         body: s(macroForm.body),
         category_id: s(macroForm.category_id) || null,
         thread_status: s(macroForm.thread_status) || null,
-        audience_roles: arr(macroForm.audience_roles, ["cliente", "negocio"]),
+        audience_roles: normalizeAudienceRoles(macroForm.audience_roles),
         app_targets: arr(macroForm.app_targets, ["all"]),
         env_targets: arr(macroForm.env_targets, ["all"]),
-        sort_order: Number(macroForm.sort_order || 100),
         status: "draft",
       });
-      setOk(`Macro ${c} creada en draft.`);
+      setOk("Macro creado en draft con code automatico.");
       setMacroForm({
-        code: "",
         title: "",
         body: "",
         category_id: "",
@@ -449,7 +510,6 @@ export default function AdminSupportCatalogPanel() {
         audience_roles: ["cliente", "negocio"],
         app_targets: ["all"],
         env_targets: ["all"],
-        sort_order: 100,
       });
       await load(true);
     } catch (err) {
@@ -464,24 +524,21 @@ export default function AdminSupportCatalogPanel() {
     if (!macroId) return;
     setError("");
     setOk("");
-    const c = code(editForm.code);
-    if (!c || !/^[a-z0-9_]+$/.test(c) || !s(editForm.title) || !s(editForm.body)) {
-      setError("Code/titulo/body de macro invalidos.");
+    if (!s(editForm.title) || !s(editForm.body)) {
+      setError("Titulo/body de macro invalidos.");
       return;
     }
     setSaving(true);
     try {
       await updateSupportMacro({
         macro_id: macroId,
-        code: c,
         title: s(editForm.title),
         body: s(editForm.body),
         category_id: s(editForm.category_id) || null,
         thread_status: s(editForm.thread_status) || null,
-        audience_roles: arr(editForm.audience_roles, ["cliente", "negocio"]),
+        audience_roles: normalizeAudienceRoles(editForm.audience_roles),
         app_targets: arr(editForm.app_targets, ["all"]),
         env_targets: arr(editForm.env_targets, ["all"]),
-        sort_order: Number(editForm.sort_order || 100),
       });
       setOk("Macro actualizada.");
       await load(true);
@@ -524,27 +581,311 @@ export default function AdminSupportCatalogPanel() {
     }
   };
 
-  const macroCard = (macro, key) => (
-    <button
-      key={key}
-      type="button"
-      onClick={() => navigate(`/admin/soporte/macros/${macro.id}`)}
-      className="w-full rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-left hover:border-[#CDBAF1]"
-    >
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <div className="font-semibold text-[#2F1A55]">{macro.title}</div>
-        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge(macro.status)}`}>{macro.status}</span>
-      </div>
-      <div className="mt-1 text-[11px] text-slate-500">
-        Categoria: {macro.category_code} | Estado ticket: {THREAD_STATUS_LABEL[macro.thread_status] || macro.thread_status} | Roles:{" "}
-        {arr(macro.audience_roles, []).join(", ")}
-      </div>
-      <div className="mt-1 text-[11px] text-slate-500">
-        Apps: {formatTargets(macro.app_targets, APP_OPTIONS)} | Entornos: {formatTargets(macro.env_targets, ENV_OPTIONS)}
-      </div>
-      <div className="mt-1 text-xs text-slate-600">{short(macro.body, 220)}</div>
-    </button>
+  const openCategoryConfirm = ({
+    action,
+    title,
+    confirmLabel,
+    message,
+    payload = {},
+  }) => {
+    setCategoryConfirm({
+      open: true,
+      action,
+      title,
+      confirmLabel,
+      message,
+      macros: categoryMacros,
+      payload,
+    });
+  };
+
+  const closeCategoryConfirm = () => {
+    setCategoryConfirm({
+      open: false,
+      action: "",
+      title: "",
+      confirmLabel: "",
+      message: "",
+      macros: [],
+      payload: {},
+    });
+  };
+
+  const submitSaveCategory = (event) => {
+    event.preventDefault();
+    if (!editingCategory) return;
+    if (!s(categoryEditForm.label)) {
+      setError("Label de categoria invalido.");
+      return;
+    }
+
+    openCategoryConfirm({
+      action: "save",
+      title: "Confirmar edicion de categoria",
+      confirmLabel: "Guardar categoria",
+      message:
+        "Se guardaran los cambios de la categoria. Los macros listados seguiran asociados a esta categoria.",
+      payload: {
+        category_id: editingCategory.id,
+        label: s(categoryEditForm.label),
+        description: s(categoryEditForm.description),
+        app_targets: arr(categoryEditForm.app_targets, ["all"]),
+      },
+    });
+  };
+
+  const triggerCategoryLifecycle = (nextStatus) => {
+    if (!editingCategory) return;
+    const verbs = {
+      published: "publicar",
+      archived: "archivar",
+      draft: "degradar a draft",
+    };
+    openCategoryConfirm({
+      action: `status:${nextStatus}`,
+      title: `Confirmar ${verbs[nextStatus] || "cambio"} de categoria`,
+      confirmLabel: verbs[nextStatus] || "Confirmar",
+      message:
+        nextStatus === "archived" || nextStatus === "draft"
+          ? "Esta accion tambien cambiara el estado de los macros asociados a la categoria."
+          : "Se publicara la categoria. Los macros asociados no cambian automaticamente a published.",
+      payload: { category_id: editingCategory.id, status: nextStatus },
+    });
+  };
+
+  const removeCategory = () => {
+    if (!editingCategory) return;
+    openCategoryConfirm({
+      action: "delete",
+      title: "Confirmar eliminacion de categoria",
+      confirmLabel: "Eliminar categoria",
+      message:
+        "Se eliminara la categoria y tambien se eliminaran los macros asociados que se muestran abajo.",
+      payload: { category_id: editingCategory.id },
+    });
+  };
+
+  const executeCategoryConfirm = async () => {
+    const targetCategoryId = s(categoryConfirm.payload?.category_id, s(editingCategory?.id));
+    if (!targetCategoryId) return;
+    setSaving(true);
+    setError("");
+    setOk("");
+    try {
+      if (categoryConfirm.action === "save") {
+        await updateSupportMacroCategory(categoryConfirm.payload || {});
+        setOk("Categoria actualizada.");
+      } else if (categoryConfirm.action.startsWith("status:")) {
+        const nextStatus = categoryConfirm.action.split(":")[1];
+        await setSupportMacroCategoryStatus({
+          categoryId: targetCategoryId,
+          status: nextStatus,
+        });
+        setOk(`Categoria movida a ${nextStatus}.`);
+      } else if (categoryConfirm.action === "delete") {
+        await deleteSupportMacroCategory({ categoryId: targetCategoryId });
+        setOk("Categoria eliminada junto con sus macros.");
+        navigate("/admin/soporte/macros");
+      }
+      closeCategoryConfirm();
+      await load(true);
+    } catch (err) {
+      setError(err?.message || "No se pudo ejecutar accion de categoria.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pendingPriorityChanges = useMemo(
+    () =>
+      macros.filter((macro) => {
+        const macroId = s(macro.id);
+        if (!macroId || baselineSortOrders[macroId] === undefined) return false;
+        return Number(macro.sort_order || 100) !== Number(baselineSortOrders[macroId]);
+      }),
+    [baselineSortOrders, macros]
   );
+  const hasPendingPriorityChanges = pendingPriorityChanges.length > 0;
+
+  const getMacroUsageWindow = useCallback(
+    (macroId) => usageWindowByMacroId[s(macroId)] || "7d",
+    [usageWindowByMacroId]
+  );
+
+  const setMacroUsageWindow = useCallback((macroId, windowKey) => {
+    const normalizedId = s(macroId);
+    if (!normalizedId || !USAGE_WINDOWS.includes(windowKey)) return;
+    setUsageWindowByMacroId((prev) => ({
+      ...prev,
+      [normalizedId]: windowKey,
+    }));
+  }, []);
+
+  const moveMacroPriorityWithinList = useCallback((orderedList, index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= orderedList.length) return;
+
+    const orderedIds = orderedList.map((macro) => s(macro.id)).filter(Boolean);
+    if (!orderedIds.length) return;
+
+    const movedId = orderedIds[index];
+    orderedIds.splice(index, 1);
+    orderedIds.splice(targetIndex, 0, movedId);
+
+    const base = 100;
+    const step = 10;
+    const nextSortById = orderedIds.reduce((acc, macroId, idx) => {
+      acc[macroId] = base + idx * step;
+      return acc;
+    }, {});
+
+    setMacros((prev) =>
+      prev.map((macro) => {
+        const macroId = s(macro.id);
+        if (nextSortById[macroId] === undefined) return macro;
+        return {
+          ...macro,
+          sort_order: nextSortById[macroId],
+        };
+      })
+    );
+  }, []);
+
+  const applyPriorityChanges = async () => {
+    if (!hasPendingPriorityChanges) return;
+    setSaving(true);
+    setError("");
+    setOk("");
+    try {
+      await Promise.all(
+        pendingPriorityChanges.map((macro) =>
+          updateSupportMacro({
+            macro_id: macro.id,
+            sort_order: Number(macro.sort_order || 100),
+          })
+        )
+      );
+      setOk("Prioridades aplicadas.");
+      await load(true);
+    } catch (err) {
+      setError(err?.message || "No se pudieron aplicar los cambios de prioridad.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const revertPriorityChanges = () => {
+    setMacros((prev) =>
+      prev.map((macro) => {
+        const macroId = s(macro.id);
+        if (baselineSortOrders[macroId] === undefined) return macro;
+        return {
+          ...macro,
+          sort_order: Number(baselineSortOrders[macroId]),
+        };
+      })
+    );
+    setOk("Cambios de prioridad revertidos.");
+  };
+
+  const macroCard = (macro, key, controls = null) => {
+    const usage = usageByMacroId[macro.id] || EMPTY_USAGE;
+    const macroUsageWindow = getMacroUsageWindow(macro.id);
+    const shownValue = Number(usage[`shown_${macroUsageWindow}`] || 0);
+    const copiedValue = Number(usage[`copied_${macroUsageWindow}`] || 0);
+    return (
+      <div key={key} className="flex items-stretch gap-2">
+        <button
+          type="button"
+          onClick={() => navigate(`/admin/soporte/macros/${macro.id}`)}
+          className="flex-1 rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-left hover:border-[#CDBAF1]"
+        >
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2 text-xs">
+                <div className="font-semibold text-[#2F1A55]">{macro.title}</div>
+                <div className="flex items-start gap-2">
+                  <div className="w-[190px] shrink-0 rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[11px]">
+                    <div className="flex flex-wrap gap-1">
+                      {USAGE_WINDOWS.map((windowKey) => (
+                        <button
+                          key={`${macro.id}-${windowKey}`}
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setMacroUsageWindow(macro.id, windowKey);
+                          }}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                            macroUsageWindow === windowKey
+                              ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                              : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                          }`}
+                        >
+                          {windowKey}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-[#5E30A5]">
+                      Mostrado: <strong>{shownValue}</strong>
+                    </div>
+                    <div className="mt-1 text-[#1E5E9A]">
+                      Copiado: <strong>{copiedValue}</strong>
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge(macro.status)}`}>{macro.status}</span>
+                </div>
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                Categoria: {macro.category_code} | Estado ticket: {THREAD_STATUS_LABEL[macro.thread_status] || macro.thread_status} | Roles:{" "}
+                {arr(macro.audience_roles, []).join(", ")}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                Apps: {formatTargets(macro.app_targets, APP_OPTIONS)} | Entornos: {formatTargets(macro.env_targets, ENV_OPTIONS)}
+              </div>
+              <div className="mt-1 text-xs text-slate-600">{short(macro.body, 220)}</div>
+            </div>
+          </div>
+        </button>
+        {controls ? (
+          <div className="flex shrink-0 flex-col justify-center gap-1">
+            {controls.canMoveUp ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  controls.onMoveUp?.();
+                }}
+                className="rounded-md border border-[#E9E2F7] bg-white p-1 text-[#5E30A5] hover:border-[#CDBAF1]"
+                aria-label="Subir prioridad"
+              >
+                <ArrowUp size={12} />
+              </button>
+            ) : (
+              <span className="h-[22px] w-[22px]" />
+            )}
+            {controls.canMoveDown ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  controls.onMoveDown?.();
+                }}
+                className="rounded-md border border-[#E9E2F7] bg-white p-1 text-[#5E30A5] hover:border-[#CDBAF1]"
+                aria-label="Bajar prioridad"
+              >
+                <ArrowDown size={12} />
+              </button>
+            ) : (
+              <span className="h-[22px] w-[22px]" />
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderCatalog = () => (
     <Card
@@ -622,35 +963,60 @@ export default function AdminSupportCatalogPanel() {
             const byStatus = Object.entries(c.byThreadStatus).sort((a, b) => rank(a[0]) - rank(b[0]));
             return (
               <div key={key} className="overflow-hidden rounded-2xl border border-[#EFE9FA] bg-[#FCFBFF]">
-                <button
-                  type="button"
-                  onClick={() => setExpanded((p) => ({ ...p, [key]: !p[key] }))}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                >
-                  <div>
+                <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-[#2F1A55]">{c.label}</span>
+                      {c.id && c.id !== "general" ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate("/admin/soporte/panel-tickets?tab=categorias")}
+                          className="text-sm font-semibold text-[#2F1A55] underline decoration-dotted underline-offset-4 hover:text-[#5E30A5]"
+                        >
+                          {c.label}
+                        </button>
+                      ) : (
+                        <span className="text-sm font-semibold text-[#2F1A55]">{c.label}</span>
+                      )}
                       <span className="text-xs text-slate-400">({c.code})</span>
                       <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge(c.status)}`}>{c.status}</span>
                     </div>
                     <div className="text-xs text-slate-500">{c.description || "Sin descripcion"}</div>
                   </div>
                   <div className="text-[11px] text-slate-600">
-                    Total: <strong>{c.total}</strong> | Activos: <strong>{c.active}</strong> | Macros: <strong>{c.macros}</strong>
+                    Macros: <strong>{c.macros}</strong>
                   </div>
-                  <div className="text-[#5E30A5]">{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((p) => ({ ...p, [key]: !p[key] }))}
+                    className="text-[#5E30A5]"
+                    aria-label={open ? "Colapsar categoria" : "Expandir categoria"}
+                  >
+                    {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                </div>
                 {open ? (
                   <div className="space-y-3 border-t border-[#EFE9FA] px-4 py-3">
                     {byStatus.length ? (
-                      byStatus.map(([st, list]) => (
+                      byStatus.map(([st, list]) => {
+                        const orderedList = [...list].sort(sortByPriority);
+                        return (
                         <div key={`${key}-${st}`} className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2">
                           <div className="mb-2 text-xs font-semibold text-[#2F1A55]">
                             {THREAD_STATUS_LABEL[st] || st} <span className="text-slate-400">({st})</span>
                           </div>
-                          <div className="space-y-2">{list.map((m) => macroCard(m, `${key}-${st}-${m.id}`))}</div>
+                          <div className="space-y-2">
+                            {orderedList.map((m, index) =>
+                              macroCard(m, `${key}-${st}-${m.id}`, {
+                                canMoveUp: index > 0,
+                                canMoveDown: index < orderedList.length - 1,
+                                onMoveUp: () => moveMacroPriorityWithinList(orderedList, index, -1),
+                                onMoveDown: () => moveMacroPriorityWithinList(orderedList, index, 1),
+                              })
+                            )}
+                          </div>
                         </div>
-                      ))
+                      );
+                    })
                     ) : (
                       <div className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2 text-xs text-slate-500">
                         Sin macros para esta categoria.
@@ -711,38 +1077,77 @@ export default function AdminSupportCatalogPanel() {
 
   const renderAdd = () => (
     <div className="space-y-5">
-      <Card title="Añadir categoria (draft)" subtitle="Nueva categoria editable desde panel.">
-        <form className="space-y-4" onSubmit={submitCreateCategory}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input value={categoryForm.code} onChange={(e) => setCategoryForm((p) => ({ ...p, code: e.target.value }))} placeholder="code" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-            <input value={categoryForm.label} onChange={(e) => setCategoryForm((p) => ({ ...p, label: e.target.value }))} placeholder="label" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          </div>
-          <textarea rows={3} value={categoryForm.description} onChange={(e) => setCategoryForm((p) => ({ ...p, description: e.target.value }))} placeholder="descripcion" className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          <TogglePills options={APP_OPTIONS} values={categoryForm.app_targets} onChange={(values) => setCategoryForm((p) => ({ ...p, app_targets: values }))} />
-          <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}><Plus size={14} />Crear categoria draft</button>
-        </form>
-      </Card>
+      <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+        Las categorias ahora se gestionan solo desde <strong>Panel Tickets &gt; Categorias</strong>.
+      </div>
 
-      <Card title="Añadir macro (draft)" subtitle="Macro nueva lista para editar/publicar.">
+      <Card title="Anadir macro (draft)" subtitle="Macro nueva lista para editar/publicar.">
         <form className="space-y-4" onSubmit={submitCreateMacro}>
+          <input value={macroForm.title} onChange={(e) => setMacroForm((p) => ({ ...p, title: e.target.value }))} placeholder="titulo" className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+          <textarea rows={4} value={macroForm.body} onChange={(e) => setMacroForm((p) => ({ ...p, body: e.target.value }))} placeholder="body" className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
           <div className="grid gap-3 md:grid-cols-2">
-            <input value={macroForm.code} onChange={(e) => setMacroForm((p) => ({ ...p, code: e.target.value }))} placeholder="code" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-            <input value={macroForm.title} onChange={(e) => setMacroForm((p) => ({ ...p, title: e.target.value }))} placeholder="titulo" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          </div>
-          <textarea rows={4} value={macroForm.body} onChange={(e) => setMacroForm((p) => ({ ...p, body: e.target.value }))} placeholder="body" className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          <div className="grid gap-3 md:grid-cols-3">
             <select value={macroForm.category_id} onChange={(e) => setMacroForm((p) => ({ ...p, category_id: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm">{categoryOptions.map((o) => <option key={o.id || "general"} value={o.id}>{o.label}</option>)}</select>
             <select value={macroForm.thread_status} onChange={(e) => setMacroForm((p) => ({ ...p, thread_status: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm"><option value="">Sin estado</option>{THREAD_STATUS_ORDER.filter((st) => st !== "sin_estado").map((st) => <option key={st} value={st}>{THREAD_STATUS_LABEL[st]}</option>)}</select>
-            <input type="number" value={macroForm.sort_order} onChange={(e) => setMacroForm((p) => ({ ...p, sort_order: Number(e.target.value || 0) }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
           </div>
           <TogglePills options={ROLE_OPTIONS} values={macroForm.audience_roles} onChange={(values) => setMacroForm((p) => ({ ...p, audience_roles: values }))} />
           <TogglePills options={APP_OPTIONS} values={macroForm.app_targets} onChange={(values) => setMacroForm((p) => ({ ...p, app_targets: values }))} />
           <TogglePills options={ENV_OPTIONS} values={macroForm.env_targets} onChange={(values) => setMacroForm((p) => ({ ...p, env_targets: values }))} />
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            El code de macro se genera automaticamente segun categoria/estado/contenido.
+          </div>
           <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}><Plus size={14} />Crear macro draft</button>
         </form>
       </Card>
     </div>
   );
+
+  const renderCategoryEdit = () => {
+    if (loading) return <Card title="Cargando..." subtitle="Buscando categoria seleccionada." />;
+    if (!editingCategory) {
+      return (
+        <Card title="Categoria no encontrada" subtitle="No existe en el catalogo actual.">
+          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+            <ArrowLeft size={14} />
+            Volver
+          </Link>
+        </Card>
+      );
+    }
+
+    return (
+      <Card
+        title={`Editar categoria: ${editingCategory.label}`}
+        subtitle="Gestion completa de categoria con confirmacion de macros afectados."
+        headerRight={(
+          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+            <ArrowLeft size={14} />
+            Volver
+          </Link>
+        )}
+      >
+        <form className="space-y-4" onSubmit={submitSaveCategory}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input value={categoryEditForm.code} readOnly className="rounded-xl border border-[#E9E2F7] bg-slate-100 px-3 py-2 text-sm text-slate-600" />
+            <input value={categoryEditForm.label} onChange={(e) => setCategoryEditForm((p) => ({ ...p, label: e.target.value }))} placeholder="label" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+          </div>
+          <textarea rows={4} value={categoryEditForm.description} onChange={(e) => setCategoryEditForm((p) => ({ ...p, description: e.target.value }))} placeholder="descripcion" className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+          <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+            Macros asociadas: <strong>{categoryMacros.length}</strong>
+          </div>
+          <TogglePills options={APP_OPTIONS} values={categoryEditForm.app_targets} onChange={(values) => setCategoryEditForm((p) => ({ ...p, app_targets: values }))} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={saving} onClick={() => triggerCategoryLifecycle("draft")} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">Degradar a draft</button>
+              <button type="button" disabled={saving} onClick={() => triggerCategoryLifecycle("published")} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Publicar</button>
+              <button type="button" disabled={saving} onClick={() => triggerCategoryLifecycle("archived")} className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">Archivar</button>
+              <button type="button" disabled={saving} onClick={removeCategory} className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"><Trash2 size={12} />Eliminar</button>
+            </div>
+            <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}><Save size={14} />Guardar cambios</button>
+          </div>
+        </form>
+      </Card>
+    );
+  };
 
   const renderEdit = () => {
     if (loading) return <Card title="Cargando..." subtitle="Buscando macro seleccionada." />;
@@ -770,14 +1175,16 @@ export default function AdminSupportCatalogPanel() {
       >
         <form className="space-y-4" onSubmit={submitSaveMacro}>
           <div className="grid gap-3 md:grid-cols-2">
-            <input value={editForm.code} onChange={(e) => setEditForm((p) => ({ ...p, code: e.target.value }))} placeholder="code" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+            <input value={editForm.code} readOnly className="rounded-xl border border-[#E9E2F7] bg-slate-100 px-3 py-2 text-sm text-slate-600" />
             <input value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} placeholder="titulo" className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
           </div>
-          <textarea rows={5} value={editForm.body} onChange={(e) => setEditForm((p) => ({ ...p, body: e.target.value }))} placeholder="body" className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+          <textarea rows={5} value={editForm.body} onChange={(e) => setEditForm((p) => ({ ...p, body: e.target.value }))} placeholder="body" className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
           <div className="grid gap-3 md:grid-cols-3">
             <select value={editForm.category_id} onChange={(e) => setEditForm((p) => ({ ...p, category_id: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm">{categoryOptions.map((o) => <option key={o.id || "general"} value={o.id}>{o.label}</option>)}</select>
             <select value={editForm.thread_status} onChange={(e) => setEditForm((p) => ({ ...p, thread_status: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm"><option value="">Sin estado</option>{THREAD_STATUS_ORDER.filter((st) => st !== "sin_estado").map((st) => <option key={st} value={st}>{THREAD_STATUS_LABEL[st]}</option>)}</select>
-            <input type="number" value={editForm.sort_order} onChange={(e) => setEditForm((p) => ({ ...p, sort_order: Number(e.target.value || 0) }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
+            <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+              Prioridad numerica gestionada en catalogo (flechas)
+            </div>
           </div>
           <TogglePills options={ROLE_OPTIONS} values={editForm.audience_roles} onChange={(values) => setEditForm((p) => ({ ...p, audience_roles: values }))} />
           <TogglePills options={APP_OPTIONS} values={editForm.app_targets} onChange={(values) => setEditForm((p) => ({ ...p, app_targets: values }))} />
@@ -798,19 +1205,44 @@ export default function AdminSupportCatalogPanel() {
 
   return (
     <AdminLayout title="Macros" subtitle="Catalogo operativo y CRUD desde panel admin">
+      {hasPendingPriorityChanges ? (
+        <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-2xl border border-[#E9E2F7] bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+            <span className="text-xs font-semibold text-[#2F1A55]">
+              Cambios de prioridad pendientes
+            </span>
+            <button
+              type="button"
+              onClick={applyPriorityChanges}
+              disabled={saving}
+              className={`rounded-xl px-3 py-1 text-xs font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}
+            >
+              Aplicar cambios
+            </button>
+            <button
+              type="button"
+              onClick={revertPriorityChanges}
+              disabled={saving}
+              className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-1 text-xs font-semibold text-[#5E30A5]"
+            >
+              Revertir
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-6">
         <div className="space-y-3">
-          {!macroId ? (
+          {!macroId && !categoryId ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => setTab("catalogo")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${tab === "catalogo" ? "border-[#2F1A55] bg-[#2F1A55] text-white" : "border-[#E9E2F7] bg-white text-[#2F1A55]"}`}>Catalogo</button>
-                <button type="button" onClick={() => setTab("anadir")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${tab === "anadir" ? "border-[#2F1A55] bg-[#2F1A55] text-white" : "border-[#E9E2F7] bg-white text-[#2F1A55]"}`}>Añadir</button>
+                <button type="button" onClick={() => setTab("anadir")} className={`rounded-full border px-3 py-1 text-xs font-semibold ${tab === "anadir" ? "border-[#2F1A55] bg-[#2F1A55] text-white" : "border-[#E9E2F7] bg-white text-[#2F1A55]"}`}>Anadir</button>
               </div>
               <button type="button" onClick={() => load(true)} disabled={loading || refreshing || saving} className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"><RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />Refrescar</button>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E9E2F7] bg-white px-4 py-3">
-              <div className="text-xs text-slate-500">Editando macro individual.</div>
+              <div className="text-xs text-slate-500">{macroId ? "Editando macro individual." : "Editando categoria."}</div>
               <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]"><ArrowLeft size={14} />Volver a catalogo</Link>
             </div>
           )}
@@ -818,8 +1250,57 @@ export default function AdminSupportCatalogPanel() {
           {catalogHint ? <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">{catalogHint}</div> : null}
           {ok ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{ok}</div> : null}
         </div>
-        {macroId ? renderEdit() : tab === "catalogo" ? renderCatalog() : renderAdd()}
+        {categoryId ? renderCategoryEdit() : macroId ? renderEdit() : tab === "catalogo" ? renderCatalog() : renderAdd()}
       </div>
+      {categoryConfirm.open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-[#2F1A55]">{categoryConfirm.title}</h3>
+              <p className="text-xs text-slate-600">{categoryConfirm.message}</p>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-[#EFE9FA] bg-[#FCFBFF] p-3">
+              <div className="text-xs font-semibold text-[#2F1A55]">Macros afectados ({categoryConfirm.macros.length})</div>
+              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto">
+                {categoryConfirm.macros.length ? (
+                  categoryConfirm.macros.map((macro) => (
+                    <div key={`confirm-${macro.id}`} className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2 text-xs">
+                      <div className="font-semibold text-[#2F1A55]">{macro.title}</div>
+                      <div className="text-slate-500">{macro.code} | {macro.status}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-500">
+                    No hay macros asociados a esta categoria.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCategoryConfirm}
+                disabled={saving}
+                className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeCategoryConfirm}
+                disabled={saving}
+                className={`rounded-xl px-3 py-2 text-xs font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}
+              >
+                {categoryConfirm.confirmLabel || "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminLayout>
   );
 }
+
+
