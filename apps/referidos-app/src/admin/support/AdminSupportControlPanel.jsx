@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   Clock3,
   Layers3,
+  Pencil,
   RefreshCw,
   Route,
   Settings2,
   ShieldAlert,
+  Trash2,
   Users,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -45,7 +47,7 @@ const CATALOG_GROUP_OPTIONS = [
   { id: "estado", label: "estado" },
   { id: "rol", label: "rol" },
 ];
-const CATEGORY_STATUS_OPTIONS = ["draft", "published", "archived"];
+const CATEGORY_STATUS_OPTIONS = ["active", "inactive"];
 const CATEGORY_APP_OPTIONS = [
   { id: "all", label: "Todas apps" },
   { id: "referidos_app", label: "PWA" },
@@ -149,7 +151,7 @@ export default function AdminSupportControlPanel({
     label: "",
     description: "",
     app_targets: ["all"],
-    status: "draft",
+    status: "active",
   });
   const [threads, setThreads] = useState([]);
   const [events, setEvents] = useState([]);
@@ -232,7 +234,7 @@ export default function AdminSupportControlPanel({
         code: category.code || category.id,
         label: category.label || category.code || "Sin label",
         description: category.description || "",
-        status: category.status || "draft",
+        status: category.status || "active",
         app_targets: Array.isArray(category.app_targets) && category.app_targets.length
           ? category.app_targets
           : ["all"],
@@ -243,7 +245,7 @@ export default function AdminSupportControlPanel({
         code: category.code || category.id,
         label: category.label || category.code || "Sin label",
         description: category.description || "",
-        status: category.status || "draft",
+        status: category.status || "active",
         app_targets: Array.isArray(category.app_targets) && category.app_targets.length
           ? category.app_targets
           : ["all"],
@@ -312,7 +314,7 @@ export default function AdminSupportControlPanel({
       label: "",
       description: "",
       app_targets: ["all"],
-      status: "draft",
+      status: "active",
     });
   }, []);
 
@@ -593,6 +595,8 @@ export default function AdminSupportControlPanel({
 
   const ticketCategoryRows = useMemo(() => {
     const dynamic = [...macroCategories].sort((a, b) => {
+      const statusDiff = (String(a.status || "inactive") === "active" ? 0 : 1) - (String(b.status || "inactive") === "active" ? 0 : 1);
+      if (statusDiff !== 0) return statusDiff;
       const aSort = Number(a.sort_order || 100);
       const bSort = Number(b.sort_order || 100);
       if (aSort !== bSort) return aSort - bSort;
@@ -687,7 +691,7 @@ export default function AdminSupportControlPanel({
         Array.isArray(category?.app_targets) && category.app_targets.length
           ? category.app_targets
           : ["all"],
-      status: String(category?.status || "draft").trim() || "draft",
+      status: String(category?.status || "active").trim() || "active",
     });
     setCategoryError("");
     setCategoryOk("");
@@ -713,10 +717,6 @@ export default function AdminSupportControlPanel({
             Array.isArray(categoryForm.app_targets) && categoryForm.app_targets.length
               ? categoryForm.app_targets
               : ["all"],
-          status:
-            CATEGORY_STATUS_OPTIONS.includes(categoryForm.status)
-              ? categoryForm.status
-              : "draft",
         };
 
         if (categoryEditId) {
@@ -726,7 +726,10 @@ export default function AdminSupportControlPanel({
           });
           setCategoryOk("Categoria actualizada.");
         } else {
-          await createSupportMacroCategory(payload);
+          await createSupportMacroCategory({
+            ...payload,
+            status: "active",
+          });
           setCategoryOk("Categoria creada.");
         }
         resetCategoryForm();
@@ -745,6 +748,14 @@ export default function AdminSupportControlPanel({
       const categoryId = String(category?.category_id || category?.id || "").trim();
       if (!categoryId) return;
       if (!CATEGORY_STATUS_OPTIONS.includes(status)) return;
+      if (status === "inactive") {
+        const categoryCode = String(category?.code || category?.id || "").trim();
+        const affectedCount = catalogMacros.filter((macro) => String(macro.category || "general").trim() === categoryCode).length;
+        const confirmed = globalThis.confirm(
+          `Inactivar categoria archivara macros asociados (${affectedCount}). Deseas continuar?`
+        );
+        if (!confirmed) return;
+      }
       setCategorySaving(true);
       setCategoryError("");
       setCategoryOk("");
@@ -758,7 +769,7 @@ export default function AdminSupportControlPanel({
         setCategorySaving(false);
       }
     },
-    [load]
+    [catalogMacros, load]
   );
 
   const removeCategory = useCallback(
@@ -947,7 +958,7 @@ export default function AdminSupportControlPanel({
         ) : null}
 
         <form className="space-y-3 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4" onSubmit={submitCategory}>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <input
               value={categoryForm.label}
               onChange={(event) =>
@@ -959,22 +970,6 @@ export default function AdminSupportControlPanel({
               placeholder="Label categoria"
               className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
             />
-            <select
-              value={categoryForm.status}
-              onChange={(event) =>
-                setCategoryForm((prev) => ({
-                  ...prev,
-                  status: event.target.value,
-                }))
-              }
-              className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
-            >
-              {CATEGORY_STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
             <button
               type="submit"
               disabled={categorySaving}
@@ -1052,37 +1047,29 @@ export default function AdminSupportControlPanel({
                     <button
                       type="button"
                       onClick={() => beginEditCategory(category)}
-                      className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+                      className="inline-flex items-center justify-center rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[#5E30A5]"
+                      aria-label="Editar categoria"
                     >
-                      Editar
+                      <Pencil size={14} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => changeCategoryStatus(category, "draft")}
-                      className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+                      onClick={() => changeCategoryStatus(category, category.status === "active" ? "inactive" : "active")}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                        category.status === "active"
+                          ? "border-slate-300 bg-slate-100 text-slate-700"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      }`}
                     >
-                      Draft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => changeCategoryStatus(category, "published")}
-                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
-                    >
-                      Publicar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => changeCategoryStatus(category, "archived")}
-                      className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
-                    >
-                      Archivar
+                      {category.status === "active" ? "Desactivar" : "Activar"}
                     </button>
                     <button
                       type="button"
                       onClick={() => removeCategory(category)}
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                      className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-red-700"
+                      aria-label="Eliminar categoria"
                     >
-                      Eliminar
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 ) : null}

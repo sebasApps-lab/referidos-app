@@ -9,7 +9,7 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
-const CATEGORY_STATUSES = new Set(["draft", "published", "archived"]);
+const CATEGORY_STATUSES = new Set(["active", "inactive"]);
 const MACRO_STATUSES = new Set(["draft", "published", "archived"]);
 const THREAD_STATUSES = new Set([
   "new",
@@ -168,6 +168,54 @@ async function generateUniqueCode(
   );
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function generateNextMacroSequenceCode(
+  tenantId: string,
+  categoryCode: string,
+  threadStatus: string,
+) {
+  const prefix = slugifyCode(`${categoryCode}_${threadStatus}`, "macro");
+  const pattern = `${prefix}_%`;
+  const { data, error } = await supabaseAdmin
+    .from("support_macros")
+    .select("code")
+    .eq("tenant_id", tenantId)
+    .ilike("code", pattern);
+
+  if (error) throw new HttpError("code_generation_failed", error.message, 500);
+
+  const matcher = new RegExp(`^${escapeRegExp(prefix)}_(\\d{5})$`);
+  const existingCodes = new Set(
+    (data || [])
+      .map((row) => asString((row as { code?: unknown }).code))
+      .filter(Boolean),
+  );
+
+  let maxSeq = 0;
+  existingCodes.forEach((existingCode) => {
+    const match = matcher.exec(existingCode);
+    if (!match) return;
+    const seq = Number.parseInt(match[1], 10);
+    if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  });
+
+  let nextSeq = maxSeq + 1;
+  while (nextSeq <= 99999) {
+    const candidate = `${prefix}_${String(nextSeq).padStart(5, "0")}`;
+    if (!existingCodes.has(candidate)) return candidate;
+    nextSeq += 1;
+  }
+
+  throw new HttpError(
+    "code_generation_failed",
+    "No fue posible generar un code incremental de 5 digitos.",
+    409,
+  );
+}
+
 function isInternalProxyAuthorized(req: Request) {
   const expected = asString(Deno.env.get("SUPPORT_OPS_SHARED_TOKEN"));
   if (!expected) return false;
@@ -238,10 +286,10 @@ async function assertCategoryBelongsTenant(tenantId: string, categoryId: string)
 async function assertCategoryPublishable(tenantId: string, categoryId: string | null) {
   if (!categoryId) return;
   const category = await assertCategoryBelongsTenant(tenantId, categoryId);
-  if (asString(category.status) !== "published") {
+  if (asString(category.status) !== "active") {
     throw new HttpError(
-      "category_not_published",
-      "No puedes publicar macro en una categoria que no esta published.",
+      "category_not_active",
+      "No puedes publicar macro en una categoria que no esta active.",
       409,
     );
   }
@@ -250,6 +298,7 @@ async function assertCategoryPublishable(tenantId: string, categoryId: string | 
 async function listCatalog(tenantId: string, payload: JsonObject) {
   const includeArchived = asBoolean(payload.include_archived, true);
   const includeDraft = asBoolean(payload.include_draft, true);
+  const includeInactive = asBoolean(payload.include_inactive, true);
 
   let categoriesQuery = supabaseAdmin
     .from("support_macro_categories")
@@ -265,12 +314,13 @@ async function listCatalog(tenantId: string, payload: JsonObject) {
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
+  if (!includeInactive || !includeArchived || !includeDraft) {
+    categoriesQuery = categoriesQuery.eq("status", "active");
+  }
   if (!includeArchived) {
-    categoriesQuery = categoriesQuery.neq("status", "archived");
     macrosQuery = macrosQuery.neq("status", "archived");
   }
   if (!includeDraft) {
-    categoriesQuery = categoriesQuery.neq("status", "draft");
     macrosQuery = macrosQuery.neq("status", "draft");
   }
 
@@ -297,7 +347,7 @@ async function createCategory(tenantId: string, actor: string, payload: JsonObje
   const code = await generateUniqueCode("support_macro_categories", tenantId, baseCode);
 
   const status = payload.status === undefined
-    ? "draft"
+    ? "active"
     : normalizeEnum(payload.status, CATEGORY_STATUSES, "status");
 
   const appTargets = normalizeStringArray(
@@ -400,11 +450,11 @@ async function setCategoryStatus(tenantId: string, actor: string, payload: JsonO
   if (error) throw new HttpError("set_category_status_failed", error.message, 500);
 
   let affectedMacros: JsonObject[] = [];
-  if (status === "archived" || status === "draft") {
+  if (status === "inactive") {
     const { data: cascadedRows, error: cascadeError } = await supabaseAdmin
       .from("support_macros")
       .update({
-        status,
+        status: "archived",
         updated_by: actor,
       })
       .eq("tenant_id", tenantId)
@@ -416,7 +466,7 @@ async function setCategoryStatus(tenantId: string, actor: string, payload: JsonO
 
   return {
     category: data,
-    cascaded_macro_status: status === "archived" || status === "draft" ? status : null,
+    cascaded_macro_status: status === "inactive" ? "archived" : null,
     affected_macros_count: affectedMacros.length,
     affected_macros: affectedMacros,
   };
@@ -462,7 +512,7 @@ async function deleteCategory(tenantId: string, payload: JsonObject) {
     category: deletedCategory,
     deleted_macros_count: macros.length,
     deleted_macros: macros,
-    previous_status: asString(category.status, "draft"),
+    previous_status: asString(category.status, "active"),
   };
 }
 
@@ -484,16 +534,16 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     await assertCategoryPublishable(tenantId, categoryId);
   }
 
-  const threadStatus = normalizeOptionalEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+  const threadStatus = normalizeEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
   const requestedCode = asString(payload.code);
-  const titleSeed = title || body.split(/\s+/).slice(0, 6).join(" ");
-  const bodySeed = body.split(/\s+/).slice(0, 8).join(" ");
   const categorySeed = asString(category?.code, "general");
-  const statusSeed = asString(threadStatus, "sin_estado");
-  const baseCode = requestedCode
+  const code = requestedCode
     ? normalizeCode(requestedCode, "code")
-    : slugifyCode(`${categorySeed}_${statusSeed}_${titleSeed}_${bodySeed}`, "macro");
-  const code = await generateUniqueCode("support_macros", tenantId, baseCode);
+    : await generateNextMacroSequenceCode(tenantId, categorySeed, threadStatus);
+
+  const finalCode = requestedCode
+    ? await generateUniqueCode("support_macros", tenantId, code)
+    : code;
 
   const audienceRoles = normalizeStringArray(
     payload.audience_roles,
@@ -509,7 +559,7 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     .insert({
       tenant_id: tenantId,
       category_id: categoryId,
-      code,
+      code: finalCode,
       title,
       body,
       thread_status: threadStatus,
@@ -546,6 +596,7 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
   const patch: JsonObject = { updated_by: actor };
   let nextCategoryId = asString(current.category_id) || null;
   let nextStatus = asString(current.status, "draft");
+  let nextThreadStatus = asString(current.thread_status).toLowerCase();
 
   if (payload.code !== undefined) {
     const requestedCode = normalizeCode(payload.code, "code");
@@ -572,7 +623,8 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
     patch.category_id = nextCategoryId;
   }
   if (payload.thread_status !== undefined) {
-    patch.thread_status = normalizeOptionalEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+    nextThreadStatus = normalizeEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+    patch.thread_status = nextThreadStatus;
   }
   if (payload.audience_roles !== undefined) {
     patch.audience_roles = normalizeStringArray(
@@ -597,6 +649,13 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
   if (payload.status !== undefined) {
     nextStatus = normalizeEnum(payload.status, MACRO_STATUSES, "status");
     patch.status = nextStatus;
+  }
+
+  if (!nextThreadStatus || !THREAD_STATUSES.has(nextThreadStatus)) {
+    throw new HttpError(
+      "invalid_input",
+      "thread_status es requerido. No se permiten macros sin estado de ticket.",
+    );
   }
 
   if (nextStatus === "published") {
