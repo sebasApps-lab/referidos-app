@@ -17,6 +17,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
+  listSupportMacroCatalog,
   createSupportMacroCategory,
   deleteSupportMacroCategory,
   setSupportMacroCategoryStatus,
@@ -165,7 +166,12 @@ export default function AdminSupportControlPanel({
     else setLoading(true);
     setError("");
     try {
-      const [tRes, eRes, iRes, mRes, cRes] = await Promise.all([
+      const opsCatalogPromise = listSupportMacroCatalog({
+        includeArchived: true,
+        includeDraft: true,
+      }).catch(() => null);
+
+      const [tRes, eRes, iRes, mRes, cRes, opsCatalog] = await Promise.all([
         supabase
           .from("support_threads")
           .select(
@@ -197,6 +203,7 @@ export default function AdminSupportControlPanel({
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(300),
+        opsCatalogPromise,
       ]);
 
       const nextThreads = (tRes.data || []).map((t) => ({
@@ -219,7 +226,7 @@ export default function AdminSupportControlPanel({
         env_targets: macro.env_targets || ["all"],
         created_at: macro.created_at,
       }));
-      const nextCategories = (cRes.data || []).map((category) => ({
+      const nextCategoriesFromCache = (cRes.data || []).map((category) => ({
         id: category.code || category.id,
         category_id: category.id,
         code: category.code || category.id,
@@ -230,6 +237,20 @@ export default function AdminSupportControlPanel({
           ? category.app_targets
           : ["all"],
       }));
+      const nextCategoriesFromOps = (opsCatalog?.categories || []).map((category) => ({
+        id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
+        label: category.label || category.code || "Sin label",
+        description: category.description || "",
+        status: category.status || "draft",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      }));
+      const nextCategories = nextCategoriesFromOps.length
+        ? nextCategoriesFromOps
+        : nextCategoriesFromCache;
 
       const ids = Array.from(
         new Set(

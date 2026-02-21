@@ -800,42 +800,9 @@ export default function AdminSupportCatalogPanel() {
           onClick={() => navigate(`/admin/soporte/macros/${macro.id}`)}
           className="flex-1 rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-left hover:border-[#CDBAF1]"
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2 text-xs">
-                <div className="font-semibold text-[#2F1A55]">{macro.title}</div>
-                <div className="flex items-start gap-2">
-                  <div className="w-[190px] shrink-0 rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[11px]">
-                    <div className="flex flex-wrap gap-1">
-                      {USAGE_WINDOWS.map((windowKey) => (
-                        <button
-                          key={`${macro.id}-${windowKey}`}
-                          type="button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            setMacroUsageWindow(macro.id, windowKey);
-                          }}
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                            macroUsageWindow === windowKey
-                              ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                              : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                          }`}
-                        >
-                          {windowKey}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 text-[#5E30A5]">
-                      Mostrado: <strong>{shownValue}</strong>
-                    </div>
-                    <div className="mt-1 text-[#1E5E9A]">
-                      Copiado: <strong>{copiedValue}</strong>
-                    </div>
-                  </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge(macro.status)}`}>{macro.status}</span>
-                </div>
-              </div>
+              <div className="text-xs font-semibold text-[#2F1A55]">{macro.title}</div>
               <div className="mt-1 text-[11px] text-slate-500">
                 Categoria: {macro.category_code} | Estado ticket: {THREAD_STATUS_LABEL[macro.thread_status] || macro.thread_status} | Roles:{" "}
                 {arr(macro.audience_roles, []).join(", ")}
@@ -845,6 +812,37 @@ export default function AdminSupportCatalogPanel() {
               </div>
               <div className="mt-1 text-xs text-slate-600">{short(macro.body, 220)}</div>
             </div>
+            <div className="w-[190px] shrink-0 rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[11px]">
+              <div className="flex flex-wrap gap-1">
+                {USAGE_WINDOWS.map((windowKey) => (
+                  <button
+                    key={`${macro.id}-${windowKey}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setMacroUsageWindow(macro.id, windowKey);
+                    }}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                      macroUsageWindow === windowKey
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {windowKey}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-[#5E30A5]">
+                Mostrado: <strong>{shownValue}</strong>
+              </div>
+              <div className="mt-1 text-[#1E5E9A]">
+                Copiado: <strong>{copiedValue}</strong>
+              </div>
+            </div>
+            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badge(macro.status)}`}>
+              {macro.status}
+            </span>
           </div>
         </button>
         {controls ? (
