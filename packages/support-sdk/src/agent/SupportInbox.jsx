@@ -26,9 +26,7 @@ function normalizeThreadRow(thread) {
     ...thread,
     request_origin: thread?.request_origin || "registered",
     origin_source: thread?.origin_source || "app",
-    app_channel:
-      thread?.app_channel ||
-      (thread?.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
+    app_channel: thread?.app_channel || "undetermined",
     contact_display: thread?.contact_display || null,
     anon_public_id: thread?.anon_public_id || null,
   };

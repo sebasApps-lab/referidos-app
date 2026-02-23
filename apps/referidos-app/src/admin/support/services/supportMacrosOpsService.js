@@ -46,6 +46,12 @@ export async function setSupportMacroCategoryStatus({ categoryId, status }) {
   });
 }
 
+export async function deleteSupportMacroCategory({ categoryId }) {
+  return invokeSupportOps("delete_category", {
+    category_id: categoryId,
+  });
+}
+
 export async function createSupportMacro(payload) {
   return invokeSupportOps("create_macro", payload);
 }

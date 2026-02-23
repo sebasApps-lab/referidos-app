@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Copy, ClipboardCheck } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
   closeSupportThread,
+  trackSupportMacroEvents,
   updateSupportStatus,
 } from "../supportClient";
 import {
@@ -32,10 +33,12 @@ export default function SupportTicket() {
   const [noteDraft, setNoteDraft] = useState("");
   const [copiedId, setCopiedId] = useState(null);
   const [closing, setClosing] = useState(false);
+  const [closingRequest, setClosingRequest] = useState(false);
   const [resolution, setResolution] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
   const [catalog, setCatalog] = useState({ categories: [], macros: [] });
+  const shownTrackerRef = useRef(new Set());
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -158,7 +161,7 @@ export default function SupportTicket() {
     if (!thread) return "referidos_app";
     return normalizeSupportAppKey(
       thread.app_channel || thread.origin_source || "",
-      thread.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"
+      "undetermined"
     );
   }, [thread]);
 
@@ -171,10 +174,71 @@ export default function SupportTicket() {
     });
   }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
 
-  const handleCopy = async (text, id) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 1500);
+  useEffect(() => {
+    shownTrackerRef.current.clear();
+  }, [thread?.public_id]);
+
+  useEffect(() => {
+    if (!thread?.public_id || !macros.length) return;
+    const events = [];
+
+    macros.forEach((macro) => {
+      const macroId = typeof macro.id === "string" ? macro.id : "";
+      const macroCode = typeof macro.code === "string" ? macro.code : "";
+      if (!macroId || !macroCode) return;
+
+      const dedupeKey = `${thread.public_id}:${macroId}:shown`;
+      if (shownTrackerRef.current.has(dedupeKey)) return;
+      shownTrackerRef.current.add(dedupeKey);
+
+      events.push({
+        macro_id: macroId,
+        macro_code: macroCode,
+        category_code: macro.category_code || "general",
+        thread_public_id: thread.public_id,
+        event_type: "shown",
+        app_key: ticketAppKey,
+        env_key: runtimeEnvKey,
+        metadata: {
+          source: "support_ticket",
+        },
+      });
+    });
+
+    if (!events.length) return;
+    trackSupportMacroEvents({ events }).catch(() => {});
+  }, [macros, runtimeEnvKey, thread?.public_id, ticketAppKey]);
+
+  const handleCopy = async (macro) => {
+    const macroBody = typeof macro?.body === "string" ? macro.body : "";
+    const macroId = typeof macro?.id === "string" ? macro.id : "";
+    const macroCode = typeof macro?.code === "string" ? macro.code : "";
+    if (!macroBody || !macroId || !macroCode) return;
+
+    try {
+      await navigator.clipboard.writeText(macroBody);
+      setCopiedId(macroId);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      return;
+    }
+
+    trackSupportMacroEvents({
+      events: [
+        {
+          macro_id: macroId,
+          macro_code: macroCode,
+          category_code: macro.category_code || "general",
+          thread_public_id: thread?.public_id || null,
+          event_type: "copied",
+          app_key: ticketAppKey,
+          env_key: runtimeEnvKey,
+          metadata: {
+            source: "support_ticket",
+          },
+        },
+      ],
+    }).catch(() => {});
   };
 
   const handleAddNote = async () => {
@@ -200,14 +264,20 @@ export default function SupportTicket() {
   };
 
   const handleClose = async () => {
-    const result = await closeSupportThread({
-      thread_public_id: thread.public_id,
-      resolution,
-      root_cause: rootCause,
-    });
-    if (result.ok) {
-      setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
-      setClosing(false);
+    if (closingRequest) return;
+    setClosingRequest(true);
+    try {
+      const result = await closeSupportThread({
+        thread_public_id: thread.public_id,
+        resolution,
+        root_cause: rootCause,
+      });
+      if (result.ok) {
+        setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
+        setClosing(false);
+      }
+    } finally {
+      setClosingRequest(false);
     }
   };
 
@@ -404,7 +474,7 @@ export default function SupportTicket() {
                     <div>{macro.body}</div>
                     <button
                       type="button"
-                      onClick={() => handleCopy(macro.body, macro.id)}
+                      onClick={() => handleCopy(macro)}
                       className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
                     >
                       {copiedId === macro.id ? (
@@ -446,7 +516,8 @@ export default function SupportTicket() {
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-2xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white"
+              disabled={closingRequest}
+              className="rounded-2xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               Confirmar cierre
             </button>

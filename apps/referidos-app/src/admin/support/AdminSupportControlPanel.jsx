@@ -7,14 +7,26 @@ import {
   CheckCircle2,
   Clock3,
   Layers3,
+  Pencil,
+  Plus,
   RefreshCw,
   Route,
   Settings2,
   ShieldAlert,
+  Trash2,
   Users,
+  X,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  listSupportMacroCatalog,
+  createSupportMacroCategory,
+  deleteSupportMacroCategory,
+  setSupportMacroCategoryStatus,
+  updateSupportMacroCategory,
+} from "./services/supportMacrosOpsService";
 
 const ACTIVE = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 const FLOW = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed"];
@@ -37,6 +49,13 @@ const CATALOG_GROUP_OPTIONS = [
   { id: "estado", label: "estado" },
   { id: "rol", label: "rol" },
 ];
+const CATEGORY_STATUS_OPTIONS = ["active", "inactive"];
+const CATEGORY_APP_OPTIONS = [
+  { id: "all", label: "Todas" },
+  { id: "referidos_app", label: "PWA" },
+  { id: "prelaunch_web", label: "Prelaunch web" },
+  { id: "android_app", label: "Android app" },
+];
 const SEV_RANK = { s0: 0, s1: 1, s2: 2, s3: 3 };
 const statusRank = (status) => {
   const idx = MACRO_STATUS_ORDER.indexOf(status);
@@ -50,6 +69,80 @@ const roleRank = (role) => {
   const base = ["cliente", "negocio", "soporte", "admin", "sin_rol"];
   const idx = base.indexOf(role);
   return idx === -1 ? base.length + 1 : idx;
+};
+const THREAD_STATUS_VALUES = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const TERMINAL_THREAD_STATUSES = new Set(["closed", "cancelled"]);
+const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "in_progress", "closed"];
+const TIMELINE_BLOCK_LABELS = {
+  new: "Creado",
+  assigned: "Asignado",
+  in_progress: "Resolviendo",
+  waiting_user: "Esperando usuario",
+  queued: "En cola",
+  closed: "Cerrado",
+  cancelled: "Cancelado",
+};
+const EVENT_TYPE_LABELS = {
+  created: "created",
+  assigned: "assigned",
+  status_changed: "status_changed",
+  waiting_user: "waiting_user",
+  resumed: "resumed",
+  queued: "queued",
+  closed: "closed",
+  note_added: "note_added",
+  agent_timeout_release: "agent_timeout_release",
+  agent_manual_release: "agent_manual_release",
+  cancelled: "cancelled",
+  linked_to_user: "linked_to_user",
+};
+const TIMELINE_BLOCK_REACHED_CLASSES = {
+  new: "bg-[#DBEAFE] text-[#1E3A8A]",
+  assigned: "bg-[#EDE9FE] text-[#5B21B6]",
+  in_progress: "bg-[#DCFCE7] text-[#166534]",
+  waiting_user: "bg-[#FEF3C7] text-[#92400E]",
+  queued: "bg-[#E0E7FF] text-[#3730A3]",
+  closed: "bg-[#D1FAE5] text-[#065F46]",
+  cancelled: "bg-[#FEE2E2] text-[#991B1B]",
+};
+const normalizeThreadStatusCandidate = (value) => {
+  if (typeof value !== "string") return null;
+  const raw = value.trim().toLowerCase();
+  const compact = raw.replace(/[\s-]+/g, "_");
+  const aliases = {
+    inprogress: "in_progress",
+    en_progreso: "in_progress",
+    resolviendo: "in_progress",
+    waitinguser: "waiting_user",
+    esperando_usuario: "waiting_user",
+    en_espera: "waiting_user",
+    en_cola: "queued",
+    cola: "queued",
+    cerrado: "closed",
+    cancelado: "cancelled",
+    asignado: "assigned",
+    nuevo: "new",
+  };
+  const normalized = aliases[compact] || compact;
+  return THREAD_STATUS_VALUES.includes(normalized) ? normalized : null;
+};
+const deriveNextThreadStatusFromEvent = (event) => {
+  if (!event || typeof event !== "object") return null;
+  const type = typeof event.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+  if (!type) return null;
+  if (type === "created") return "new";
+  if (type === "resumed") return "in_progress";
+  if (type === "agent_timeout_release" || type === "agent_manual_release") return "queued";
+  const statusFromType = normalizeThreadStatusCandidate(type);
+  if (statusFromType) return statusFromType;
+  if (type !== "status_changed") return null;
+  const details = event.details && typeof event.details === "object" ? event.details : {};
+  const toStatus =
+    normalizeThreadStatusCandidate(details.to) ||
+    normalizeThreadStatusCandidate(details.next_status) ||
+    normalizeThreadStatusCandidate(details.to_status) ||
+    normalizeThreadStatusCandidate(details.status);
+  return toStatus;
 };
 
 const fmt = (v) => {
@@ -95,15 +188,18 @@ function Metric({ title, value, hint, icon: Icon }) {
 }
 
 function Card({ title, subtitle, headerRight, children }) {
+  const hasHeader = Boolean(title || subtitle || headerRight);
   return (
     <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-[#2F1A55]">{title}</div>
-          {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+      {hasHeader ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            {title ? <div className="text-sm font-semibold text-[#2F1A55]">{title}</div> : null}
+            {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+          </div>
+          {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
         </div>
-        {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
-      </div>
+      ) : null}
       {children}
     </div>
   );
@@ -114,11 +210,29 @@ export default function AdminSupportControlPanel({
   title = "Soporte",
   subtitle = "Panel de control de flujo de tickets",
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [panel, setPanel] = useState(lockedPanel || "tickets");
   const [viewByPanel, setViewByPanel] = useState({ tickets: "basic" });
+  const [ticketsTab, setTicketsTab] = useState(() => {
+    if (typeof window === "undefined") return "analytics";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "categorias" ? "categorias" : "analytics";
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [categoryOk, setCategoryOk] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryEditId, setCategoryEditId] = useState("");
+  const [categoryFormMode, setCategoryFormMode] = useState("");
+  const [categoryForm, setCategoryForm] = useState({
+    label: "",
+    description: "",
+    app_targets: ["all"],
+    status: "active",
+  });
   const [threads, setThreads] = useState([]);
   const [events, setEvents] = useState([]);
   const [inbox, setInbox] = useState([]);
@@ -128,13 +242,19 @@ export default function AdminSupportControlPanel({
   const [selectedPublicId, setSelectedPublicId] = useState(null);
   const [catalogGroupBy, setCatalogGroupBy] = useState("categoria");
   const [expandedCatalogGroups, setExpandedCatalogGroups] = useState({});
+  const [expandedTimelineSegmentByThread, setExpandedTimelineSegmentByThread] = useState({});
 
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     else setLoading(true);
     setError("");
     try {
-      const [tRes, eRes, iRes, mRes, cRes] = await Promise.all([
+      const opsCatalogPromise = listSupportMacroCatalog({
+        includeArchived: true,
+        includeDraft: true,
+      }).catch(() => null);
+
+      const [tRes, eRes, iRes, mRes, cRes, opsCatalog] = await Promise.all([
         supabase
           .from("support_threads")
           .select(
@@ -162,17 +282,18 @@ export default function AdminSupportControlPanel({
           .limit(600),
         supabase
           .from("support_macro_categories_cache")
-          .select("id, code, label, description, status, sort_order")
+          .select("id, code, label, description, status, sort_order, app_targets")
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(300),
+        opsCatalogPromise,
       ]);
 
       const nextThreads = (tRes.data || []).map((t) => ({
         ...t,
         request_origin: t.request_origin || "registered",
         origin_source: t.origin_source || "app",
-        app_channel: t.app_channel || (t.request_origin === "anonymous" ? "prelaunch_web" : "referidos_app"),
+        app_channel: t.app_channel || "undetermined",
       }));
       const nextEvents = eRes.data || [];
       const nextInbox = iRes.data || [];
@@ -188,12 +309,31 @@ export default function AdminSupportControlPanel({
         env_targets: macro.env_targets || ["all"],
         created_at: macro.created_at,
       }));
-      const nextCategories = (cRes.data || []).map((category) => ({
+      const nextCategoriesFromCache = (cRes.data || []).map((category) => ({
         id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
         label: category.label || category.code || "Sin label",
         description: category.description || "",
-        status: category.status || "draft",
+        status: category.status || "active",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
       }));
+      const nextCategoriesFromOps = (opsCatalog?.categories || []).map((category) => ({
+        id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
+        label: category.label || category.code || "Sin label",
+        description: category.description || "",
+        status: category.status || "active",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      }));
+      const nextCategories = nextCategoriesFromOps.length
+        ? nextCategoriesFromOps
+        : nextCategoriesFromCache;
 
       const ids = Array.from(
         new Set(
@@ -247,6 +387,44 @@ export default function AdminSupportControlPanel({
   const activePanel = lockedPanel || panel;
   const view = viewByPanel[activePanel] || "basic";
   const isCatalogLocked = lockedPanel === "catalogo";
+  const isTicketsLocked = lockedPanel === "tickets";
+
+  const resetCategoryForm = useCallback(() => {
+    setCategoryFormMode("");
+    setCategoryEditId("");
+    setCategoryForm({
+      label: "",
+      description: "",
+      app_targets: ["all"],
+      status: "active",
+    });
+  }, []);
+
+  const setTicketsTabWithUrl = useCallback(
+    (nextTab) => {
+      const normalized = nextTab === "categorias" ? "categorias" : "analytics";
+      setTicketsTab(normalized);
+      if (!isTicketsLocked) return;
+      const params = new URLSearchParams(location.search);
+      if (normalized === "categorias") params.set("tab", "categorias");
+      else params.delete("tab");
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true }
+      );
+    },
+    [isTicketsLocked, location.pathname, location.search, navigate]
+  );
+
+  useEffect(() => {
+    if (!isTicketsLocked) return;
+    const tab = new URLSearchParams(location.search).get("tab");
+    setTicketsTab(tab === "categorias" ? "categorias" : "analytics");
+  }, [isTicketsLocked, location.search]);
 
   const inboxByPublic = useMemo(
     () => inbox.reduce((acc, r) => ((acc[r.public_id] = r), acc), {}),
@@ -282,6 +460,126 @@ export default function AdminSupportControlPanel({
 
   const selected = selectedPublicId ? byPublic[selectedPublicId] : null;
   const selectedTimeline = selected ? eventsByThread[selected.id] || [] : [];
+  const timelineRows = useMemo(() => {
+    const sortedThreads = [...threads].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    return sortedThreads.map((thread) => {
+      const orderedEvents = [...(eventsByThread[thread.id] || [])].sort(
+        (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+      const reachedSegments = [];
+      const pushReachedSegment = (status, startedAt) => {
+        const normalizedStatus = normalizeThreadStatusCandidate(status) || "new";
+        reachedSegments.push({
+          id: "",
+          status: normalizedStatus,
+          label: TIMELINE_BLOCK_LABELS[normalizedStatus] || normalizedStatus,
+          startedAt: startedAt || thread.created_at || thread.updated_at || new Date().toISOString(),
+          endedAt: null,
+          events: [],
+          isReached: true,
+        });
+      };
+
+      pushReachedSegment("new", thread.created_at);
+
+      orderedEvents.forEach((event) => {
+        if (!reachedSegments.length) pushReachedSegment("new", thread.created_at);
+        const current = reachedSegments[reachedSegments.length - 1];
+        current.events.push(event);
+        const nextStatus = deriveNextThreadStatusFromEvent(event);
+        if (nextStatus && nextStatus !== current.status) {
+          const transitionAt = event.created_at || thread.updated_at || thread.created_at;
+          current.endedAt = current.endedAt || transitionAt;
+          pushReachedSegment(nextStatus, transitionAt);
+        }
+      });
+
+      const currentThreadStatus = normalizeThreadStatusCandidate(thread.status);
+      if (
+        currentThreadStatus &&
+        reachedSegments.length > 0 &&
+        currentThreadStatus !== reachedSegments[reachedSegments.length - 1].status
+      ) {
+        const transitionAt = thread.updated_at || thread.created_at || new Date().toISOString();
+        reachedSegments[reachedSegments.length - 1].endedAt =
+          reachedSegments[reachedSegments.length - 1].endedAt || transitionAt;
+        pushReachedSegment(currentThreadStatus, transitionAt);
+      }
+
+      reachedSegments.forEach((segment, index) => {
+        const next = reachedSegments[index + 1];
+        if (!segment.endedAt && next?.startedAt) {
+          segment.endedAt = next.startedAt;
+          return;
+        }
+        if (!segment.endedAt && segment.status === "closed") {
+          segment.endedAt = thread.closed_at || thread.updated_at || segment.startedAt;
+          return;
+        }
+        if (!segment.endedAt && segment.status === "cancelled") {
+          segment.endedAt = thread.cancelled_at || thread.updated_at || segment.startedAt;
+        }
+      });
+
+      const firstTerminalIndex = reachedSegments.findIndex((segment) =>
+        TERMINAL_THREAD_STATUSES.has(segment.status)
+      );
+      const trimmedReachedSegments =
+        firstTerminalIndex >= 0 ? reachedSegments.slice(0, firstTerminalIndex + 1) : reachedSegments;
+
+      const displaySegments = (
+        trimmedReachedSegments.length
+          ? [...trimmedReachedSegments]
+          : [
+              {
+                id: "",
+                status: "new",
+                label: TIMELINE_BLOCK_LABELS.new,
+                startedAt: thread.created_at || thread.updated_at || new Date().toISOString(),
+                endedAt: null,
+                events: [],
+                isReached: true,
+              },
+            ]
+      );
+
+      const hasTerminal = displaySegments.some((segment) =>
+        TERMINAL_THREAD_STATUSES.has(segment.status)
+      );
+      if (!hasTerminal) {
+        const reachedDefaultIndexes = displaySegments
+          .map((segment) => TIMELINE_DEFAULT_SEQUENCE.indexOf(segment.status))
+          .filter((idx) => idx >= 0);
+        const lastDefaultIndex = reachedDefaultIndexes.length ? Math.max(...reachedDefaultIndexes) : -1;
+        TIMELINE_DEFAULT_SEQUENCE.slice(lastDefaultIndex + 1).forEach((status) => {
+          displaySegments.push({
+            id: "",
+            status,
+            label: TIMELINE_BLOCK_LABELS[status] || status,
+            startedAt: null,
+            endedAt: null,
+            events: [],
+            isReached: false,
+          });
+        });
+      }
+
+      const finalSegments = displaySegments.map((segment, index) => ({
+        ...segment,
+        id: `${thread.id}:${index}:${segment.status}:${segment.startedAt || "pending"}`,
+      }));
+
+      return {
+        threadId: thread.id,
+        threadPublicId: thread.public_id,
+        threadStatus: thread.status,
+        summary: thread.summary,
+        segments: finalSegments,
+      };
+    });
+  }, [threads, eventsByThread]);
 
   const metrics = useMemo(() => {
     const closed = threads.filter((t) => t.status === "closed" && t.closed_at);
@@ -497,6 +795,38 @@ export default function AdminSupportControlPanel({
     };
   }, [catalogMacros]);
 
+  const ticketCategoryRows = useMemo(() => {
+    const dynamic = [...macroCategories].sort((a, b) => {
+      const statusDiff = (String(a.status || "inactive") === "active" ? 0 : 1) - (String(b.status || "inactive") === "active" ? 0 : 1);
+      if (statusDiff !== 0) return statusDiff;
+      const aSort = Number(a.sort_order || 100);
+      const bSort = Number(b.sort_order || 100);
+      if (aSort !== bSort) return aSort - bSort;
+      return String(a.label || a.code || "").localeCompare(String(b.label || b.code || ""), "es", {
+        sensitivity: "base",
+      });
+    });
+
+    return dynamic.map((category) => ({
+      ...category,
+      readonly: false,
+    }));
+  }, [macroCategories]);
+
+  const editingCategory = useMemo(() => {
+    if (categoryFormMode !== "edit" || !categoryEditId) return null;
+    return ticketCategoryRows.find((category) => {
+      const currentId = String(category?.category_id || category?.id || "").trim();
+      return currentId && currentId === categoryEditId;
+    }) || null;
+  }, [categoryEditId, categoryFormMode, ticketCategoryRows]);
+
+  useEffect(() => {
+    if (categoryFormMode === "edit" && categoryEditId && !editingCategory) {
+      resetCategoryForm();
+    }
+  }, [categoryEditId, categoryFormMode, editingCategory, resetCategoryForm]);
+
   const groupedByStatus = useMemo(() => {
     const groups = {};
     catalogMacros.forEach((m) => {
@@ -543,6 +873,172 @@ export default function AdminSupportControlPanel({
     return roles.join(", ");
   }, []);
 
+  const formatCategoryTargets = useCallback((targets) => {
+    const source = Array.isArray(targets) && targets.length ? targets : ["all"];
+    if (source.includes("all")) return "Todas";
+    return source
+      .map((target) => CATEGORY_APP_OPTIONS.find((opt) => opt.id === target)?.label || target)
+      .join(", ");
+  }, []);
+
+  const toggleCategoryTarget = useCallback((targetId) => {
+    setCategoryForm((prev) => {
+      const current = Array.isArray(prev.app_targets) && prev.app_targets.length
+        ? prev.app_targets
+        : ["all"];
+      if (targetId === "all") {
+        return {
+          ...prev,
+          app_targets: current.includes("all") ? ["referidos_app"] : ["all"],
+        };
+      }
+      const withoutAll = current.filter((value) => value !== "all");
+      const hasTarget = withoutAll.includes(targetId);
+      const next = hasTarget
+        ? withoutAll.filter((value) => value !== targetId)
+        : [...withoutAll, targetId];
+      return {
+        ...prev,
+        app_targets: next.length ? next : ["all"],
+      };
+    });
+  }, []);
+
+  const beginEditCategory = useCallback((category) => {
+    const categoryId = String(category?.category_id || category?.id || "").trim();
+    if (!categoryId) return;
+    setCategoryFormMode("edit");
+    setCategoryEditId(categoryId);
+    setCategoryForm({
+      label: String(category?.label || "").trim(),
+      description: String(category?.description || "").trim(),
+      app_targets:
+        Array.isArray(category?.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      status: String(category?.status || "active").trim() || "active",
+    });
+    setCategoryError("");
+    setCategoryOk("");
+  }, []);
+
+  const openCreateCategory = useCallback(() => {
+    setCategoryFormMode("create");
+    setCategoryEditId("");
+    setCategoryForm({
+      label: "",
+      description: "",
+      app_targets: ["all"],
+      status: "active",
+    });
+    setCategoryError("");
+    setCategoryOk("");
+  }, []);
+
+  const submitCategory = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const label = String(categoryForm.label || "").trim();
+      if (!label) {
+        setCategoryError("El label de categoria es requerido.");
+        return;
+      }
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        const payload = {
+          label,
+          description: String(categoryForm.description || "").trim(),
+          app_targets:
+            Array.isArray(categoryForm.app_targets) && categoryForm.app_targets.length
+              ? categoryForm.app_targets
+              : ["all"],
+        };
+
+        if (categoryEditId) {
+          await updateSupportMacroCategory({
+            category_id: categoryEditId,
+            ...payload,
+          });
+          setCategoryOk("Categoria actualizada.");
+        } else {
+          await createSupportMacroCategory({
+            ...payload,
+            status: "active",
+          });
+          setCategoryOk("Categoria creada.");
+        }
+        resetCategoryForm();
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo guardar categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, categoryForm, load, resetCategoryForm]
+  );
+
+  const changeCategoryStatus = useCallback(
+    async (category, status) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      if (!CATEGORY_STATUS_OPTIONS.includes(status)) return;
+      if (status === "inactive") {
+        const categoryCode = String(category?.code || category?.id || "").trim();
+        const affectedCount = catalogMacros.filter((macro) => String(macro.category || "general").trim() === categoryCode).length;
+        const confirmed = globalThis.confirm(
+          `Inactivar categoria archivara macros asociados (${affectedCount}). Deseas continuar?`
+        );
+        if (!confirmed) return;
+      }
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await setSupportMacroCategoryStatus({ categoryId, status });
+        setCategoryOk(`Categoria movida a ${status}.`);
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo cambiar estado de categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [catalogMacros, load]
+  );
+
+  const removeCategory = useCallback(
+    async (category) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      const label = String(category?.label || category?.code || categoryId).trim();
+      const confirmed = globalThis.confirm(
+        `Eliminar categoria "${label}"? Esta accion elimina tambien sus macros asociados.`
+      );
+      if (!confirmed) return;
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await deleteSupportMacroCategory({ categoryId });
+        setCategoryOk("Categoria eliminada.");
+        if (categoryEditId === categoryId) {
+          resetCategoryForm();
+        }
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo eliminar categoria.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, load, resetCategoryForm]
+  );
+
   const visitedFlow = useMemo(() => {
     if (!selected) return new Set();
     const v = new Set(["new", selected.status]);
@@ -563,6 +1059,117 @@ export default function AdminSupportControlPanel({
 
   const renderAdvancedTickets = () => (
     <div className="space-y-5">
+      <Card
+        title="Flujo visual de tickets"
+        subtitle="Secuencia por estado y eventos agrupados por etapa de cada ticket."
+      >
+        {timelineRows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-4 text-center text-sm text-slate-500">
+            Sin tickets para mostrar.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {timelineRows.map((row) => {
+              const expandedSegmentId = expandedTimelineSegmentByThread[row.threadId] || "";
+              const expandedSegment = row.segments.find((segment) => segment.id === expandedSegmentId) || null;
+              return (
+                <div key={`timeline-${row.threadId}`} className="rounded-2xl border border-[#E9E2F7] bg-[#FCFBFF] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5E30A5]">
+                      Ticket {row.threadPublicId}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Estado actual: {STATUS_LABEL[row.threadStatus] || row.threadStatus || "-"}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto pb-1">
+                    <div className="flex min-w-max items-center gap-1">
+                      {row.segments.map((segment) => {
+                        const isExpanded = expandedSegmentId === segment.id;
+                        const blockClipPath =
+                          "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)";
+                        const reachedClass =
+                          TIMELINE_BLOCK_REACHED_CLASSES[segment.status] || "bg-[#E8EAF2] text-[#2F1A55]";
+                        const colorClass = segment.isReached
+                          ? reachedClass
+                          : "bg-[#E6E9F0] text-slate-500";
+                        return (
+                          <button
+                            key={segment.id}
+                            type="button"
+                            onClick={() =>
+                              setExpandedTimelineSegmentByThread((prev) => ({
+                                ...prev,
+                                [row.threadId]: prev[row.threadId] === segment.id ? "" : segment.id,
+                              }))
+                            }
+                            className={`h-12 min-w-[168px] overflow-hidden px-4 text-left text-[11px] font-semibold transition ${colorClass} ${
+                              isExpanded
+                                ? "ring-2 ring-[#5E30A5] ring-offset-1"
+                                : "hover:brightness-[0.98]"
+                            }`}
+                            style={{ clipPath: blockClipPath }}
+                          >
+                            {segment.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {expandedSegment ? (
+                    <div className="mt-3 rounded-xl border border-[#E9E2F7] bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-[11px] text-slate-500">
+                          Inicio: {fmt(expandedSegment.startedAt)} | Fin: {expandedSegment.endedAt ? fmt(expandedSegment.endedAt) : "-"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedTimelineSegmentByThread((prev) => ({
+                              ...prev,
+                              [row.threadId]: "",
+                            }))
+                          }
+                          className="h-6 w-6 rounded-md border border-[#E9E2F7] text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                          aria-label="Cerrar detalle de etapa"
+                        >
+                          x
+                        </button>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {expandedSegment.events.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-500">
+                            Sin eventos registrados en esta etapa.
+                          </div>
+                        ) : (
+                          expandedSegment.events.map((event, eventIndex) => (
+                            <div
+                              key={`${event.id || expandedSegment.id}-event-${eventIndex}`}
+                              className="rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-600"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="font-semibold text-[#2F1A55]">
+                                  {EVENT_TYPE_LABELS[event.event_type] || event.event_type}
+                                </div>
+                                <div className="text-[11px] text-slate-400">{fmt(event.created_at)}</div>
+                              </div>
+                              <div className="mt-1 text-[11px] text-slate-500">
+                                Actor: {nameOf(usersById[event.actor_id])}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       <Card title="SLA y tiempos" subtitle="Tiempos de respuesta, cola y resolucion.">
         <div className="grid gap-3 md:grid-cols-4">
           <Metric
@@ -646,15 +1253,25 @@ export default function AdminSupportControlPanel({
         <div className="grid gap-3 md:grid-cols-3">
           <Metric icon={ShieldAlert} title="Anonimos activos" value={metrics.risk.anonActive} />
           <Metric icon={AlertTriangle} title="Cancelados" value={metrics.risk.cancelled} />
-          <Metric icon={Users} title="Top anonimos" value={metrics.risk.repeatedAnon.length} />
+          <Metric
+            icon={Users}
+            title="Top anonimos"
+            value={metrics.risk.repeatedAnon.length === 0 ? "Sin datos" : metrics.risk.repeatedAnon.length}
+          />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            {metrics.risk.repeatedAnon.map((r) => (
-              <div key={`ra-${r.key}`} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
-                {r.key}: <strong>{r.count}</strong>
+            {metrics.risk.repeatedAnon.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-500">
+                Sin datos
               </div>
-            ))}
+            ) : (
+              metrics.risk.repeatedAnon.map((r) => (
+                <div key={`ra-${r.key}`} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
+                  {r.key}: <strong>{r.count}</strong>
+                </div>
+              ))
+            )}
           </div>
           <div className="space-y-2">
             {metrics.risk.cancelledByUser.map((r) => (
@@ -666,25 +1283,255 @@ export default function AdminSupportControlPanel({
         </div>
       </Card>
 
-      <Card title="Auditoria operativa" subtitle="Eventos recientes del sistema.">
-        <div className="space-y-2">
-          {metrics.audit.map((e) => (
-            <div key={e.id} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-600">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-semibold text-[#2F1A55]">
-                  {e.event_type} ({e.actor_role || "-"})
-                </div>
-                <div className="text-slate-400">{fmt(e.created_at)}</div>
-              </div>
-              <div>Actor: {nameOf(usersById[e.actor_id])} | Thread: {e.thread_id}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
     </div>
   );
 
+  const renderTicketCategories = () => {
+    const isCategoryEditMode = categoryFormMode === "edit";
+    const isCategoryCreateMode = categoryFormMode === "create";
+    const isCategoryPanelOpen = isCategoryEditMode || isCategoryCreateMode;
+
+    return (
+      <div className="space-y-5">
+        <Card
+          title="Categorias"
+          subtitle="Gestion centralizada de categorias para tickets y macros."
+          headerRight={
+            !isCategoryPanelOpen ? (
+              <button
+                type="button"
+                onClick={openCreateCategory}
+                className="rounded-2xl border border-dashed border-[#C9B6E8] bg-[#FCFBFF] px-4 py-3 text-left transition hover:bg-[#F9F7FF]"
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#5E30A5]">
+                  <Plus size={14} />
+                  AÃ±adir nueva categorÃ­a
+                </div>
+              </button>
+            ) : null
+          }
+        >
+          {categoryError ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+              {categoryError}
+            </div>
+          ) : null}
+          {categoryOk ? (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {categoryOk}
+            </div>
+          ) : null}
+
+          <div className={isCategoryPanelOpen ? "grid gap-4 lg:grid-cols-2" : "space-y-2"}>
+            <div className="space-y-2">
+              {isCategoryCreateMode ? (
+                <div className="rounded-2xl border border-[#C9B6E8] bg-[#FCFBFF] px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-[#2F1A55]">Nueva CategorÃƒÂ­a</span>
+                      <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
+                        borrador
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">Crea una nueva categorÃƒÂ­a.</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+
+                  {ticketCategoryRows.map((category) => {
+                    const currentId = String(category?.category_id || category?.id || "").trim();
+                    const isSelected = isCategoryEditMode && currentId === categoryEditId;
+                    const canSelect = isCategoryEditMode && !category.readonly;
+                    return (
+                      <div
+                        key={`category-row-${category.code || category.id}`}
+                        role={canSelect ? "button" : undefined}
+                        tabIndex={canSelect ? 0 : undefined}
+                        onClick={canSelect ? () => beginEditCategory(category) : undefined}
+                        onKeyDown={
+                          canSelect
+                            ? (event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  beginEditCategory(category);
+                                }
+                              }
+                            : undefined
+                        }
+                        className={`rounded-2xl border bg-white px-4 py-3 ${
+                          isSelected ? "border-[#C9B6E8] bg-[#FCFBFF]" : "border-[#E9E2F7]"
+                        } ${canSelect ? "cursor-pointer transition hover:bg-[#F9F7FF]" : ""}`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-[#2F1A55]">{category.label}</span>
+                              <span className="text-xs text-slate-400">({category.code || category.id})</span>
+                              <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
+                                {category.status}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-500">{category.description || "Sin descripcion"}</div>
+                            <div className="mt-1 text-[11px] text-slate-500">Apps: {formatCategoryTargets(category.app_targets)}</div>
+                          </div>
+                          {!category.readonly && !isCategoryPanelOpen ? (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => beginEditCategory(category)}
+                                className="inline-flex items-center justify-center rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[#5E30A5]"
+                                aria-label="Editar categoria"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => changeCategoryStatus(category, category.status === "active" ? "inactive" : "active")}
+                                className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                                  category.status === "active"
+                                    ? "border-slate-300 bg-slate-100 text-slate-700"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                }`}
+                              >
+                                {category.status === "active" ? "Desactivar" : "Activar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeCategory(category)}
+                                className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-red-700"
+                                aria-label="Eliminar categoria"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+
+            {isCategoryPanelOpen ? (
+              <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-[#2F1A55]">
+                    {isCategoryEditMode ? "Editar categoria" : "Nueva categoria"}
+                    {isCategoryEditMode && editingCategory ? (
+                      <span className="ml-2 text-xs font-medium text-slate-500">({editingCategory.code || editingCategory.id})</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetCategoryForm}
+                    className="inline-flex items-center justify-center rounded-lg border border-[#E9E2F7] bg-white p-1.5 text-[#5E30A5]"
+                    aria-label="Cerrar panel de categoria"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {isCategoryEditMode && !editingCategory ? (
+                  <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-white px-3 py-4 text-center text-xs text-slate-500">
+                    Categoria no encontrada para edicion.
+                  </div>
+                ) : (
+                  <form className="space-y-3" onSubmit={submitCategory}>
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <input
+                        value={categoryForm.label}
+                        onChange={(event) =>
+                          setCategoryForm((prev) => ({
+                            ...prev,
+                            label: event.target.value,
+                          }))
+                        }
+                        placeholder="Label categoria"
+                        className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+                      />
+                      {isCategoryEditMode && editingCategory ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              changeCategoryStatus(
+                                editingCategory,
+                                editingCategory.status === "active" ? "inactive" : "active"
+                              )
+                            }
+                            className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                              editingCategory.status === "active"
+                                ? "border-slate-300 bg-slate-100 text-slate-700"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {editingCategory.status === "active" ? "Desactivar" : "Activar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCategory(editingCategory)}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2 text-red-700"
+                            aria-label="Eliminar categoria"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={categoryForm.description}
+                      onChange={(event) =>
+                        setCategoryForm((prev) => ({
+                          ...prev,
+                          description: event.target.value,
+                        }))
+                      }
+                      placeholder="Descripcion"
+                      className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORY_APP_OPTIONS.map((appOption) => {
+                        const active = (categoryForm.app_targets || []).includes(appOption.id);
+                        return (
+                          <button
+                            key={`category-editor-target-${appOption.id}`}
+                            type="button"
+                            onClick={() => toggleCategoryTarget(appOption.id)}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                              active
+                                ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                                : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                            }`}
+                          >
+                            {appOption.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={categorySaving}
+                        className={`rounded-xl px-3 py-2 text-xs font-semibold text-white ${
+                          categorySaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+                        }`}
+                      >
+                        {isCategoryEditMode ? "Guardar categoria" : "Crear categoria"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      </div>
+    );
+  };
   const renderCatalogMacroCard = (m, key) => (
     <div
       key={key}
@@ -749,31 +1596,60 @@ export default function AdminSupportControlPanel({
           </div>
         ) : (
           <Card
-            title={lockedPanel === "tickets" ? "Panel Tickets" : "Control de tickets"}
-            subtitle={"Vista basica (default) y avanzada."}
+            title={lockedPanel === "tickets" ? null : "Control de tickets"}
+            subtitle={
+              lockedPanel === "tickets"
+                ? null
+                : isTicketsLocked
+                  ? "Vista unica con Analytics y Categorias."
+                  : "Vista basica (default) y avanzada."
+            }
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              {lockedPanel ? <div /> : (
-                <div className="flex flex-wrap gap-2">
-                  {[{ id: "tickets", label: "Panel Tickets" }].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setPanel(p.id);
-                        setSelectedPublicId(null);
-                      }}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                        activePanel === p.id
-                          ? "border-[#5E30A5] bg-[#5E30A5] text-white"
-                          : "border-[#E9E2F7] bg-white text-[#5E30A5]"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {lockedPanel ? null : (
+                  <div className="flex flex-wrap gap-2">
+                    {[{ id: "tickets", label: "Panel Tickets" }].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setPanel(p.id);
+                          setSelectedPublicId(null);
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          activePanel === p.id
+                            ? "border-[#5E30A5] bg-[#5E30A5] text-white"
+                            : "border-[#E9E2F7] bg-white text-[#5E30A5]"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {isTicketsLocked ? (
+                  <>
+                    {[
+                      { id: "analytics", label: "Analytics" },
+                      { id: "categorias", label: "Categorias" },
+                    ].map((tabOption) => (
+                      <button
+                        key={tabOption.id}
+                        type="button"
+                        onClick={() => setTicketsTabWithUrl(tabOption.id)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          ticketsTab === tabOption.id
+                            ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                            : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                        }`}
+                      >
+                        {tabOption.label}
+                      </button>
+                    ))}
+                  </>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={() => load(true)}
@@ -784,30 +1660,32 @@ export default function AdminSupportControlPanel({
                 Refrescar
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: "basic", label: "Basica" },
-                { id: "advanced", label: "Avanzada" },
-              ].map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() =>
-                    setViewByPanel((prev) => ({
-                      ...prev,
-                      [activePanel]: v.id,
-                    }))
-                  }
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    view === v.id
-                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                      : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
+            {isTicketsLocked ? null : (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "basic", label: "Basica" },
+                  { id: "advanced", label: "Avanzada" },
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() =>
+                      setViewByPanel((prev) => ({
+                        ...prev,
+                        [activePanel]: v.id,
+                      }))
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      view === v.id
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {error ? (
               <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
                 {error}
@@ -818,6 +1696,8 @@ export default function AdminSupportControlPanel({
 
         {loading ? (
           <Card title="Cargando..." subtitle="Obteniendo datos de soporte." />
+        ) : isTicketsLocked ? (
+          ticketsTab === "categorias" ? renderTicketCategories() : renderAdvancedTickets()
         ) : activePanel === "tickets" ? (
           selected ? (
             <div className="space-y-5">
@@ -1134,10 +2014,12 @@ export default function AdminSupportControlPanel({
           </div>
         )}
 
-        {view === "advanced" && !loading && activePanel === "tickets"
+        {!isTicketsLocked && view === "advanced" && !loading && activePanel === "tickets"
           ? renderAdvancedTickets()
           : null}
       </div>
     </AdminLayout>
   );
 }
+
+

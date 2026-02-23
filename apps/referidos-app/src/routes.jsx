@@ -297,7 +297,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/panel-tickets"
+        path="/admin/panel-tickets"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -307,7 +307,39 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/macros"
+        path="/admin/macros"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/macros/categoria/:categoryId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/macros/:macroId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route path="/admin/soporte/panel-tickets" element={<Navigate to="/admin/panel-tickets" replace />} />
+      <Route path="/admin/soporte/macros" element={<Navigate to="/admin/macros" replace />} />
+      <Route
+        path="/admin/soporte/macros/categoria/:categoryId"
         element={
           <RequireAuth>
             <RequireRole role="admin">

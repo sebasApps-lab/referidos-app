@@ -13,6 +13,7 @@ const ALLOWED_ACTIONS = new Set([
   "create_category",
   "update_category",
   "set_category_status",
+  "delete_category",
   "create_macro",
   "update_macro",
   "set_macro_status",
