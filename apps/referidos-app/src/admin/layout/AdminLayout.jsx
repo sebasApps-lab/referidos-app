@@ -5,20 +5,39 @@ import AdminSidebar from "./AdminSidebar";
 import AdminTopbar from "./AdminTopbar";
 import AdminRuntimeErrorModalHost from "../observability/AdminRuntimeErrorModalHost";
 
+const ADMIN_SIDEBAR_COLLAPSED_KEY = "admin.sidebar.collapsed";
+
 export default function AdminLayout({ children, title, subtitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(ADMIN_SIDEBAR_COLLAPSED_KEY) === "1";
+  });
   const location = useLocation();
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      ADMIN_SIDEBAR_COLLAPSED_KEY,
+      sidebarCollapsed ? "1" : "0"
+    );
+  }, [sidebarCollapsed]);
+
   return (
     <div className="min-h-screen bg-[#F6F2FB] text-slate-700">
       <AdminRuntimeErrorModalHost />
-      <AdminSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+      />
 
-      <div className="lg:pl-64">
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}>
         <AdminTopbar
           title={title}
           subtitle={subtitle}

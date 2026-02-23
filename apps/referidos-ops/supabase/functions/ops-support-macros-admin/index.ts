@@ -9,7 +9,7 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
-const CATEGORY_STATUSES = new Set(["draft", "published", "archived"]);
+const CATEGORY_STATUSES = new Set(["active", "inactive"]);
 const MACRO_STATUSES = new Set(["draft", "published", "archived"]);
 const THREAD_STATUSES = new Set([
   "new",
@@ -22,7 +22,7 @@ const THREAD_STATUSES = new Set([
 ]);
 const APP_TARGETS = new Set(["all", "referidos_app", "prelaunch_web", "android_app"]);
 const ENV_TARGETS = new Set(["all", "dev", "staging", "prod"]);
-const AUDIENCE_ROLES = new Set(["cliente", "negocio", "soporte", "admin"]);
+const MACRO_AUDIENCE_ROLES = new Set(["cliente", "negocio"]);
 
 class HttpError extends Error {
   status: number;
@@ -70,6 +70,18 @@ function normalizeCode(input: unknown, fieldName: string) {
     );
   }
   return code;
+}
+
+function slugifyCode(input: unknown, fallback = "item") {
+  const raw = asString(input, fallback);
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const finalValue = normalized || fallback;
+  return finalValue.slice(0, 80);
 }
 
 function normalizeEnum(input: unknown, allowed: Set<string>, fieldName: string) {
@@ -126,6 +138,84 @@ function optionalStringArray(
   return normalizeStringArray(input, allowed, ["all"], fieldName);
 }
 
+async function generateUniqueCode(
+  tableName: "support_macro_categories" | "support_macros",
+  tenantId: string,
+  baseCode: string,
+  excludeId?: string,
+) {
+  const normalizedBase = normalizeCode(baseCode, "code");
+  for (let idx = 1; idx <= 999; idx += 1) {
+    const candidate = idx === 1 ? normalizedBase : `${normalizedBase}_${idx}`;
+    const { data, error } = await supabaseAdmin
+      .from(tableName)
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("code", candidate)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new HttpError("code_generation_failed", error.message, 500);
+    const existingId = asString(data?.id);
+    if (!existingId || (excludeId && existingId === excludeId)) {
+      return candidate;
+    }
+  }
+
+  throw new HttpError(
+    "code_generation_failed",
+    "No fue posible generar un code unico despues de varios intentos.",
+    409,
+  );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function generateNextMacroSequenceCode(
+  tenantId: string,
+  categoryCode: string,
+  threadStatus: string,
+) {
+  const prefix = slugifyCode(`${categoryCode}_${threadStatus}`, "macro");
+  const pattern = `${prefix}_%`;
+  const { data, error } = await supabaseAdmin
+    .from("support_macros")
+    .select("code")
+    .eq("tenant_id", tenantId)
+    .ilike("code", pattern);
+
+  if (error) throw new HttpError("code_generation_failed", error.message, 500);
+
+  const matcher = new RegExp(`^${escapeRegExp(prefix)}_(\\d{5})$`);
+  const existingCodes = new Set(
+    (data || [])
+      .map((row) => asString((row as { code?: unknown }).code))
+      .filter(Boolean),
+  );
+
+  let maxSeq = 0;
+  existingCodes.forEach((existingCode) => {
+    const match = matcher.exec(existingCode);
+    if (!match) return;
+    const seq = Number.parseInt(match[1], 10);
+    if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
+  });
+
+  let nextSeq = maxSeq + 1;
+  while (nextSeq <= 99999) {
+    const candidate = `${prefix}_${String(nextSeq).padStart(5, "0")}`;
+    if (!existingCodes.has(candidate)) return candidate;
+    nextSeq += 1;
+  }
+
+  throw new HttpError(
+    "code_generation_failed",
+    "No fue posible generar un code incremental de 5 digitos.",
+    409,
+  );
+}
+
 function isInternalProxyAuthorized(req: Request) {
   const expected = asString(Deno.env.get("SUPPORT_OPS_SHARED_TOKEN"));
   if (!expected) return false;
@@ -176,7 +266,7 @@ async function resolveTenantId({
 async function loadCategory(tenantId: string, categoryId: string) {
   const { data, error } = await supabaseAdmin
     .from("support_macro_categories")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, code, label, status")
     .eq("tenant_id", tenantId)
     .eq("id", categoryId)
     .limit(1)
@@ -196,10 +286,10 @@ async function assertCategoryBelongsTenant(tenantId: string, categoryId: string)
 async function assertCategoryPublishable(tenantId: string, categoryId: string | null) {
   if (!categoryId) return;
   const category = await assertCategoryBelongsTenant(tenantId, categoryId);
-  if (asString(category.status) !== "published") {
+  if (asString(category.status) !== "active") {
     throw new HttpError(
-      "category_not_published",
-      "No puedes publicar macro en una categoria que no esta published.",
+      "category_not_active",
+      "No puedes publicar macro en una categoria que no esta active.",
       409,
     );
   }
@@ -208,6 +298,7 @@ async function assertCategoryPublishable(tenantId: string, categoryId: string | 
 async function listCatalog(tenantId: string, payload: JsonObject) {
   const includeArchived = asBoolean(payload.include_archived, true);
   const includeDraft = asBoolean(payload.include_draft, true);
+  const includeInactive = asBoolean(payload.include_inactive, true);
 
   let categoriesQuery = supabaseAdmin
     .from("support_macro_categories")
@@ -223,12 +314,13 @@ async function listCatalog(tenantId: string, payload: JsonObject) {
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
+  if (!includeInactive || !includeArchived || !includeDraft) {
+    categoriesQuery = categoriesQuery.eq("status", "active");
+  }
   if (!includeArchived) {
-    categoriesQuery = categoriesQuery.neq("status", "archived");
     macrosQuery = macrosQuery.neq("status", "archived");
   }
   if (!includeDraft) {
-    categoriesQuery = categoriesQuery.neq("status", "draft");
     macrosQuery = macrosQuery.neq("status", "draft");
   }
 
@@ -246,12 +338,16 @@ async function listCatalog(tenantId: string, payload: JsonObject) {
 }
 
 async function createCategory(tenantId: string, actor: string, payload: JsonObject) {
-  const code = normalizeCode(payload.code, "code");
   const label = asString(payload.label);
   if (!label) throw new HttpError("invalid_input", "label es requerido.");
+  const requestedCode = asString(payload.code);
+  const baseCode = requestedCode
+    ? normalizeCode(requestedCode, "code")
+    : slugifyCode(label || asString(payload.description) || "categoria", "categoria");
+  const code = await generateUniqueCode("support_macro_categories", tenantId, baseCode);
 
   const status = payload.status === undefined
-    ? "draft"
+    ? "active"
     : normalizeEnum(payload.status, CATEGORY_STATUSES, "status");
 
   const appTargets = normalizeStringArray(
@@ -293,7 +389,15 @@ async function updateCategory(tenantId: string, actor: string, payload: JsonObje
 
   const patch: JsonObject = { updated_by: actor };
 
-  if (payload.code !== undefined) patch.code = normalizeCode(payload.code, "code");
+  if (payload.code !== undefined) {
+    const requestedCode = normalizeCode(payload.code, "code");
+    patch.code = await generateUniqueCode(
+      "support_macro_categories",
+      tenantId,
+      requestedCode,
+      categoryId,
+    );
+  }
   if (payload.label !== undefined) {
     const label = asString(payload.label);
     if (!label) throw new HttpError("invalid_input", "label invalido.");
@@ -344,18 +448,84 @@ async function setCategoryStatus(tenantId: string, actor: string, payload: JsonO
     .single();
 
   if (error) throw new HttpError("set_category_status_failed", error.message, 500);
-  return data;
+
+  let affectedMacros: JsonObject[] = [];
+  if (status === "inactive") {
+    const { data: cascadedRows, error: cascadeError } = await supabaseAdmin
+      .from("support_macros")
+      .update({
+        status: "archived",
+        updated_by: actor,
+      })
+      .eq("tenant_id", tenantId)
+      .eq("category_id", categoryId)
+      .select("id, code, title, status");
+    if (cascadeError) throw new HttpError("set_category_status_failed", cascadeError.message, 500);
+    affectedMacros = (cascadedRows || []) as JsonObject[];
+  }
+
+  return {
+    category: data,
+    cascaded_macro_status: status === "inactive" ? "archived" : null,
+    affected_macros_count: affectedMacros.length,
+    affected_macros: affectedMacros,
+  };
+}
+
+async function deleteCategory(tenantId: string, payload: JsonObject) {
+  const categoryId = asString(payload.category_id || payload.id);
+  if (!categoryId) throw new HttpError("invalid_input", "category_id es requerido.");
+
+  const category = await assertCategoryBelongsTenant(tenantId, categoryId);
+
+  const { data: macrosInCategory, error: macrosLookupError } = await supabaseAdmin
+    .from("support_macros")
+    .select("id, code, title, status")
+    .eq("tenant_id", tenantId)
+    .eq("category_id", categoryId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (macrosLookupError) throw new HttpError("delete_category_failed", macrosLookupError.message, 500);
+
+  const macros = (macrosInCategory || []) as JsonObject[];
+  if (macros.length > 0) {
+    const { error: deleteMacrosError } = await supabaseAdmin
+      .from("support_macros")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("category_id", categoryId);
+    if (deleteMacrosError) throw new HttpError("delete_category_failed", deleteMacrosError.message, 500);
+  }
+
+  const { data: deletedCategory, error: deleteCategoryError } = await supabaseAdmin
+    .from("support_macro_categories")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("id", categoryId)
+    .select("id, code, label")
+    .maybeSingle();
+  if (deleteCategoryError) throw new HttpError("delete_category_failed", deleteCategoryError.message, 500);
+  if (!deletedCategory?.id) throw new HttpError("category_not_found", "Categoria no encontrada para este tenant.", 404);
+
+  return {
+    deleted: true,
+    category: deletedCategory,
+    deleted_macros_count: macros.length,
+    deleted_macros: macros,
+    previous_status: asString(category.status, "active"),
+  };
 }
 
 async function createMacro(tenantId: string, actor: string, payload: JsonObject) {
-  const code = normalizeCode(payload.code, "code");
   const title = asString(payload.title);
   const body = asString(payload.body);
   if (!title) throw new HttpError("invalid_input", "title es requerido.");
   if (!body) throw new HttpError("invalid_input", "body es requerido.");
 
   const categoryId = asString(payload.category_id) || null;
-  if (categoryId) await assertCategoryBelongsTenant(tenantId, categoryId);
+  const category = categoryId
+    ? await assertCategoryBelongsTenant(tenantId, categoryId)
+    : null;
 
   const status = payload.status === undefined
     ? "draft"
@@ -364,10 +534,20 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     await assertCategoryPublishable(tenantId, categoryId);
   }
 
-  const threadStatus = normalizeOptionalEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+  const threadStatus = normalizeEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+  const requestedCode = asString(payload.code);
+  const categorySeed = asString(category?.code, "general");
+  const code = requestedCode
+    ? normalizeCode(requestedCode, "code")
+    : await generateNextMacroSequenceCode(tenantId, categorySeed, threadStatus);
+
+  const finalCode = requestedCode
+    ? await generateUniqueCode("support_macros", tenantId, code)
+    : code;
+
   const audienceRoles = normalizeStringArray(
     payload.audience_roles,
-    AUDIENCE_ROLES,
+    MACRO_AUDIENCE_ROLES,
     ["cliente", "negocio"],
     "audience_roles",
   );
@@ -379,7 +559,7 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     .insert({
       tenant_id: tenantId,
       category_id: categoryId,
-      code,
+      code: finalCode,
       title,
       body,
       thread_status: threadStatus,
@@ -416,8 +596,17 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
   const patch: JsonObject = { updated_by: actor };
   let nextCategoryId = asString(current.category_id) || null;
   let nextStatus = asString(current.status, "draft");
+  let nextThreadStatus = asString(current.thread_status).toLowerCase();
 
-  if (payload.code !== undefined) patch.code = normalizeCode(payload.code, "code");
+  if (payload.code !== undefined) {
+    const requestedCode = normalizeCode(payload.code, "code");
+    patch.code = await generateUniqueCode(
+      "support_macros",
+      tenantId,
+      requestedCode,
+      macroId,
+    );
+  }
   if (payload.title !== undefined) {
     const title = asString(payload.title);
     if (!title) throw new HttpError("invalid_input", "title invalido.");
@@ -434,10 +623,16 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
     patch.category_id = nextCategoryId;
   }
   if (payload.thread_status !== undefined) {
-    patch.thread_status = normalizeOptionalEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+    nextThreadStatus = normalizeEnum(payload.thread_status, THREAD_STATUSES, "thread_status");
+    patch.thread_status = nextThreadStatus;
   }
   if (payload.audience_roles !== undefined) {
-    patch.audience_roles = normalizeStringArray(payload.audience_roles, AUDIENCE_ROLES, ["cliente"], "audience_roles");
+    patch.audience_roles = normalizeStringArray(
+      payload.audience_roles,
+      MACRO_AUDIENCE_ROLES,
+      ["cliente", "negocio"],
+      "audience_roles",
+    );
   }
   if (payload.app_targets !== undefined) {
     patch.app_targets = normalizeStringArray(payload.app_targets, APP_TARGETS, ["all"], "app_targets");
@@ -454,6 +649,13 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
   if (payload.status !== undefined) {
     nextStatus = normalizeEnum(payload.status, MACRO_STATUSES, "status");
     patch.status = nextStatus;
+  }
+
+  if (!nextThreadStatus || !THREAD_STATUSES.has(nextThreadStatus)) {
+    throw new HttpError(
+      "invalid_input",
+      "thread_status es requerido. No se permiten macros sin estado de ticket.",
+    );
   }
 
   if (nextStatus === "published") {
@@ -592,6 +794,9 @@ serve(async (req) => {
         break;
       case "set_category_status":
         result = await setCategoryStatus(tenantId, actor, payload);
+        break;
+      case "delete_category":
+        result = await deleteCategory(tenantId, payload);
         break;
       case "create_macro":
         result = await createMacro(tenantId, actor, payload);

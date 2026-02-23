@@ -13,7 +13,7 @@ const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
 const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
-const DEFAULT_APP_CHANNEL = "prelaunch_web";
+const DEFAULT_APP_CHANNEL = "undetermined";
 const UA_PEPPER = Deno.env.get("PRELAUNCH_UA_PEPPER") || "prelaunch_ua_pepper_v1";
 const IP_RISK_PEPPER = Deno.env.get("PRELAUNCH_IP_RISK_PEPPER") || "prelaunch_ip_risk_pepper_v1";
 
