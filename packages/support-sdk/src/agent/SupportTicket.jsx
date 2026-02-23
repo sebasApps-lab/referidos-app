@@ -33,6 +33,7 @@ export default function SupportTicket() {
   const [noteDraft, setNoteDraft] = useState("");
   const [copiedId, setCopiedId] = useState(null);
   const [closing, setClosing] = useState(false);
+  const [closingRequest, setClosingRequest] = useState(false);
   const [resolution, setResolution] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
@@ -263,14 +264,20 @@ export default function SupportTicket() {
   };
 
   const handleClose = async () => {
-    const result = await closeSupportThread({
-      thread_public_id: thread.public_id,
-      resolution,
-      root_cause: rootCause,
-    });
-    if (result.ok) {
-      setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
-      setClosing(false);
+    if (closingRequest) return;
+    setClosingRequest(true);
+    try {
+      const result = await closeSupportThread({
+        thread_public_id: thread.public_id,
+        resolution,
+        root_cause: rootCause,
+      });
+      if (result.ok) {
+        setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
+        setClosing(false);
+      }
+    } finally {
+      setClosingRequest(false);
     }
   };
 
@@ -509,7 +516,8 @@ export default function SupportTicket() {
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-2xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white"
+              disabled={closingRequest}
+              className="rounded-2xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               Confirmar cierre
             </button>

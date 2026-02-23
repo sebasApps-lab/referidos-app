@@ -838,7 +838,7 @@ export default function AdminSupportCatalogPanel() {
     setOk("");
     try {
       await deleteSupportMacro({ macroId });
-      navigate("/admin/soporte/macros");
+      navigate("/admin/macros");
       await load(true);
     } catch (err) {
       setError(err?.message || "No se pudo eliminar macro.");
@@ -950,7 +950,7 @@ export default function AdminSupportCatalogPanel() {
       } else if (categoryConfirm.action === "delete") {
         await deleteSupportMacroCategory({ categoryId: targetCategoryId });
         setOk("Categoria eliminada junto con sus macros.");
-        navigate("/admin/soporte/macros");
+        navigate("/admin/macros");
       }
       closeCategoryConfirm();
       await load(true);
@@ -1092,7 +1092,7 @@ export default function AdminSupportCatalogPanel() {
         <button
           type="button"
           onClick={() =>
-            (onOpenMacro || ((item) => navigate(`/admin/soporte/macros/${item.id}`)))(macro)
+            (onOpenMacro || ((item) => navigate(`/admin/macros/${item.id}`)))(macro)
           }
           className={`flex-1 rounded-lg border px-3 py-2 text-left transition ${
             isSelected
@@ -1382,7 +1382,7 @@ export default function AdminSupportCatalogPanel() {
                       type="button"
                       onClick={() => {
                         setGroupBy(g.id);
-                        if (macroId) navigate("/admin/soporte/macros");
+                        if (macroId) navigate("/admin/macros");
                       }}
                       className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                         groupBy === g.id ? "border-[#2F1A55] bg-[#2F1A55] text-white" : "border-[#E9E2F7] bg-white text-[#2F1A55]"
@@ -1411,7 +1411,7 @@ export default function AdminSupportCatalogPanel() {
                               onMoveDown: () => moveMacroPriorityWithinList(workspaceLeftMacros, index, 1),
                             }
                           : null,
-                        () => navigate(`/admin/soporte/macros/${macro.id}`),
+                        () => navigate(`/admin/macros/${macro.id}`),
                         "workspace-left",
                         macro.id === macroId
                       )
@@ -1485,7 +1485,7 @@ export default function AdminSupportCatalogPanel() {
                         null,
                         () => {
                           setWorkspaceMacroSubgroup(null);
-                          navigate(`/admin/soporte/macros/${macro.id}`);
+                          navigate(`/admin/macros/${macro.id}`);
                         }
                       )
                     )}
@@ -1575,7 +1575,7 @@ export default function AdminSupportCatalogPanel() {
                                     : null,
                                   () => {
                                     setWorkspaceMacroSubgroup({ groupBy, subgroupId: macroGroup.id });
-                                    navigate(`/admin/soporte/macros/${macro.id}`);
+                                    navigate(`/admin/macros/${macro.id}`);
                                   }
                                 )
                               )}
@@ -1626,7 +1626,7 @@ export default function AdminSupportCatalogPanel() {
     if (!editingCategory) {
       return (
         <Card title="Categoria no encontrada" subtitle="No existe en el catalogo actual.">
-          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+          <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
             Volver
           </Link>
@@ -1639,7 +1639,7 @@ export default function AdminSupportCatalogPanel() {
         title={`Editar categoria: ${editingCategory.label}`}
         subtitle="Gestion completa de categoria con confirmacion de macros afectados."
         headerRight={(
-          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+          <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
             Volver
           </Link>
@@ -1686,7 +1686,7 @@ export default function AdminSupportCatalogPanel() {
       }
       return (
         <Card title="Macro no encontrada" subtitle="No existe en el catalogo actual.">
-          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+          <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
             Volver
           </Link>
@@ -1700,7 +1700,7 @@ export default function AdminSupportCatalogPanel() {
           <span className="text-[#2F1A55]">Modo Edición</span>
           <span className="ml-2 font-medium text-slate-500">{s(editing.code, "sin_code")}</span>
         </div>
-        <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-1.5 text-xs font-semibold text-[#5E30A5]">
+        <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-1.5 text-xs font-semibold text-[#5E30A5]">
           <ArrowLeft size={14} />
           Volver
         </Link>
@@ -1743,7 +1743,7 @@ export default function AdminSupportCatalogPanel() {
       <Card
         title={`Modo Edición ${s(editing.code, "sin_code")}`}
         headerRight={(
-          <Link to="/admin/soporte/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
+          <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
             Volver
           </Link>

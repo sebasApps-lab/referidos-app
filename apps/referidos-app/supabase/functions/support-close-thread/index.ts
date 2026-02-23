@@ -49,7 +49,7 @@ serve(async (req) => {
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, assigned_agent_id")
+    .select("id, public_id, assigned_agent_id, status, closed_at, resolution, root_cause")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
@@ -59,6 +59,23 @@ serve(async (req) => {
 
   if (usuario.role === "soporte" && thread.assigned_agent_id !== usuario.id) {
     return jsonResponse({ ok: false, error: "not_assigned" }, 403, cors);
+  }
+
+  if (thread.status === "closed") {
+    return jsonResponse(
+      {
+        ok: true,
+        thread: {
+          public_id: thread.public_id,
+          status: thread.status,
+          closed_at: thread.closed_at,
+          resolution: thread.resolution,
+          root_cause: thread.root_cause,
+        },
+      },
+      200,
+      cors,
+    );
   }
 
   const updateResponse = await supabaseAdmin
@@ -71,11 +88,26 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     })
     .eq("id", thread.id)
+    .neq("status", "closed")
     .select("public_id, status, closed_at, resolution, root_cause")
-    .single();
+    .maybeSingle();
 
   if (updateResponse.error) {
     return jsonResponse({ ok: false, error: "close_failed" }, 500, cors);
+  }
+
+  if (!updateResponse.data) {
+    const { data: currentThread, error: currentThreadErr } = await supabaseAdmin
+      .from("support_threads")
+      .select("public_id, status, closed_at, resolution, root_cause")
+      .eq("id", thread.id)
+      .maybeSingle();
+
+    if (currentThreadErr || !currentThread) {
+      return jsonResponse({ ok: false, error: "close_failed" }, 500, cors);
+    }
+
+    return jsonResponse({ ok: true, thread: currentThread }, 200, cors);
   }
 
   await supabaseAdmin.from("support_thread_events").insert({

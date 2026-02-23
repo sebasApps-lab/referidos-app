@@ -39,8 +39,8 @@ const NAV_GROUPS = [
       { label: "QRs", to: "/admin/qrs", Icon: QrCode },
       { label: "Reportes", to: "/admin/reportes", Icon: AlertTriangle },
       { label: "Soporte", to: "/admin/soporte", Icon: ShieldCheck },
-      { label: "Panel Tickets", to: "/admin/soporte/panel-tickets", Icon: Layers3 },
-      { label: "Macros", to: "/admin/soporte/macros", Icon: FileText },
+      { label: "Panel Tickets", to: "/admin/panel-tickets", Icon: Layers3 },
+      { label: "Macros", to: "/admin/macros", Icon: FileText },
     ],
   },
   {
