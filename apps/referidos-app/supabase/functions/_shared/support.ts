@@ -21,6 +21,16 @@ if (!supabaseUrl || !publishableKey || !secretKey) {
 export const supabasePublic = createClient(supabaseUrl, publishableKey);
 export const supabaseAdmin = createClient(supabaseUrl, secretKey);
 
+export type SupportRuntimeFlags = {
+  require_session_authorization: boolean;
+  require_jornada_authorization: boolean;
+};
+
+export const DEFAULT_SUPPORT_RUNTIME_FLAGS: SupportRuntimeFlags = {
+  require_session_authorization: false,
+  require_jornada_authorization: true,
+};
+
 export function corsHeaders(origin: string | null) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
@@ -64,6 +74,25 @@ export async function getUsuarioByAuthId(authId: string) {
     return { usuario: null, error: error.message };
   }
   return { usuario: data, error: null };
+}
+
+export async function loadSupportRuntimeFlags(): Promise<SupportRuntimeFlags> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("support_runtime_flags")
+      .select("require_session_authorization, require_jornada_authorization")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (error || !data) return { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+
+    return {
+      require_session_authorization: Boolean(data.require_session_authorization),
+      require_jornada_authorization: Boolean(data.require_jornada_authorization),
+    };
+  } catch {
+    return { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+  }
 }
 
 export function safeTrim(value: string | null | undefined, limit = 500) {

@@ -3,6 +3,7 @@ import {
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
+  loadSupportRuntimeFlags,
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
@@ -43,6 +44,34 @@ serve(async (req) => {
   await supabaseAdmin
     .from("support_agent_profiles")
     .upsert({ user_id: agentId }, { onConflict: "user_id" });
+
+  const runtimeFlags = await loadSupportRuntimeFlags();
+  const { data: agentProfile } = await supabaseAdmin
+    .from("support_agent_profiles")
+    .select("authorized_for_work, blocked, session_request_status, authorized_from")
+    .eq("user_id", agentId)
+    .maybeSingle();
+
+  const shouldGrantJornada = Boolean(
+    agentProfile &&
+      !agentProfile.blocked &&
+      !agentProfile.authorized_for_work &&
+      (
+        agentProfile.session_request_status === "pending" ||
+        !runtimeFlags.require_jornada_authorization
+      )
+  );
+
+  if (shouldGrantJornada) {
+    await supabaseAdmin
+      .from("support_agent_profiles")
+      .update({
+        authorized_for_work: true,
+        blocked: false,
+        authorized_from: agentProfile?.authorized_from ?? new Date().toISOString(),
+      })
+      .eq("user_id", agentId);
+  }
 
   const { data: openSession } = await supabaseAdmin
     .from("support_agent_sessions")

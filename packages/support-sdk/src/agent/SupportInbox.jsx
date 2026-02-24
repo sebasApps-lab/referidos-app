@@ -1,24 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import SupportGate from "./SupportGate";
+import SupportDevDebugBanner from "./SupportDevDebugBanner";
 import { assignSupportThread, startAdminSupportSession } from "../supportClient";
+import { isSupportLiveUpdatesEnabled } from "../runtime/systemFeatureFlags";
 
-const STATUS_GROUPS = [
-  { id: "new", label: "Nuevos" },
+const INBOX_GROUPS = [
+  { id: "available", label: "Disponibles" },
   { id: "assigned", label: "Asignados" },
-  { id: "in_progress", label: "En progreso" },
-  { id: "waiting_user", label: "Esperando usuario" },
-  { id: "queued", label: "En cola" },
-  { id: "closed", label: "Resueltos" },
-];
-
-const ORIGIN_FILTERS = [
-  { id: "all", label: "Todos" },
-  { id: "registered", label: "Registrados" },
-  { id: "anonymous", label: "Anonimos" },
+  { id: "resolved", label: "Resueltos" },
 ];
 
 function normalizeThreadRow(thread) {
@@ -42,7 +35,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
 
   if (!isAdmin) {
     inboxQuery = inboxQuery.or(
-      `assigned_agent_id.eq.${usuarioId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${usuarioId}`
+      `and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
     );
   }
 
@@ -60,7 +53,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
 
   if (!isAdmin) {
     legacyQuery = legacyQuery.or(
-      `assigned_agent_id.eq.${usuarioId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${usuarioId}`
+      `and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
     );
   }
 
@@ -70,21 +63,41 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
 
 export default function SupportInbox({ isAdmin = false, basePath = "/soporte" }) {
   const usuario = useAppStore((s) => s.usuario);
+  const liveUpdatesEnabled = isSupportLiveUpdatesEnabled();
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeStatus, setActiveStatus] = useState("new");
-  const [activeOrigin, setActiveOrigin] = useState("all");
+  const [activeGroup, setActiveGroup] = useState("available");
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const syncInFlightRef = useRef(false);
+  const debugBanner = import.meta.env.DEV ? (
+    <SupportDevDebugBanner scope={isAdmin ? "admin-inbox" : "support-inbox"} />
+  ) : null;
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
       timeZone: "America/Guayaquil",
     });
+
+  const refreshSessionState = useCallback(async () => {
+    if (!isAdmin) {
+      setSessionActive(true);
+      return;
+    }
+    if (!usuario?.id) return;
+    const { data } = await supabase
+      .from("support_agent_sessions")
+      .select("id")
+      .eq("agent_id", usuario.id)
+      .is("end_at", null)
+      .order("start_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setSessionActive(Boolean(data?.id));
+  }, [usuario?.id]);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +118,12 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   useEffect(() => {
     let active = true;
     const loadSession = async () => {
+      if (!isAdmin) {
+        if (!active) return;
+        setSessionActive(true);
+        setSessionLoading(false);
+        return;
+      }
       if (!usuario?.id) return;
       setSessionLoading(true);
       const { data } = await supabase
@@ -123,9 +142,35 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     return () => {
       active = false;
     };
-  }, [usuario?.id]);
+  }, [isAdmin, usuario?.id]);
 
   useEffect(() => {
+    if (!liveUpdatesEnabled) return undefined;
+    if (!usuario?.id) return undefined;
+    const channelName = `support-inbox-session-${isAdmin ? "admin" : "support"}-${usuario.id}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "support_agent_sessions",
+          filter: `agent_id=eq.${usuario.id}`,
+        },
+        async () => {
+          await refreshSessionState();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin, liveUpdatesEnabled, refreshSessionState, usuario?.id]);
+
+  useEffect(() => {
+    if (!liveUpdatesEnabled) return undefined;
     if (!usuario?.id) return undefined;
     if (!["admin", "soporte"].includes(usuario?.role || "")) return undefined;
 
@@ -188,16 +233,39 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
         document.removeEventListener("visibilitychange", handleVisibility);
       }
     };
-  }, [isAdmin, usuario?.id, usuario?.role]);
+  }, [isAdmin, liveUpdatesEnabled, usuario?.id, usuario?.role]);
 
   const filtered = useMemo(
-    () =>
-      threads.filter((thread) => {
-        if (thread.status !== activeStatus) return false;
-        if (activeOrigin === "all") return true;
-        return thread.request_origin === activeOrigin;
-      }),
-    [activeOrigin, activeStatus, threads]
+    () => {
+      const isMine = (thread) => thread.assigned_agent_id && thread.assigned_agent_id === usuario?.id;
+      const isUnassigned = (thread) => !thread.assigned_agent_id;
+
+      return threads.filter((thread) => {
+        if (activeGroup === "available") {
+          return (
+            (thread.status === "new" && isUnassigned(thread)) ||
+            (thread.status === "queued" && isUnassigned(thread))
+          );
+        }
+
+        if (activeGroup === "assigned") {
+          if (["assigned", "in_progress", "waiting_user"].includes(thread.status)) {
+            return isAdmin ? true : isMine(thread);
+          }
+          if (thread.status === "queued" && !isUnassigned(thread)) {
+            return isAdmin ? true : isMine(thread);
+          }
+          return false;
+        }
+
+        if (activeGroup === "resolved") {
+          return thread.status === "closed";
+        }
+
+        return false;
+      });
+    },
+    [activeGroup, isAdmin, threads, usuario?.id]
   );
 
   const hasActive = useMemo(() => {
@@ -205,7 +273,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     return threads.some(
       (thread) =>
         thread.assigned_agent_id === usuario.id &&
-        ["assigned", "in_progress", "waiting_user"].includes(thread.status)
+        ["assigned", "in_progress", "waiting_user", "queued"].includes(thread.status)
     );
   }, [threads, usuario]);
 
@@ -242,8 +310,19 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     );
   };
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshNonce((prev) => prev + 1);
+    setSessionLoading(true);
+    try {
+      await refreshSessionState();
+    } finally {
+      setSessionLoading(false);
+    }
+  }, [refreshSessionState]);
+
   const content = (
     <div className="space-y-6">
+      {debugBanner}
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -256,7 +335,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
           </div>
           <button
             type="button"
-            onClick={() => setRefreshNonce((prev) => prev + 1)}
+            onClick={() => {
+              void handleRefresh();
+            }}
             disabled={loading || sessionLoading}
             className="rounded-full border border-[#E9E2F7] p-2 text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
             title="Refrescar tickets"
@@ -277,35 +358,18 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {STATUS_GROUPS.map((status) => (
+        {INBOX_GROUPS.map((group) => (
           <button
-            key={status.id}
+            key={group.id}
             type="button"
-            onClick={() => setActiveStatus(status.id)}
+            onClick={() => setActiveGroup(group.id)}
             className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-              activeStatus === status.id
+              activeGroup === group.id
                 ? "bg-[#5E30A5] text-white"
                 : "bg-white text-[#5E30A5] border border-[#E9E2F7]"
             }`}
           >
-            {status.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {ORIGIN_FILTERS.map((origin) => (
-          <button
-            key={origin.id}
-            type="button"
-            onClick={() => setActiveOrigin(origin.id)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-              activeOrigin === origin.id
-                ? "bg-[#2F1A55] text-white"
-                : "bg-white text-[#2F1A55] border border-[#E9E2F7]"
-            }`}
-          >
-            {origin.label}
+            {group.label}
           </button>
         ))}
       </div>
@@ -375,7 +439,8 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                 >
                   Ver ticket
                 </button>
-                {thread.status === "new" && !thread.assigned_agent_id ? (
+                {(thread.status === "new" || thread.status === "queued") &&
+                !thread.assigned_agent_id ? (
                   <button
                     type="button"
                     onClick={() => handleAssign(thread.public_id)}

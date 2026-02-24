@@ -28,6 +28,61 @@ const ENV_ALIASES = new Map([
   ["production", "prod"],
 ]);
 
+const THREAD_STATUS_ALIASES = new Map([
+  ["new", "new"],
+  ["nuevo", "new"],
+  ["assigned", "assigned"],
+  ["asignado", "assigned"],
+  ["in_progress", "in_progress"],
+  ["in-progress", "in_progress"],
+  ["in progress", "in_progress"],
+  ["inprogress", "in_progress"],
+  ["resolviendo", "in_progress"],
+  ["waiting_user", "waiting_user"],
+  ["waiting-user", "waiting_user"],
+  ["waiting user", "waiting_user"],
+  ["esperando_usuario", "waiting_user"],
+  ["esperando usuario", "waiting_user"],
+  ["queued", "queued"],
+  ["en_cola", "queued"],
+  ["en cola", "queued"],
+  ["closed", "closed"],
+  ["cerrado", "closed"],
+  ["cancelled", "cancelled"],
+  ["cancelado", "cancelled"],
+]);
+
+const CATEGORY_WILDCARD_CODES = new Set([
+  "general",
+  "all",
+  "sin_categoria",
+  "sin-categoria",
+  "uncategorized",
+  "none",
+]);
+
+const CATEGORY_ALIASES = new Map([
+  ["general", "general"],
+  ["sin_categoria", "general"],
+  ["acceso", "acceso"],
+  ["acceso_cuenta", "acceso"],
+  ["verificacion", "verificacion"],
+  ["verificacion_identidad", "verificacion"],
+  ["qr", "qr"],
+  ["promos", "promos"],
+  ["promocion", "promos"],
+  ["promociones", "promos"],
+  ["negocios_sucursales", "negocios_sucursales"],
+  ["negocios_y_sucursales", "negocios_sucursales"],
+  ["pagos_plan", "pagos_plan"],
+  ["pagos_y_plan", "pagos_plan"],
+  ["reporte_abuso", "reporte_abuso"],
+  ["bug_performance", "bug_performance"],
+  ["bug_rendimiento", "bug_performance"],
+  ["sugerencia", "sugerencia"],
+  ["tier_beneficios", "tier_beneficios"],
+]);
+
 function asString(value, fallback = "") {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim();
@@ -40,6 +95,22 @@ function normalizeArray(values, fallback = []) {
     new Set(values.map((value) => asString(value).toLowerCase()).filter(Boolean))
   );
   return normalized.length ? normalized : fallback;
+}
+
+function normalizeThreadStatus(value) {
+  const normalized = asString(value).toLowerCase().replace(/[\s-]+/g, "_");
+  return THREAD_STATUS_ALIASES.get(normalized) || normalized;
+}
+
+function normalizeCategoryCode(value) {
+  const normalized = asString(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (!normalized) return "";
+  return CATEGORY_ALIASES.get(normalized) || normalized;
 }
 
 export function normalizeSupportAppKey(value, fallback = "undetermined") {
@@ -70,7 +141,7 @@ export async function loadSupportCatalogFromCache({ publishedOnly = true } = {})
     .order("created_at", { ascending: false });
 
   if (publishedOnly) {
-    categoriesQuery = categoriesQuery.eq("status", "published");
+    categoriesQuery = categoriesQuery.in("status", ["published", "active"]);
     macrosQuery = macrosQuery.eq("status", "published");
   }
 
@@ -121,23 +192,35 @@ export function filterSupportMacrosForThread({
   const normalizedEnv = normalizeSupportEnvKey(runtimeEnvKey, "dev");
   const publishedCategoryCodes = new Set(
     (categories || [])
-      .filter((category) => asString(category.status, "published") === "published")
-      .map((category) => asString(category.code || category.id))
+      .filter((category) => {
+        const status = asString(category.status, "published").toLowerCase();
+        return status === "published" || status === "active";
+      })
+      .map((category) => normalizeCategoryCode(category.code || category.id))
       .filter(Boolean)
   );
 
   return (macros || [])
     .filter((macro) => {
-      const macroStatus = asString(macro.status, "published");
+      const macroStatus = asString(macro.status, "published").toLowerCase();
       if (macroStatus !== "published") return false;
 
-      const threadStatus = asString(macro.thread_status || macro.status_thread || macro.status);
-      if (threadStatus && threadStatus !== asString(thread.status)) return false;
+      const threadStatus = normalizeThreadStatus(
+        macro.thread_status || macro.status_thread || macro.status
+      );
+      const currentThreadStatus = normalizeThreadStatus(thread.status);
+      if (threadStatus && threadStatus !== currentThreadStatus) return false;
 
-      const categoryCode = asString(macro.category_code || macro.category);
+      const categoryCode = normalizeCategoryCode(macro.category_code || macro.category);
       if (categoryCode) {
-        if (categoryCode !== asString(thread.category)) return false;
-        if (publishedCategoryCodes.size > 0 && !publishedCategoryCodes.has(categoryCode)) {
+        const threadCategoryCode = normalizeCategoryCode(thread.category);
+        const isWildcardCategory = CATEGORY_WILDCARD_CODES.has(categoryCode);
+        if (!isWildcardCategory && categoryCode !== threadCategoryCode) return false;
+        if (
+          !isWildcardCategory &&
+          publishedCategoryCodes.size > 0 &&
+          !publishedCategoryCodes.has(categoryCode)
+        ) {
           return false;
         }
       }

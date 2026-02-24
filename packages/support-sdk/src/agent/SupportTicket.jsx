@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Copy, ClipboardCheck } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -14,6 +14,7 @@ import {
   normalizeSupportAppKey,
   normalizeSupportEnvKey,
 } from "../data/supportCatalog";
+import SupportDevDebugBanner from "./SupportDevDebugBanner";
 
 function normalizeThreadRow(thread) {
   if (!thread) return null;
@@ -27,6 +28,8 @@ function normalizeThreadRow(thread) {
 
 export default function SupportTicket() {
   const { threadId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [thread, setThread] = useState(null);
   const [events, setEvents] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -139,11 +142,29 @@ export default function SupportTicket() {
   useEffect(() => {
     let active = true;
     const loadCatalog = async () => {
-      const result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      let result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      let categories = result.categories || [];
+      let macros = result.macros || [];
+
+      if (categories.length === 0 && macros.length === 0) {
+        await supabase.functions
+          .invoke("ops-support-macros-sync-dispatch", {
+            body: {
+              mode: "hot",
+              panel_key: "support_ticket",
+            },
+          })
+          .catch(() => null);
+
+        result = await loadSupportCatalogFromCache({ publishedOnly: true });
+        categories = result.categories || [];
+        macros = result.macros || [];
+      }
+
       if (!active) return;
       setCatalog({
-        categories: result.categories || [],
-        macros: result.macros || [],
+        categories,
+        macros,
       });
     };
     loadCatalog();
@@ -164,6 +185,16 @@ export default function SupportTicket() {
       "undetermined"
     );
   }, [thread]);
+
+  const backPath = useMemo(() => {
+    if (location.pathname.startsWith("/admin/")) return "/admin/soporte";
+    return "/soporte/inbox";
+  }, [location.pathname]);
+  const debugBanner = import.meta.env.DEV ? (
+    <SupportDevDebugBanner
+      scope={location.pathname.startsWith("/admin/") ? "admin-ticket" : "support-ticket"}
+    />
+  ) : null;
 
   const macros = useMemo(() => {
     return filterSupportMacrosForThread({
@@ -287,9 +318,19 @@ export default function SupportTicket() {
 
   return (
     <div className="space-y-6">
+      {debugBanner}
       <div className="space-y-2">
-        <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
-          Ticket {thread.public_id}
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
+            Ticket {thread.public_id}
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(backPath)}
+            className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
+          >
+            Volver
+          </button>
         </div>
         <h1 className="text-2xl font-extrabold text-[#2F1A55]">
           {thread.summary || "Detalle de ticket"}
