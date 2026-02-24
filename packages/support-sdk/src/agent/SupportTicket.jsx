@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Copy, ClipboardCheck } from "lucide-react";
+import { Copy, ClipboardCheck, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
@@ -41,6 +41,8 @@ export default function SupportTicket() {
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
   const [catalog, setCatalog] = useState({ categories: [], macros: [] });
+  const [catalogLoadError, setCatalogLoadError] = useState("");
+  const [refreshingMacros, setRefreshingMacros] = useState(false);
   const shownTrackerRef = useRef(new Set());
 
   const formatDateTime = (value) =>
@@ -139,39 +141,89 @@ export default function SupportTicket() {
     };
   }, [threadId]);
 
-  useEffect(() => {
-    let active = true;
-    const loadCatalog = async () => {
-      let result = await loadSupportCatalogFromCache({ publishedOnly: true });
-      let categories = result.categories || [];
-      let macros = result.macros || [];
+  const fetchCatalog = useCallback(async ({ forceSync = false } = {}) => {
+    let result = await loadSupportCatalogFromCache({ publishedOnly: true });
+    let categories = result.categories || [];
+    let macros = result.macros || [];
+    let cacheError = typeof result.error === "string" ? result.error : "";
+    let syncError = "";
 
-      if (categories.length === 0 && macros.length === 0) {
-        await supabase.functions
-          .invoke("ops-support-macros-sync-dispatch", {
-            body: {
-              mode: "hot",
-              panel_key: "support_ticket",
-            },
-          })
-          .catch(() => null);
-
-        result = await loadSupportCatalogFromCache({ publishedOnly: true });
-        categories = result.categories || [];
-        macros = result.macros || [];
+    const shouldSync = forceSync || categories.length === 0 || macros.length === 0;
+    if (shouldSync) {
+      const { data, error } = await supabase.functions.invoke(
+        "ops-support-macros-sync-dispatch",
+        {
+          body: {
+            mode: "hot",
+            panel_key: "support_ticket",
+          },
+        }
+      );
+      if (error) {
+        syncError = error.message || "sync_dispatch_failed";
+      } else if (data?.ok === false) {
+        syncError = data?.detail || data?.error || "sync_dispatch_failed";
       }
 
-      if (!active) return;
-      setCatalog({
-        categories,
-        macros,
+      result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      categories = result.categories || [];
+      macros = result.macros || [];
+      cacheError = typeof result.error === "string" ? result.error : cacheError;
+    }
+
+    let catalogError = "";
+    if (categories.length === 0 && macros.length === 0) {
+      if (syncError) {
+        catalogError = `No se pudo sincronizar macros desde OPS y el cache runtime esta vacio. Detalle: ${syncError}`;
+      } else if (cacheError) {
+        catalogError = `No se pudo leer el cache runtime de macros. Detalle: ${cacheError}`;
+      } else if (shouldSync) {
+        catalogError =
+          "El cache runtime de macros sigue vacio despues de sincronizar. Verifica secretos de sync y tenant en runtime.";
+      }
+    }
+
+    return { categories, macros, catalogError };
+  }, []);
+
+  const refreshCatalog = useCallback(
+    async ({ forceSync = false } = {}) => {
+      setRefreshingMacros(true);
+      try {
+        const nextCatalog = await fetchCatalog({ forceSync });
+        setCatalog({
+          categories: nextCatalog.categories || [],
+          macros: nextCatalog.macros || [],
+        });
+        setCatalogLoadError(nextCatalog.catalogError || "");
+      } finally {
+        setRefreshingMacros(false);
+      }
+    },
+    [fetchCatalog]
+  );
+
+  useEffect(() => {
+    let active = true;
+    setRefreshingMacros(true);
+    fetchCatalog({ forceSync: false })
+      .then((nextCatalog) => {
+        if (!active) return;
+        setCatalog({
+          categories: nextCatalog.categories || [],
+          macros: nextCatalog.macros || [],
+        });
+        setCatalogLoadError(nextCatalog.catalogError || "");
+      })
+      .finally(() => {
+        if (!active) return;
+        setRefreshingMacros(false);
       });
-    };
-    loadCatalog();
+
     return () => {
       active = false;
     };
-  }, [threadId]);
+  }, [fetchCatalog, threadId]);
 
   const runtimeEnvKey = normalizeSupportEnvKey(
     import.meta.env.VITE_ENV || import.meta.env.MODE || "dev",
@@ -204,6 +256,7 @@ export default function SupportTicket() {
       runtimeEnvKey,
     });
   }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
+  const hasCatalogData = catalog.categories.length > 0 || catalog.macros.length > 0;
 
   useEffect(() => {
     shownTrackerRef.current.clear();
@@ -291,6 +344,7 @@ export default function SupportTicket() {
     });
     if (result.ok) {
       setThread((prev) => ({ ...prev, status }));
+      await refreshCatalog({ forceSync: true });
     }
   };
 
@@ -306,6 +360,7 @@ export default function SupportTicket() {
       if (result.ok) {
         setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
         setClosing(false);
+        await refreshCatalog({ forceSync: true });
       }
     } finally {
       setClosingRequest(false);
@@ -495,11 +550,28 @@ export default function SupportTicket() {
 
         <div className="space-y-6">
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="text-sm font-semibold text-[#2F1A55]">
-              Macros sugeridas
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-[#2F1A55]">
+                Macros sugeridas
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void refreshCatalog({ forceSync: true });
+                }}
+                disabled={refreshingMacros}
+                className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2.5 py-1 text-[11px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={12} className={refreshingMacros ? "animate-spin" : ""} />
+                Refresh
+              </button>
             </div>
             <div className="space-y-3">
-              {macros.length === 0 ? (
+              {catalogLoadError && !hasCatalogData ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {catalogLoadError}
+                </div>
+              ) : macros.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
                   No hay macros publicadas para este estado/app.
                 </div>

@@ -142,7 +142,7 @@ export async function loadSupportCatalogFromCache({ publishedOnly = true } = {})
 
   if (publishedOnly) {
     categoriesQuery = categoriesQuery.in("status", ["published", "active"]);
-    macrosQuery = macrosQuery.eq("status", "published");
+    macrosQuery = macrosQuery.in("status", ["published", "active"]);
   }
 
   const [{ data: categories, error: categoriesError }, { data: macros, error: macrosError }] =
@@ -200,42 +200,72 @@ export function filterSupportMacrosForThread({
       .filter(Boolean)
   );
 
-  return (macros || [])
-    .filter((macro) => {
-      const macroStatus = asString(macro.status, "published").toLowerCase();
-      if (macroStatus !== "published") return false;
+  const currentThreadStatus = normalizeThreadStatus(thread.status);
+  const threadCategoryCode = normalizeCategoryCode(thread.category);
+  const categoryCodeById = new Map(
+    (categories || [])
+      .map((category) => [asString(category.id), normalizeCategoryCode(category.code || category.id)])
+      .filter(([id, code]) => id && code)
+  );
 
-      const threadStatus = normalizeThreadStatus(
-        macro.thread_status || macro.status_thread || macro.status
-      );
-      const currentThreadStatus = normalizeThreadStatus(thread.status);
-      if (threadStatus && threadStatus !== currentThreadStatus) return false;
-
-      const categoryCode = normalizeCategoryCode(macro.category_code || macro.category);
-      if (categoryCode) {
-        const threadCategoryCode = normalizeCategoryCode(thread.category);
-        const isWildcardCategory = CATEGORY_WILDCARD_CODES.has(categoryCode);
-        if (!isWildcardCategory && categoryCode !== threadCategoryCode) return false;
-        if (
-          !isWildcardCategory &&
-          publishedCategoryCodes.size > 0 &&
-          !publishedCategoryCodes.has(categoryCode)
-        ) {
-          return false;
-        }
-      }
-
-      const appTargets = normalizeArray(macro.app_targets, ["all"]);
-      const envTargets = normalizeArray(macro.env_targets, ["all"]);
-      const appAllowed = appTargets.includes("all") || appTargets.includes(appKey);
-      const envAllowed = envTargets.includes("all") || envTargets.includes(normalizedEnv);
-
-      return appAllowed && envAllowed;
-    })
-    .sort((a, b) => {
+  const sortMacros = (list) =>
+    list.sort((a, b) => {
       const aSort = Number(a.sort_order || 100);
       const bSort = Number(b.sort_order || 100);
       if (aSort !== bSort) return aSort - bSort;
       return asString(a.title).localeCompare(asString(b.title), "es", { sensitivity: "base" });
     });
+
+  const baseFiltered = (macros || []).filter((macro) => {
+    const macroStatus = asString(macro.status, "published").toLowerCase();
+    if (macroStatus !== "published" && macroStatus !== "active") return false;
+
+    const metadataThreadStatus = normalizeThreadStatus(
+      (macro.metadata && typeof macro.metadata === "object"
+        ? asString(macro.metadata.thread_status)
+        : "") || ""
+    );
+    const threadStatus = normalizeThreadStatus(
+      macro.thread_status || macro.status_thread || metadataThreadStatus || ""
+    );
+    if (threadStatus && threadStatus !== currentThreadStatus) return false;
+
+    const categoryCode = normalizeCategoryCode(
+      macro.category_code ||
+        macro.category ||
+        categoryCodeById.get(asString(macro.category_id)) ||
+        ""
+    );
+    if (categoryCode) {
+      const isWildcardCategory = CATEGORY_WILDCARD_CODES.has(categoryCode);
+      if (!isWildcardCategory && categoryCode !== threadCategoryCode) return false;
+      if (
+        !isWildcardCategory &&
+        publishedCategoryCodes.size > 0 &&
+        !publishedCategoryCodes.has(categoryCode)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const strict = baseFiltered.filter((macro) => {
+    const appTargets = normalizeArray(macro.app_targets, ["all"]);
+    const envTargets = normalizeArray(macro.env_targets, ["all"]);
+    const appAllowed = appTargets.includes("all") || appTargets.includes(appKey);
+    const envAllowed = envTargets.includes("all") || envTargets.includes(normalizedEnv);
+    return appAllowed && envAllowed;
+  });
+
+  if (strict.length > 0) return sortMacros(strict);
+
+  const relaxEnv = baseFiltered.filter((macro) => {
+    const appTargets = normalizeArray(macro.app_targets, ["all"]);
+    return appTargets.includes("all") || appTargets.includes(appKey);
+  });
+  if (relaxEnv.length > 0) return sortMacros(relaxEnv);
+
+  return sortMacros(baseFiltered);
 }
