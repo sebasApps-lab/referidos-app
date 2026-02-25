@@ -23,7 +23,7 @@ async function trySyncMacrosCache(): Promise<SyncAttemptResult> {
         }
         : undefined,
       body: {
-        mode: "cold",
+        mode: "hot",
         force_full: true,
         limit: 2000,
         trigger: "support_anon_categories_empty",
@@ -76,45 +76,12 @@ serve(async (req) => {
     DEFAULT_APP_CHANNEL,
   );
 
+  // Siempre sincroniza antes de listar: garantiza que nuevas categorias/macros de OPS
+  // aparezcan sin depender de que el cache runtime este totalmente vacio.
+  const syncResult = await trySyncMacrosCache();
   const { categories, error } = await listAnonymousMacroCategoriesFromCache({
     appChannel,
   });
-  if (!error && categories.length === 0) {
-    const syncResult = await trySyncMacrosCache();
-    const retried = await listAnonymousMacroCategoriesFromCache({ appChannel });
-    if (retried.error) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "category_catalog_unavailable",
-          detail: retried.error,
-        },
-        500,
-        cors,
-      );
-    }
-    if (retried.categories.length === 0 && !syncResult.ok) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "runtime_cache_empty_after_sync",
-          detail: syncResult.detail || "sync_dispatch_failed",
-        },
-        502,
-        cors,
-      );
-    }
-
-    return jsonResponse(
-      {
-        ok: true,
-        app_channel: appChannel,
-        categories: retried.categories,
-      },
-      200,
-      cors,
-    );
-  }
 
   if (error) {
     return jsonResponse(
@@ -124,6 +91,17 @@ serve(async (req) => {
         detail: error,
       },
       500,
+      cors,
+    );
+  }
+  if (categories.length === 0 && !syncResult.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "runtime_cache_empty_after_sync",
+        detail: syncResult.detail || "sync_dispatch_failed",
+      },
+      502,
       cors,
     );
   }

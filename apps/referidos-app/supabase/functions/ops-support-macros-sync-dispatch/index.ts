@@ -543,7 +543,7 @@ serve(async (req) => {
     tenantIdFromUser = asString(usuario.tenant_id);
   }
 
-  const mode = internalAuthCall
+  const mode = internalCronCall
     ? "cold"
     : requestedMode === "cold"
       ? "cold"

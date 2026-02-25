@@ -6,6 +6,7 @@ import LegalHomePage from "./waitlist/legal/LegalHomePage";
 import LegalDocPage from "./waitlist/legal/LegalDocPage";
 import SupportChatPage from "./support/SupportChatPage";
 import SupportEmailPage from "./support/SupportEmailPage";
+import FeedbackPage from "./support/FeedbackPage";
 import { initPrelaunchObservability } from "./observability/prelaunchObservability";
 import "./waitlist/prelaunch.css";
 
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/es" element={<WaitlistPage />} />
         <Route path="/soporte-chat" element={<SupportChatPage />} />
         <Route path="/soporte-correo" element={<SupportEmailPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/soporte-ticket" element={<Navigate to="/soporte-chat" replace />} />
         <Route path="/legal/es" element={<LegalHomePage />} />
         <Route path="/legal/es/:doc" element={<LegalDocPage />} />

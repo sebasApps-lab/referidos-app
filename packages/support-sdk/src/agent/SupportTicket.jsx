@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Copy, ClipboardCheck, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, ClipboardCheck, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
@@ -26,6 +26,32 @@ function normalizeThreadRow(thread) {
   };
 }
 
+function splitMacroGroupAndTitle(rawTitle) {
+  const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
+  const fallback = title || "Macro sin titulo";
+  const match = fallback.match(/^(.+?)\s*-\s*(.+)$/);
+  if (!match) {
+    return {
+      group: "Varios",
+      title: fallback,
+    };
+  }
+
+  const group = match[1]?.trim();
+  const normalizedTitle = match[2]?.trim();
+  if (!group || !normalizedTitle) {
+    return {
+      group: "Varios",
+      title: fallback,
+    };
+  }
+
+  return {
+    group,
+    title: normalizedTitle,
+  };
+}
+
 export default function SupportTicket() {
   const { threadId } = useParams();
   const navigate = useNavigate();
@@ -43,6 +69,7 @@ export default function SupportTicket() {
   const [catalog, setCatalog] = useState({ categories: [], macros: [] });
   const [catalogLoadError, setCatalogLoadError] = useState("");
   const [refreshingMacros, setRefreshingMacros] = useState(false);
+  const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
   const shownTrackerRef = useRef(new Set());
 
   const formatDateTime = (value) =>
@@ -256,6 +283,49 @@ export default function SupportTicket() {
       runtimeEnvKey,
     });
   }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
+
+  const macroGroups = useMemo(() => {
+    const grouped = new Map();
+
+    macros.forEach((macro) => {
+      const parsed = splitMacroGroupAndTitle(macro.title);
+      const key = parsed.group.toLowerCase();
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          label: parsed.group,
+          items: [],
+        });
+      }
+      grouped.get(key).items.push({
+        ...macro,
+        displayTitle: parsed.title,
+      });
+    });
+
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "es", { sensitivity: "base" })
+    );
+  }, [macros]);
+
+  useEffect(() => {
+    setExpandedMacroGroups((previous) => {
+      const validKeys = new Set(macroGroups.map((group) => group.key));
+      const next = {};
+      Object.entries(previous).forEach(([key, isOpen]) => {
+        if (validKeys.has(key)) next[key] = isOpen;
+      });
+      return next;
+    });
+  }, [macroGroups]);
+
+  const toggleMacroGroup = useCallback((groupKey) => {
+    setExpandedMacroGroups((previous) => ({
+      ...previous,
+      [groupKey]: !previous[groupKey],
+    }));
+  }, []);
+
   const hasCatalogData = catalog.categories.length > 0 || catalog.macros.length > 0;
 
   useEffect(() => {
@@ -576,32 +646,60 @@ export default function SupportTicket() {
                   No hay macros publicadas para este estado/app.
                 </div>
               ) : (
-                macros.map((macro) => (
-                  <div
-                    key={macro.id}
-                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600 space-y-2"
-                  >
-                    <div className="font-semibold text-[#2F1A55]">
-                      {macro.title}
-                    </div>
-                    <div>{macro.body}</div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(macro)}
-                      className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                macroGroups.map((group) => {
+                  const isOpen = Boolean(expandedMacroGroups[group.key]);
+                  return (
+                    <div
+                      key={group.key}
+                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
                     >
-                      {copiedId === macro.id ? (
-                        <>
-                          <ClipboardCheck size={14} /> Copiado
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} /> Copiar
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))
+                      <button
+                        type="button"
+                        onClick={() => toggleMacroGroup(group.key)}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
+                          {group.label}
+                        </div>
+                        <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+                          <span>{group.items.length}</span>
+                          {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </div>
+                      </button>
+
+                      {isOpen ? (
+                        <div className="mt-2 space-y-2">
+                          {group.items.map((macro) => (
+                            <div
+                              key={macro.id}
+                              className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 space-y-2"
+                            >
+                              <div className="font-semibold text-[#2F1A55]">
+                                {macro.displayTitle || macro.title}
+                              </div>
+                              <div>{macro.body}</div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(macro)}
+                                className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                              >
+                                {copiedId === macro.id ? (
+                                  <>
+                                    <ClipboardCheck size={14} /> Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={14} /> Copiar
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

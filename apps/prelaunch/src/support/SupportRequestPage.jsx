@@ -9,6 +9,7 @@ import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
 const SUMMARY_MAX = 240;
 const ECUADOR_PREFIX = "593";
 const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
+const DELETE_WAITLIST_CATEGORY_CODES = new Set(["borrar_correo_waitlist"]);
 
 function normalizeWhatsappLocal(value) {
   let digits = (value || "").replace(/\D/g, "");
@@ -34,6 +35,13 @@ function normalizeCategoryOption(item) {
     ? "Borrar correo de la lista de espera"
     : rawLabel;
   return { id, label };
+}
+
+function isDeleteWaitlistCategory(categoryCode) {
+  const normalized = String(categoryCode || "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (DELETE_WAITLIST_CATEGORY_CODES.has(normalized)) return true;
+  return normalized.startsWith("borrar_correo");
 }
 
 function SupportModal({
@@ -93,6 +101,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   const [contact, setContact] = useState("");
   const [summary, setSummary] = useState("");
   const [category, setCategory] = useState("");
+  const [deleteTargetEmail, setDeleteTargetEmail] = useState("");
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState("");
@@ -117,9 +126,17 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     [normalizedWhatsappLocal],
   );
   const normalizedEmail = useMemo(() => normalizeEmail(contact), [contact]);
+  const normalizedDeleteTargetEmail = useMemo(
+    () => normalizeEmail(deleteTargetEmail),
+    [deleteTargetEmail],
+  );
   const normalizedContact = useMemo(
     () => (selectedChannel === "email" ? normalizedEmail : normalizedWhatsapp),
     [normalizedEmail, normalizedWhatsapp, selectedChannel],
+  );
+  const requiresDeleteTargetEmail = useMemo(
+    () => isDeleteWaitlistCategory(category),
+    [category],
   );
   const hasCategorySelection = useMemo(
     () => categoryOptions.some((item) => item.id === category),
@@ -127,8 +144,21 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   );
 
   const canSubmit = useMemo(
-    () => Boolean(normalizedContact) && hasCategorySelection && !submitting && !categoriesLoading,
-    [normalizedContact, hasCategorySelection, submitting, categoriesLoading],
+    () => (
+      Boolean(normalizedContact)
+      && hasCategorySelection
+      && (!requiresDeleteTargetEmail || Boolean(normalizedDeleteTargetEmail))
+      && !submitting
+      && !categoriesLoading
+    ),
+    [
+      normalizedContact,
+      hasCategorySelection,
+      requiresDeleteTargetEmail,
+      normalizedDeleteTargetEmail,
+      submitting,
+      categoriesLoading,
+    ],
   );
 
   const subtitle = isChatTab
@@ -257,6 +287,8 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         flow: "prelaunch",
         page: selectedChannel === "whatsapp" ? "soporte-chat" : "soporte-correo",
         requested_channel: selectedChannel,
+        waitlist_delete_requested: requiresDeleteTargetEmail,
+        waitlist_delete_email: requiresDeleteTargetEmail ? normalizedDeleteTargetEmail : null,
       },
     };
 
@@ -449,6 +481,27 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 ) : null}
               </div>
 
+              {requiresDeleteTargetEmail ? (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#2F1A55]">
+                    ¿Cual es la dirrección de correo que deseas borrar?
+                  </label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={deleteTargetEmail}
+                    onChange={(event) => setDeleteTargetEmail(event.target.value)}
+                    placeholder="tu@email.com"
+                    className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
+                  />
+                  {!normalizedDeleteTargetEmail ? (
+                    <div className="text-[11px] text-red-600">
+                      Debes ingresar un correo valido para continuar.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#2F1A55]">
                   Descripcion <span className="font-normal text-slate-400">(opcional)</span>
@@ -465,7 +518,6 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 <div className="text-[11px] text-slate-400 text-right">
                   {summary.length}/{SUMMARY_MAX}
                 </div>
-                <p className="text-xs text-slate-500">El tiempo de respuesta es de 6-48h.</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
