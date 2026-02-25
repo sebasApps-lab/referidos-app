@@ -3,17 +3,9 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   cancelAnonymousSupportThread,
   createAnonymousSupportThread,
+  listAnonymousSupportCategories,
 } from "./supportApi";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
-
-const CATEGORIES = [
-  { id: "acceso", label: "Pregunta o inquietud" },
-  { id: "bug_performance", label: "Ayuda o soporte" },
-  { id: "sugerencia", label: "Sugerencia" },
-  { id: "borrar_correo_waitlist", label: "Borrar correo de lista de espera" },
-];
-
-const DEFAULT_CATEGORY = "acceso";
 const SUMMARY_MAX = 240;
 const ECUADOR_PREFIX = "593";
 const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
@@ -31,6 +23,17 @@ function normalizeEmail(value) {
   const normalized = (value || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   return normalized;
+}
+
+function normalizeCategoryOption(item) {
+  const id = String(item?.code || item?.id || "").trim().toLowerCase();
+  if (!id) return null;
+  const rawLabel = String(item?.label || item?.code || id).trim() || id;
+  const normalizedLabel = rawLabel.toLowerCase();
+  const label = normalizedLabel === "borrar correo"
+    ? "Borrar correo de la lista de espera"
+    : rawLabel;
+  return { id, label };
 }
 
 function SupportModal({
@@ -86,13 +89,13 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   const path = location.pathname.toLowerCase();
   const activeTab = path === "/soporte-correo" ? "email" : isChatRoute ? "chat" : "email";
   const requestedCategory = (searchParams.get("tipo") || "").trim().toLowerCase();
-  const categoryFromQuery = CATEGORIES.some((item) => item.id === requestedCategory)
-    ? requestedCategory
-    : DEFAULT_CATEGORY;
 
   const [contact, setContact] = useState("");
   const [summary, setSummary] = useState("");
-  const [category, setCategory] = useState(categoryFromQuery);
+  const [category, setCategory] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdTicket, setCreatedTicket] = useState(null);
@@ -118,10 +121,14 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     () => (selectedChannel === "email" ? normalizedEmail : normalizedWhatsapp),
     [normalizedEmail, normalizedWhatsapp, selectedChannel],
   );
+  const hasCategorySelection = useMemo(
+    () => categoryOptions.some((item) => item.id === category),
+    [category, categoryOptions],
+  );
 
   const canSubmit = useMemo(
-    () => Boolean(normalizedContact) && !submitting,
-    [normalizedContact, submitting],
+    () => Boolean(normalizedContact) && hasCategorySelection && !submitting && !categoriesLoading,
+    [normalizedContact, hasCategorySelection, submitting, categoriesLoading],
   );
 
   const subtitle = isChatTab
@@ -136,8 +143,66 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   }, []);
 
   useEffect(() => {
-    setCategory(categoryFromQuery);
-  }, [categoryFromQuery]);
+    let cancelled = false;
+
+    async function loadAnonymousCategories() {
+      setCategoriesLoading(true);
+      setCategoriesError("");
+
+      const response = await listAnonymousSupportCategories({
+        requested_channel: selectedChannel,
+      });
+      if (cancelled) return;
+
+      if (!response.ok || !response.data?.ok) {
+        setCategoryOptions([]);
+        setCategoriesLoading(false);
+        setCategoriesError(
+          response.error ||
+            response.data?.detail ||
+            response.data?.error ||
+            "No se pudieron cargar las categorias de soporte.",
+        );
+        return;
+      }
+
+      const seen = new Set();
+      const nextOptions = (response.data?.categories || [])
+        .map((item) => normalizeCategoryOption(item))
+        .filter((item) => {
+          if (!item) return false;
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+
+      setCategoryOptions(nextOptions);
+      setCategoriesLoading(false);
+      if (nextOptions.length === 0) {
+        setCategoriesError("No hay categorias de soporte disponibles para anonimos.");
+      }
+    }
+
+    void loadAnonymousCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChannel]);
+
+  useEffect(() => {
+    if (!categoryOptions.length) {
+      setCategory("");
+      return;
+    }
+
+    const available = new Set(categoryOptions.map((item) => item.id));
+    setCategory((previous) => {
+      if (requestedCategory && available.has(requestedCategory)) return requestedCategory;
+      if (previous && available.has(previous)) return previous;
+      return categoryOptions[0].id;
+    });
+  }, [categoryOptions, requestedCategory]);
 
   useEffect(() => {
     void ingestPrelaunchEvent("page_view", {
@@ -364,14 +429,24 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value)}
+                  disabled={categoriesLoading || categoryOptions.length === 0}
                   className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
                 >
-                  {CATEGORIES.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
+                  {categoriesLoading ? (
+                    <option value="">Cargando categorias...</option>
+                  ) : categoryOptions.length ? (
+                    categoryOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Sin categorias disponibles</option>
+                  )}
                 </select>
+                {categoriesError ? (
+                  <div className="text-[11px] text-red-600">{categoriesError}</div>
+                ) : null}
               </div>
 
               <div className="space-y-1">

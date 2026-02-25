@@ -58,6 +58,14 @@ function asObject(value: unknown): JsonObject {
     : {};
 }
 
+function canonicalToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function normalizeCode(input: unknown, fieldName: string) {
   const code = asString(input).toLowerCase().replace(/\s+/g, "_");
   if (!code) {
@@ -116,7 +124,7 @@ function normalizeStringArray(
   const normalized = Array.from(
     new Set(
       source
-        .map((item) => asString(item).toLowerCase())
+        .map((item) => canonicalToken(asString(item)))
         .map((item) => aliases[item] || item)
         .filter(Boolean),
     ),
@@ -554,6 +562,8 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     "audience_roles",
     {
       anonymous: "anonimo",
+      anon: "anonimo",
+      anonim: "anonimo",
       business: "negocio",
       customer: "cliente",
     },
@@ -641,6 +651,8 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
       "audience_roles",
       {
         anonymous: "anonimo",
+        anon: "anonimo",
+        anonim: "anonimo",
         business: "negocio",
         customer: "cliente",
       },

@@ -45,7 +45,7 @@ const MACRO_STATUS_LABEL = {
   sin_estado: "Sin estado",
 };
 const CATALOG_GROUP_OPTIONS = [
-  { id: "categoria", label: "categoria" },
+  { id: "categoria", label: "categoría" },
   { id: "estado", label: "estado" },
   { id: "rol", label: "rol" },
 ];
@@ -920,7 +920,7 @@ export default function AdminSupportControlPanel({
       {
         id: "general",
         label: "General",
-        description: "Consultas generales sin categoria especifica.",
+        description: "Consultas generales sin categoría especifica.",
         roles: ["cliente", "negocio"],
       },
       ...macroCategories,
@@ -932,7 +932,7 @@ export default function AdminSupportControlPanel({
     const extraCategories = extraIds.map((id) => ({
       id,
       label: id,
-      description: "Categoria detectada en datos.",
+      description: "Categoría detectada en datos.",
       roles: [],
     }));
 
@@ -1101,7 +1101,7 @@ export default function AdminSupportControlPanel({
       event.preventDefault();
       const label = String(categoryForm.label || "").trim();
       if (!label) {
-        setCategoryError("El label de categoria es requerido.");
+        setCategoryError("El label de categoría es requerido.");
         return;
       }
 
@@ -1123,18 +1123,18 @@ export default function AdminSupportControlPanel({
             category_id: categoryEditId,
             ...payload,
           });
-          setCategoryOk("Categoria actualizada.");
+          setCategoryOk("Categoría actualizada.");
         } else {
           await createSupportMacroCategory({
             ...payload,
             status: "active",
           });
-          setCategoryOk("Categoria creada.");
+          setCategoryOk("Categoría creada.");
         }
         resetCategoryForm();
         await load(true);
       } catch (err) {
-        setCategoryError(err?.message || "No se pudo guardar categoria.");
+        setCategoryError(err?.message || "No se pudo guardar categoría.");
       } finally {
         setCategorySaving(false);
       }
@@ -1151,7 +1151,7 @@ export default function AdminSupportControlPanel({
         const categoryCode = String(category?.code || category?.id || "").trim();
         const affectedCount = catalogMacros.filter((macro) => String(macro.category || "general").trim() === categoryCode).length;
         const confirmed = globalThis.confirm(
-          `Inactivar categoria archivara macros asociados (${affectedCount}). Deseas continuar?`
+          `Inactivar categoría archivara macros asociados (${affectedCount}). Deseas continuar?`
         );
         if (!confirmed) return;
       }
@@ -1160,10 +1160,10 @@ export default function AdminSupportControlPanel({
       setCategoryOk("");
       try {
         await setSupportMacroCategoryStatus({ categoryId, status });
-        setCategoryOk(`Categoria movida a ${status}.`);
+        setCategoryOk(`Categoría movida a ${status}.`);
         await load(true);
       } catch (err) {
-        setCategoryError(err?.message || "No se pudo cambiar estado de categoria.");
+        setCategoryError(err?.message || "No se pudo cambiar estado de categoría.");
       } finally {
         setCategorySaving(false);
       }
@@ -1177,7 +1177,7 @@ export default function AdminSupportControlPanel({
       if (!categoryId) return;
       const label = String(category?.label || category?.code || categoryId).trim();
       const confirmed = globalThis.confirm(
-        `Eliminar categoria "${label}"? Esta accion elimina tambien sus macros asociados.`
+        `Eliminar categoría "${label}"? Esta accion elimina tambien sus macros asociados.`
       );
       if (!confirmed) return;
 
@@ -1186,13 +1186,13 @@ export default function AdminSupportControlPanel({
       setCategoryOk("");
       try {
         await deleteSupportMacroCategory({ categoryId });
-        setCategoryOk("Categoria eliminada.");
+        setCategoryOk("Categoría eliminada.");
         if (categoryEditId === categoryId) {
           resetCategoryForm();
         }
         await load(true);
       } catch (err) {
-        setCategoryError(err?.message || "No se pudo eliminar categoria.");
+        setCategoryError(err?.message || "No se pudo eliminar categoría.");
       } finally {
         setCategorySaving(false);
       }
@@ -1506,7 +1506,7 @@ export default function AdminSupportControlPanel({
         </div>
       </Card>
 
-      <Card title="Salud de cola" subtitle="Backlog por categoria y severidad.">
+      <Card title="Salud de cola" subtitle="Backlog por categoría y severidad.">
         <div className="grid gap-3 md:grid-cols-3">
           <Metric icon={Layers3} title="Backlog activo" value={metrics.queue.active} />
           <Metric
@@ -1514,7 +1514,7 @@ export default function AdminSupportControlPanel({
             title="Cola mas antigua"
             value={metrics.queue.oldest == null ? "-" : `${metrics.queue.oldest.toFixed(1)}h`}
           />
-          <Metric icon={Route} title="Categorias con backlog" value={metrics.queue.byCat.length} />
+          <Metric icon={Route} title="Categorías con backlog" value={metrics.queue.byCat.length} />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
@@ -1588,8 +1588,8 @@ export default function AdminSupportControlPanel({
     return (
       <div className="space-y-5">
         <Card
-          title="Categorias"
-          subtitle="Gestion centralizada de categorias para tickets y macros."
+          title="Categorías"
+          subtitle="Gestion centralizada de categorías para tickets y macros."
           headerRight={
             !isCategoryPanelOpen ? (
               <button
@@ -1599,7 +1599,7 @@ export default function AdminSupportControlPanel({
               >
                 <div className="flex items-center gap-2 text-sm font-semibold text-[#5E30A5]">
                   <Plus size={14} />
-                  AÃ±adir nueva categorÃ­a
+                  Añadir nueva categoría
                 </div>
               </button>
             ) : null
@@ -1622,12 +1622,12 @@ export default function AdminSupportControlPanel({
                 <div className="rounded-2xl border border-[#C9B6E8] bg-[#FCFBFF] px-4 py-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-[#2F1A55]">Nueva CategorÃƒÂ­a</span>
+                      <span className="text-sm font-semibold text-[#2F1A55]">Nueva Categoría</span>
                       <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
                         borrador
                       </span>
                     </div>
-                    <div className="text-xs text-slate-500">Crea una nueva categorÃƒÂ­a.</div>
+                    <div className="text-xs text-slate-500">Crea una nueva categoría.</div>
                   </div>
                 </div>
               ) : (
@@ -1675,7 +1675,7 @@ export default function AdminSupportControlPanel({
                                 type="button"
                                 onClick={() => beginEditCategory(category)}
                                 className="inline-flex items-center justify-center rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[#5E30A5]"
-                                aria-label="Editar categoria"
+                                aria-label="Editar categoría"
                               >
                                 <Pencil size={14} />
                               </button>
@@ -1694,7 +1694,7 @@ export default function AdminSupportControlPanel({
                                 type="button"
                                 onClick={() => removeCategory(category)}
                                 className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-red-700"
-                                aria-label="Eliminar categoria"
+                                aria-label="Eliminar categoría"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1712,7 +1712,7 @@ export default function AdminSupportControlPanel({
               <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="text-sm font-semibold text-[#2F1A55]">
-                    {isCategoryEditMode ? "Editar categoria" : "Nueva categoria"}
+                    {isCategoryEditMode ? "Editar categoría" : "Nueva categoría"}
                     {isCategoryEditMode && editingCategory ? (
                       <span className="ml-2 text-xs font-medium text-slate-500">({editingCategory.code || editingCategory.id})</span>
                     ) : null}
@@ -1721,7 +1721,7 @@ export default function AdminSupportControlPanel({
                     type="button"
                     onClick={resetCategoryForm}
                     className="inline-flex items-center justify-center rounded-lg border border-[#E9E2F7] bg-white p-1.5 text-[#5E30A5]"
-                    aria-label="Cerrar panel de categoria"
+                    aria-label="Cerrar panel de categoría"
                   >
                     <X size={14} />
                   </button>
@@ -1729,7 +1729,7 @@ export default function AdminSupportControlPanel({
 
                 {isCategoryEditMode && !editingCategory ? (
                   <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-white px-3 py-4 text-center text-xs text-slate-500">
-                    Categoria no encontrada para edicion.
+                    Categoría no encontrada para edicion.
                   </div>
                 ) : (
                   <form className="space-y-3" onSubmit={submitCategory}>
@@ -1742,7 +1742,7 @@ export default function AdminSupportControlPanel({
                             label: event.target.value,
                           }))
                         }
-                        placeholder="Label categoria"
+                        placeholder="Label categoría"
                         className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
                       />
                       {isCategoryEditMode && editingCategory ? (
@@ -1767,7 +1767,7 @@ export default function AdminSupportControlPanel({
                             type="button"
                             onClick={() => removeCategory(editingCategory)}
                             className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2 text-red-700"
-                            aria-label="Eliminar categoria"
+                            aria-label="Eliminar categoría"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1814,7 +1814,7 @@ export default function AdminSupportControlPanel({
                           categorySaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
                         }`}
                       >
-                        {isCategoryEditMode ? "Guardar categoria" : "Crear categoria"}
+                        {isCategoryEditMode ? "Guardar categoría" : "Crear categoría"}
                       </button>
                     </div>
                   </form>
@@ -1836,7 +1836,7 @@ export default function AdminSupportControlPanel({
         <div className="text-slate-500">{m.active === false ? "Inactiva" : "Activa"}</div>
       </div>
       <div className="mt-1 text-[11px] text-slate-500">
-        Categoria: {m.category || "general"} | Estado: {m.status || "sin_estado"} | Roles: {formatMacroRoles(m.audience)}
+        Categoría: {m.category || "general"} | Estado: {m.status || "sin_estado"} | Roles: {formatMacroRoles(m.audience)}
       </div>
       <div className="mt-1 text-xs text-slate-600">{short(m.body, 220)}</div>
     </div>
@@ -1895,7 +1895,7 @@ export default function AdminSupportControlPanel({
               lockedPanel === "tickets"
                 ? null
                 : isTicketsLocked
-                  ? "Vista unica con Analytics y Categorias."
+                  ? "Vista unica con Analytics y Categorías."
                   : "Vista basica (default) y avanzada."
             }
           >
@@ -1926,7 +1926,7 @@ export default function AdminSupportControlPanel({
                   <>
                     {[
                       { id: "analytics", label: "Analytics" },
-                      { id: "categorias", label: "Categorias" },
+                      { id: "categorias", label: "Categorías" },
                     ].map((tabOption) => (
                       <button
                         key={tabOption.id}
@@ -2010,7 +2010,7 @@ export default function AdminSupportControlPanel({
                 <div className="grid gap-3 md:grid-cols-2 text-xs text-slate-600">
                   <div className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2">
                     <div className="font-semibold text-[#2F1A55]">{short(selected.summary, 160)}</div>
-                    <div>Categoria: {selected.category} | Severidad: {selected.severity}</div>
+                    <div>Categoría: {selected.category} | Severidad: {selected.severity}</div>
                     <div>Estado: {STATUS_LABEL[selected.status] || selected.status}</div>
                     <div>Creado: {fmt(selected.created_at)}</div>
                   </div>
@@ -2117,11 +2117,11 @@ export default function AdminSupportControlPanel({
               <div className="grid gap-3 md:grid-cols-3">
                 <Metric icon={Settings2} title="Macros totales" value={catalogMacroSummary.total} />
                 <Metric icon={CheckCircle2} title="Macros activas" value={catalogMacroSummary.active} />
-                <Metric icon={Users} title="Categorias cubiertas" value={catalogMacroSummary.covered} />
+                <Metric icon={Users} title="Categorías cubiertas" value={catalogMacroSummary.covered} />
               </div>
             </Card>
             <Card
-              title="Categorias y catalogo de macros"
+              title="Categorías y catalogo de macros"
               subtitle="Cobertura, volumen y macros agrupadas."
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
@@ -2213,7 +2213,7 @@ export default function AdminSupportControlPanel({
                                 ))
                               ) : (
                                 <div className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2 text-xs text-slate-500">
-                                  Sin macros para esta categoria.
+                                  Sin macros para esta categoría.
                                 </div>
                               )}
                             </div>
@@ -2315,5 +2315,3 @@ export default function AdminSupportControlPanel({
     </AdminLayout>
   );
 }
-
-

@@ -125,6 +125,8 @@ export function createPrelaunchClient({
         ),
     },
     support: {
+      listAnonymousCategories: async (payload = {}) =>
+        invokePublic("support-anon-categories", withSharedPayload(payload)),
       createAnonymousThread: async (payload = {}) =>
         invokePublic("support-create-anon-thread", withSharedPayload(payload)),
       cancelAnonymousThread: async (payload = {}) =>

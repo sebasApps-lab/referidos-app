@@ -69,6 +69,14 @@ function normalizeByAlias(value: string, aliases: Record<string, string>) {
   return aliases[value] || value;
 }
 
+function canonicalToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function normalizeStringList(value: unknown, fallback: string[]) {
   if (Array.isArray(value)) {
     return value.map((item) => asString(item).toLowerCase()).filter(Boolean);
@@ -94,6 +102,7 @@ function normalizeAllowedArray(
   const normalized = Array.from(
     new Set(
       raw
+        .map((item) => canonicalToken(item))
         .map((item) => normalizeByAlias(item, aliases))
         .map((item) => item.trim())
         .filter((item) => allowed.has(item)),
@@ -163,6 +172,8 @@ function normalizeAudienceRoles(value: unknown) {
     allowed: ALLOWED_AUDIENCE_ROLES,
     aliases: {
       anonymous: "anonimo",
+      anon: "anonimo",
+      anonim: "anonimo",
       support: "cliente",
       soporte: "cliente",
       admin: "cliente",
@@ -205,6 +216,13 @@ function ensureEnv() {
     };
   }
   return { ok: true };
+}
+
+function isInternalProxyAuthorized(req: Request) {
+  const expected = asString(Deno.env.get("SUPPORT_OPS_SHARED_TOKEN"));
+  if (!expected) return false;
+  const received = asString(req.headers.get("x-support-ops-token"));
+  return Boolean(received) && received === expected;
 }
 
 async function validateCronToken(token: string) {
@@ -493,13 +511,15 @@ serve(async (req) => {
 
   const body = asObject(await req.json().catch(() => ({})));
   const requestedMode = asString(body.mode, "").toLowerCase();
+  const internalProxyCall = isInternalProxyAuthorized(req);
   const internalCronCall = await validateCronToken(
     asString(req.headers.get("x-ops-sync-cron-token")),
   );
+  const internalAuthCall = internalCronCall || internalProxyCall;
 
   let actor = "system:cold-cron";
   let tenantIdFromUser = asString(body.tenant_id);
-  if (!internalCronCall) {
+  if (!internalAuthCall) {
     const authHeader = req.headers.get("authorization") ?? "";
     const token = authHeader.replace("Bearer ", "").trim();
     if (!token) {
@@ -523,7 +543,7 @@ serve(async (req) => {
     tenantIdFromUser = asString(usuario.tenant_id);
   }
 
-  const mode = internalCronCall
+  const mode = internalAuthCall
     ? "cold"
     : requestedMode === "cold"
       ? "cold"

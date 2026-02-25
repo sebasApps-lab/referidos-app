@@ -6,6 +6,12 @@ export function createAnonymousSupportThread(payload = {}) {
   return prelaunchClient.support.createAnonymousThread(payload);
 }
 
+export function listAnonymousSupportCategories(payload = {}) {
+  const prelaunchClient = getPrelaunchClient();
+  if (!prelaunchClient) return Promise.resolve({ ok: false, error: "missing_env" });
+  return prelaunchClient.support.listAnonymousCategories(payload);
+}
+
 export function cancelAnonymousSupportThread(payload = {}) {
   const prelaunchClient = getPrelaunchClient();
   if (!prelaunchClient) return Promise.resolve({ ok: false, error: "missing_env" });
