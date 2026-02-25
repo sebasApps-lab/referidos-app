@@ -54,7 +54,7 @@ function clampLimit(value: unknown, fallback: number) {
 
 const ALLOWED_APP_TARGETS = new Set(["all", "referidos_app", "prelaunch_web", "android_app"]);
 const ALLOWED_ENV_TARGETS = new Set(["all", "dev", "staging", "prod"]);
-const ALLOWED_AUDIENCE_ROLES = new Set(["cliente", "negocio", "soporte", "admin"]);
+const ALLOWED_AUDIENCE_ROLES = new Set(["cliente", "negocio", "anonimo"]);
 const ALLOWED_THREAD_STATUSES = new Set([
   "new",
   "assigned",
@@ -162,7 +162,10 @@ function normalizeAudienceRoles(value: unknown) {
     fallback: ["cliente", "negocio"],
     allowed: ALLOWED_AUDIENCE_ROLES,
     aliases: {
-      support: "soporte",
+      anonymous: "anonimo",
+      support: "cliente",
+      soporte: "cliente",
+      admin: "cliente",
       customer: "cliente",
       business: "negocio",
     },

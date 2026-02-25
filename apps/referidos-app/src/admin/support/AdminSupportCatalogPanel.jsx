@@ -39,6 +39,7 @@ const ENV_OPTIONS = [
 const ROLE_OPTIONS = [
   { id: "cliente", label: "cliente" },
   { id: "negocio", label: "negocio" },
+  { id: "anonimo", label: "anonimo" },
 ];
 
 const THREAD_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
@@ -82,8 +83,13 @@ const normCategoryCode = (value) => code(value).replace(/[^a-z0-9_]/g, "") || "g
 const short = (v, n = 180) => (s(v).length > n ? `${s(v).slice(0, n)}...` : s(v, "-"));
 const matchApp = (targets, appFilter) => appFilter === "all" || arr(targets, ["all"]).includes("all") || arr(targets, ["all"]).includes(appFilter);
 const normalizeAudienceRoles = (values) => {
-  const allowed = new Set(["cliente", "negocio"]);
-  const normalized = arr(values, []).filter((role) => allowed.has(role));
+  const allowed = new Set(["cliente", "negocio", "anonimo"]);
+  const aliases = {
+    anonymous: "anonimo",
+  };
+  const normalized = arr(values, [])
+    .map((role) => aliases[role] || role)
+    .filter((role) => allowed.has(role));
   return normalized.length ? normalized : ["cliente", "negocio"];
 };
 const rank = (status) => {
@@ -708,7 +714,7 @@ export default function AdminSupportCatalogPanel() {
     }
     setSaving(true);
     try {
-      await createSupportMacro({
+      const created = await createSupportMacro({
         title: s(macroForm.title),
         body: s(macroForm.body),
         category_id: s(macroForm.category_id) || null,
@@ -718,9 +724,13 @@ export default function AdminSupportCatalogPanel() {
         env_targets: arr(macroForm.env_targets, ["all"]),
         status: "draft",
       });
+      const createdId = s(created?.id);
       setOk("Macro creado en draft con code automatico.");
       setMacroForm({ ...EMPTY_MACRO_FORM });
       await load(true);
+      if (createdId) {
+        navigate(`/admin/macros/${createdId}`);
+      }
     } catch (err) {
       setError(err?.message || "No se pudo crear macro.");
     } finally {
@@ -765,7 +775,7 @@ export default function AdminSupportCatalogPanel() {
     }
     setSaving(true);
     try {
-      await createSupportMacro({
+      const created = await createSupportMacro({
         title: s(workspaceAddForm.title),
         body: s(workspaceAddForm.body),
         category_id: s(workspaceAddForm.category_id) || null,
@@ -775,9 +785,14 @@ export default function AdminSupportCatalogPanel() {
         env_targets: arr(workspaceAddForm.env_targets, ["all"]),
         status: "draft",
       });
+      const createdId = s(created?.id);
       setOk("Macro creado en draft.");
-      closeInlineAddMacro();
       await load(true);
+      if (createdId) {
+        navigate(`/admin/macros/${createdId}`);
+      } else {
+        closeInlineAddMacro();
+      }
     } catch (err) {
       setError(err?.message || "No se pudo crear macro.");
     } finally {
@@ -1721,8 +1736,18 @@ export default function AdminSupportCatalogPanel() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <button type="button" disabled={saving} onClick={() => setMacroLifecycle("draft")} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">Pasar a draft</button>
-            <button type="button" disabled={saving} onClick={() => setMacroLifecycle("published")} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Publicar</button>
-            <button type="button" disabled={saving} onClick={() => setMacroLifecycle("archived")} className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">Archivar</button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => setMacroLifecycle(editing.status === "published" ? "archived" : "published")}
+              className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                editing.status === "published"
+                  ? "border border-slate-300 bg-slate-100 text-slate-700"
+                  : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {editing.status === "published" ? "Archivar" : "Publicar"}
+            </button>
             <button type="button" disabled={saving} onClick={removeMacro} className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"><Trash2 size={12} />Eliminar</button>
           </div>
           <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}><Save size={14} />Guardar cambios</button>

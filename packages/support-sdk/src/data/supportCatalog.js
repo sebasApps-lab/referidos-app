@@ -83,6 +83,24 @@ const CATEGORY_ALIASES = new Map([
   ["tier_beneficios", "tier_beneficios"],
 ]);
 
+const AUDIENCE_ROLE_ALIASES = new Map([
+  ["cliente", "cliente"],
+  ["negocio", "negocio"],
+  ["anonimo", "anonimo"],
+  ["anonymous", "anonimo"],
+  ["soporte", "soporte"],
+  ["support", "soporte"],
+  ["admin", "admin"],
+]);
+
+const ALLOWED_AUDIENCE_ROLES = new Set([
+  "cliente",
+  "negocio",
+  "anonimo",
+  "soporte",
+  "admin",
+]);
+
 function asString(value, fallback = "") {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim();
@@ -93,6 +111,17 @@ function normalizeArray(values, fallback = []) {
   if (!Array.isArray(values)) return fallback;
   const normalized = Array.from(
     new Set(values.map((value) => asString(value).toLowerCase()).filter(Boolean))
+  );
+  return normalized.length ? normalized : fallback;
+}
+
+function normalizeAudienceRoles(values, fallback = ["cliente", "negocio"]) {
+  const normalized = Array.from(
+    new Set(
+      normalizeArray(values, fallback)
+        .map((value) => AUDIENCE_ROLE_ALIASES.get(value) || value)
+        .filter((value) => ALLOWED_AUDIENCE_ROLES.has(value))
+    )
   );
   return normalized.length ? normalized : fallback;
 }
@@ -164,7 +193,7 @@ export async function loadSupportCatalogFromCache({ publishedOnly = true } = {})
 
   const normalizedMacros = (macros || []).map((macro) => ({
     ...macro,
-    audience_roles: normalizeArray(macro.audience_roles, ["cliente", "negocio"]),
+    audience_roles: normalizeAudienceRoles(macro.audience_roles, ["cliente", "negocio"]),
     app_targets: normalizeArray(macro.app_targets, ["all"]),
     env_targets: normalizeArray(macro.env_targets, ["all"]),
   }));
@@ -185,11 +214,33 @@ export function filterSupportMacrosForThread({
 }) {
   if (!thread) return [];
 
+  const resolveThreadAudienceRole = () => {
+    const requestOrigin = asString(thread.request_origin).toLowerCase();
+    if (requestOrigin === "anonymous") return "anonimo";
+
+    const explicitCandidates = [
+      thread.audience_role,
+      thread.role_intent,
+      thread.user_role,
+      thread.role,
+    ];
+    for (const candidate of explicitCandidates) {
+      const normalized = AUDIENCE_ROLE_ALIASES.get(asString(candidate).toLowerCase()) || "";
+      if (normalized === "cliente" || normalized === "negocio") return normalized;
+    }
+
+    const userPublicId = asString(thread.user_public_id).toUpperCase();
+    if (userPublicId.startsWith("NEG-")) return "negocio";
+    if (userPublicId.startsWith("USR-")) return "cliente";
+    return "";
+  };
+
   const appKey = normalizeSupportAppKey(
     thread.app_channel || thread.origin_source || "",
     "undetermined"
   );
   const normalizedEnv = normalizeSupportEnvKey(runtimeEnvKey, "dev");
+  const threadAudienceRole = resolveThreadAudienceRole();
   const publishedCategoryCodes = new Set(
     (categories || [])
       .filter((category) => {
@@ -259,13 +310,33 @@ export function filterSupportMacrosForThread({
     return appAllowed && envAllowed;
   });
 
+  const strictByRole = strict.filter((macro) => {
+    if (!threadAudienceRole) return true;
+    const roles = normalizeAudienceRoles(macro.audience_roles, ["cliente", "negocio"]);
+    return roles.includes(threadAudienceRole);
+  });
+  if (strictByRole.length > 0) return sortMacros(strictByRole);
   if (strict.length > 0) return sortMacros(strict);
 
   const relaxEnv = baseFiltered.filter((macro) => {
     const appTargets = normalizeArray(macro.app_targets, ["all"]);
     return appTargets.includes("all") || appTargets.includes(appKey);
   });
+
+  const relaxEnvByRole = relaxEnv.filter((macro) => {
+    if (!threadAudienceRole) return true;
+    const roles = normalizeAudienceRoles(macro.audience_roles, ["cliente", "negocio"]);
+    return roles.includes(threadAudienceRole);
+  });
+  if (relaxEnvByRole.length > 0) return sortMacros(relaxEnvByRole);
   if (relaxEnv.length > 0) return sortMacros(relaxEnv);
+
+  const baseByRole = baseFiltered.filter((macro) => {
+    if (!threadAudienceRole) return true;
+    const roles = normalizeAudienceRoles(macro.audience_roles, ["cliente", "negocio"]);
+    return roles.includes(threadAudienceRole);
+  });
+  if (baseByRole.length > 0) return sortMacros(baseByRole);
 
   return sortMacros(baseFiltered);
 }

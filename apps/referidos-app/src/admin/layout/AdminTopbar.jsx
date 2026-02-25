@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 
-export default function AdminTopbar({ title, subtitle, onOpenMenu }) {
+export default function AdminTopbar({ title, subtitle, onOpenMenu, onRefreshPanel }) {
   const usuario = useAppStore((s) => s.usuario);
   const logout = useAppStore((s) => s.logout);
 
@@ -55,7 +55,7 @@ export default function AdminTopbar({ title, subtitle, onOpenMenu }) {
             type="button"
             className="rounded-xl border border-[#E9E2F7] bg-white p-2 text-slate-500 shadow-sm transition hover:text-[#5E30A5]"
             title="Refrescar"
-            onClick={() => window.location.reload()}
+            onClick={() => onRefreshPanel?.()}
           >
             <RefreshCcw size={16} />
           </button>
