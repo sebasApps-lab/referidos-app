@@ -13,10 +13,15 @@ function easeOpacityProgress(value) {
   return 1 - (1 - easedIn) ** 1.25;
 }
 
-export function useSectionScrollMotion(...sectionRefs) {
+export function useSectionScrollMotion(
+  sectionOneRef,
+  sectionTwoRef,
+  sectionThreeRef
+) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const sectionRefs = [sectionOneRef, sectionTwoRef, sectionThreeRef];
     const refs = (sectionRefs || []).filter((ref) => ref && ref.current);
     if (!refs.length) return;
 
@@ -187,5 +192,5 @@ export function useSectionScrollMotion(...sectionRefs) {
       window.removeEventListener("resize", onScrollOrResize);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [sectionOneRef, sectionTwoRef, sectionThreeRef]);
 }

@@ -203,6 +203,14 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
             "prerelease_no",
             "version_label",
             "status",
+            "build_number",
+            "channel",
+            "pr_number",
+            "tag_name",
+            "release_notes_auto",
+            "release_notes_final",
+            "ci_run_id",
+            "ci_run_number",
             "source_commit_sha",
             "created_at",
             "updated_at",
@@ -596,6 +604,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       }
 
       const result = await invokeOpsFunction("versioning-release-sync", {
+        operation: asString(payload.operation) || null,
         product_key: productKey,
         from_env: asString(payload.fromEnv) || null,
         to_env: toEnv,
@@ -603,6 +612,10 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         source_branch: asString(payload.sourceBranch) || null,
         target_branch: asString(payload.targetBranch) || null,
         check_only: asBoolean(payload.checkOnly, false),
+        auto_merge: asBoolean(payload.autoMerge, !asBoolean(payload.checkOnly, false)),
+        create_pr: asBoolean(payload.createPr, true),
+        pull_number: asNumber(payload.pullNumber, 0) || null,
+        comment_body: asString(payload.commentBody) || null,
         actor: asString(payload.actor, actor),
       });
 
@@ -655,6 +668,108 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
             asString(result.payload?.error, "No se pudo calcular preview de release de development.")
           )
         );
+      }
+
+      return result.payload;
+    }
+
+    case "check_release_migrations": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      const semver = asString(payload.semver);
+      if (!productKey || !envKey || !semver) {
+        throw new Error("productKey/envKey/semver requeridos para check_release_migrations.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "check_release_migrations",
+        product_key: productKey,
+        to_env: envKey,
+        semver,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const gateError = new Error(detail || "No se pudo validar gate de migraciones.");
+        (gateError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "check_release_migrations_failed"
+        );
+        (gateError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw gateError;
+      }
+
+      return result.payload;
+    }
+
+    case "apply_release_migrations": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      const semver = asString(payload.semver);
+      if (!productKey || !envKey || !semver) {
+        throw new Error("productKey/envKey/semver requeridos para apply_release_migrations.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "apply_release_migrations",
+        product_key: productKey,
+        to_env: envKey,
+        semver,
+        source_branch: asString(payload.sourceBranch || payload.source_branch) || null,
+        target_branch: asString(payload.targetBranch || payload.target_branch) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const applyError = new Error(detail || "No se pudo disparar apply migrations.");
+        (applyError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "apply_release_migrations_failed"
+        );
+        (applyError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw applyError;
+      }
+
+      return result.payload;
+    }
+
+    case "validate_environment": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      if (!productKey || !envKey) {
+        throw new Error("productKey/envKey requeridos para validate_environment.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "validate_environment",
+        product_key: productKey,
+        to_env: envKey,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const validationError = new Error(detail || "No se pudo validar entorno.");
+        (validationError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "validate_environment_failed"
+        );
+        (validationError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw validationError;
       }
 
       return result.payload;

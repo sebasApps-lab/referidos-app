@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import Table from "../../components/ui/Table";
 import {
+  applyReleaseMigrations,
   approveDeployRequest,
+  checkReleaseMigrations,
   createDevRelease,
   fetchDeployRequests,
   fetchDrift,
@@ -26,6 +28,7 @@ import {
   requestDeploy,
   syncReleaseBranch,
   triggerDeployPipeline,
+  validateEnvironmentContract,
 } from "./services/versioningService";
 
 const ENV_OPTIONS = ["dev", "staging", "prod"];
@@ -161,6 +164,28 @@ function deploymentStateLabel(state) {
   return "not deployed";
 }
 
+function normalizeCheckState(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "success" || normalized === "failed" || normalized === "pending" || normalized === "missing") {
+    return normalized;
+  }
+  return "missing";
+}
+
+function checkBadgeClass(state) {
+  if (state === "success") return "bg-emerald-100 text-emerald-700";
+  if (state === "failed") return "bg-red-100 text-red-700";
+  if (state === "pending") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-600";
+}
+
+function checkBadgeLabel(state) {
+  if (state === "success") return "OK";
+  if (state === "failed") return "FAIL";
+  if (state === "pending") return "PENDING";
+  return "MISSING";
+}
+
 function uniqueReleaseRowsByVersion(rows) {
   const list = [];
   const seen = new Set();
@@ -234,6 +259,11 @@ function VersionCard({
         ) : null}
       </div>
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
+      <div className="mt-1 text-[11px] text-slate-500">
+        {row.build_number ? `build ${row.build_number}` : "build -"}
+        {" | "}
+        {row.channel ? `channel ${row.channel}` : "channel -"}
+      </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span>Estado: {statusLabel}</span>
         <div className="flex items-center gap-1">
@@ -316,6 +346,13 @@ export default function VersioningOverviewPanel() {
   const [mergeStatusByVersion, setMergeStatusByVersion] = useState({});
   const [envCardMessages, setEnvCardMessages] = useState({});
   const [mergingActionId, setMergingActionId] = useState("");
+  const [syncPipelineState, setSyncPipelineState] = useState(null);
+  const [syncPipelineActionId, setSyncPipelineActionId] = useState("");
+  const [deployMigrationGate, setDeployMigrationGate] = useState(null);
+  const [migrationGateActionId, setMigrationGateActionId] = useState("");
+  const [migrationApplyActionId, setMigrationApplyActionId] = useState("");
+  const [envValidationState, setEnvValidationState] = useState(null);
+  const [envValidationLoading, setEnvValidationLoading] = useState(false);
 
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -531,6 +568,13 @@ export default function VersioningOverviewPanel() {
     setDevReleaseDraft(null);
     setDevReleaseDraftError("");
     setEnvCardMessages({});
+    setSyncPipelineState(null);
+    setSyncPipelineActionId("");
+    setDeployMigrationGate(null);
+    setMigrationGateActionId("");
+    setMigrationApplyActionId("");
+    setEnvValidationState(null);
+    setEnvValidationLoading(false);
   }, [activeProductKey]);
 
   useEffect(() => {
@@ -735,6 +779,9 @@ export default function VersioningOverviewPanel() {
             toEnv: target.envKey,
             semver: target.semver,
             checkOnly: true,
+            autoMerge: false,
+            createPr: false,
+            operation: "refresh_pr",
           });
           return [
             key,
@@ -767,6 +814,28 @@ export default function VersioningOverviewPanel() {
   useEffect(() => {
     refreshMergeStatuses();
   }, [refreshMergeStatuses]);
+
+  const setSyncPipelineFromPayload = useCallback(
+    (payload, context = {}, isError = false) => {
+      const pr = payload?.pr || null;
+      const checks = payload?.checks || null;
+      if (!pr && !checks && !payload?.branches) return;
+      setSyncPipelineState({
+        productKey: context.productKey || activeProductKey || "",
+        toEnv: String(context.toEnv || payload?.to_env || "").toLowerCase(),
+        semver: String(context.semver || payload?.semver || "").trim(),
+        source: context.source || "sync",
+        error: isError,
+        errorCode: payload?.error || "",
+        detail: payload?.detail || "",
+        branches: payload?.branches || null,
+        pr,
+        checks,
+        updatedAt: Date.now(),
+      });
+    },
+    [activeProductKey]
+  );
 
   useEffect(() => {
     if (!orderedProducts.length) return;
@@ -812,6 +881,86 @@ export default function VersioningOverviewPanel() {
     setConfirmDialog(null);
   }, [confirmLoading]);
 
+  const handlePipelineRefreshChecks = async () => {
+    if (!syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("refresh");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        sourceBranch: syncPipelineState?.branches?.source || "",
+        targetBranch: syncPipelineState?.branches?.target || "",
+        checkOnly: true,
+        autoMerge: false,
+        createPr: false,
+        operation: "refresh_pr",
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteMessage(
+        `Checks actualizados. lint=${result?.checks?.lint || "-"}, test=${result?.checks?.test || "-"}, build=${result?.checks?.build || "-"}.`
+      );
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteMessage(err?.message || "No se pudieron refrescar los checks del PR.");
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
+  const handlePipelineAutoMerge = async () => {
+    if (!syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("auto-merge");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        sourceBranch: syncPipelineState?.branches?.source || "",
+        targetBranch: syncPipelineState?.branches?.target || "",
+        checkOnly: false,
+        autoMerge: true,
+        createPr: false,
+        operation: "merge_pr",
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteMessage(
+        `PR mergeado correctamente a ${normalizeEnvLabel(syncPipelineState.toEnv)}.`
+      );
+      await load(true);
+      await refreshMergeStatuses();
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteMessage(err?.message || "No se pudo hacer auto-merge del PR.");
+      await refreshMergeStatuses();
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
+  const handlePipelineCancel = async () => {
+    const pullNumber = Number(syncPipelineState?.pr?.number || 0);
+    if (!pullNumber || !syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("cancel");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        operation: "close_pr",
+        pullNumber,
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteMessage(`PR #${pullNumber} cerrado.`);
+      await refreshMergeStatuses();
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteMessage(err?.message || "No se pudo cerrar el PR.");
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
   const handleMergeRelease = async ({
     envKey,
     semver,
@@ -836,6 +985,16 @@ export default function VersioningOverviewPanel() {
         toEnv: envKey,
         semver,
       });
+      setSyncPipelineFromPayload(
+        result,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        false
+      );
       setEnvCardMessages((current) => ({
         ...current,
         [envKey]: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)} (${result?.branches?.target || "-"})`,
@@ -843,6 +1002,16 @@ export default function VersioningOverviewPanel() {
       await load(true);
       await refreshMergeStatuses();
     } catch (err) {
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        true
+      );
       setEnvCardMessages((current) => ({
         ...current,
         [envKey]: err?.message || "No se pudo hacer merge a la rama destino.",
@@ -895,18 +1064,46 @@ export default function VersioningOverviewPanel() {
             fromEnv,
             toEnv,
             semver,
+            autoMerge: true,
+            createPr: true,
           });
+          setSyncPipelineFromPayload(
+            syncResult,
+            {
+              productKey: activeProductKey,
+              toEnv,
+              semver,
+              source,
+            },
+            false
+          );
           setPromoteMessage(
-            `Release ${semver} promovida de ${fromEnv} a ${toEnv} y subida a rama destino (${syncResult?.branches?.target || "-"})`
+            `Release ${semver} promovida de ${fromEnv} a ${toEnv} y sincronizada por PR a rama destino (${syncResult?.branches?.target || "-"}).`
           );
           setPromoteDraft(null);
           await load(true);
           return;
         } catch (syncErr) {
+          setSyncPipelineFromPayload(
+            syncErr?.payload || null,
+            {
+              productKey: activeProductKey,
+              toEnv,
+              semver,
+              source,
+            },
+            true
+          );
+          const checks = syncErr?.payload?.checks || null;
+          const checksText = checks
+            ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+            : "";
+          const prNumber = syncErr?.payload?.pr?.number || null;
+          const prText = prNumber ? ` PR #${prNumber}.` : "";
           setPromoteMessage(
             `Release ${semver} promovida de ${fromEnv} a ${toEnv}, pero no se pudo subir a la rama destino: ${
               syncErr?.message || "error de sync"
-            }`
+            }.${prText}${checksText}`
           );
           setPromoteDraft(null);
           await load(true);
@@ -921,6 +1118,139 @@ export default function VersioningOverviewPanel() {
       setPromoteMessage(err?.message || "No se pudo promover la release.");
     } finally {
       setPromotingActionId("");
+    }
+  };
+
+  const handleCheckReleaseGateByVersion = async ({
+    envKey,
+    semver,
+    source = "history",
+  }) => {
+    if (!activeProductKey || !envKey || !semver) return null;
+
+    const actionId = actionKey("gate-check", source, envKey, semver);
+    setMigrationGateActionId(actionId);
+    setDeployMessage("");
+    try {
+      const result = await checkReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+      });
+
+      const gateState = {
+        ...result,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+      };
+      setDeployMigrationGate(gateState);
+
+      const missingCount = Array.isArray(result?.missing_versions)
+        ? result.missing_versions.length
+        : 0;
+      if (result?.gate_passed) {
+        setDeployMessage(`Gate de migraciones OK para ${envKey} ${semver}.`);
+      } else {
+        setDeployMessage(
+          `Gate bloqueado para ${envKey} ${semver}. Faltan ${missingCount} migracion(es).`
+        );
+      }
+      return gateState;
+    } catch (err) {
+      const payload = err?.payload || {};
+      const gateState = {
+        gate_passed: false,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+        error: err?.code || payload?.error || "check_release_migrations_failed",
+        detail: err?.message || payload?.detail || "No se pudo validar gate de migraciones.",
+        missing_versions: Array.isArray(payload?.missing_versions) ? payload.missing_versions : [],
+        missing_migrations: Array.isArray(payload?.missing_migrations)
+          ? payload.missing_migrations
+          : [],
+      };
+      setDeployMigrationGate(gateState);
+      setDeployMessage(gateState.detail || "No se pudo validar gate de migraciones.");
+      throw err;
+    } finally {
+      setMigrationGateActionId("");
+    }
+  };
+
+  const handleApplyMigrationsForCurrentGate = async () => {
+    const gate = deployMigrationGate || null;
+    const envKey = String(gate?.env_key || deployTargetEnv || "").toLowerCase();
+    const semver = String(gate?.semver || "").trim();
+    if (!activeProductKey || !envKey || !semver) {
+      setDeployMessage("No hay release seleccionada para aplicar migraciones.");
+      return;
+    }
+
+    const actionId = actionKey("gate-apply", envKey, semver);
+    setMigrationApplyActionId(actionId);
+    setDeployMessage("");
+    try {
+      const result = await applyReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+        sourceBranch: gate?.release?.source_branch || "",
+        targetBranch: "",
+      });
+
+      const logsUrl = String(result?.logs_url || "").trim();
+      if (result?.already_applied) {
+        setDeployMessage(`No habia migraciones pendientes para ${envKey} ${semver}.`);
+      } else {
+        setDeployMessage(
+          `Apply migrations disparado para ${envKey} ${semver}.${logsUrl ? ` Logs: ${logsUrl}` : ""}`
+        );
+      }
+
+      const refreshedGate = await checkReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+      });
+      setDeployMigrationGate({
+        ...refreshedGate,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      setDeployMessage(err?.message || "No se pudo disparar apply migrations.");
+    } finally {
+      setMigrationApplyActionId("");
+    }
+  };
+
+  const handleValidateEnvironment = async () => {
+    if (!activeProductKey || !deployTargetEnv) {
+      setDeployMessage("Selecciona producto y entorno para validar.");
+      return;
+    }
+
+    setEnvValidationLoading(true);
+    setDeployMessage("");
+    try {
+      const validation = await validateEnvironmentContract({
+        productKey: activeProductKey,
+        envKey: deployTargetEnv,
+      });
+      setEnvValidationState(validation);
+      setDeployMessage(validation?.summary || "Validacion de entorno completada.");
+    } catch (err) {
+      setEnvValidationState({
+        validation_ok: false,
+        summary: err?.message || "No se pudo validar entorno.",
+        details: err?.payload || null,
+      });
+      setDeployMessage(err?.message || "No se pudo validar entorno.");
+    } finally {
+      setEnvValidationLoading(false);
     }
   };
 
@@ -953,6 +1283,15 @@ export default function VersioningOverviewPanel() {
 
     let normalizedRequestId = "";
     try {
+      const gateResult = await handleCheckReleaseGateByVersion({
+        envKey,
+        semver,
+        source: `${source}-predeploy`,
+      });
+      if (!gateResult?.gate_passed) {
+        return;
+      }
+
       await syncReleaseBranch({
         productKey: activeProductKey,
         toEnv: envKey,
@@ -1006,6 +1345,16 @@ export default function VersioningOverviewPanel() {
       );
       await load(true);
     } catch (err) {
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        true
+      );
       if (err?.code === "release_sync_required") {
         setDeploySyncRequired(err?.payload || null);
         setDeployMessage(
@@ -1028,21 +1377,63 @@ export default function VersioningOverviewPanel() {
       return;
     }
 
+    const requestRow = (selectedProductDeployRequests || []).find(
+      (row) => String(row.id || "") === String(requestId)
+    );
+    const toEnv = String(requestRow?.env_key || deployTargetEnv || "").toLowerCase();
+    const semver = String(requestRow?.version_label || "").trim();
+
     setDeployingActionId("sync-release");
     try {
-      const result = await triggerDeployPipeline({
-        requestId,
-        forceAdminOverride: true,
-        syncRelease: true,
-        syncOnly: true,
+      if (!toEnv || !semver) {
+        throw new Error("No se pudo resolver env/version para sincronizar release.");
+      }
+
+      const result = await syncReleaseBranch({
+        productKey: activeProductKey,
+        toEnv,
+        semver,
+        checkOnly: false,
+        autoMerge: true,
+        createPr: true,
       });
-      setDeploySyncRequired(null);
-      setDeployMessage(
-        `Release subido correctamente a ${result?.branches?.target || "rama destino"}. Ahora puedes hacer deploy.`
+      setSyncPipelineFromPayload(
+        result,
+        {
+          productKey: activeProductKey,
+          toEnv,
+          semver,
+          source: "deploy-sync",
+        },
+        false
       );
+      setDeploySyncRequired(null);
+      const checks = result?.checks || null;
+      const checksText = checks
+        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+        : "";
+      const prNumber = result?.pr?.number || null;
+      const prText = prNumber ? ` PR #${prNumber}.` : "";
+      setDeployMessage(`Release sincronizada por PR a ${result?.branches?.target || "rama destino"}.${prText}${checksText} Ahora puedes hacer deploy.`);
       await load(true);
     } catch (err) {
-      setDeployMessage(err?.message || "No se pudo subir release a la rama destino.");
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: toEnv || String(deployTargetEnv || "").toLowerCase(),
+          semver,
+          source: "deploy-sync",
+        },
+        true
+      );
+      const checks = err?.payload?.checks || null;
+      const checksText = checks
+        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+        : "";
+      const prNumber = err?.payload?.pr?.number || null;
+      const prText = prNumber ? ` PR #${prNumber}.` : "";
+      setDeployMessage(`${err?.message || "No se pudo sincronizar release por PR a la rama destino."}.${prText}${checksText}`);
     } finally {
       setDeployingActionId("");
     }
@@ -1329,6 +1720,13 @@ export default function VersioningOverviewPanel() {
       setDeployingActionId("");
     }
   };
+
+  const pipelineChecks = syncPipelineState?.checks || null;
+  const pipelinePrNumber = Number(syncPipelineState?.pr?.number || 0);
+  const pipelineChecksGreen = pipelineChecks?.required_green === true;
+  const pipelineHasConflicts =
+    syncPipelineState?.pr?.mergeable === false ||
+    String(syncPipelineState?.errorCode || "") === "pr_has_conflicts";
 
   return (
     <div className="space-y-6">
@@ -1702,6 +2100,85 @@ export default function VersioningOverviewPanel() {
               </div>
             </div>
 
+            {syncPipelineState ? (
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold text-[#2F1A55]">
+                    Pipeline PR {pipelinePrNumber ? `#${pipelinePrNumber}` : ""} ({normalizeEnvLabel(syncPipelineState?.toEnv || "-")})
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {syncPipelineState?.semver ? `Release ${syncPipelineState.semver}` : "-"}
+                  </div>
+                </div>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    PR creado:{" "}
+                    <span className={syncPipelineState?.pr ? "text-emerald-700 font-semibold" : "text-red-700 font-semibold"}>
+                      {syncPipelineState?.pr ? "SI" : "NO"}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    Conflictos:{" "}
+                    <span className={pipelineHasConflicts ? "text-red-700 font-semibold" : "text-emerald-700 font-semibold"}>
+                      {pipelineHasConflicts ? "SI" : "NO"}
+                    </span>
+                  </div>
+                  {["lint", "test", "build"].map((checkKey) => {
+                    const state = normalizeCheckState(pipelineChecks?.[checkKey]);
+                    return (
+                      <div key={`pipeline-check-${checkKey}`} className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                        <span className="mr-1 uppercase tracking-[0.08em] text-slate-500">{checkKey}:</span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${checkBadgeClass(state)}`}>
+                          {checkBadgeLabel(state)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {syncPipelineState?.detail ? (
+                  <div className="mt-2 text-[11px] text-slate-600">{syncPipelineState.detail}</div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePipelineRefreshChecks}
+                    disabled={syncPipelineActionId === "refresh" || !pipelinePrNumber}
+                    className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "refresh" ? "Reintentando..." : "Reintentar checks"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePipelineAutoMerge}
+                    disabled={
+                      syncPipelineActionId === "auto-merge" ||
+                      !pipelinePrNumber ||
+                      pipelineHasConflicts ||
+                      !pipelineChecks ||
+                      !pipelineChecksGreen
+                    }
+                    className="rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "auto-merge" ? "Mergeando..." : "Auto-merge cuando esté verde"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePipelineCancel}
+                    disabled={syncPipelineActionId === "cancel" || !pipelinePrNumber}
+                    className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "cancel" ? "Cancelando..." : "Cancelar PR"}
+                  </button>
+                  <div className="text-[11px] text-slate-500">
+                    {pipelineChecksGreen ? "Checks obligatorios en verde." : "Checks pendientes/fallando."}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {releaseOpsMode === "promote" ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1884,6 +2361,50 @@ export default function VersioningOverviewPanel() {
                     ))}
                   </div>
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2">
+                  <div className="text-xs text-slate-600">
+                    Validacion de entorno (secrets + runtime + github)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleValidateEnvironment}
+                    disabled={envValidationLoading || !activeProductKey}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                  >
+                    {envValidationLoading ? "Validando..." : "Validar entorno"}
+                  </button>
+                </div>
+
+                {envValidationState ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-xs ${
+                      envValidationState?.validation_ok
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      {envValidationState?.validation_ok ? "Entorno valido" : "Entorno con observaciones"}
+                    </div>
+                    <div className="mt-1">{envValidationState?.summary || "-"}</div>
+                    <div className="mt-1">
+                      OPS faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.ops?.missing)
+                        ? envValidationState.details.ops.missing.length
+                        : 0}
+                      {" | "}
+                      GitHub faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.github?.missing_secrets)
+                        ? envValidationState.details.github.missing_secrets.length
+                        : 0}
+                      {" | "}
+                      Runtime faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.runtime?.missing_env)
+                        ? envValidationState.details.runtime.missing_env.length
+                        : 0}
+                    </div>
+                  </div>
+                ) : null}
 
                 <textarea
                   value={deployNotes}
@@ -1891,6 +2412,47 @@ export default function VersioningOverviewPanel() {
                   className="min-h-[64px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
                   placeholder="Notas opcionales de deploy"
                 />
+
+                {deployMigrationGate ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-xs ${
+                      deployMigrationGate?.gate_passed
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      Gate migraciones {deployMigrationGate?.gate_passed ? "OK" : "bloqueado"}
+                    </div>
+                    <div className="mt-1">
+                      Release: {String(deployMigrationGate?.env_key || "-").toUpperCase()}{" "}
+                      {deployMigrationGate?.semver || "-"}
+                    </div>
+                    <div className="mt-1">
+                      Faltantes:{" "}
+                      {Array.isArray(deployMigrationGate?.missing_versions)
+                        ? deployMigrationGate.missing_versions.length
+                        : 0}
+                    </div>
+                    {!deployMigrationGate?.gate_passed &&
+                    Array.isArray(deployMigrationGate?.missing_versions) &&
+                    deployMigrationGate.missing_versions.length ? (
+                      <div className="mt-1 break-all">
+                        {deployMigrationGate.missing_versions.join(", ")}
+                      </div>
+                    ) : null}
+                    {!deployMigrationGate?.gate_passed ? (
+                      <button
+                        type="button"
+                        onClick={handleApplyMigrationsForCurrentGate}
+                        disabled={Boolean(migrationApplyActionId)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800 disabled:opacity-60"
+                      >
+                        {migrationApplyActionId ? "Aplicando..." : "Apply migrations"}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <Table
                   columns={[
@@ -1911,6 +2473,12 @@ export default function VersioningOverviewPanel() {
                     const deployState = deploymentStateFromRequest(latestRequest);
                     const currentActionId = actionKey(
                       "deploy",
+                      "history",
+                      deployTargetEnv,
+                      versionLabel
+                    );
+                    const gateActionId = actionKey(
+                      "gate-check",
                       "history",
                       deployTargetEnv,
                       versionLabel
@@ -1955,26 +2523,46 @@ export default function VersioningOverviewPanel() {
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              requestDeployVersion({
-                                envKey: deployTargetEnv,
-                                semver: versionLabel,
-                                source: "history",
-                                notes: deployNotes,
-                              })
-                            }
-                            disabled={deployingActionId === currentActionId}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
-                          >
-                            <Rocket size={12} />
-                            {deployingActionId === currentActionId
-                              ? "Ejecutando..."
-                              : deployState === "deployed"
-                                ? "Re-deploy"
-                                : "Deploy"}
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await handleCheckReleaseGateByVersion({
+                                    envKey: deployTargetEnv,
+                                    semver: versionLabel,
+                                    source: "history",
+                                  });
+                                } catch {
+                                  // handled by state/message
+                                }
+                              }}
+                              disabled={migrationGateActionId === gateActionId}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                            >
+                              {migrationGateActionId === gateActionId ? "Gate..." : "Gate"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                requestDeployVersion({
+                                  envKey: deployTargetEnv,
+                                  semver: versionLabel,
+                                  source: "history",
+                                  notes: deployNotes,
+                                })
+                              }
+                              disabled={deployingActionId === currentActionId}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                            >
+                              <Rocket size={12} />
+                              {deployingActionId === currentActionId
+                                ? "Ejecutando..."
+                                : deployState === "deployed"
+                                  ? "Re-deploy"
+                                  : "Deploy"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

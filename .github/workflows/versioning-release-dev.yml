@@ -82,6 +82,57 @@ jobs:
             --product "${{ inputs.product_filter }}" \
             --output "versioning/out/changeset.json"
 
+      - name: Generate release notes auto
+        id: release_notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_ref="${{ steps.base_ref.outputs.effective_base_ref }}"
+          commit_subjects="$(git log --format=%s "${base_ref}"..HEAD || true)"
+
+          added=""
+          fixed=""
+          improved=""
+          security=""
+          db=""
+          other=""
+
+          while IFS= read -r line; do
+            [[ -z "${line}" ]] && continue
+            lower="$(echo "${line}" | tr '[:upper:]' '[:lower:]')"
+
+            if [[ "${lower}" == feat:* ]]; then
+              added+="- ${line}"$'\n'
+            elif [[ "${lower}" == fix:* ]]; then
+              fixed+="- ${line}"$'\n'
+            elif [[ "${lower}" == perf:* || "${lower}" == refactor:* ]]; then
+              improved+="- ${line}"$'\n'
+            elif [[ "${lower}" == security:* || "${lower}" == sec:* ]]; then
+              security+="- ${line}"$'\n'
+            elif [[ "${lower}" == *migration* || "${lower}" == *db:* || "${lower}" == db:* ]]; then
+              db+="- ${line}"$'\n'
+            else
+              other+="- ${line}"$'\n'
+            fi
+          done <<< "${commit_subjects}"
+
+          notes=""
+          [[ -n "${added}" ]] && notes+=$'Added\n'"${added}"$'\n'
+          [[ -n "${fixed}" ]] && notes+=$'Fixed\n'"${fixed}"$'\n'
+          [[ -n "${improved}" ]] && notes+=$'Improved\n'"${improved}"$'\n'
+          [[ -n "${security}" ]] && notes+=$'Security\n'"${security}"$'\n'
+          [[ -n "${db}" ]] && notes+=$'DB\n'"${db}"$'\n'
+          [[ -n "${other}" ]] && notes+=$'Other\n'"${other}"$'\n'
+
+          notes="${notes%%$'\n'}"
+
+          {
+            echo "release_notes_auto<<EOF"
+            echo "${notes}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Apply changeset and create dev release
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -93,6 +144,12 @@ jobs:
           VERSIONING_RELEASE_STATUS: released
           VERSIONING_PRODUCT_FILTER: ${{ inputs.product_filter }}
           VERSIONING_OVERRIDE_SEMVER: ${{ inputs.override_semver }}
-          VERSIONING_RELEASE_NOTES: ${{ inputs.release_notes }}
+          VERSIONING_RELEASE_NOTES_INPUT: ${{ inputs.release_notes }}
+          VERSIONING_RELEASE_NOTES_AUTO: ${{ steps.release_notes.outputs.release_notes_auto }}
         run: |
+          notes="${VERSIONING_RELEASE_NOTES_INPUT:-}"
+          if [[ -z "${notes}" ]]; then
+            notes="${VERSIONING_RELEASE_NOTES_AUTO:-}"
+          fi
+          export VERSIONING_RELEASE_NOTES="${notes}"
           node tooling/versioning/apply-changeset.mjs

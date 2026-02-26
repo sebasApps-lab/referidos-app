@@ -188,12 +188,6 @@ export default function WaitlistPage() {
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [isBorderTracing, setIsBorderTracing] = useState(false);
-  const [isBusinessBorderTracing, setIsBusinessBorderTracing] = useState(false);
-  const borderTraceRafRef = useRef(null);
-  const businessBorderTraceRafRef = useRef(null);
-  const borderTraceTimeoutRef = useRef(null);
-  const businessBorderTraceTimeoutRef = useRef(null);
 
   const meta = useMemo(
     () => ({
@@ -293,23 +287,6 @@ export default function WaitlistPage() {
   useSectionScrollMotion(sectionOneRef, sectionTwoRef, sectionThreeRef);
 
   useEffect(() => {
-    return () => {
-      if (borderTraceRafRef.current != null) {
-        window.cancelAnimationFrame(borderTraceRafRef.current);
-      }
-      if (businessBorderTraceRafRef.current != null) {
-        window.cancelAnimationFrame(businessBorderTraceRafRef.current);
-      }
-      if (borderTraceTimeoutRef.current != null) {
-        window.clearTimeout(borderTraceTimeoutRef.current);
-      }
-      if (businessBorderTraceTimeoutRef.current != null) {
-        window.clearTimeout(businessBorderTraceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (mode === uiMode) {
       if (pendingModeRef.current === mode) {
         pendingModeRef.current = null;
@@ -375,55 +352,6 @@ export default function WaitlistPage() {
       });
     };
   }, [uiMode, modeAnimTick]);
-
-  const triggerBorderTrace = () => {
-    if (status === "loading") return;
-    if (borderTraceRafRef.current != null) {
-      window.cancelAnimationFrame(borderTraceRafRef.current);
-    }
-    setIsBorderTracing(false);
-    borderTraceRafRef.current = window.requestAnimationFrame(() => {
-      setIsBorderTracing(true);
-      borderTraceRafRef.current = null;
-    });
-    if (borderTraceTimeoutRef.current != null) {
-      window.clearTimeout(borderTraceTimeoutRef.current);
-    }
-    borderTraceTimeoutRef.current = window.setTimeout(() => {
-      setIsBorderTracing(false);
-      borderTraceTimeoutRef.current = null;
-    }, 1200);
-  };
-
-  const handleBorderTraceAnimationEnd = (event) => {
-    if (event.animationName === "borderFadeOut") {
-      setIsBorderTracing(false);
-    }
-  };
-
-  const triggerBusinessBorderTrace = () => {
-    if (businessBorderTraceRafRef.current != null) {
-      window.cancelAnimationFrame(businessBorderTraceRafRef.current);
-    }
-    setIsBusinessBorderTracing(false);
-    businessBorderTraceRafRef.current = window.requestAnimationFrame(() => {
-      setIsBusinessBorderTracing(true);
-      businessBorderTraceRafRef.current = null;
-    });
-    if (businessBorderTraceTimeoutRef.current != null) {
-      window.clearTimeout(businessBorderTraceTimeoutRef.current);
-    }
-    businessBorderTraceTimeoutRef.current = window.setTimeout(() => {
-      setIsBusinessBorderTracing(false);
-      businessBorderTraceTimeoutRef.current = null;
-    }, 1200);
-  };
-
-  const handleBusinessBorderTraceAnimationEnd = (event) => {
-    if (event.animationName === "borderFadeOut") {
-      setIsBusinessBorderTracing(false);
-    }
-  };
 
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);

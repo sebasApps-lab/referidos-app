@@ -510,6 +510,9 @@ verify_jwt = false
 [functions.versioning-ops-proxy]
 verify_jwt = false
 
+[functions.versioning-runtime-migrations]
+verify_jwt = false
+
 [functions.support-ops-proxy]
 verify_jwt = false
 

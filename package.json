@@ -39,8 +39,8 @@
     "build:prelaunch:release": "npm run build:prelaunch && node tooling/observability/upload-sourcemaps.mjs --app prelaunch",
     "preview:app": "npm run preview -w apps/referidos-app",
     "preview:prelaunch": "npm run preview -w apps/prelaunch",
-    "lint": "npm run lint -ws --if-present",
-    "test": "npm run test -ws --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",

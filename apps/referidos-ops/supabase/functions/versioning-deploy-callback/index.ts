@@ -263,6 +263,53 @@ serve(async (req) => {
     );
   }
 
+  let releaseMetadataResult: JsonObject | null = null;
+  if (status === "success") {
+    const prNumber = Number(
+      metadata.pr_number ?? metadata.pull_number ?? metadata.pull_request_number ?? 0
+    );
+    const ciRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
+    const ciRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
+    const tagName = asString(metadata.tag_name);
+    const releaseNotesAuto = asString(metadata.release_notes_auto);
+    const releaseNotesFinal = asString(metadata.release_notes_final);
+
+    const { data: releaseMetadataRows, error: releaseMetadataError } = await supabaseAdmin.rpc(
+      "versioning_finalize_release_metadata",
+      {
+        p_request_id: requestId,
+        p_actor: actor,
+        p_pr_number: Number.isFinite(prNumber) && prNumber > 0 ? prNumber : null,
+        p_tag_name: tagName || null,
+        p_release_notes_auto: releaseNotesAuto || null,
+        p_release_notes_final: releaseNotesFinal || null,
+        p_ci_run_id: Number.isFinite(ciRunId) && ciRunId > 0 ? ciRunId : null,
+        p_ci_run_number: Number.isFinite(ciRunNumber) && ciRunNumber > 0 ? ciRunNumber : null,
+        p_metadata: metadata,
+      }
+    );
+
+    if (releaseMetadataError) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "finalize_release_metadata_failed",
+          detail: releaseMetadataError.message,
+          deployment_row_id: data || null,
+          obs_release_sync: obsReleaseSyncResult,
+        },
+        500,
+        cors
+      );
+    }
+
+    if (Array.isArray(releaseMetadataRows)) {
+      releaseMetadataResult = (releaseMetadataRows[0] as JsonObject) || null;
+    } else {
+      releaseMetadataResult = (releaseMetadataRows as JsonObject) || null;
+    }
+  }
+
   return jsonResponse(
     {
       ok: true,
@@ -270,6 +317,7 @@ serve(async (req) => {
       deployment_row_id: data || null,
       status,
       obs_release_sync: obsReleaseSyncResult,
+      release_metadata: releaseMetadataResult,
     },
     200,
     cors

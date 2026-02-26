@@ -220,8 +220,13 @@ export async function syncReleaseBranch({
   toEnv,
   semver,
   checkOnly = false,
+  autoMerge = !checkOnly,
+  createPr = true,
   sourceBranch = "",
   targetBranch = "",
+  operation = "sync",
+  pullNumber = 0,
+  commentBody = "",
 }) {
   return invokeVersioningOps("sync_release_branch", {
     productKey,
@@ -229,8 +234,13 @@ export async function syncReleaseBranch({
     toEnv,
     semver,
     checkOnly,
+    autoMerge,
+    createPr,
     sourceBranch,
     targetBranch,
+    operation,
+    pullNumber,
+    commentBody,
   });
 }
 
@@ -255,5 +265,43 @@ export async function createDevRelease({
     ref,
     overrideSemver,
     releaseNotes,
+  });
+}
+
+export async function checkReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+}) {
+  return invokeVersioningOps("check_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+  });
+}
+
+export async function applyReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+  sourceBranch = "",
+  targetBranch = "",
+}) {
+  return invokeVersioningOps("apply_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+    sourceBranch,
+    targetBranch,
+  });
+}
+
+export async function validateEnvironmentContract({
+  productKey,
+  envKey,
+}) {
+  return invokeVersioningOps("validate_environment", {
+    productKey,
+    envKey,
   });
 }

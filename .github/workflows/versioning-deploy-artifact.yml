@@ -45,7 +45,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy-artifact:
@@ -331,6 +331,29 @@ jobs:
 
           node -e "const fs=require('fs');const out=JSON.parse(fs.readFileSync('deploy-output.json','utf8'));const id=out.id||out.deploy_id||out.deployId||'';const url=out.deploy_ssl_url||out.deploy_url||out.url||'';if(!id){console.error('deploy-output sin id');console.error(JSON.stringify(out,null,2));process.exit(1);}fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deployment_id='+id+'\\n');if(url){fs.appendFileSync(process.env.GITHUB_OUTPUT, 'logs_url='+url+'\\n');}"
 
+      - name: Crear tag de produccion
+        id: tag_prod
+        if: ${{ success() && inputs.env_key == 'prod' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_name="v${SEMVER}"
+          git fetch --tags origin
+
+          if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null; then
+            echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Use lightweight tag to avoid requiring git user identity in CI.
+          git tag "${tag_name}" "${SOURCE_COMMIT_SHA}"
+          git push origin "refs/tags/${tag_name}"
+
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+          echo "tag_created=true" >> "$GITHUB_OUTPUT"
+
       - name: Finalizar deploy en backend
         if: ${{ always() }}
         shell: bash
@@ -338,6 +361,8 @@ jobs:
           FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
           DEPLOYMENT_ID_RAW: ${{ steps.deploy.outputs.deployment_id }}
           DEPLOY_LOGS_URL_RAW: ${{ steps.deploy.outputs.logs_url }}
+          TAG_NAME_RAW: ${{ steps.tag_prod.outputs.tag_name }}
+          TAG_CREATED_RAW: ${{ steps.tag_prod.outputs.tag_created }}
           GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CALLBACK_ACTOR: ${{ inputs.actor }}
         run: |
@@ -380,8 +405,11 @@ jobs:
                 source_branch: process.env.SOURCE_BRANCH || null,
                 target_branch: process.env.TARGET_BRANCH || null,
                 github_run_id: process.env.GITHUB_RUN_ID,
+                github_run_number: process.env.GITHUB_RUN_NUMBER,
                 github_run_url: process.env.GITHUB_RUN_URL,
                 github_repository: process.env.GITHUB_REPOSITORY,
+                tag_name: process.env.TAG_NAME_RAW || null,
+                tag_created: process.env.TAG_CREATED_RAW || null,
               },
             };
 
