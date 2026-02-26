@@ -654,6 +654,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
     case "create_dev_release": {
       const result = await invokeOpsFunction("versioning-dev-release-create", {
         operation: "dispatch",
+        mode: "release",
         product_key: asString(payload.productKey) || null,
         ref: asString(payload.ref, "dev"),
         override_semver: asString(payload.overrideSemver) || null,
@@ -664,6 +665,35 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       if (!result.ok) {
         throw new Error(
           asString(result.payload?.detail, asString(result.payload?.error, "No se pudo crear release de development."))
+        );
+      }
+
+      return result.payload;
+    }
+
+    case "backfill_release_artifact": {
+      const releaseId = asString(payload.releaseId || payload.release_id);
+      if (!releaseId) {
+        throw new Error("releaseId requerido");
+      }
+
+      const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "dispatch",
+        mode: "backfill_artifact",
+        release_id: releaseId,
+        product_key: asString(payload.productKey || payload.product_key) || null,
+        ref: asString(payload.ref, "dev"),
+        source_commit_sha: asString(payload.sourceCommitSha || payload.source_commit_sha) || null,
+        release_notes: asString(payload.releaseNotes || payload.release_notes) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo ejecutar backfill de build.")
+          )
         );
       }
 
@@ -810,6 +840,141 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         throw validationError;
       }
 
+      return result.payload;
+    }
+
+    case "fetch_release_artifacts": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_release_artifacts",
+        payload: {
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          limit: normalizeLimit(payload.limit, 120, 1, 400),
+        },
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(result.payload?.error, asString(result.detail, "No se pudo cargar catalogo de artefactos."))
+            )
+          )
+        );
+      }
+      return result.payload;
+    }
+
+    case "fetch_local_artifact_nodes": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_local_nodes",
+        payload: {
+          only_active: asBoolean(payload.onlyActive, false),
+          limit: normalizeLimit(payload.limit, 200, 1, 500),
+        },
+      });
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(result.payload?.error, asString(result.detail, "No se pudo cargar nodos locales."))
+            )
+          )
+        );
+      }
+      return result.payload;
+    }
+
+    case "upsert_local_artifact_node": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "upsert_local_node",
+        payload: {
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase(),
+          display_name: asString(payload.displayName || payload.display_name),
+          runner_label: asString(payload.runnerLabel || payload.runner_label),
+          os_name: asString(payload.osName || payload.os_name),
+          active: asBoolean(payload.active, true),
+          metadata:
+            payload.metadata && typeof payload.metadata === "object"
+              ? (payload.metadata as JsonObject)
+              : {},
+        },
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo guardar nodo local.")
+          )
+        );
+      }
+      return result.payload;
+    }
+
+    case "fetch_local_artifact_sync_requests": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_local_sync_requests",
+        payload: {
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          env_key: asString(payload.envKey || payload.env_key).toLowerCase() || null,
+          status: asString(payload.status).toLowerCase() || null,
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase() || null,
+          limit: normalizeLimit(payload.limit, 120, 1, 400),
+        },
+      });
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(
+                result.payload?.error,
+                asString(result.detail, "No se pudo cargar historial de sincronizacion local.")
+              )
+            )
+          )
+        );
+      }
+      return result.payload;
+    }
+
+    case "request_local_artifact_sync": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "request_local_sync",
+        payload: {
+          release_id: asString(payload.releaseId || payload.release_id) || null,
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          env_key: asString(payload.envKey || payload.env_key).toLowerCase() || null,
+          semver: asString(payload.semver) || null,
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase(),
+          notes: asString(payload.notes) || null,
+          metadata:
+            payload.metadata && typeof payload.metadata === "object"
+              ? (payload.metadata as JsonObject)
+              : {},
+        },
+      });
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(
+            result.payload?.message,
+            asString(result.payload?.error, asString(result.detail, "No se pudo encolar sync local."))
+          )
+        );
+        const syncError = new Error(detail);
+        (syncError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "request_local_artifact_sync_failed"
+        );
+        (syncError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw syncError;
+      }
       return result.payload;
     }
 

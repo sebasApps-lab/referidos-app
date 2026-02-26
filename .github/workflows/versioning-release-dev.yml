@@ -3,8 +3,20 @@ name: Versioning Release Dev
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "release | backfill_artifact"
+        required: false
+        type: string
       ref:
         description: "Branch/ref to release from (default: dev)"
+        required: false
+        type: string
+      release_id:
+        description: "Required for backfill_artifact mode"
+        required: false
+        type: string
+      source_commit_sha:
+        description: "Optional commit SHA to checkout (used by backfill_artifact)"
         required: false
         type: string
       base_ref:
@@ -32,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref || 'dev' }}
+          ref: ${{ inputs.source_commit_sha || inputs.ref || 'dev' }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,6 +56,7 @@ jobs:
 
       - name: Resolve effective base ref
         id: base_ref
+        if: ${{ inputs.mode != 'backfill_artifact' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -72,6 +85,7 @@ jobs:
           echo "fallback_reason=${fallback_reason}" >> "$GITHUB_OUTPUT"
 
       - name: Detect versioning changeset
+        if: ${{ inputs.mode != 'backfill_artifact' }}
         env:
           VERSIONING_BASE_REF: ${{ steps.base_ref.outputs.effective_base_ref }}
           VERSIONING_HEAD_REF: HEAD
@@ -84,6 +98,7 @@ jobs:
 
       - name: Generate release notes auto
         id: release_notes
+        if: ${{ inputs.mode != 'backfill_artifact' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,6 +149,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Apply changeset and create dev release
+        if: ${{ inputs.mode != 'backfill_artifact' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
@@ -153,3 +169,364 @@ jobs:
           fi
           export VERSIONING_RELEASE_NOTES="${notes}"
           node tooling/versioning/apply-changeset.mjs
+
+      - name: Resolve release row for artifact
+        id: release_row
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PRODUCT_FILTER: ${{ inputs.product_filter }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const { execSync } = require("node:child_process");
+          const { createClient } = require("@supabase/supabase-js");
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            const outputPath = process.env.GITHUB_OUTPUT;
+            const mode = String(process.env.MODE || "release").trim().toLowerCase();
+            const product = String(process.env.PRODUCT_FILTER || "").trim().toLowerCase();
+            const releaseId = String(process.env.RELEASE_ID || "").trim();
+            if (!outputPath) throw new Error("Missing GITHUB_OUTPUT");
+            if (!url || !key) {
+              throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
+            }
+            if (mode !== "backfill_artifact" && !product) {
+              fs.appendFileSync(outputPath, "found=false\n");
+              console.log("VERSIONING_RELEASE_ARTIFACT_SKIP missing product_filter");
+              return;
+            }
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const headCommitSha = execSync("git rev-parse HEAD", {
+              stdio: ["ignore", "pipe", "ignore"],
+              encoding: "utf-8",
+            }).trim();
+
+            let data = null;
+            let commitSha = headCommitSha;
+
+            if (mode === "backfill_artifact") {
+              if (!releaseId) {
+                throw new Error("Missing RELEASE_ID for backfill_artifact mode");
+              }
+
+              const { data: byId, error: byIdError } = await supabase
+                .from("version_releases_labeled")
+                .select("id, product_key, env_key, version_label, source_commit_sha")
+                .eq("id", releaseId)
+                .limit(1)
+                .maybeSingle();
+              if (byIdError || !byId?.id) {
+                throw new Error(byIdError?.message || "Release not found for backfill");
+              }
+              data = byId;
+              commitSha = String(byId.source_commit_sha || "").trim() || headCommitSha;
+            } else {
+              const { data: byHead, error: byHeadError } = await supabase
+                .from("version_releases_labeled")
+                .select("id, product_key, env_key, version_label, source_commit_sha")
+                .eq("product_key", product)
+                .eq("env_key", "dev")
+                .eq("source_commit_sha", headCommitSha)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (byHeadError || !byHead?.id) {
+                fs.appendFileSync(outputPath, "found=false\n");
+                console.log("VERSIONING_RELEASE_ARTIFACT_SKIP no matching release row");
+                return;
+              }
+              data = byHead;
+            }
+
+            const resolvedProduct = String(data.product_key || product || "product").trim().toLowerCase();
+
+            const safeVersion = String(data.version_label || "0.0.0")
+              .replace(/[^a-zA-Z0-9._-]+/g, "-")
+              .replace(/-+/g, "-")
+              .replace(/^-|-$/g, "");
+            const shortSha = commitSha.slice(0, 12);
+            const artifactName = `release-${resolvedProduct}-${safeVersion}-${shortSha}`;
+
+            fs.appendFileSync(outputPath, `found=true\n`);
+            fs.appendFileSync(outputPath, `release_id=${data.id}\n`);
+            fs.appendFileSync(outputPath, `product_key=${data.product_key}\n`);
+            fs.appendFileSync(outputPath, `env_key=${data.env_key}\n`);
+            fs.appendFileSync(outputPath, `version_label=${data.version_label}\n`);
+            fs.appendFileSync(outputPath, `source_commit_sha=${commitSha}\n`);
+            fs.appendFileSync(outputPath, `artifact_name=${artifactName}\n`);
+            fs.appendFileSync(outputPath, `mode=${mode}\n`);
+
+            console.log(`VERSIONING_RELEASE_ARTIFACT_RELEASE release_id=${data.id} version=${data.version_label}`);
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Resolve artifact build plan
+        id: artifact_plan
+        if: ${{ steps.release_row.outputs.found == 'true' }}
+        shell: bash
+        env:
+          PRODUCT_FILTER: ${{ steps.release_row.outputs.product_key }}
+        run: |
+          set -euo pipefail
+
+          product="$(echo "${PRODUCT_FILTER}" | tr '[:upper:]' '[:lower:]')"
+          workspace=""
+          publish_dir=""
+          enabled="true"
+
+          if [[ "$product" == "referidos_app" ]]; then
+            workspace="@referidos/referidos-app"
+            publish_dir="apps/referidos-app/dist"
+          elif [[ "$product" == "prelaunch_web" ]]; then
+            workspace="@referidos/prelaunch"
+            publish_dir="apps/prelaunch/dist"
+          else
+            enabled="false"
+          fi
+
+          echo "enabled=${enabled}" >> "$GITHUB_OUTPUT"
+          echo "workspace=${workspace}" >> "$GITHUB_OUTPUT"
+          echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release artifact
+        id: build_artifact
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          WORKSPACE: ${{ steps.artifact_plan.outputs.workspace }}
+          PUBLISH_DIR: ${{ steps.artifact_plan.outputs.publish_dir }}
+        run: |
+          set -euo pipefail
+
+          npm --workspace "${WORKSPACE}" run build
+
+          publish_dir="${PUBLISH_DIR}"
+          if [[ "$publish_dir" == "apps/referidos-app/dist" && -d "apps/referidos-app/dist/client" ]]; then
+            publish_dir="apps/referidos-app/dist/client"
+          fi
+
+          if [[ ! -d "$publish_dir" ]]; then
+            echo "Publish dir no existe: $publish_dir"
+            exit 1
+          fi
+
+          echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Package release artifact
+        id: package_artifact
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          PRODUCT_KEY: ${{ steps.release_row.outputs.product_key }}
+          VERSION_LABEL: ${{ steps.release_row.outputs.version_label }}
+          SOURCE_COMMIT_SHA: ${{ steps.release_row.outputs.source_commit_sha }}
+          ARTIFACT_BASENAME: ${{ steps.release_row.outputs.artifact_name }}
+          PUBLISH_DIR: ${{ steps.build_artifact.outputs.publish_dir }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${PUBLISH_DIR}" || ! -d "${PUBLISH_DIR}" ]]; then
+            echo "Publish dir no valida para package: ${PUBLISH_DIR}"
+            exit 1
+          fi
+
+          package_dir="versioning/out/artifacts"
+          mkdir -p "${package_dir}"
+          package_file="${ARTIFACT_BASENAME}.zip"
+          package_path="${package_dir}/${package_file}"
+
+          rm -f "${package_path}"
+          (
+            cd "${PUBLISH_DIR}"
+            zip -qr "${GITHUB_WORKSPACE}/${package_path}" .
+          )
+
+          size_bytes="$(wc -c < "${package_path}" | tr -d ' ')"
+          checksum_sha256="$(sha256sum "${package_path}" | awk '{print $1}')"
+
+          echo "package_path=${package_path}" >> "$GITHUB_OUTPUT"
+          echo "package_file=${package_file}" >> "$GITHUB_OUTPUT"
+          echo "size_bytes=${size_bytes}" >> "$GITHUB_OUTPUT"
+          echo "checksum_sha256=${checksum_sha256}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release backup artifact (GitHub)
+        id: upload_release_backup
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release_row.outputs.artifact_name }}-backup
+          path: ${{ steps.package_artifact.outputs.package_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release artifact to Supabase Storage
+        id: upload_storage
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          VERSIONING_ARTIFACTS_BUCKET: ${{ secrets.VERSIONING_ARTIFACTS_BUCKET }}
+          PRODUCT_KEY: ${{ steps.release_row.outputs.product_key }}
+          VERSION_LABEL: ${{ steps.release_row.outputs.version_label }}
+          SOURCE_COMMIT_SHA: ${{ steps.release_row.outputs.source_commit_sha }}
+          ARTIFACT_FILE: ${{ steps.package_artifact.outputs.package_file }}
+          PACKAGE_PATH: ${{ steps.package_artifact.outputs.package_path }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const { createClient } = require("@supabase/supabase-js");
+
+          const sanitize = (value, fallback = "na") =>
+            String(value || "")
+              .trim()
+              .replace(/[^a-zA-Z0-9._-]+/g, "-")
+              .replace(/-+/g, "-")
+              .replace(/^-|-$/g, "") || fallback;
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            if (!url || !key) throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
+
+            const packagePath = String(process.env.PACKAGE_PATH || "").trim();
+            if (!packagePath || !fs.existsSync(packagePath)) {
+              throw new Error(`Package not found: ${packagePath}`);
+            }
+
+            const bucket = String(process.env.VERSIONING_ARTIFACTS_BUCKET || "").trim() || "versioning-artifacts";
+            const productKey = sanitize(process.env.PRODUCT_KEY, "product");
+            const versionLabel = sanitize(process.env.VERSION_LABEL, "0.0.0");
+            const sha = sanitize(String(process.env.SOURCE_COMMIT_SHA || "").slice(0, 12), "nosha");
+            const artifactFile = sanitize(process.env.ARTIFACT_FILE || "bundle.zip", "bundle.zip");
+            const artifactPath = `${productKey}/${versionLabel}/${sha}/${artifactFile}`;
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const { error: bucketError } = await supabase.storage.createBucket(bucket, {
+              public: false,
+            });
+            if (bucketError && !String(bucketError.message || "").toLowerCase().includes("already exists")) {
+              throw new Error(bucketError.message);
+            }
+
+            const fileBuffer = fs.readFileSync(packagePath);
+            const { error: uploadError } = await supabase.storage
+              .from(bucket)
+              .upload(artifactPath, fileBuffer, {
+                upsert: true,
+                contentType: "application/zip",
+                cacheControl: "3600",
+              });
+
+            if (uploadError) throw new Error(uploadError.message);
+
+            const out = process.env.GITHUB_OUTPUT;
+            if (!out) throw new Error("Missing GITHUB_OUTPUT");
+            fs.appendFileSync(out, `storage_bucket=${bucket}\n`);
+            fs.appendFileSync(out, `storage_path=${artifactPath}\n`);
+            console.log(`VERSIONING_STORAGE_ARTIFACT_UPLOADED bucket=${bucket} path=${artifactPath}`);
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Register artifact metadata in OPS
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          RELEASE_ID: ${{ steps.release_row.outputs.release_id }}
+          PRODUCT_KEY: ${{ steps.release_row.outputs.product_key }}
+          ENV_KEY: ${{ steps.release_row.outputs.env_key }}
+          VERSION_LABEL: ${{ steps.release_row.outputs.version_label }}
+          SOURCE_COMMIT_SHA: ${{ steps.release_row.outputs.source_commit_sha }}
+          ARTIFACT_NAME: ${{ steps.package_artifact.outputs.package_file }}
+          STORAGE_BUCKET: ${{ steps.upload_storage.outputs.storage_bucket }}
+          STORAGE_PATH: ${{ steps.upload_storage.outputs.storage_path }}
+          ARTIFACT_ID: ${{ steps.upload_release_backup.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.upload_release_backup.outputs.artifact-url }}
+          SIZE_BYTES: ${{ steps.package_artifact.outputs.size_bytes }}
+          CHECKSUM_SHA256: ${{ steps.package_artifact.outputs.checksum_sha256 }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const { createClient } = require("@supabase/supabase-js");
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            if (!url || !key) throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const { data: artifactId, error: upsertError } = await supabase.rpc(
+              "versioning_upsert_release_artifact",
+              {
+                p_release_id: process.env.RELEASE_ID,
+                p_actor: "github-actions",
+                p_artifact_provider: "supabase_storage",
+                p_artifact_name: process.env.ARTIFACT_NAME,
+                p_artifact_key: `${process.env.PRODUCT_KEY}/${process.env.VERSION_LABEL}/${String(process.env.SOURCE_COMMIT_SHA || "").slice(0, 12)}`,
+                p_artifact_path: process.env.STORAGE_PATH || null,
+                p_github_repository: process.env.GITHUB_REPOSITORY,
+                p_github_run_id: Number(process.env.GITHUB_RUN_ID || 0) || null,
+                p_github_run_number: Number(process.env.GITHUB_RUN_NUMBER || 0) || null,
+                p_github_artifact_id: Number(process.env.ARTIFACT_ID || 0) || null,
+                p_github_artifact_url: process.env.ARTIFACT_URL || null,
+                p_size_bytes: Number(process.env.SIZE_BYTES || 0) || null,
+                p_checksum_sha256: process.env.CHECKSUM_SHA256 || null,
+                p_metadata: {
+                  source: "versioning-release-dev-workflow",
+                  workflow: "versioning-release-dev.yml",
+                  github_repository: process.env.GITHUB_REPOSITORY,
+                  product_key: process.env.PRODUCT_KEY,
+                  env_key: process.env.ENV_KEY,
+                  version_label: process.env.VERSION_LABEL,
+                  storage_bucket: process.env.STORAGE_BUCKET || "versioning-artifacts",
+                  storage_path: process.env.STORAGE_PATH || null,
+                  backup_artifact_id: process.env.ARTIFACT_ID || null,
+                  backup_artifact_url: process.env.ARTIFACT_URL || null,
+                },
+              }
+            );
+            if (upsertError) throw new Error(upsertError.message);
+
+            const { error: markError } = await supabase.rpc("versioning_mark_env_artifact_head", {
+              p_release_id: process.env.RELEASE_ID,
+              p_actor: "github-actions",
+            });
+            if (markError) throw new Error(markError.message);
+
+            console.log(`VERSIONING_ARTIFACT_REGISTERED release_id=${process.env.RELEASE_ID} artifact_id=${artifactId || "-"}`);
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
+import { runtimeConfig } from "../../config/runtimeConfig";
 
 export default function LeafletMapPicker({
   center,
@@ -17,7 +18,7 @@ export default function LeafletMapPicker({
   const onZoomChangeRef = useRef(onZoomChange);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
-  const mapTilerKey = import.meta.env.VITE_MAPTILER_KEY;
+  const mapTilerKey = runtimeConfig.mapTilerKey;
   const tileUrl = mapTilerKey
     ? `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${mapTilerKey}`
     : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";

@@ -21,12 +21,13 @@ import {
 import { runValidateRegistration } from "../../services/registrationClient";
 import { logCatalogBreadcrumb } from "../../services/loggingClient";
 import { toTitleCaseEs } from "../../utils/textCase";
+import { runtimeConfig } from "../../config/runtimeConfig";
 
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
 const GOOGLE_ONE_TAP_CLIENT_ID =
-  import.meta.env.VITE_GOOGLE_ONE_TAP_CLIENT_ID ||
-  import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  runtimeConfig.googleOneTapClientId ||
+  runtimeConfig.googleClientId;
 const DEFAULT_SUCURSAL_HORARIOS = {
   semanal: {
     lunes: [{ abre: "10:00", cierra: "18:00" }],
@@ -122,8 +123,9 @@ export default function useAuthActions({
   const onboarding = useAppStore((s) => s.onboarding);
 
   const redirectTo =
-    (typeof window !== "undefined" && `${window.location.origin}/auth`) ||
-    import.meta.env.VITE_AUTH_REDIRECT_URL;
+    runtimeConfig.authRedirectUrl ||
+    ((typeof window !== "undefined" && `${window.location.origin}/auth`) ||
+      undefined);
 
   const resolveClientSteps = useCallback((state = onboarding) => {
     const steps = state?.client_steps || {};

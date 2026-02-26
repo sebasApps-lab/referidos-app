@@ -5,26 +5,16 @@ import {
   createPolicyRuntime,
 } from "@referidos/observability";
 import { supabase } from "../lib/supabaseClient";
+import { runtimeConfig } from "../config/runtimeConfig";
 
 const importEnv = import.meta.env || {};
-const DEFAULT_TENANT_HINT = importEnv.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
-const DEFAULT_APP_ID = importEnv.VITE_APP_ID || "referidos-app";
-const DEFAULT_ENV = importEnv.MODE || importEnv.VITE_ENV || "development";
-const DEFAULT_VERSION =
-  importEnv.VITE_APP_VERSION ||
-  importEnv.VITE_VERSION_LABEL ||
-  importEnv.VITE_RELEASE ||
-  importEnv.VITE_COMMIT_SHA ||
-  "dev";
-const DEFAULT_BUILD_ID =
-  importEnv.VITE_BUILD_ID ||
-  importEnv.VITE_SOURCE_COMMIT_SHA ||
-  importEnv.VITE_COMMIT_SHA ||
-  "";
-const DEFAULT_RELEASE_ID =
-  importEnv.VITE_VERSION_RELEASE_ID || importEnv.VITE_RELEASE_ID || "";
-const DEFAULT_SOURCE_COMMIT_SHA =
-  importEnv.VITE_SOURCE_COMMIT_SHA || importEnv.VITE_COMMIT_SHA || "";
+const DEFAULT_TENANT_HINT = runtimeConfig.defaultTenantId || "ReferidosAPP";
+const DEFAULT_APP_ID = runtimeConfig.appId || "referidos-app";
+const DEFAULT_ENV = runtimeConfig.appEnv || importEnv.MODE || "development";
+const DEFAULT_VERSION = runtimeConfig.appVersion || "dev";
+const DEFAULT_BUILD_ID = runtimeConfig.buildId || "";
+const DEFAULT_RELEASE_ID = runtimeConfig.releaseId || "";
+const DEFAULT_SOURCE_COMMIT_SHA = runtimeConfig.sourceCommitSha || "";
 
 const LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug"]);
 const LOG_CATEGORIES = new Set([

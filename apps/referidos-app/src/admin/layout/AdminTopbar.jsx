@@ -8,13 +8,18 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
+import { runtimeConfig } from "../../config/runtimeConfig";
 
 export default function AdminTopbar({ title, subtitle, onOpenMenu, onRefreshPanel }) {
   const usuario = useAppStore((s) => s.usuario);
   const logout = useAppStore((s) => s.logout);
 
   const environmentLabel =
-    import.meta.env.MODE === "production" ? "Produccion" : "Staging";
+    runtimeConfig.appEnv === "prod" || runtimeConfig.appEnv === "production"
+      ? "Produccion"
+      : runtimeConfig.appEnv === "staging"
+        ? "Staging"
+        : "Development";
 
   const initials = (usuario?.nombre || "Admin")
     .split(" ")

@@ -809,7 +809,7 @@ serve(async (req) => {
       );
     }
 
-    const loadedPr = await fetchPullRequest({
+    const loadedPr = await getPullRequestByNumber({
       owner: githubOwner,
       repo: githubRepo,
       token: githubToken,

@@ -329,18 +329,32 @@ serve(async (req) => {
     tenantIdFromUser = asString(body.tenant_id);
   }
 
-  const productKey = asString(body.product_key).toLowerCase();
+  const requestedProductKey = asString(body.product_key).toLowerCase();
   const requestedRef = asString(body.ref);
   const overrideSemver = asString(body.override_semver);
   const releaseNotes = asString(body.release_notes);
   const operation = asString(body.operation, "dispatch").toLowerCase();
+  const mode = asString(body.mode, "release").toLowerCase();
+  const releaseId = asString(body.release_id || body.releaseId);
+  const requestedSourceCommitSha = asString(body.source_commit_sha || body.sourceCommitSha);
 
-  if (productKey && !isValidProductKey(productKey)) {
+  if (requestedProductKey && !isValidProductKey(requestedProductKey)) {
     return jsonResponse(
       {
         ok: false,
         error: "invalid_product_key",
         detail: "Valores permitidos: referidos_app | prelaunch_web | android_app",
+      },
+      400,
+        cors
+    );
+  }
+  if (!["release", "backfill_artifact"].includes(mode)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "invalid_mode",
+        detail: "mode permitido: release | backfill_artifact",
       },
       400,
       cors
@@ -393,17 +407,6 @@ serve(async (req) => {
       .filter(Boolean)
   );
   const ref = requestedRef || defaultDevRef;
-  if (!allowRefs.has(ref)) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "invalid_ref",
-        detail: `Ref no permitida. permitidas=${Array.from(allowRefs).join(", ")}`,
-      },
-      400,
-      cors
-    );
-  }
 
   if (operation === "status") {
     const runId = asNumber(body.run_id, 0);
@@ -435,6 +438,7 @@ serve(async (req) => {
       {
         ok: true,
         operation: "status",
+        mode,
         workflow: workflowId,
         ref,
         run: resolved.run,
@@ -447,35 +451,117 @@ serve(async (req) => {
     );
   }
 
+  let productKey = requestedProductKey;
   let releaseBaseRef = "";
-  if (productKey) {
-    const { data: latestRows, error: latestError } = await supabaseAdmin
-      .from("version_releases_labeled")
-      .select("source_commit_sha")
-      .eq("product_key", productKey)
-      .eq("env_key", "dev")
-      .order("semver_major", { ascending: false })
-      .order("semver_minor", { ascending: false })
-      .order("semver_patch", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (latestError) {
+  let workflowRef = ref;
+  let sourceCommitSha = requestedSourceCommitSha;
+  const trimmedReleaseId = asString(releaseId);
+
+  if (mode === "release") {
+    if (!allowRefs.has(workflowRef)) {
       return jsonResponse(
         {
           ok: false,
-          error: "load_latest_release_failed",
-          detail: latestError.message,
+          error: "invalid_ref",
+          detail: `Ref no permitida. permitidas=${Array.from(allowRefs).join(", ")}`,
         },
-        500,
+        400,
         cors
       );
     }
-    releaseBaseRef = asString(latestRows?.[0]?.source_commit_sha);
+
+    if (productKey) {
+      const { data: latestRows, error: latestError } = await supabaseAdmin
+        .from("version_releases_labeled")
+        .select("source_commit_sha")
+        .eq("product_key", productKey)
+        .eq("env_key", "dev")
+        .order("semver_major", { ascending: false })
+        .order("semver_minor", { ascending: false })
+        .order("semver_patch", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (latestError) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "load_latest_release_failed",
+            detail: latestError.message,
+          },
+          500,
+          cors
+        );
+      }
+      releaseBaseRef = asString(latestRows?.[0]?.source_commit_sha);
+    }
+  } else {
+    if (!trimmedReleaseId) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "missing_release_id",
+          detail: "release_id es requerido para mode=backfill_artifact",
+        },
+        400,
+        cors
+      );
+    }
+
+    const { data: releaseRow, error: releaseError } = await supabaseAdmin
+      .from("version_releases_labeled")
+      .select("id, tenant_id, product_key, env_key, version_label, source_commit_sha")
+      .eq("id", trimmedReleaseId)
+      .limit(1)
+      .maybeSingle();
+
+    if (releaseError || !releaseRow?.id) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "release_not_found",
+          detail: releaseError?.message || "No se encontro release para backfill.",
+        },
+        404,
+        cors
+      );
+    }
+
+    if (tenantIdFromUser && asString(releaseRow.tenant_id) && asString(releaseRow.tenant_id) !== tenantIdFromUser) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "release_tenant_mismatch",
+          detail: "La release no pertenece al tenant actual.",
+        },
+        403,
+        cors
+      );
+    }
+
+    if (productKey && productKey !== asString(releaseRow.product_key).toLowerCase()) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "product_release_mismatch",
+          detail: "release_id no coincide con product_key.",
+        },
+        400,
+        cors
+      );
+    }
+
+    productKey = asString(releaseRow.product_key).toLowerCase();
+    sourceCommitSha = asString(releaseRow.source_commit_sha);
+    workflowRef = defaultDevRef;
+    releaseBaseRef = "";
   }
 
   const payload = {
-    ref,
+    ref: workflowRef,
     inputs: {
+      mode,
+      release_id: mode === "backfill_artifact" ? trimmedReleaseId : "",
+      source_commit_sha: mode === "backfill_artifact" ? sourceCommitSha || "" : "",
       base_ref: releaseBaseRef || "",
       product_filter: productKey || "",
       override_semver: overrideSemver || "",
@@ -536,9 +622,12 @@ serve(async (req) => {
       entity_type: "workflow",
       entity_id: workflowId,
       payload: {
-        ref,
+        ref: workflowRef,
         base_ref: releaseBaseRef || null,
         product_key: productKey || null,
+        mode,
+        release_id: mode === "backfill_artifact" ? trimmedReleaseId : null,
+        source_commit_sha: mode === "backfill_artifact" ? sourceCommitSha || null : null,
         override_semver: overrideSemver || null,
         release_notes: releaseNotes || null,
       },
@@ -549,10 +638,13 @@ serve(async (req) => {
     {
       ok: true,
       operation: "dispatch",
+      mode,
       workflow: workflowId,
-      ref,
+      ref: workflowRef,
       base_ref: releaseBaseRef || null,
       product_key: productKey || null,
+      release_id: mode === "backfill_artifact" ? trimmedReleaseId : null,
+      source_commit_sha: mode === "backfill_artifact" ? sourceCommitSha || null : null,
       override_semver: overrideSemver || null,
       dispatch_started_at: new Date().toISOString(),
       detail: "Workflow de release dev disparado correctamente.",

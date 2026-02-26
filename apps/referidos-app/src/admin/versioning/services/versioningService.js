@@ -268,6 +268,22 @@ export async function createDevRelease({
   });
 }
 
+export async function backfillReleaseArtifact({
+  releaseId = "",
+  productKey = "",
+  ref = "dev",
+  sourceCommitSha = "",
+  releaseNotes = "",
+} = {}) {
+  return invokeVersioningOps("backfill_release_artifact", {
+    releaseId,
+    productKey,
+    ref,
+    sourceCommitSha,
+    releaseNotes,
+  });
+}
+
 export async function fetchDevReleaseStatus({
   productKey = "",
   ref = "dev",
@@ -317,5 +333,79 @@ export async function validateEnvironmentContract({
   return invokeVersioningOps("validate_environment", {
     productKey,
     envKey,
+  });
+}
+
+export async function fetchReleaseArtifacts({
+  productKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_release_artifacts", {
+    productKey,
+    limit,
+  });
+}
+
+export async function fetchLocalArtifactNodes({
+  onlyActive = false,
+  limit = 200,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_nodes", {
+    onlyActive,
+    limit,
+  });
+}
+
+export async function upsertLocalArtifactNode({
+  nodeKey,
+  displayName,
+  runnerLabel,
+  osName = "",
+  active = true,
+  metadata = {},
+}) {
+  return invokeVersioningOps("upsert_local_artifact_node", {
+    nodeKey,
+    displayName,
+    runnerLabel,
+    osName,
+    active,
+    metadata,
+  });
+}
+
+export async function fetchLocalArtifactSyncRequests({
+  productKey = "",
+  envKey = "",
+  status = "",
+  nodeKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_sync_requests", {
+    productKey,
+    envKey,
+    status,
+    nodeKey,
+    limit,
+  });
+}
+
+export async function requestLocalArtifactSync({
+  releaseId = "",
+  productKey = "",
+  envKey = "",
+  semver = "",
+  nodeKey,
+  notes = "",
+  metadata = {},
+}) {
+  return invokeVersioningOps("request_local_artifact_sync", {
+    releaseId,
+    productKey,
+    envKey,
+    semver,
+    nodeKey,
+    notes,
+    metadata,
   });
 }

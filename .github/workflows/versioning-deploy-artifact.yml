@@ -46,6 +46,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   deploy-artifact:
@@ -87,6 +88,7 @@ jobs:
       SUPABASE_SECRET_KEY_PROD: ${{ secrets.SUPABASE_SECRET_KEY_PROD }}
       SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
       SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+      VERSIONING_ARTIFACTS_BUCKET: ${{ secrets.VERSIONING_ARTIFACTS_BUCKET }}
     steps:
       - name: Validar input y resolver plan
         id: plan
@@ -264,33 +266,241 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build artifact exacto
+      - name: Resolve release artifact metadata
+        id: artifact_meta
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const { createClient } = require("@supabase/supabase-js");
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            const requestId = process.env.REQUEST_ID;
+            if (!url || !key || !requestId) {
+              throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY/REQUEST_ID");
+            }
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const { data: requestRow, error: requestError } = await supabase
+              .from("version_deploy_requests_labeled")
+              .select("id, release_id, product_key, env_key, version_label")
+              .eq("id", requestId)
+              .limit(1)
+              .maybeSingle();
+            if (requestError || !requestRow?.release_id) {
+              throw new Error(requestError?.message || "deploy_request_not_found");
+            }
+
+            const { data: artifactRow, error: artifactError } = await supabase
+              .from("version_release_artifacts_labeled")
+              .select("id, artifact_name, artifact_provider, artifact_path, metadata, github_run_id, github_repository, product_key, env_key, version_label, commit_sha")
+              .eq("release_id", requestRow.release_id)
+              .limit(1)
+              .maybeSingle();
+            let resolvedArtifact = artifactRow;
+            if (!resolvedArtifact?.id) {
+              const { data: fallbackArtifact, error: fallbackError } = await supabase
+                .from("version_release_artifacts_labeled")
+                .select("id, artifact_name, artifact_provider, artifact_path, metadata, github_run_id, github_repository, product_key, env_key, version_label, commit_sha")
+                .eq("product_key", String(requestRow.product_key || ""))
+                .eq("version_label", String(requestRow.version_label || ""))
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (fallbackError || !fallbackArtifact?.id) {
+                throw new Error(fallbackError?.message || artifactError?.message || "release_artifact_not_found");
+              }
+              resolvedArtifact = fallbackArtifact;
+            }
+            if (!resolvedArtifact?.artifact_name || !resolvedArtifact?.artifact_provider) {
+              throw new Error("release_artifact_invalid");
+            }
+
+            const repo = String(resolvedArtifact.github_repository || "").trim() || process.env.GITHUB_REPOSITORY;
+            const metadata =
+              resolvedArtifact.metadata && typeof resolvedArtifact.metadata === "object"
+                ? resolvedArtifact.metadata
+                : {};
+            const storageBucket =
+              String(metadata.storage_bucket || "").trim() ||
+              String(process.env.VERSIONING_ARTIFACTS_BUCKET || "").trim() ||
+              "versioning-artifacts";
+            const out = process.env.GITHUB_OUTPUT;
+            if (!out) throw new Error("Missing GITHUB_OUTPUT");
+            fs.appendFileSync(out, `artifact_id=${resolvedArtifact.id}\n`);
+            fs.appendFileSync(out, `artifact_name=${resolvedArtifact.artifact_name}\n`);
+            fs.appendFileSync(out, `artifact_provider=${resolvedArtifact.artifact_provider}\n`);
+            fs.appendFileSync(out, `artifact_path=${resolvedArtifact.artifact_path || ""}\n`);
+            fs.appendFileSync(out, `artifact_bucket=${storageBucket}\n`);
+            fs.appendFileSync(out, `artifact_run_id=${resolvedArtifact.github_run_id || ""}\n`);
+            fs.appendFileSync(out, `artifact_repo=${repo}\n`);
+            fs.appendFileSync(out, `artifact_commit_sha=${resolvedArtifact.commit_sha || ""}\n`);
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Download release artifact from GitHub Actions
+        if: ${{ steps.artifact_meta.outputs.artifact_provider == 'github_actions' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.artifact_meta.outputs.artifact_name }}
+          run-id: ${{ steps.artifact_meta.outputs.artifact_run_id }}
+          repository: ${{ steps.artifact_meta.outputs.artifact_repo }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded-artifact
+
+      - name: Download release artifact from Supabase Storage
+        if: ${{ steps.artifact_meta.outputs.artifact_provider == 'supabase_storage' }}
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ARTIFACT_BUCKET: ${{ steps.artifact_meta.outputs.artifact_bucket }}
+          ARTIFACT_PATH: ${{ steps.artifact_meta.outputs.artifact_path }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const { createClient } = require("@supabase/supabase-js");
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            const bucket = String(process.env.ARTIFACT_BUCKET || "").trim() || "versioning-artifacts";
+            const artifactPath = String(process.env.ARTIFACT_PATH || "").trim();
+            if (!url || !key) throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
+            if (!artifactPath) throw new Error("Missing ARTIFACT_PATH for supabase_storage provider");
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const { data, error } = await supabase.storage.from(bucket).download(artifactPath);
+            if (error || !data) throw new Error(error?.message || "artifact_storage_download_failed");
+
+            const archivePath = path.resolve("downloaded-artifact.zip");
+            const outDir = path.resolve("downloaded-artifact");
+            const arrayBuffer = await data.arrayBuffer();
+            fs.writeFileSync(archivePath, Buffer.from(arrayBuffer));
+            fs.rmSync(outDir, { recursive: true, force: true });
+            fs.mkdirSync(outDir, { recursive: true });
+            console.log(`ARTIFACT_DOWNLOADED archive=${archivePath}`);
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
+
+          unzip -q "downloaded-artifact.zip" -d "downloaded-artifact"
+
+      - name: Validate artifact provider
+        if: ${{ steps.artifact_meta.outputs.artifact_provider != 'github_actions' && steps.artifact_meta.outputs.artifact_provider != 'supabase_storage' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Provider no soportado: ${{ steps.artifact_meta.outputs.artifact_provider }}"
+          exit 1
+
+      - name: Prepare publish dir from artifact
         id: build
         shell: bash
         env:
-          VITE_APP_VERSION: ${{ inputs.semver }}
-          VITE_BUILD_ID: ${{ inputs.source_commit_sha }}
-          VITE_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
-          VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
-          VITE_ENV: ${{ inputs.env_key }}
-          VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
-          VITE_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
-          VITE_SUPABASE_ANON_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
+          PRODUCT_KEY: ${{ inputs.product_key }}
         run: |
           set -euo pipefail
-          npm --workspace "${{ steps.plan.outputs.workspace }}" run build
 
-          publish_dir="${{ steps.plan.outputs.publish_dir }}"
-          if [[ "$publish_dir" == "apps/referidos-app/dist" && -d "apps/referidos-app/dist/client" ]]; then
-            publish_dir="apps/referidos-app/dist/client"
-          fi
-
-          if [[ ! -d "$publish_dir" ]]; then
-            echo "Publish dir no existe: $publish_dir"
+          source_dir="downloaded-artifact"
+          if [[ ! -d "$source_dir" ]]; then
+            echo "Artifact descargado no existe: $source_dir"
             exit 1
           fi
 
-          echo "publish_dir=${publish_dir}" >> "$GITHUB_OUTPUT"
+          if [[ "$PRODUCT_KEY" == "referidos_app" ]]; then
+            rm -rf "apps/referidos-app/dist"
+            mkdir -p "apps/referidos-app/dist"
+            cp -R "${source_dir}/." "apps/referidos-app/dist/"
+          elif [[ "$PRODUCT_KEY" == "prelaunch_web" ]]; then
+            rm -rf "apps/prelaunch/dist"
+            mkdir -p "apps/prelaunch/dist"
+            cp -R "${source_dir}/." "apps/prelaunch/dist/"
+          else
+            echo "Producto no soportado para deploy artifact: $PRODUCT_KEY"
+            exit 1
+          fi
+
+          echo "publish_dir=${source_dir}" >> "$GITHUB_OUTPUT"
+
+      - name: Generar runtime app-config.js
+        id: runtime_config
+        shell: bash
+        env:
+          PUBLISH_DIR: ${{ steps.build.outputs.publish_dir }}
+          RUNTIME_PRODUCT_KEY: ${{ inputs.product_key }}
+          RUNTIME_ENV_KEY: ${{ inputs.env_key }}
+          RUNTIME_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          RUNTIME_APP_VERSION: ${{ inputs.semver }}
+          RUNTIME_BUILD_ID: ${{ inputs.source_commit_sha }}
+          RUNTIME_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          RUNTIME_TENANT_HINT: ${{ steps.obs_tenant.outputs.tenant_name }}
+          RUNTIME_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
+          RUNTIME_SUPABASE_ANON_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          const publishDir = process.env.PUBLISH_DIR;
+          const productKey = process.env.RUNTIME_PRODUCT_KEY;
+          const baseConfig = {
+            appEnv: process.env.RUNTIME_ENV_KEY,
+            appId: process.env.RUNTIME_APP_ID,
+            appVersion: process.env.RUNTIME_APP_VERSION,
+            buildId: process.env.RUNTIME_BUILD_ID,
+            sourceCommitSha: process.env.RUNTIME_SOURCE_COMMIT_SHA,
+            defaultTenantId: process.env.RUNTIME_TENANT_HINT || "ReferidosAPP",
+            supabaseUrl: process.env.RUNTIME_SUPABASE_URL,
+          };
+
+          let windowKey = "";
+          let runtimeConfig = {};
+
+          if (productKey === "referidos_app") {
+            windowKey = "__REFERIDOS_RUNTIME_CONFIG__";
+            runtimeConfig = {
+              ...baseConfig,
+              supabaseAnonKey: process.env.RUNTIME_SUPABASE_ANON_KEY,
+            };
+          } else if (productKey === "prelaunch_web") {
+            windowKey = "__PRELAUNCH_RUNTIME_CONFIG__";
+            runtimeConfig = {
+              ...baseConfig,
+              appChannel: "prelaunch_web",
+              supabasePublishableKey: process.env.RUNTIME_SUPABASE_ANON_KEY,
+            };
+          } else {
+            throw new Error(`Producto no soportado para runtime config: ${productKey}`);
+          }
+
+          const filePath = path.join(publishDir, "app-config.js");
+          fs.writeFileSync(filePath, `window.${windowKey} = ${JSON.stringify(runtimeConfig, null, 2)};\n`);
+          console.log(`RUNTIME_CONFIG_WRITTEN ${filePath}`);
+          NODE
 
       - name: Upload sourcemaps + registrar release metadata
         id: sourcemaps
@@ -410,6 +620,10 @@ jobs:
                 github_repository: process.env.GITHUB_REPOSITORY,
                 tag_name: process.env.TAG_NAME_RAW || null,
                 tag_created: process.env.TAG_CREATED_RAW || null,
+                artifact_id: "${{ steps.artifact_meta.outputs.artifact_id }}" || null,
+                artifact_name: "${{ steps.artifact_meta.outputs.artifact_name }}" || null,
+                artifact_run_id: "${{ steps.artifact_meta.outputs.artifact_run_id }}" || null,
+                artifact_repository: "${{ steps.artifact_meta.outputs.artifact_repo }}" || null,
               },
             };
 

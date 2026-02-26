@@ -1,0 +1,149 @@
+﻿name: Versioning Local Artifact Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: "ID de solicitud de sync local"
+        required: true
+        type: string
+      node_key:
+        description: "Node key"
+        required: true
+        type: string
+      runner_label:
+        description: "Label del self-hosted runner"
+        required: true
+        type: string
+      artifact_name:
+        description: "Nombre del artifact en GitHub Actions"
+        required: true
+        type: string
+      artifact_provider:
+        description: "Proveedor del artifact (github_actions | supabase_storage)"
+        required: false
+        type: string
+      artifact_key:
+        description: "Artifact key"
+        required: false
+        type: string
+      artifact_storage_bucket:
+        description: "Bucket de storage (si provider=supabase_storage)"
+        required: false
+        type: string
+      artifact_storage_path:
+        description: "Path del objeto en storage"
+        required: false
+        type: string
+      artifact_download_url:
+        description: "Signed URL para descargar artifact desde storage"
+        required: false
+        type: string
+      github_run_id:
+        description: "Run ID donde se generó el artifact"
+        required: true
+        type: string
+      github_repository:
+        description: "owner/repo del artifact"
+        required: true
+        type: string
+      product_key:
+        description: "Producto"
+        required: true
+        type: string
+      env_key:
+        description: "Entorno"
+        required: true
+        type: string
+      semver:
+        description: "Version"
+        required: true
+        type: string
+      source_commit_sha:
+        description: "Commit source"
+        required: true
+        type: string
+      actor:
+        description: "Actor"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sync-local:
+    runs-on:
+      - self-hosted
+      - ${{ inputs.runner_label }}
+    env:
+      OPS_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VERSIONING_LOCAL_SYNC_TOKEN: ${{ secrets.VERSIONING_LOCAL_SYNC_TOKEN }}
+      VERSIONING_LOCAL_ARTIFACTS_DIR: ${{ secrets.VERSIONING_LOCAL_ARTIFACTS_DIR }}
+      REQUEST_ID: ${{ inputs.request_id }}
+      NODE_KEY: ${{ inputs.node_key }}
+      PRODUCT_KEY: ${{ inputs.product_key }}
+      ENV_KEY: ${{ inputs.env_key }}
+      SEMVER: ${{ inputs.semver }}
+      SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+      ACTOR: ${{ inputs.actor }}
+      ARTIFACT_PROVIDER: ${{ inputs.artifact_provider }}
+      ARTIFACT_STORAGE_BUCKET: ${{ inputs.artifact_storage_bucket }}
+      ARTIFACT_STORAGE_PATH: ${{ inputs.artifact_storage_path }}
+      ARTIFACT_DOWNLOAD_URL: ${{ inputs.artifact_download_url }}
+    steps:
+      - name: Mark request running
+        shell: pwsh
+        run: |
+          node -e "(async()=>{const base=(process.env.OPS_SUPABASE_URL||'').replace(/\/+$/,'');const token=process.env.VERSIONING_LOCAL_SYNC_TOKEN||'';if(!base||!token){throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');}const payload={operation:'finalize_local_sync',payload:{request_id:process.env.REQUEST_ID,status:'running',workflow_run_id:Number(process.env.GITHUB_RUN_ID||0)||null,workflow_run_url:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,actor:process.env.ACTOR||'github-actions'}};const res=await fetch(`${base}/functions/v1/versioning-artifact-sync`,{method:'POST',headers:{'Content-Type':'application/json','x-versioning-local-sync-token':token},body:JSON.stringify(payload)});const text=await res.text();if(!res.ok){throw new Error(text||`HTTP ${res.status}`);}console.log(text||'OK');})().catch((err)=>{console.error(err.message||err);process.exit(1);});"
+
+      - name: Download release artifact (GitHub Actions)
+        if: ${{ (inputs.artifact_provider == '' || inputs.artifact_provider == 'github_actions') }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.github_run_id }}
+          repository: ${{ inputs.github_repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded-artifact
+
+      - name: Download release artifact (Supabase Storage)
+        if: ${{ inputs.artifact_provider == 'supabase_storage' }}
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ARTIFACT_DOWNLOAD_URL)) {
+            throw "Missing ARTIFACT_DOWNLOAD_URL for provider=supabase_storage"
+          }
+          if (Test-Path downloaded-artifact.zip) {
+            Remove-Item downloaded-artifact.zip -Force
+          }
+          Invoke-WebRequest -Uri $env:ARTIFACT_DOWNLOAD_URL -OutFile downloaded-artifact.zip
+          if (Test-Path downloaded-artifact) {
+            Remove-Item downloaded-artifact -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path downloaded-artifact | Out-Null
+          Expand-Archive -Path downloaded-artifact.zip -DestinationPath downloaded-artifact -Force
+
+      - name: Validate artifact provider
+        if: ${{ inputs.artifact_provider != '' && inputs.artifact_provider != 'github_actions' && inputs.artifact_provider != 'supabase_storage' }}
+        shell: pwsh
+        run: |
+          throw "Unsupported artifact provider: ${{ inputs.artifact_provider }}"
+
+      - name: Copy artifact to local storage
+        id: copy_local
+        shell: pwsh
+        env:
+          SOURCE_DIR: downloaded-artifact
+        run: |
+          node -e "const fs=require('fs');const path=require('path');const source=path.resolve(process.env.SOURCE_DIR||'downloaded-artifact');const root=String(process.env.VERSIONING_LOCAL_ARTIFACTS_DIR||'').trim()||path.resolve(process.env.GITHUB_WORKSPACE||process.cwd(),'versioning/local-artifacts');const sanitize=(s)=>String(s||'').trim().replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'')||'unknown';const target=path.join(root,sanitize(process.env.PRODUCT_KEY),sanitize(process.env.ENV_KEY),sanitize(process.env.SEMVER),sanitize(process.env.SOURCE_COMMIT_SHA));if(!fs.existsSync(source)){throw new Error('Artifact source not found: '+source);}fs.mkdirSync(target,{recursive:true});const copy=(src,dst)=>{const st=fs.statSync(src);if(st.isDirectory()){fs.mkdirSync(dst,{recursive:true});for(const name of fs.readdirSync(src)){copy(path.join(src,name),path.join(dst,name));}return;}fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(src,dst);};copy(source,target);const out=process.env.GITHUB_OUTPUT;if(out){fs.appendFileSync(out,`local_path=${target}\n`);}console.log('LOCAL_ARTIFACT_PATH='+target);"
+
+      - name: Finalize local sync callback
+        if: ${{ always() }}
+        shell: pwsh
+        env:
+          FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
+          LOCAL_PATH: ${{ steps.copy_local.outputs.local_path }}
+        run: |
+          node -e "(async()=>{const base=(process.env.OPS_SUPABASE_URL||'').replace(/\/+$/,'');const token=process.env.VERSIONING_LOCAL_SYNC_TOKEN||'';if(!base||!token){throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');}const status=(process.env.FINAL_STATUS||'failed').toLowerCase();const payload={operation:'finalize_local_sync',payload:{request_id:process.env.REQUEST_ID,status,workflow_run_id:Number(process.env.GITHUB_RUN_ID||0)||null,workflow_run_url:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,local_path:status==='success'?(process.env.LOCAL_PATH||''):null,error_detail:status==='failed'?'local_sync_workflow_failed':null,actor:process.env.ACTOR||'github-actions',metadata:{node_key:process.env.NODE_KEY,product_key:process.env.PRODUCT_KEY,env_key:process.env.ENV_KEY,semver:process.env.SEMVER,artifact_name:'${{ inputs.artifact_name }}',artifact_key:'${{ inputs.artifact_key }}',artifact_provider:process.env.ARTIFACT_PROVIDER||'github_actions',artifact_storage_bucket:process.env.ARTIFACT_STORAGE_BUCKET||'',artifact_storage_path:process.env.ARTIFACT_STORAGE_PATH||''}}};const res=await fetch(`${base}/functions/v1/versioning-artifact-sync`,{method:'POST',headers:{'Content-Type':'application/json','x-versioning-local-sync-token':token},body:JSON.stringify(payload)});const text=await res.text();if(!res.ok){throw new Error(text||`HTTP ${res.status}`);}console.log(text||'OK');})().catch((err)=>{console.error(err.message||err);process.exit(1);});"

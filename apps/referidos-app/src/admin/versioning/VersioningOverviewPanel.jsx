@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowRightLeft,
@@ -13,6 +13,7 @@ import {
 import Table from "../../components/ui/Table";
 import {
   applyReleaseMigrations,
+  backfillReleaseArtifact,
   approveDeployRequest,
   checkReleaseMigrations,
   createDevRelease,
@@ -21,6 +22,7 @@ import {
   fetchDrift,
   fetchLatestReleases,
   fetchPromotionHistory,
+  fetchReleaseArtifacts,
   fetchReleasesByProductEnv,
   fetchVersioningCatalog,
   previewDevRelease,
@@ -31,6 +33,7 @@ import {
   triggerDeployPipeline,
   validateEnvironmentContract,
 } from "./services/versioningService";
+import VersioningArtifactsPanel from "./VersioningArtifactsPanel";
 
 const ENV_OPTIONS = ["dev", "staging", "prod"];
 const DEPLOY_ENV_OPTIONS = ["staging", "prod"];
@@ -194,6 +197,13 @@ const DEV_RELEASE_STEPS = [
   { key: "refresh", label: "Actualizar estado del panel" },
 ];
 
+const DEV_BACKFILL_STEPS = [
+  { key: "dispatch", label: "Encolar workflow de backfill" },
+  { key: "workflow", label: "Workflow versioning-release-dev.yml" },
+  { key: "detect", label: "Detectar build registrada en bucket" },
+  { key: "refresh", label: "Actualizar estado del panel" },
+];
+
 function createProgressState({
   status = "running",
   headline = "Procesando",
@@ -219,6 +229,23 @@ function createDevReleaseProgress({
     headline,
     detail,
     steps: DEV_RELEASE_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus[step.key] || "pending",
+    })),
+  });
+}
+
+function createBackfillProgress({
+  status = "running",
+  headline = "Backfilling build",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline,
+    detail,
+    steps: DEV_BACKFILL_STEPS.map((step) => ({
       ...step,
       status: stepStatus[step.key] || "pending",
     })),
@@ -333,7 +360,10 @@ function VersionCard({
     if (state === "error") {
       return <XCircle size={13} className="text-red-600" />;
     }
-    return <RefreshCw size={13} className="text-[#5E30A5] animate-spin" />;
+    if (state === "running") {
+      return <RefreshCw size={13} className="text-[#5E30A5] animate-spin" />;
+    }
+    return <span className="inline-block h-[9px] w-[9px] rounded-full border border-slate-300" />;
   };
 
   const progressHeadlineClass =
@@ -449,6 +479,7 @@ function VersionCard({
 }
 
 export default function VersioningOverviewPanel() {
+  const [versioningTab, setVersioningTab] = useState("pipeline");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -459,6 +490,7 @@ export default function VersioningOverviewPanel() {
   const [driftTo, setDriftTo] = useState("prod");
   const [driftRows, setDriftRows] = useState([]);
   const [deployRequests, setDeployRequests] = useState([]);
+  const [releaseArtifacts, setReleaseArtifacts] = useState([]);
   const [promotionHistory, setPromotionHistory] = useState([]);
   const [releaseOpsMode, setReleaseOpsMode] = useState("promote");
 
@@ -471,6 +503,7 @@ export default function VersioningOverviewPanel() {
   const [devReleaseDraft, setDevReleaseDraft] = useState(null);
   const [devReleaseDraftError, setDevReleaseDraftError] = useState("");
   const [devReleaseSyncing, setDevReleaseSyncing] = useState(null);
+  const [backfillActionId, setBackfillActionId] = useState("");
   const [promoteProgressByEnv, setPromoteProgressByEnv] = useState({});
   const [promoteSourceEnv, setPromoteSourceEnv] = useState("dev");
   const [promoteRows, setPromoteRows] = useState([]);
@@ -499,6 +532,7 @@ export default function VersioningOverviewPanel() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const autoBackfillAttemptedRef = useRef(new Set());
 
   const selectedProduct = useMemo(
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
@@ -536,15 +570,20 @@ export default function VersioningOverviewPanel() {
       else setLoading(true);
       setError("");
       try {
-        const [dataCatalog, dataLatest, requests] = await Promise.all([
+        const [dataCatalog, dataLatest, requests, artifactRows] = await Promise.all([
           fetchVersioningCatalog(),
           fetchLatestReleases(),
           fetchDeployRequests(),
+          fetchReleaseArtifacts({
+            productKey: activeProductKey || "",
+            limit: 400,
+          }),
         ]);
 
         setCatalog(dataCatalog);
         setLatestReleases(dataLatest);
         setDeployRequests(requests);
+        setReleaseArtifacts(Array.isArray(artifactRows) ? artifactRows : []);
 
         const initializedSet = new Set(
           (dataCatalog.products || [])
@@ -613,6 +652,15 @@ export default function VersioningOverviewPanel() {
     return latest || [];
   }, []);
 
+  const refreshReleaseArtifacts = useCallback(async () => {
+    const artifacts = await fetchReleaseArtifacts({
+      productKey: activeProductKey || "",
+      limit: 400,
+    });
+    const rows = Array.isArray(artifacts) ? artifacts : [];
+    setReleaseArtifacts(rows);
+    return rows;
+  }, [activeProductKey]);
   useEffect(() => {
     if (!devReleaseSyncing) return undefined;
     let cancelled = false;
@@ -634,11 +682,12 @@ export default function VersioningOverviewPanel() {
         const run = workflowStatus?.run || null;
         const jobs = Array.isArray(workflowStatus?.jobs) ? workflowStatus.jobs : [];
         const runState = workflowStateToProgress(run?.status, run?.conclusion);
+        const isBackfillMode = devReleaseSyncing.mode === "backfill_artifact";
 
         const dynamicSteps = [
           {
             key: "dispatch",
-            label: "Encolar workflow de release",
+            label: isBackfillMode ? "Encolar workflow de backfill" : "Encolar workflow de release",
             status: "success",
           },
           {
@@ -671,7 +720,9 @@ export default function VersioningOverviewPanel() {
 
         dynamicSteps.push({
           key: "detect",
-          label: "Detectar nueva release en DEVELOPMENT",
+          label: isBackfillMode
+            ? "Detectar build registrada en bucket"
+            : "Detectar nueva release en DEVELOPMENT",
           status: runState === "error" ? "error" : "running",
         });
         dynamicSteps.push({
@@ -683,7 +734,7 @@ export default function VersioningOverviewPanel() {
         setDevReleaseProgress(
           createProgressState({
             status: runState === "error" ? "error" : "running",
-            headline: "Releasing",
+            headline: isBackfillMode ? "Backfilling build" : "Releasing",
             detail: run?.html_url || workflowStatus?.detail || "",
             steps: dynamicSteps,
           })
@@ -691,7 +742,9 @@ export default function VersioningOverviewPanel() {
 
         if (run && runState === "error") {
           setDevReleaseMessage(
-            "Release DEVELOPMENT con error. Revisa el workflow y vuelve a intentar."
+            isBackfillMode
+              ? "Backfill build con error. Revisa el workflow y vuelve a intentar."
+              : "Release DEVELOPMENT con error. Revisa el workflow y vuelve a intentar."
           );
           setDevReleaseSyncing(null);
           return;
@@ -709,13 +762,29 @@ export default function VersioningOverviewPanel() {
         const versionLabel = String(devRow?.version_label || "").trim();
         const sourceCommitSha = String(devRow?.source_commit_sha || "").trim();
         const hasAnyDevRelease = Boolean(devRow && versionLabel && versionLabel !== "-");
-        const isNewReleaseDetected = devReleaseSyncing.hadPreviousRelease
-          ? hasAnyDevRelease &&
-            (versionLabel !== String(devReleaseSyncing.previousVersionLabel || "").trim() ||
-              sourceCommitSha !== String(devReleaseSyncing.previousSourceCommitSha || "").trim())
-          : hasAnyDevRelease;
+        let isCompleted = false;
+        let successVersionLabel = versionLabel;
 
-        if (isNewReleaseDetected) {
+        if (isBackfillMode) {
+          const artifacts = await refreshReleaseArtifacts();
+          if (cancelled) return;
+          const targetReleaseId = String(devReleaseSyncing.targetReleaseId || "").trim();
+          isCompleted = Boolean(
+            targetReleaseId &&
+              (artifacts || []).some(
+                (artifactRow) => String(artifactRow?.release_id || "").trim() === targetReleaseId
+              )
+          );
+          successVersionLabel = String(devReleaseSyncing.targetVersionLabel || versionLabel || "").trim();
+        } else {
+          isCompleted = devReleaseSyncing.hadPreviousRelease
+            ? hasAnyDevRelease &&
+              (versionLabel !== String(devReleaseSyncing.previousVersionLabel || "").trim() ||
+                sourceCommitSha !== String(devReleaseSyncing.previousSourceCommitSha || "").trim())
+            : hasAnyDevRelease;
+        }
+
+        if (isCompleted) {
           const finalSteps = (dynamicSteps || []).map((step) => {
             if (step.key === "detect" || step.key === "refresh") {
               return { ...step, status: "success" };
@@ -728,14 +797,20 @@ export default function VersioningOverviewPanel() {
           setDevReleaseProgress(
             createProgressState({
               status: "success",
-              headline: "Release DEVELOPMENT creada con éxito",
-              detail: versionLabel,
+              headline: isBackfillMode
+                ? "Backfill build completado"
+                : "Release DEVELOPMENT creada con éxito",
+              detail: successVersionLabel || versionLabel || "-",
               steps: finalSteps,
             })
           );
           await load(true);
           if (cancelled) return;
-          setDevReleaseMessage(`Release DEVELOPMENT creada con éxito: ${versionLabel}.`);
+          setDevReleaseMessage(
+            isBackfillMode
+              ? `Build backfill completada en DEVELOPMENT: ${successVersionLabel || versionLabel || "-"}.`
+              : `Release DEVELOPMENT creada con éxito: ${versionLabel}.`
+          );
           setDevReleaseSyncing(null);
           return;
         }
@@ -745,13 +820,21 @@ export default function VersioningOverviewPanel() {
 
       if (Date.now() - Number(devReleaseSyncing.startedAt || 0) >= MAX_WAIT_MS) {
         setDevReleaseMessage(
-          "Release en cola. Sigue en ejecucion; revisa el workflow si tarda mas de lo esperado."
+          devReleaseSyncing.mode === "backfill_artifact"
+            ? "Backfill en cola. Sigue en ejecución; revisa el workflow si tarda más de lo esperado."
+            : "Release en cola. Sigue en ejecución; revisa el workflow si tarda más de lo esperado."
         );
         setDevReleaseProgress((current) =>
           createProgressState({
             status: "error",
-            headline: "Release DEVELOPMENT con error",
-            detail: "No se detecto una nueva release dentro del tiempo esperado.",
+            headline:
+              devReleaseSyncing.mode === "backfill_artifact"
+                ? "Backfill build con error"
+                : "Release DEVELOPMENT con error",
+            detail:
+              devReleaseSyncing.mode === "backfill_artifact"
+                ? "No se detectó build registrada dentro del tiempo esperado."
+                : "No se detectó una nueva release dentro del tiempo esperado.",
             steps: Array.isArray(current?.steps)
               ? current.steps.map((step) =>
                   step.status === "running" ? { ...step, status: "error" } : step
@@ -772,7 +855,7 @@ export default function VersioningOverviewPanel() {
       cancelled = true;
       if (timerId) clearTimeout(timerId);
     };
-  }, [devReleaseSyncing, refreshLatestReleaseRows, load]);
+  }, [devReleaseSyncing, refreshLatestReleaseRows, refreshReleaseArtifacts, load]);
 
   useEffect(() => {
     if (!activeProductKey) {
@@ -821,6 +904,7 @@ export default function VersioningOverviewPanel() {
     setEnvValidationState(null);
     setEnvValidationLoading(false);
     setDevReleaseProgress(null);
+    setBackfillActionId("");
     setPromoteProgressByEnv({});
   }, [activeProductKey]);
 
@@ -928,6 +1012,15 @@ export default function VersioningOverviewPanel() {
     (envKey, versionLabel) => mergeStatusByVersion[versionKey(envKey, versionLabel)] || null,
     [mergeStatusByVersion]
   );
+
+  const artifactReleaseIdSet = useMemo(() => {
+    const set = new Set();
+    for (const row of releaseArtifacts || []) {
+      const releaseId = String(row?.release_id || "").trim();
+      if (releaseId) set.add(releaseId);
+    }
+    return set;
+  }, [releaseArtifacts]);
 
   const envCards = useMemo(() => {
     const rowsByEnv = new Map(
@@ -1875,6 +1968,30 @@ export default function VersioningOverviewPanel() {
     }
   }, [activeProductKey, selectedProductLabel]);
 
+  const requestBackfillBuild = useCallback(
+    ({ releaseId, semver, sourceCommitSha = "", source = "quick-dev-card" }) => {
+      if (!releaseId) {
+        setDevReleaseMessage("No se pudo resolver release_id para backfill.");
+        return;
+      }
+      openConfirmDialog({
+        title: "Confirmar backfill de build",
+        copy: `Se generará artifact/bucket para la release ${semver || "-"} en DEVELOPMENT.`,
+        confirmLabel: "Confirmar",
+        action: {
+          type: "backfill-build",
+          payload: {
+            releaseId,
+            semver,
+            sourceCommitSha,
+            source,
+          },
+        },
+      });
+    },
+    [openConfirmDialog]
+  );
+
   const requestPromoteVersion = useCallback(
     ({ semver, fromEnv, toEnv, source = "list", notes = "" }) => {
       const canSyncMerge =
@@ -1997,6 +2114,7 @@ export default function VersioningOverviewPanel() {
         })
       );
       setDevReleaseSyncing({
+        mode: "release",
         productKey: activeProductKey,
         ref: result?.ref || "dev",
         runId: Number(result?.run?.id || 0),
@@ -2029,10 +2147,152 @@ export default function VersioningOverviewPanel() {
           },
         })
       );
+      setDevReleaseSyncing(null);
     } finally {
       setCreatingDevRelease(false);
     }
   };
+
+  const handleBackfillDevArtifact = useCallback(async ({
+    releaseId = "",
+    semver = "",
+    sourceCommitSha = "",
+  } = {}) => {
+    const resolvedReleaseId = String(releaseId || "").trim();
+    const resolvedSemver = String(semver || "").trim();
+    if (!resolvedReleaseId) {
+      setDevReleaseMessage("release_id inválido para backfill.");
+      return;
+    }
+    if (!activeProductKey) {
+      setDevReleaseMessage("Selecciona una app para ejecutar backfill de build.");
+      return;
+    }
+
+    const currentActionId = actionKey(
+      "backfill-build",
+      "dev",
+      activeProductKey,
+      resolvedSemver || resolvedReleaseId
+    );
+
+    setBackfillActionId(currentActionId);
+    setDevReleaseMessage("");
+    setDevReleaseProgress(
+      createBackfillProgress({
+        status: "running",
+        headline: "Backfilling build",
+        detail: "Iniciando backfill de build para DEVELOPMENT...",
+        stepStatus: {
+          dispatch: "running",
+          workflow: "pending",
+          detect: "pending",
+          refresh: "pending",
+        },
+      })
+    );
+
+    try {
+      const result = await backfillReleaseArtifact({
+        releaseId: resolvedReleaseId,
+        productKey: activeProductKey,
+        ref: "dev",
+        sourceCommitSha,
+      });
+
+      setDevReleaseMessage(
+        `Backfill de build en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}. Actualizando estado...`
+      );
+      setDevReleaseProgress(
+        createBackfillProgress({
+          status: "running",
+          headline: "Backfilling build",
+          detail: `workflow=${result?.workflow || "-"} | ref=${result?.ref || "dev"}`,
+          stepStatus: {
+            dispatch: "success",
+            workflow: "running",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
+      );
+
+      setDevReleaseSyncing({
+        mode: "backfill_artifact",
+        productKey: activeProductKey,
+        ref: result?.ref || "dev",
+        runId: Number(result?.run?.id || 0),
+        dispatchStartedAt:
+          String(result?.dispatch_started_at || "").trim() || new Date().toISOString(),
+        targetReleaseId: resolvedReleaseId,
+        targetVersionLabel: resolvedSemver,
+        startedAt: Date.now(),
+      });
+    } catch (err) {
+      setDevReleaseMessage(err?.message || "No se pudo ejecutar backfill de build.");
+      setDevReleaseProgress(
+        createBackfillProgress({
+          status: "error",
+          headline: "Backfill build con error",
+          detail: err?.message || "No se pudo ejecutar backfill de build.",
+          stepStatus: {
+            dispatch: "error",
+            workflow: "pending",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
+      );
+      setDevReleaseSyncing(null);
+    } finally {
+      setBackfillActionId("");
+    }
+  }, [activeProductKey]);
+
+  useEffect(() => {
+    if (loading || refreshing) return;
+    if (!activeProductKey || !isActiveProductInitialized) return;
+    if (!Array.isArray(envCards) || !envCards.length) return;
+    if (creatingDevRelease || devReleaseSyncing || backfillActionId) return;
+
+    const devRow = envCards.find((row) => String(row?.env_key || "").toLowerCase() === "dev");
+    if (!devRow) return;
+
+    const releaseId = String(devRow?.id || "").trim();
+    const releaseVersion = String(devRow?.version_label || "").trim();
+    const normalizedStatus = normalizeReleaseStatus("dev", devRow?.status);
+    const hasValidVersion = Boolean(releaseVersion && releaseVersion !== "-");
+    const canBackfill =
+      normalizedStatus === "released" &&
+      hasValidVersion &&
+      !devPreviewHasPendingRelease &&
+      Boolean(releaseId) &&
+      !artifactReleaseIdSet.has(releaseId);
+
+    if (!canBackfill) return;
+
+    const attemptKey = `${activeProductKey}::${releaseId}`;
+    if (autoBackfillAttemptedRef.current.has(attemptKey)) return;
+    autoBackfillAttemptedRef.current.add(attemptKey);
+
+    handleBackfillDevArtifact({
+      releaseId,
+      semver: releaseVersion,
+      sourceCommitSha: String(devRow?.source_commit_sha || ""),
+    });
+  }, [
+    loading,
+    refreshing,
+    activeProductKey,
+    isActiveProductInitialized,
+    envCards,
+    creatingDevRelease,
+    devReleaseSyncing,
+    backfillActionId,
+    devPreviewHasPendingRelease,
+    artifactReleaseIdSet,
+    handleBackfillDevArtifact,
+  ]);
 
   const closeDevReleaseDraft = () => {
     if (creatingDevRelease) return;
@@ -2081,6 +2341,8 @@ export default function VersioningOverviewPanel() {
     const { type, payload } = action;
     if (type === "promote") {
       await handlePromoteVersion(payload || {});
+    } else if (type === "backfill-build") {
+      await handleBackfillDevArtifact(payload || {});
     } else if (type === "deploy") {
       await handleDeployByVersion(payload || {});
     } else if (type === "sync-release") {
@@ -2166,30 +2428,52 @@ export default function VersioningOverviewPanel() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {orderedProducts.map((product) => {
-            const disabled = !product.initializedInDev;
-            return (
+        <div className="space-y-2">
+          <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
             <button
-              key={product.id}
               type="button"
-              onClick={() => {
-                if (disabled) return;
-                setActiveProductKey(product.product_key);
-              }}
-              disabled={disabled}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                activeProductKey === product.product_key
-                  ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                  : disabled
-                    ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                    : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+              onClick={() => setVersioningTab("pipeline")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                versioningTab === "pipeline" ? "bg-[#2F1A55] text-white" : "text-slate-500"
               }`}
             >
-              {normalizeProductLabel(product)}
+              Flujo release
             </button>
-            );
-          })}
+            <button
+              type="button"
+              onClick={() => setVersioningTab("artifacts")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                versioningTab === "artifacts" ? "bg-[#2F1A55] text-white" : "text-slate-500"
+              }`}
+            >
+              Builds
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {orderedProducts.map((product) => {
+              const disabled = !product.initializedInDev;
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => {
+                    if (disabled) return;
+                    setActiveProductKey(product.product_key);
+                  }}
+                  disabled={disabled}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    activeProductKey === product.product_key
+                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                      : disabled
+                        ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                  }`}
+                >
+                  {normalizeProductLabel(product)}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <button
           type="button"
@@ -2212,6 +2496,11 @@ export default function VersioningOverviewPanel() {
         <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-500">
           Cargando versionado...
         </div>
+      ) : versioningTab === "artifacts" ? (
+        <VersioningArtifactsPanel
+          activeProductKey={activeProductKey}
+          selectedProductLabel={selectedProductLabel}
+        />
       ) : (
         <>
           <div className="space-y-3">
@@ -2222,9 +2511,13 @@ export default function VersioningOverviewPanel() {
             <div className="grid gap-4 md:grid-cols-3">
               {envCards.map((row) => {
                 const envKey = String(row.env_key || "").toLowerCase();
+                const releaseId = String(row.id || "").trim();
                 const normalizedStatus = normalizeReleaseStatus(envKey, row.status);
                 const releaseVersion = String(row.version_label || "").trim();
                 const hasValidVersion = releaseVersion && releaseVersion !== "-";
+                const hasArtifactForRelease = releaseId
+                  ? artifactReleaseIdSet.has(releaseId)
+                  : false;
                 const deployStateForCard =
                   DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
                     ? getDeploymentStateForVersion(envKey, releaseVersion)
@@ -2247,6 +2540,8 @@ export default function VersioningOverviewPanel() {
                     normalizedStatus === "released" &&
                     hasValidVersion &&
                     !devPreviewHasPendingRelease;
+                  const showBackfillAction =
+                    showPromoteAction && !hasArtifactForRelease && Boolean(releaseId);
 
                   if (showReleaseAction) {
                     const releaseActionId = actionKey("release", "quick-dev-card", releaseVersion || "pending");
@@ -2258,7 +2553,30 @@ export default function VersioningOverviewPanel() {
                       disabled: creatingDevRelease,
                       onClick: requestCreateDevRelease,
                     });
-                  } else if (showPromoteAction) {
+                  } else {
+                    if (showBackfillAction) {
+                      const backfillBuildActionId = actionKey(
+                        "backfill-build",
+                        "quick-dev-card",
+                        "dev",
+                        releaseVersion || releaseId
+                      );
+                      actions.push({
+                        key: backfillBuildActionId,
+                        label: "Backfill build",
+                        loadingLabel: "Backfilling...",
+                        loading: backfillActionId === backfillBuildActionId,
+                        disabled: backfillActionId === backfillBuildActionId,
+                        onClick: () =>
+                          requestBackfillBuild({
+                            releaseId,
+                            semver: releaseVersion,
+                            sourceCommitSha: String(row.source_commit_sha || ""),
+                            source: "quick-dev-card",
+                          }),
+                      });
+                    }
+                    if (showPromoteAction) {
                     const promoteActionId = actionKey(
                       "promote",
                       "quick-dev-card",
@@ -2280,6 +2598,7 @@ export default function VersioningOverviewPanel() {
                           source: "quick-dev-card",
                         }),
                     });
+                    }
                   }
                 } else if (
                   DEPLOY_ENV_OPTIONS.includes(envKey) &&

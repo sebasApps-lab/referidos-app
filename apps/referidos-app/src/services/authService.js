@@ -1,6 +1,7 @@
 // src/services/authService.js
 import { supabase } from "../lib/supabaseClient";
 import { logCatalogBreadcrumb } from "./loggingClient";
+import { runtimeConfig } from "../config/runtimeConfig";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -23,7 +24,7 @@ const DEFAULT_REDIRECT =
 
 export async function signInWithOAuth(provider, opts = {}) {
   const {
-    redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL ?? DEFAULT_REDIRECT,
+    redirectTo = runtimeConfig.authRedirectUrl || DEFAULT_REDIRECT,
     scopes,
     queryParams,
   } = opts;

@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { runtimeConfig } from "../config/runtimeConfig";
 
 const toErrorMessage = (error, fallback) =>
   error?.message || error?.error_description || fallback;
@@ -21,8 +22,8 @@ export const listMfaFactors = async () => {
 
   const session = (await supabase.auth.getSession())?.data?.session;
   const accessToken = session?.access_token;
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = runtimeConfig.supabaseUrl;
+  const anonKey = runtimeConfig.supabaseAnonKey;
   if (!accessToken || !supabaseUrl || !anonKey) {
     return { ok: false, error: toErrorMessage(error, "No se pudieron obtener factores") };
   }

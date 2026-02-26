@@ -135,6 +135,123 @@ async function runObsReleaseSync({
   };
 }
 
+async function runStorageArtifactGc({
+  tenantId,
+  actor,
+  limit = 25,
+}: {
+  tenantId: string;
+  actor: string;
+  limit?: number;
+}) {
+  const normalizedTenant = asString(tenantId);
+  if (!normalizedTenant) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "missing_tenant_id",
+      detail: "No tenant_id available for artifact gc.",
+    };
+  }
+
+  const { data: artifactRows, error: artifactLookupError } = await supabaseAdmin
+    .from("version_release_artifacts")
+    .select("id, artifact_path, metadata, created_at")
+    .eq("tenant_id", normalizedTenant)
+    .eq("artifact_provider", "supabase_storage")
+    .not("artifact_path", "is", null)
+    .order("created_at", { ascending: true })
+    .limit(Math.max(limit * 6, 60));
+
+  if (artifactLookupError) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: "artifact_lookup_failed",
+      detail: artifactLookupError.message,
+    };
+  }
+
+  const bucketDefault = asString(Deno.env.get("VERSIONING_ARTIFACTS_BUCKET"), "versioning-artifacts");
+  const deleted: Array<{ artifact_id: string; artifact_path: string; bucket: string }> = [];
+  const errors: Array<{ artifact_id: string; detail: string }> = [];
+  let keptByHead = 0;
+  let skippedDeleted = 0;
+
+  for (const row of artifactRows || []) {
+    if (deleted.length >= limit) break;
+
+    const artifactId = asString((row as JsonObject).id);
+    const artifactPath = asString((row as JsonObject).artifact_path);
+    if (!artifactId || !artifactPath) continue;
+
+    const metadata = asObject((row as JsonObject).metadata);
+    if (asString(metadata.storage_deleted_at)) {
+      skippedDeleted += 1;
+      continue;
+    }
+
+    const { data: headRow, error: headError } = await supabaseAdmin
+      .from("version_artifact_env_heads")
+      .select("id")
+      .eq("artifact_id", artifactId)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+
+    if (headError) {
+      errors.push({ artifact_id: artifactId, detail: headError.message });
+      continue;
+    }
+    if (headRow?.id) {
+      keptByHead += 1;
+      continue;
+    }
+
+    const bucket = asString(metadata.storage_bucket, bucketDefault);
+    const { error: removeError } = await supabaseAdmin.storage.from(bucket).remove([artifactPath]);
+    if (removeError) {
+      errors.push({ artifact_id: artifactId, detail: removeError.message });
+      continue;
+    }
+
+    const nextMetadata: JsonObject = {
+      ...metadata,
+      storage_bucket: bucket,
+      storage_deleted_at: new Date().toISOString(),
+      storage_deleted_by: actor,
+      storage_delete_reason: "unreferenced_by_env_heads",
+    };
+    const { error: updateError } = await supabaseAdmin
+      .from("version_release_artifacts")
+      .update({
+        metadata: nextMetadata,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", artifactId);
+
+    if (updateError) {
+      errors.push({ artifact_id: artifactId, detail: updateError.message });
+      continue;
+    }
+
+    deleted.push({
+      artifact_id: artifactId,
+      artifact_path: artifactPath,
+      bucket,
+    });
+  }
+
+  return {
+    ok: errors.length === 0,
+    skipped: false,
+    deleted_count: deleted.length,
+    kept_by_head: keptByHead,
+    skipped_already_deleted: skippedDeleted,
+    errors,
+    deleted,
+  };
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsWithCallbackHeader(origin);
@@ -189,11 +306,12 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestLookupError } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, release_id, product_key, env_key, version_label")
+    .select("id, tenant_id, release_id, product_key, env_key, version_label")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<{
       id: string;
+      tenant_id: string;
       release_id: string;
       product_key: string;
       env_key: string;
@@ -264,6 +382,8 @@ serve(async (req) => {
   }
 
   let releaseMetadataResult: JsonObject | null = null;
+  let artifactHeadResult: JsonObject | null = null;
+  let artifactGcResult: JsonObject | null = null;
   if (status === "success") {
     const prNumber = Number(
       metadata.pr_number ?? metadata.pull_number ?? metadata.pull_request_number ?? 0
@@ -308,6 +428,50 @@ serve(async (req) => {
     } else {
       releaseMetadataResult = (releaseMetadataRows as JsonObject) || null;
     }
+
+    const { data: artifactHeadId, error: artifactHeadError } = await supabaseAdmin.rpc(
+      "versioning_mark_env_artifact_head",
+      {
+        p_release_id: asString(requestRow.release_id),
+        p_actor: actor,
+      }
+    );
+    if (artifactHeadError) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "mark_env_artifact_head_failed",
+          detail: artifactHeadError.message,
+          deployment_row_id: data || null,
+          release_metadata: releaseMetadataResult,
+          obs_release_sync: obsReleaseSyncResult,
+        },
+        500,
+        cors
+      );
+    }
+
+    artifactHeadResult = {
+      ok: true,
+      artifact_id: asString(artifactHeadId),
+      release_id: asString(requestRow.release_id),
+      env_key: asString(requestRow.env_key),
+    };
+
+    try {
+      artifactGcResult = await runStorageArtifactGc({
+        tenantId: asString(requestRow.tenant_id),
+        actor,
+        limit: 25,
+      });
+    } catch (error) {
+      artifactGcResult = {
+        ok: false,
+        skipped: false,
+        reason: "artifact_gc_exception",
+        detail: error instanceof Error ? error.message : "unknown_error",
+      };
+    }
   }
 
   return jsonResponse(
@@ -318,6 +482,8 @@ serve(async (req) => {
       status,
       obs_release_sync: obsReleaseSyncResult,
       release_metadata: releaseMetadataResult,
+      artifact_head: artifactHeadResult,
+      artifact_gc: artifactGcResult,
     },
     200,
     cors

@@ -33,6 +33,7 @@
     "versioning:bootstrap": "node tooling/versioning/bootstrap-baseline.mjs",
     "versioning:promote": "node tooling/versioning/promote-release.mjs",
     "versioning:record-deploy": "node tooling/versioning/record-deployment.mjs",
+    "versioning:archive-local": "node tooling/versioning/archive-local-artifact.mjs",
     "build:app": "npm run build -w apps/referidos-app",
     "build:prelaunch": "npm run build -w apps/prelaunch",
     "build:app:release": "npm run build:app && node tooling/observability/upload-sourcemaps.mjs --app referidos-app",

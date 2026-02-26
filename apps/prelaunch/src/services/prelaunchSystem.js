@@ -2,13 +2,12 @@ import {
   createPrelaunchClient,
   extractUtmFromSearch,
 } from "@referidos/api-client/prelaunch";
+import { runtimeConfig } from "../config/runtimeConfig";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
-const TENANT_HINT = import.meta.env.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
-const APP_CHANNEL = import.meta.env.VITE_APP_CHANNEL || "prelaunch_web";
+const SUPABASE_URL = runtimeConfig.supabaseUrl;
+const SUPABASE_PUBLISHABLE_KEY = runtimeConfig.supabasePublishableKey;
+const TENANT_HINT = runtimeConfig.defaultTenantId || "ReferidosAPP";
+const APP_CHANNEL = runtimeConfig.appChannel || "prelaunch_web";
 
 let prelaunchClient = null;
 
