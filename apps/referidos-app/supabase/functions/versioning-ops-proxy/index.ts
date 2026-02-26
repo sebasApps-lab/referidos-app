@@ -140,13 +140,28 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
     case "fetch_latest_releases": {
       const envKey = asString(payload.envKey);
       let query = opsAdmin
-        .from("version_latest_releases")
+        .from("version_releases_labeled")
         .select("*")
-        .order("product_name", { ascending: true });
+        .order("product_name", { ascending: true })
+        .order("env_key", { ascending: true })
+        .order("semver_major", { ascending: false })
+        .order("semver_minor", { ascending: false })
+        .order("semver_patch", { ascending: false })
+        .order("created_at", { ascending: false });
       if (envKey) query = query.eq("env_key", envKey);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return data || [];
+      const rows = data || [];
+      const latestByProductEnv = new Map<string, JsonObject>();
+      for (const row of rows) {
+        const productKey = asString((row as JsonObject).product_key);
+        const rowEnvKey = asString((row as JsonObject).env_key);
+        const key = `${productKey}::${rowEnvKey}`;
+        if (!latestByProductEnv.has(key)) {
+          latestByProductEnv.set(key, row as JsonObject);
+        }
+      }
+      return Array.from(latestByProductEnv.values());
     }
 
     case "fetch_releases_by_product_env": {
@@ -638,6 +653,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
 
     case "create_dev_release": {
       const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "dispatch",
         product_key: asString(payload.productKey) || null,
         ref: asString(payload.ref, "dev"),
         override_semver: asString(payload.overrideSemver) || null,
@@ -648,6 +664,28 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       if (!result.ok) {
         throw new Error(
           asString(result.payload?.detail, asString(result.payload?.error, "No se pudo crear release de development."))
+        );
+      }
+
+      return result.payload;
+    }
+
+    case "dev_release_status": {
+      const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "status",
+        product_key: asString(payload.productKey) || null,
+        ref: asString(payload.ref, "dev"),
+        run_id: asNumber(payload.runId, 0) || null,
+        dispatch_started_at: asString(payload.dispatchStartedAt) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo consultar estado del release de development.")
+          )
         );
       }
 

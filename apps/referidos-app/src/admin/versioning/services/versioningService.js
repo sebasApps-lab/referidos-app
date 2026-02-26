@@ -268,6 +268,20 @@ export async function createDevRelease({
   });
 }
 
+export async function fetchDevReleaseStatus({
+  productKey = "",
+  ref = "dev",
+  runId = 0,
+  dispatchStartedAt = "",
+} = {}) {
+  return invokeVersioningOps("dev_release_status", {
+    productKey,
+    ref,
+    runId,
+    dispatchStartedAt,
+  });
+}
+
 export async function checkReleaseMigrations({
   productKey,
   envKey,
