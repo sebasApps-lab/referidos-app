@@ -53,40 +53,109 @@ const opsAdmin = createClient(opsUrl || "https://invalid.local", opsSecretKey ||
   },
 });
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isHtmlPayload(text: string) {
+  const normalized = String(text || "").trim().toLowerCase();
+  return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
+}
+
+function sanitizeOpsDetail(rawDetail: string, status: number) {
+  const detail = String(rawDetail || "").trim();
+  if (!detail) return status ? `OPS request failed (${status}).` : "OPS request failed.";
+  if (isHtmlPayload(detail)) {
+    return status
+      ? `OPS host unavailable (${status}). Intenta nuevamente en unos segundos.`
+      : "OPS host unavailable. Intenta nuevamente en unos segundos.";
+  }
+  if (detail.length > 500) {
+    return `${detail.slice(0, 500)}...`;
+  }
+  return detail;
+}
+
 async function invokeOpsFunction(functionName: string, payload: JsonObject) {
   const url = `${opsUrl.replace(/\/+$/, "")}/functions/v1/${functionName}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: opsSecretKey,
-      Authorization: `Bearer ${opsSecretKey}`,
-      "x-versioning-proxy-token": proxySharedToken,
-    },
-    body: JSON.stringify(payload),
-  });
+  const maxAttempts = 3;
 
-  const text = await response.text();
-  let parsed: JsonObject = {};
-  try {
-    parsed = text ? (JSON.parse(text) as JsonObject) : {};
-  } catch {
-    parsed = { raw: text };
-  }
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: opsSecretKey,
+          Authorization: `Bearer ${opsSecretKey}`,
+          "x-versioning-proxy-token": proxySharedToken,
+        },
+        body: JSON.stringify(payload),
+      });
 
-  if (!response.ok || parsed.ok === false) {
-    return {
-      ok: false,
-      status: response.status,
-      detail: asString(parsed.detail, asString(parsed.error, "ops_function_failed")),
-      payload: parsed,
-    };
+      const text = await response.text();
+      let parsed: JsonObject = {};
+      try {
+        parsed = text ? (JSON.parse(text) as JsonObject) : {};
+      } catch {
+        parsed = { raw: text };
+      }
+
+      if (!response.ok || parsed.ok === false) {
+        const rawDetail =
+          asString(parsed.detail) ||
+          asString(parsed.message) ||
+          asString(parsed.error) ||
+          asString(parsed.raw) ||
+          "ops_function_failed";
+        const safeDetail = sanitizeOpsDetail(rawDetail, response.status);
+        const normalizedPayload: JsonObject = {
+          ...parsed,
+          detail: safeDetail,
+        };
+
+        const shouldRetry = [502, 503, 504].includes(response.status) && attempt < maxAttempts;
+        if (shouldRetry) {
+          await sleep(350 * attempt);
+          continue;
+        }
+
+        return {
+          ok: false,
+          status: response.status,
+          detail: safeDetail,
+          payload: normalizedPayload,
+        };
+      }
+
+      return {
+        ok: true,
+        status: response.status,
+        payload: parsed,
+      };
+    } catch (error) {
+      const detail = sanitizeOpsDetail(
+        error instanceof Error ? error.message : "ops_request_exception",
+        0
+      );
+      if (attempt < maxAttempts) {
+        await sleep(350 * attempt);
+        continue;
+      }
+      return {
+        ok: false,
+        status: 0,
+        detail,
+        payload: { detail },
+      };
+    }
   }
 
   return {
-    ok: true,
-    status: response.status,
-    payload: parsed,
+    ok: false,
+    status: 0,
+    detail: "OPS request failed.",
+    payload: { detail: "OPS request failed." },
   };
 }
 
@@ -863,6 +932,9 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
           )
         );
       }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
       return result.payload;
     }
 
@@ -884,6 +956,9 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
             )
           )
         );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
       }
       return result.payload;
     }
@@ -912,6 +987,9 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
           )
         );
       }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
       return result.payload;
     }
 
@@ -939,6 +1017,9 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
             )
           )
         );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
       }
       return result.payload;
     }
@@ -974,6 +1055,9 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         );
         (syncError as Error & { code?: string; payload?: unknown }).payload = result.payload;
         throw syncError;
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
       }
       return result.payload;
     }

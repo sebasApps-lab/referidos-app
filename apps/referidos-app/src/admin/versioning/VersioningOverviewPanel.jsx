@@ -345,6 +345,8 @@ function VersionCard({
   disabled = false,
   deployState = "",
   mergeState = null,
+  hasArtifact = false,
+  buildDisplay = "-",
 }) {
   const envKey = String(row?.env_key || "").toLowerCase();
   const isDevelopment = envKey === "dev";
@@ -401,13 +403,18 @@ function VersionCard({
       </div>
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
       <div className="mt-1 text-[11px] text-slate-500">
-        {row.build_number ? `build ${row.build_number}` : "build -"}
+        {`build ${buildDisplay}`}
         {" | "}
         {row.channel || envKey ? `channel ${row.channel || envKey}` : "channel -"}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span>Estado: {statusLabel}</span>
         <div className="flex items-center gap-1">
+          {hasArtifact ? (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              built
+            </span>
+          ) : null}
           {isDeployTrackedEnv && mergeState?.merged ? (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
               merged
@@ -731,11 +738,17 @@ export default function VersioningOverviewPanel() {
           status: "pending",
         });
 
+        const isBuilding = dynamicSteps.some(
+          (step) =>
+            step?.status === "running" &&
+            /build release artifact/i.test(String(step?.label || ""))
+        );
+
         setDevReleaseProgress(
           createProgressState({
             status: runState === "error" ? "error" : "running",
-            headline: isBackfillMode ? "Backfilling build" : "Releasing",
-            detail: run?.html_url || workflowStatus?.detail || "",
+            headline: isBuilding ? "Building" : isBackfillMode ? "Backfilling build" : "Releasing",
+            detail: isBuilding ? "Building..." : "",
             steps: dynamicSteps,
           })
         );
@@ -1020,6 +1033,16 @@ export default function VersioningOverviewPanel() {
       if (releaseId) set.add(releaseId);
     }
     return set;
+  }, [releaseArtifacts]);
+
+  const artifactByReleaseId = useMemo(() => {
+    const map = new Map();
+    for (const row of releaseArtifacts || []) {
+      const releaseId = String(row?.release_id || "").trim();
+      if (!releaseId || map.has(releaseId)) continue;
+      map.set(releaseId, row);
+    }
+    return map;
   }, [releaseArtifacts]);
 
   const envCards = useMemo(() => {
@@ -2098,13 +2121,13 @@ export default function VersioningOverviewPanel() {
         releaseNotes: releaseNotes || "",
       });
       setDevReleaseMessage(
-        `Release de DEVELOPMENT en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}. Actualizando estado...`
+        "Releasing..."
       );
       setDevReleaseProgress(
         createDevReleaseProgress({
           status: "running",
           headline: "Releasing",
-          detail: `workflow=${result?.workflow || "-"} | ref=${result?.ref || "dev"}`,
+          detail: "Building...",
           stepStatus: {
             dispatch: "success",
             workflow: "running",
@@ -2201,13 +2224,13 @@ export default function VersioningOverviewPanel() {
       });
 
       setDevReleaseMessage(
-        `Backfill de build en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}. Actualizando estado...`
+        "Building..."
       );
       setDevReleaseProgress(
         createBackfillProgress({
           status: "running",
           headline: "Backfilling build",
-          detail: `workflow=${result?.workflow || "-"} | ref=${result?.ref || "dev"}`,
+          detail: "Building...",
           stepStatus: {
             dispatch: "success",
             workflow: "running",
@@ -2518,6 +2541,14 @@ export default function VersioningOverviewPanel() {
                 const hasArtifactForRelease = releaseId
                   ? artifactReleaseIdSet.has(releaseId)
                   : false;
+                const artifactRowForRelease = releaseId
+                  ? artifactByReleaseId.get(releaseId) || null
+                  : null;
+                const buildDisplay = row.build_number
+                  ? String(row.build_number)
+                  : hasArtifactForRelease
+                    ? "artifact"
+                    : "-";
                 const deployStateForCard =
                   DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
                     ? getDeploymentStateForVersion(envKey, releaseVersion)
@@ -2538,8 +2569,7 @@ export default function VersioningOverviewPanel() {
                     (normalizedStatus !== "released" && normalizedStatus !== "promoted");
                   const showPromoteAction =
                     normalizedStatus === "released" &&
-                    hasValidVersion &&
-                    !devPreviewHasPendingRelease;
+                    hasValidVersion;
                   const showBackfillAction =
                     showPromoteAction && !hasArtifactForRelease && Boolean(releaseId);
 
@@ -2553,30 +2583,30 @@ export default function VersioningOverviewPanel() {
                       disabled: creatingDevRelease,
                       onClick: requestCreateDevRelease,
                     });
-                  } else {
-                    if (showBackfillAction) {
-                      const backfillBuildActionId = actionKey(
-                        "backfill-build",
-                        "quick-dev-card",
-                        "dev",
-                        releaseVersion || releaseId
-                      );
-                      actions.push({
-                        key: backfillBuildActionId,
-                        label: "Backfill build",
-                        loadingLabel: "Backfilling...",
-                        loading: backfillActionId === backfillBuildActionId,
-                        disabled: backfillActionId === backfillBuildActionId,
-                        onClick: () =>
-                          requestBackfillBuild({
-                            releaseId,
-                            semver: releaseVersion,
-                            sourceCommitSha: String(row.source_commit_sha || ""),
-                            source: "quick-dev-card",
-                          }),
-                      });
-                    }
-                    if (showPromoteAction) {
+                  }
+                  if (showBackfillAction) {
+                    const backfillBuildActionId = actionKey(
+                      "backfill-build",
+                      "quick-dev-card",
+                      "dev",
+                      releaseVersion || releaseId
+                    );
+                    actions.push({
+                      key: backfillBuildActionId,
+                      label: "Backfill build",
+                      loadingLabel: "Backfilling...",
+                      loading: backfillActionId === backfillBuildActionId,
+                      disabled: backfillActionId === backfillBuildActionId,
+                      onClick: () =>
+                        requestBackfillBuild({
+                          releaseId,
+                          semver: releaseVersion,
+                          sourceCommitSha: String(row.source_commit_sha || ""),
+                          source: "quick-dev-card",
+                        }),
+                    });
+                  }
+                  if (showPromoteAction) {
                     const promoteActionId = actionKey(
                       "promote",
                       "quick-dev-card",
@@ -2598,7 +2628,6 @@ export default function VersioningOverviewPanel() {
                           source: "quick-dev-card",
                         }),
                     });
-                    }
                   }
                 } else if (
                   DEPLOY_ENV_OPTIONS.includes(envKey) &&
@@ -2676,6 +2705,8 @@ export default function VersioningOverviewPanel() {
                     actions={actions}
                     deployState={deployStateForCard}
                     mergeState={mergeStateForCard}
+                    hasArtifact={hasArtifactForRelease}
+                    buildDisplay={buildDisplay}
                     message={
                       envCardMessages[envKey] ||
                       (envKey === "dev"

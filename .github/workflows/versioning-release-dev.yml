@@ -530,3 +530,48 @@ jobs:
             process.exit(1);
           });
           NODE
+
+      - name: Allocate build number for release
+        if: ${{ steps.artifact_plan.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          RELEASE_ID: ${{ steps.release_row.outputs.release_id }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require("fs");
+          const { createClient } = require("@supabase/supabase-js");
+
+          (async () => {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SECRET_KEY;
+            const releaseId = String(process.env.RELEASE_ID || "").trim();
+            if (!url || !key) throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
+            if (!releaseId) throw new Error("Missing RELEASE_ID");
+
+            const supabase = createClient(url, key, {
+              auth: { persistSession: false, autoRefreshToken: false },
+            });
+
+            const { data: buildNumber, error } = await supabase.rpc("versioning_allocate_build_number", {
+              p_release_id: releaseId,
+              p_actor: "github-actions",
+            });
+            if (error) throw new Error(error.message);
+
+            const out = process.env.GITHUB_OUTPUT;
+            if (out) {
+              fs.appendFileSync(out, `build_number=${String(buildNumber ?? "")}\n`);
+            }
+
+            console.log(
+              `VERSIONING_BUILD_NUMBER_ALLOCATED release_id=${releaseId} build_number=${String(buildNumber ?? "-")}`
+            );
+          })().catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
