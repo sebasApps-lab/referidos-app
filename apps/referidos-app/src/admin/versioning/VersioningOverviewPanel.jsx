@@ -305,6 +305,62 @@ function buildPromoteProgress({
   });
 }
 
+function buildMergeProgress({
+  status = "running",
+  detail = "",
+  checks = null,
+  prCreated = false,
+  releaseSynced = false,
+  mergeAttempted = false,
+}) {
+  const lint = checkStateToProgress(checks?.lint);
+  const test = checkStateToProgress(checks?.test);
+  const build = checkStateToProgress(checks?.build);
+  const mergeState = releaseSynced
+    ? "success"
+    : mergeAttempted
+      ? "error"
+      : "pending";
+  const verifyState = releaseSynced ? "success" : "pending";
+  return createProgressState({
+    status,
+    headline: "Merging",
+    detail,
+    steps: [
+      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prCreated ? "success" : "running" },
+      { key: "lint", label: "Check lint", status: lint },
+      { key: "test", label: "Check test", status: test },
+      { key: "build", label: "Check build", status: build },
+      { key: "merge", label: "Merge PR", status: mergeState },
+      { key: "verify", label: "Verificar release en rama destino", status: verifyState },
+    ],
+  });
+}
+
+const DEPLOY_PROGRESS_STEPS = [
+  { key: "gate", label: "Validar gate de migraciones" },
+  { key: "sync", label: "Sincronizar release en rama destino" },
+  { key: "request", label: "Crear / resolver request de deploy" },
+  { key: "pipeline", label: "Ejecutar pipeline de deploy" },
+  { key: "verify", label: "Verificar deploy" },
+];
+
+function createDeployProgress({
+  status = "running",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline: "Deploying",
+    detail,
+    steps: DEPLOY_PROGRESS_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus[step.key] || "pending",
+    })),
+  });
+}
+
 function uniqueReleaseRowsByVersion(rows) {
   const list = [];
   const seen = new Set();
@@ -1414,6 +1470,17 @@ export default function VersioningOverviewPanel() {
     const currentActionId = actionKey("merge", source, envKey, semver);
     setMergingActionId(currentActionId);
     setEnvCardMessages((current) => ({ ...current, [envKey]: "" }));
+    setPromoteProgressForEnv(
+      envKey,
+      buildMergeProgress({
+        status: "running",
+        detail: `Iniciando merge de ${semver} hacia ${normalizeEnvLabel(envKey)}...`,
+        checks: null,
+        prCreated: false,
+        releaseSynced: false,
+        mergeAttempted: false,
+      })
+    );
 
     try {
       const result = await syncReleaseBranch({
@@ -1431,6 +1498,17 @@ export default function VersioningOverviewPanel() {
         },
         false
       );
+      setPromoteProgressForEnv(
+        envKey,
+        buildMergeProgress({
+          status: "success",
+          detail: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)}.`,
+          checks: result?.checks || null,
+          prCreated: Boolean(result?.pr),
+          releaseSynced: true,
+          mergeAttempted: true,
+        })
+      );
       setEnvCardMessages((current) => ({
         ...current,
         [envKey]: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)} (${result?.branches?.target || "-"})`,
@@ -1447,6 +1525,17 @@ export default function VersioningOverviewPanel() {
           source,
         },
         true
+      );
+      setPromoteProgressForEnv(
+        envKey,
+        buildMergeProgress({
+          status: "error",
+          detail: err?.message || "No se pudo hacer merge a la rama destino.",
+          checks: err?.payload?.checks || null,
+          prCreated: Boolean(err?.payload?.pr),
+          releaseSynced: false,
+          mergeAttempted: true,
+        })
       );
       setEnvCardMessages((current) => ({
         ...current,
@@ -1789,6 +1878,29 @@ export default function VersioningOverviewPanel() {
     setDeployTargetEnv(envKey);
 
     let normalizedRequestId = "";
+    let currentStage = "gate";
+    const deployStepStatus = {
+      gate: "running",
+      sync: "pending",
+      request: "pending",
+      pipeline: "pending",
+      verify: "pending",
+    };
+    const updateDeployProgress = (status = "running", detail = "") => {
+      setPromoteProgressForEnv(
+        envKey,
+        createDeployProgress({
+          status,
+          detail,
+          stepStatus: deployStepStatus,
+        })
+      );
+    };
+    updateDeployProgress(
+      "running",
+      `Iniciando deploy de ${semver} hacia ${normalizeEnvLabel(envKey)}...`
+    );
+
     try {
       const gateResult = await handleCheckReleaseGateByVersion({
         envKey,
@@ -1796,14 +1908,27 @@ export default function VersioningOverviewPanel() {
         source: `${source}-predeploy`,
       });
       if (!gateResult?.gate_passed) {
+        deployStepStatus.gate = "error";
+        updateDeployProgress(
+          "error",
+          gateResult?.detail || "Gate de migraciones no aprobado."
+        );
         return;
       }
+      deployStepStatus.gate = "success";
+      deployStepStatus.sync = "running";
+      updateDeployProgress("running", "Gate de migraciones OK. Sincronizando release...");
 
+      currentStage = "sync";
       await syncReleaseBranch({
         productKey: activeProductKey,
         toEnv: envKey,
         semver,
       });
+      deployStepStatus.sync = "success";
+      deployStepStatus.request = "running";
+      updateDeployProgress("running", "Release sincronizada. Resolviendo request de deploy...");
+      currentStage = "request";
 
       const existingRequest = selectedProductDeployRequests.find(
         (row) =>
@@ -1837,7 +1962,12 @@ export default function VersioningOverviewPanel() {
         throw new Error("No se pudo resolver request_id para ejecutar deploy.");
       }
 
+      deployStepStatus.request = "success";
+      deployStepStatus.pipeline = "running";
+      updateDeployProgress("running", "Request listo. Ejecutando pipeline de deploy...");
+
       setActiveDeployRequestId(normalizedRequestId);
+      currentStage = "pipeline";
       const result = await triggerDeployPipeline({
         requestId: normalizedRequestId,
         forceAdminOverride: true,
@@ -1845,6 +1975,12 @@ export default function VersioningOverviewPanel() {
         syncOnly: false,
       });
 
+      deployStepStatus.pipeline = "success";
+      deployStepStatus.verify = "success";
+      updateDeployProgress(
+        "success",
+        `Deploy ejecutado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
+      );
       setDeploySyncRequired(null);
       setActiveDeployRequestId("");
       setDeployMessage(
@@ -1863,6 +1999,12 @@ export default function VersioningOverviewPanel() {
         true
       );
       if (err?.code === "release_sync_required") {
+        deployStepStatus.sync = "error";
+        updateDeployProgress(
+          "error",
+          err?.message ||
+            "Este release aun no esta en la rama destino. Debes subir release antes de desplegar."
+        );
         setDeploySyncRequired(err?.payload || null);
         setDeployMessage(
           err?.message ||
@@ -1870,6 +2012,14 @@ export default function VersioningOverviewPanel() {
         );
         await load(true);
       } else {
+        if (currentStage === "gate") deployStepStatus.gate = "error";
+        else if (currentStage === "sync") deployStepStatus.sync = "error";
+        else if (currentStage === "request") deployStepStatus.request = "error";
+        else if (currentStage === "pipeline") deployStepStatus.pipeline = "error";
+        updateDeployProgress(
+          "error",
+          err?.message || "No se pudo ejecutar deploy como admin."
+        );
         setDeployMessage(err?.message || "No se pudo ejecutar deploy como admin.");
       }
     } finally {

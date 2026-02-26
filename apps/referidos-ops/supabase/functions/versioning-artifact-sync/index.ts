@@ -227,10 +227,15 @@ async function dispatchGithubWorkflow({
   }
 
   if (!response.ok) {
+    const rawDetail = asString(parsed.message, asString(parsed.raw, "github_workflow_dispatch_failed"));
+    const detail =
+      response.status === 404
+        ? `Workflow not found or inaccessible: ${workflowId} (ref=${workflowRef}).`
+        : `${rawDetail} (workflow=${workflowId}, ref=${workflowRef}, status=${response.status})`;
     return {
       ok: false,
       status: response.status,
-      detail: asString(parsed.message, "github_workflow_dispatch_failed"),
+      detail,
       payload: parsed,
     };
   }
