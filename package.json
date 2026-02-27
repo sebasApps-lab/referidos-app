@@ -33,14 +33,15 @@
     "versioning:bootstrap": "node tooling/versioning/bootstrap-baseline.mjs",
     "versioning:promote": "node tooling/versioning/promote-release.mjs",
     "versioning:record-deploy": "node tooling/versioning/record-deployment.mjs",
+    "versioning:archive-local": "node tooling/versioning/archive-local-artifact.mjs",
     "build:app": "npm run build -w apps/referidos-app",
     "build:prelaunch": "npm run build -w apps/prelaunch",
     "build:app:release": "npm run build:app && node tooling/observability/upload-sourcemaps.mjs --app referidos-app",
     "build:prelaunch:release": "npm run build:prelaunch && node tooling/observability/upload-sourcemaps.mjs --app prelaunch",
     "preview:app": "npm run preview -w apps/referidos-app",
     "preview:prelaunch": "npm run preview -w apps/prelaunch",
-    "lint": "npm run lint -ws --if-present",
-    "test": "npm run test -ws --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",

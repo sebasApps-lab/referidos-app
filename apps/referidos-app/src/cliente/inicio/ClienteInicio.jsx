@@ -107,7 +107,7 @@ export default function ClienteInicio() {
     return () => {
       if (frameId) cancelAnimationFrame(frameId);
     };
-  }, [headerVisible]);
+  }, [headerVisible, isActive]);
 
   useLayoutEffect(() => {
     if (!isActive) return undefined;
@@ -122,12 +122,13 @@ export default function ClienteInicio() {
   }, [headerVisible, isActive, mode, onBack, setHeaderOptions]);
 
   useEffect(() => {
+    if (!isActive) return undefined;
     startPromosAutoRefresh();
     setPromosVisible(mode === "default");
     return () => {
       setPromosVisible(false);
     };
-  }, [mode, setPromosVisible, startPromosAutoRefresh]);
+  }, [isActive, mode, setPromosVisible, startPromosAutoRefresh]);
 
   if (loading && promos.length === 0) {
     return (

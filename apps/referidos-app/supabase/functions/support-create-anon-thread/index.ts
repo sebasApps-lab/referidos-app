@@ -7,6 +7,12 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import {
+  categoryLabelForCode,
+  listAnonymousMacroCategoriesFromCache,
+  normalizeSupportAppChannel,
+  normalizeSupportCategoryCode,
+} from "../_shared/supportMacroCatalog.ts";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
@@ -125,13 +131,14 @@ serve(async (req) => {
   const channel = requestedChannel;
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
-  const category = Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, body.category)
-    ? body.category
-    : "sugerencia";
   const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
   const sourceRoute = safeTrim(body.source_route, 140) || null;
   const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
-  const appChannel = safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL;
+  const appChannel = normalizeSupportAppChannel(
+    safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL,
+    DEFAULT_APP_CHANNEL,
+  );
+  const requestedCategory = normalizeSupportCategoryCode(body.category, "");
   const anonId = parseUuid(body.anon_id);
   const visitSessionId = parseUuid(body.visit_session_id);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
@@ -147,6 +154,39 @@ serve(async (req) => {
   if (!rawContact) {
     return jsonResponse({ ok: false, error: "missing_contact" }, 400, cors);
   }
+
+  const {
+    categories: anonymousCategoryCatalog,
+    error: anonymousCategoryCatalogError,
+  } = await listAnonymousMacroCategoriesFromCache({
+    appChannel,
+  });
+  if (anonymousCategoryCatalogError) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "category_catalog_unavailable",
+        detail: anonymousCategoryCatalogError,
+      },
+      500,
+      cors,
+    );
+  }
+  const anonymousCategoryMap = new Map(
+    anonymousCategoryCatalog.map((category) => [category.code, category]),
+  );
+  const category = (() => {
+    if (requestedCategory && anonymousCategoryMap.has(requestedCategory)) {
+      return requestedCategory;
+    }
+    if (requestedCategory && Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, requestedCategory)) {
+      return requestedCategory;
+    }
+    if (anonymousCategoryCatalog.length > 0) {
+      return anonymousCategoryCatalog[0].code;
+    }
+    return requestedCategory || "sugerencia";
+  })();
 
   const contactValue = channel === "email"
     ? normalizeEmail(rawContact)
@@ -312,7 +352,11 @@ serve(async (req) => {
     );
   }
 
-  const categoryLabel = CATEGORY_LABELS[category] ?? "Soporte";
+  const categoryLabel =
+    anonymousCategoryMap.get(category)?.label ||
+    CATEGORY_LABELS[category] ||
+    categoryLabelForCode(category) ||
+    "Soporte";
   const context = {
     ...contextInput,
     source_route: sourceRoute,

@@ -36,7 +36,7 @@ export function useSearchDock({
       rect.bottom > headerHeight && rect.top < window.innerHeight;
     setDocked((prev) => (prev === nextDocked ? prev : nextDocked));
     setHeroVisible((prev) => (prev === nextHeroVisible ? prev : nextHeroVisible));
-  }, [dockOffset, headerId, heroSearchSelector, heroSelector]);
+  }, [dockOffset, enabled, headerId, heroSearchSelector, heroSelector, rootSelector]);
 
   useLayoutEffect(() => {
     if (!enabled) {

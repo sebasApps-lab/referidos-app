@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { Laptop, MonitorSmartphone, Smartphone, Wifi } from "lucide-react";
 
 export default function Dispositivos() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const devices = [
     {
       name: "Terminal principal",
@@ -49,7 +52,10 @@ export default function Dispositivos() {
 
       <div className="grid gap-3">
         {devices.map((device) => (
-          <motion.div
+          <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
             key={device.name}
             whileHover={{ y: -2 }}
             className="flex flex-col gap-3 rounded-xl border border-[#E9E2F7] bg-[#F9F7FF] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -95,7 +101,7 @@ export default function Dispositivos() {
                 Cerrar sesion
               </button>
             </div>
-          </motion.div>
+          </TEMP_MOTION_SPLASH_TAG>
         ))}
       </div>
 

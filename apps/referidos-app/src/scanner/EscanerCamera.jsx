@@ -40,7 +40,7 @@ export default function EscanerCamera({
         }
 
         if (supportsBarcode) scanLoop();
-      } catch (err) {
+      } catch {
         onPermissionChange?.(false);
         onFallback?.();
         onStatus?.("Activa la camara o pega el codigo manualmente.");
@@ -59,7 +59,7 @@ export default function EscanerCamera({
             onDetected?.(codes[0].rawValue);
           }
         }
-      } catch (err) {
+      } catch {
         onStatus?.("No se pudo leer el QR.");
       } finally {
         rafRef.current = requestAnimationFrame(scanLoop);

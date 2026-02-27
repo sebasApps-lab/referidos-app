@@ -1,6 +1,6 @@
 // src/admin/layout/AdminLayout.jsx
-import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import AdminTopbar from "./AdminTopbar";
 import AdminRuntimeErrorModalHost from "../observability/AdminRuntimeErrorModalHost";
@@ -14,6 +14,20 @@ export default function AdminLayout({ children, title, subtitle }) {
     return window.localStorage.getItem(ADMIN_SIDEBAR_COLLAPSED_KEY) === "1";
   });
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleRefreshPanel = useCallback(() => {
+    const params = new URLSearchParams(location.search || "");
+    params.set("__pr", String(Date.now()));
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true }
+    );
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -42,10 +56,13 @@ export default function AdminLayout({ children, title, subtitle }) {
           title={title}
           subtitle={subtitle}
           onOpenMenu={() => setSidebarOpen(true)}
+          onRefreshPanel={handleRefreshPanel}
         />
 
         <main className="px-4 pb-16 pt-6">
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

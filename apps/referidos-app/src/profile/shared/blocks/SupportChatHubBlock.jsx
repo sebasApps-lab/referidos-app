@@ -7,9 +7,10 @@ import { SUPPORT_CHAT_CATEGORIES } from "../data/supportChatCategories";
 import { createSupportChatThread } from "../services/supportChatClient";
 import { cancelSupportThread } from "@referidos/support-sdk/supportClient";
 import { logCatalogBreadcrumb } from "../../../services/loggingClient";
+import { runtimeConfig } from "../../../config/runtimeConfig";
 
+// Lint purge (no-unused-vars): se purgo `usuario` no consumido (cabecera del bloque soporte).
 export default function SupportChatHubBlock({ role, onShowTickets }) {
-  const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const location = useLocation();
   const { openModal } = useModal();
@@ -39,7 +40,7 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
       role,
       negocio_id: onboarding?.negocio?.id ?? null,
       promo_id: onboarding?.promo_id ?? null,
-      app_version: import.meta.env.VITE_APP_VERSION ?? "web",
+      app_version: runtimeConfig.appVersion || "web",
       device: navigator.platform ?? "unknown",
       browser: navigator.userAgent ?? "unknown",
     };

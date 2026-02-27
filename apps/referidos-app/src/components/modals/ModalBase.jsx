@@ -2,7 +2,8 @@
 import React from "react";
 import { useModal } from "../../modals/useModal";
 
-export default function ModalBase({ children, title, height = "auto" }) {
+// Lint purge (no-unused-vars): se purgo prop `height` no consumida (firma del modal base).
+export default function ModalBase({ children, title }) {
   const { closeModal } = useModal();
 
   return (

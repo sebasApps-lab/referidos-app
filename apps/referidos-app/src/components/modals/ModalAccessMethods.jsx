@@ -14,6 +14,7 @@ import {
   savePinHash,
 } from "../../services/secureStorageService";
 
+// Lint purge (no-unused-vars): se purgo setter `setFingerprintEnabled` (estado de lectura en modal de accesos).
 export default function ModalAccessMethods({
   initialView = "select",
   initialFingerprintEnabled = false,
@@ -25,7 +26,7 @@ export default function ModalAccessMethods({
   const setAccessMethods = useAppStore((s) => s.setAccessMethods);
   const setUser = useAppStore((s) => s.setUser);
   const [view, setView] = useState(initialView);
-  const [fingerprintEnabled, setFingerprintEnabled] = useState(
+  const [fingerprintEnabled] = useState(
     initialFingerprintEnabled,
   );
   const [pinEnabled, setPinEnabled] = useState(initialPinEnabled);

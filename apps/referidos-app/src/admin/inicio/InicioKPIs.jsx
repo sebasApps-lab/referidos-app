@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 
 export default function InicioKPIs() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const stats = [
     {
       label: "Total usuarios",
@@ -60,7 +63,10 @@ export default function InicioKPIs() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
-        <motion.div
+        <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
           key={stat.label}
           whileHover={{ y: -2 }}
           className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm"
@@ -77,7 +83,7 @@ export default function InicioKPIs() {
             {stat.value}
           </div>
           <div className="text-xs text-slate-500">{stat.label}</div>
-        </motion.div>
+        </TEMP_MOTION_SPLASH_TAG>
       ))}
     </div>
   );

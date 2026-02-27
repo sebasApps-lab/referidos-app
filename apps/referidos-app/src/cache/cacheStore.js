@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+// Lint purge (no-unused-vars): se purgaron alias `removed` y `removedScroll` en unmount (bloque de limpieza de cache).
 const initialState = {
   views: {},
   order: {},
@@ -28,12 +29,14 @@ export const useCacheStore = create((set, get) => ({
   unmount: (key) =>
     set((state) => {
       if (!state.views[key]) return state;
-      const { [key]: removed, ...restViews } = state.views;
+      const restViews = { ...state.views };
+      delete restViews[key];
       const nextOrder = {};
       Object.keys(state.order).forEach((scope) => {
         nextOrder[scope] = state.order[scope].filter((item) => item !== key);
       });
-      const { [key]: removedScroll, ...restScroll } = state.scrollPositions;
+      const restScroll = { ...state.scrollPositions };
+      delete restScroll[key];
       return {
         views: restViews,
         order: nextOrder,

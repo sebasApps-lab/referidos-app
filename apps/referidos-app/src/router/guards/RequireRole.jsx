@@ -1,11 +1,13 @@
 // src/router/guards/RequireRole.jsx
-import { Navigate } from "react-router-dom";
+import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 
 export default function RequireRole({ children, role }) {
   const usuario = useAppStore((state) => state.usuario);
   const bootstrap = useAppStore((state) => state.bootstrap);
   const onboarding = useAppStore((state) => state.onboarding);
+  const location = useLocation();
   const termsAccepted = Boolean(onboarding?.usuario?.terms_accepted);
   const privacyAccepted = Boolean(onboarding?.usuario?.privacy_accepted);
   const legalAccepted = termsAccepted && privacyAccepted;
@@ -39,6 +41,15 @@ export default function RequireRole({ children, role }) {
   //Rol incorrecto → redirigir al home de su rol real
   if (usuario.role !== role) {
     return <Navigate to="/app" replace />
+  }
+
+  if (role === "admin") {
+    const refreshKey = new URLSearchParams(location.search || "").get("__pr") || "";
+    return (
+      <React.Fragment key={`${location.pathname}|${refreshKey}`}>
+        {children}
+      </React.Fragment>
+    );
   }
 
   return children;

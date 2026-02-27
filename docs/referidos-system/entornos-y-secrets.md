@@ -21,7 +21,8 @@ Regla:
 El panel de versionado en PWA usa bridge:
 - frontend: `apps/referidos-app/src/admin/versioning/services/versioningService.js`
 - bridge runtime: `apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts`
-- backend ops: `versioning-dev-release-preview`, `versioning-dev-release-create`, `versioning-deploy-execute`, `versioning-deploy-callback`
+- backend ops: `versioning-dev-release-preview`, `versioning-dev-release-create`, `versioning-release-sync`, `versioning-release-gate`, `versioning-deploy-execute`, `versioning-deploy-callback`
+- gate runtime migrations: `apps/referidos-app/supabase/functions/versioning-runtime-migrations/index.ts`
 
 Flujo:
 1. admin se autentica en runtime (dev/staging/prod)
@@ -36,7 +37,7 @@ Flujo:
 Requeridos:
 - `GITHUB_DEPLOY_OWNER` (ej. `sebasApps-lab`)
 - `GITHUB_DEPLOY_REPO` (solo nombre repo, ej. `referidos-app`; no URL completa)
-- `GITHUB_DEPLOY_TOKEN` (PAT con permisos para workflow dispatch y merge)
+- `GITHUB_DEPLOY_TOKEN` (PAT/GitHub App token con permisos para PRs, checks, merge de PR y tags)
 - `DEPLOY_BRANCH_DEV` (ej. `dev`)
 - `DEPLOY_BRANCH_STAGING` (ej. `staging`)
 - `DEPLOY_BRANCH_PROD` (ej. `main`)
@@ -45,16 +46,21 @@ Requeridos:
 - `VERSIONING_DEV_RELEASE_ALLOWED_REFS` (ej. `dev,develop`)
 - `VERSIONING_DEPLOY_WORKFLOW` (ej. `versioning-deploy-artifact.yml`)
 - `VERSIONING_DEPLOY_WORKFLOW_REF` (ej. `dev`)
+- `VERSIONING_APPLY_MIGRATIONS_WORKFLOW` (ej. `versioning-apply-migrations.yml`)
+- `VERSIONING_APPLY_MIGRATIONS_WORKFLOW_REF` (ej. `dev`)
 - `VERSIONING_DEPLOY_CALLBACK_TOKEN` (token compartido con GitHub secret)
 - `VERSIONING_PROXY_SHARED_TOKEN` (token compartido con runtimes)
 - `OBS_RELEASE_SYNC_TOKEN` (token interno para llamar `obs-release-sync` en runtime)
 - `OBS_RELEASE_SYNC_URL_STAGING` (URL base del proyecto Supabase runtime staging, ej. `https://iegjfeaadayfvqockwov.supabase.co`)
 - `OBS_RELEASE_SYNC_URL_PROD` (URL base del proyecto Supabase runtime prod, ej. `https://ztcsrfwvjgqnmhnlpeye.supabase.co`)
+- `VERSIONING_RUNTIME_URL_STAGING` (recomendado para gate de migraciones runtime; fallback: `OBS_RELEASE_SYNC_URL_STAGING`)
+- `VERSIONING_RUNTIME_URL_PROD` (recomendado para gate de migraciones runtime; fallback: `OBS_RELEASE_SYNC_URL_PROD`)
 
 Opcionales:
 - `OBS_RELEASE_SYNC_URL_DEV` (si quieres sincronizar snapshots en dev por callback)
 - `OBS_RELEASE_SYNC_TENANT_HINT` (default `ReferidosAPP`)
 - `VERSIONING_DEPLOY_CALLBACK_URL`
+- `VERSIONING_RUNTIME_PROJECT_REF_STAGING` y `VERSIONING_RUNTIME_PROJECT_REF_PROD` (si no se puede inferir project ref desde URL runtime)
 - `SUPABASE_ENV=ops`
 
 ## 3.2 Supabase runtime `dev/staging/prod` (Edge secrets)
@@ -70,6 +76,7 @@ Requeridos para el bridge:
 Requeridos para workflows de versionado:
 - `SUPABASE_URL` = `https://ymhaveuksdzlfuecvkmx.supabase.co`
 - `SUPABASE_SECRET_KEY` = secret key de `referidos-ops`
+- `SUPABASE_ACCESS_TOKEN` (para workflow `versioning-apply-migrations.yml`)
 
 Requeridos para deploy artifact exacto:
 - `NETLIFY_AUTH_TOKEN`
@@ -86,10 +93,10 @@ Fallback:
 ## 3.4 Explicacion secret por secret (que hace y por que existe)
 
 Ops:
-- `GITHUB_DEPLOY_OWNER`: owner usado por API de GitHub para merges/workflows.
-- `GITHUB_DEPLOY_REPO`: repo objetivo para dispatch/merge automatizado.
-- `GITHUB_DEPLOY_TOKEN`: PAT tecnico con permisos para `actions:write` y merge.
-- `DEPLOY_BRANCH_DEV|STAGING|PROD`: rama canonica por entorno para verificar/mergear `source_commit_sha`.
+- `GITHUB_DEPLOY_OWNER`: owner usado por API de GitHub para PR/workflows/tags.
+- `GITHUB_DEPLOY_REPO`: repo objetivo para dispatch y control de PR.
+- `GITHUB_DEPLOY_TOKEN`: token tecnico con permisos para `actions:write`, PR API y `contents:write` (tags).
+- `DEPLOY_BRANCH_DEV|STAGING|PROD`: rama canonica por entorno para verificar que `source_commit_sha` ya este en destino.
 - `VERSIONING_DEV_RELEASE_WORKFLOW`: workflow que crea release de DEVELOPMENT.
 - `VERSIONING_DEV_RELEASE_REF`: rama/ref desde donde se dispara ese workflow.
 - `VERSIONING_DEV_RELEASE_ALLOWED_REFS`: allowlist de refs validas para evitar ejecuciones accidentales.
@@ -111,6 +118,7 @@ GitHub:
 - `SUPABASE_URL` + `SUPABASE_SECRET_KEY`: permiten a workflows registrar cambios en control plane ops.
 - `NETLIFY_AUTH_TOKEN`: autentica deploy API/CLI a Netlify.
 - `NETLIFY_SITE_ID_*`: determina exactamente que site de Netlify recibe cada deploy.
+- Contrato formal de variables/secrets: `versioning/env.contract.json`.
 
 ## 4) Config de funciones en ops
 
@@ -122,6 +130,8 @@ Debe incluir:
 - `[functions.versioning-deploy-execute] verify_jwt = false`
 - `[functions.versioning-dev-release-create] verify_jwt = false`
 - `[functions.versioning-dev-release-preview] verify_jwt = false`
+- `[functions.versioning-release-sync] verify_jwt = false`
+- `[functions.versioning-release-gate] verify_jwt = false`
 
 Motivo:
 - llamada directa con JWT admin
@@ -134,6 +144,7 @@ Archivo:
 
 Debe incluir:
 - `[functions.obs-release-sync] verify_jwt = false`
+- `[functions.versioning-runtime-migrations] verify_jwt = false`
 
 Motivo:
 - `obs-release-sync` se invoca desde `referidos-ops` con token interno (`x-obs-release-sync-token`), no con sesion de usuario.
@@ -141,11 +152,12 @@ Motivo:
 ## 5) Runbook de activacion (orden recomendado)
 
 1. Aplicar migraciones en ops.
-2. Configurar secrets en ops.
-3. Deploy funciones de ops.
-4. Configurar secrets runtime.
-5. Deploy `versioning-ops-proxy` en runtime.
-6. Probar UI admin en runtime.
+2. Configurar branch protection en `staging/main` (PR obligatorio + checks `lint/test/build` del workflow `ci-pr.yml`).
+3. Configurar secrets en ops.
+4. Deploy funciones de ops.
+5. Configurar secrets runtime.
+6. Deploy `versioning-ops-proxy` en runtime.
+7. Probar UI admin en runtime.
 
 ## 6) Comandos exactos
 
@@ -163,17 +175,27 @@ cd apps/referidos-ops
 supabase db push --project-ref $OPS_REF
 ```
 
+Migraciones runtime (fase 4, helper de schema_migrations):
+```powershell
+cd apps/referidos-app
+supabase db push --project-ref $DEV_REF
+supabase db push --project-ref $STG_REF
+supabase db push --project-ref $PROD_REF
+```
+
 Deploy funciones ops:
 ```powershell
 supabase functions deploy versioning-dev-release-create --project-ref $OPS_REF
 supabase functions deploy versioning-dev-release-preview --project-ref $OPS_REF
 supabase functions deploy versioning-deploy-execute --project-ref $OPS_REF
-supabase functions deploy versioning-deploy-callback --project-ref $OPS_REF --no-verify-jwt
+supabase functions deploy versioning-release-gate --project-ref $OPS_REF
+supabase functions deploy versioning-release-sync --project-ref $OPS_REF
+supabase functions deploy versioning-deploy-callback --project-ref $OPS_REF
 ```
 
 Set secrets ops (ejemplo):
 ```powershell
-supabase secrets set --project-ref $OPS_REF GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev,develop" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_callback_largo" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo" OBS_RELEASE_SYNC_URL_STAGING="https://iegjfeaadayfvqockwov.supabase.co" OBS_RELEASE_SYNC_URL_PROD="https://ztcsrfwvjgqnmhnlpeye.supabase.co" OBS_RELEASE_SYNC_URL_DEV="https://btvrtxdizqsqrzdsgvsj.supabase.co" OBS_RELEASE_SYNC_TENANT_HINT="ReferidosAPP" SUPABASE_ENV="ops"
+supabase secrets set --project-ref $OPS_REF GITHUB_DEPLOY_OWNER="TU_OWNER" GITHUB_DEPLOY_REPO="referidos-app" GITHUB_DEPLOY_TOKEN="ghp_xxx" DEPLOY_BRANCH_DEV="dev" DEPLOY_BRANCH_STAGING="staging" DEPLOY_BRANCH_PROD="main" VERSIONING_DEV_RELEASE_WORKFLOW="versioning-release-dev.yml" VERSIONING_DEV_RELEASE_REF="dev" VERSIONING_DEV_RELEASE_ALLOWED_REFS="dev,develop" VERSIONING_DEPLOY_WORKFLOW="versioning-deploy-artifact.yml" VERSIONING_DEPLOY_WORKFLOW_REF="dev" VERSIONING_APPLY_MIGRATIONS_WORKFLOW="versioning-apply-migrations.yml" VERSIONING_APPLY_MIGRATIONS_WORKFLOW_REF="dev" VERSIONING_DEPLOY_CALLBACK_TOKEN="token_callback_largo" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo" OBS_RELEASE_SYNC_URL_STAGING="https://iegjfeaadayfvqockwov.supabase.co" OBS_RELEASE_SYNC_URL_PROD="https://ztcsrfwvjgqnmhnlpeye.supabase.co" OBS_RELEASE_SYNC_URL_DEV="https://btvrtxdizqsqrzdsgvsj.supabase.co" VERSIONING_RUNTIME_URL_STAGING="https://iegjfeaadayfvqockwov.supabase.co" VERSIONING_RUNTIME_URL_PROD="https://ztcsrfwvjgqnmhnlpeye.supabase.co" VERSIONING_RUNTIME_PROJECT_REF_STAGING="iegjfeaadayfvqockwov" VERSIONING_RUNTIME_PROJECT_REF_PROD="ztcsrfwvjgqnmhnlpeye" OBS_RELEASE_SYNC_TENANT_HINT="ReferidosAPP" SUPABASE_ENV="ops"
 ```
 
 Set secrets runtime dev (ejemplo):
@@ -185,17 +207,20 @@ Deploy proxy en dev:
 ```powershell
 cd apps/referidos-app
 supabase functions deploy versioning-ops-proxy --project-ref $DEV_REF
-supabase functions deploy obs-release-sync --project-ref $DEV_REF --no-verify-jwt
+supabase functions deploy versioning-runtime-migrations --project-ref $DEV_REF
+supabase functions deploy obs-release-sync --project-ref $DEV_REF
 ```
 
 Si ya validaste en dev:
 ```powershell
 supabase secrets set --project-ref $STG_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo"
 supabase functions deploy versioning-ops-proxy --project-ref $STG_REF
-supabase functions deploy obs-release-sync --project-ref $STG_REF --no-verify-jwt
+supabase functions deploy versioning-runtime-migrations --project-ref $STG_REF
+supabase functions deploy obs-release-sync --project-ref $STG_REF
 supabase secrets set --project-ref $PROD_REF VERSIONING_OPS_URL="https://ymhaveuksdzlfuecvkmx.supabase.co" VERSIONING_OPS_SECRET_KEY="sb_secret_ops_xxx" VERSIONING_PROXY_SHARED_TOKEN="token_proxy_largo" OBS_RELEASE_SYNC_TOKEN="token_obs_sync_largo"
 supabase functions deploy versioning-ops-proxy --project-ref $PROD_REF
-supabase functions deploy obs-release-sync --project-ref $PROD_REF --no-verify-jwt
+supabase functions deploy versioning-runtime-migrations --project-ref $PROD_REF
+supabase functions deploy obs-release-sync --project-ref $PROD_REF
 ```
 
 ## 7) Verificacion y pruebas
@@ -239,6 +264,11 @@ Validar en DB ops:
 
 `release_sync_required`:
 - hacer `Subir release` y volver a deploy
+
+`release_migration_gate_failed`:
+- faltan migraciones en runtime destino para esa release
+- desde panel: ejecutar `Apply migrations` y volver a intentar deploy
+- validar tambien `VERSIONING_RUNTIME_URL_*` y `SUPABASE_ACCESS_TOKEN`
 
 `deploy_env_not_allowed`:
 - deploy solo permitido en `staging` y `prod`

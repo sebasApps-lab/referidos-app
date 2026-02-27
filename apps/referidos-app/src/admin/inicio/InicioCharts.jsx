@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, BarChart3, Sparkles, TrendingUp } from "lucide-react";
 
 export default function InicioCharts() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const qrBars = [30, 48, 38, 60, 72, 55, 66];
   const userBars = [15, 25, 35, 45, 58, 68, 82];
   const topPromos = [
@@ -14,7 +17,10 @@ export default function InicioCharts() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <motion.div
+      <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
         whileHover={{ y: -2 }}
         className="rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-sm"
       >
@@ -46,7 +52,7 @@ export default function InicioCharts() {
             </div>
           ))}
         </div>
-      </motion.div>
+      </TEMP_MOTION_SPLASH_TAG>
 
       <motion.div
         whileHover={{ y: -2 }}

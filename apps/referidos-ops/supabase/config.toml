@@ -57,9 +57,15 @@ verify_jwt = false
 [functions.versioning-release-sync]
 verify_jwt = false
 
+[functions.versioning-release-gate]
+verify_jwt = false
+
 [functions.ops-support-macros-admin]
 verify_jwt = false
 
 [functions.ops-support-macros-sync]
+verify_jwt = false
+
+[functions.versioning-artifact-sync]
 verify_jwt = false
 

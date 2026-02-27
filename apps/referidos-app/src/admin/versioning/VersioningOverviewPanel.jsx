@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowRightLeft,
@@ -12,12 +12,17 @@ import {
 } from "lucide-react";
 import Table from "../../components/ui/Table";
 import {
+  applyReleaseMigrations,
+  backfillReleaseArtifact,
   approveDeployRequest,
+  checkReleaseMigrations,
   createDevRelease,
+  fetchDevReleaseStatus,
   fetchDeployRequests,
   fetchDrift,
   fetchLatestReleases,
   fetchPromotionHistory,
+  fetchReleaseArtifacts,
   fetchReleasesByProductEnv,
   fetchVersioningCatalog,
   previewDevRelease,
@@ -26,8 +31,11 @@ import {
   requestDeploy,
   syncReleaseBranch,
   triggerDeployPipeline,
+  validateEnvironmentContract,
 } from "./services/versioningService";
+import VersioningArtifactsPanel from "./VersioningArtifactsPanel";
 
+// Lint purge (no-unused-vars): se removio `artifactRowForRelease` en el render de releases por entorno.
 const ENV_OPTIONS = ["dev", "staging", "prod"];
 const DEPLOY_ENV_OPTIONS = ["staging", "prod"];
 const DEPLOYABLE_PRODUCTS = ["referidos_app", "prelaunch_web"];
@@ -161,6 +169,199 @@ function deploymentStateLabel(state) {
   return "not deployed";
 }
 
+function normalizeCheckState(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "success" || normalized === "failed" || normalized === "pending" || normalized === "missing") {
+    return normalized;
+  }
+  return "missing";
+}
+
+function checkBadgeClass(state) {
+  if (state === "success") return "bg-emerald-100 text-emerald-700";
+  if (state === "failed") return "bg-red-100 text-red-700";
+  if (state === "pending") return "bg-amber-100 text-amber-700";
+  return "bg-slate-100 text-slate-600";
+}
+
+function checkBadgeLabel(state) {
+  if (state === "success") return "OK";
+  if (state === "failed") return "FAIL";
+  if (state === "pending") return "PENDING";
+  return "MISSING";
+}
+
+const DEV_RELEASE_STEPS = [
+  { key: "dispatch", label: "Encolar workflow de release" },
+  { key: "workflow", label: "Workflow versioning-release-dev.yml" },
+  { key: "detect", label: "Detectar nueva release en DEVELOPMENT" },
+  { key: "refresh", label: "Actualizar estado del panel" },
+];
+
+const DEV_BACKFILL_STEPS = [
+  { key: "dispatch", label: "Encolar workflow de backfill" },
+  { key: "workflow", label: "Workflow versioning-release-dev.yml" },
+  { key: "detect", label: "Detectar build registrada en bucket" },
+  { key: "refresh", label: "Actualizar estado del panel" },
+];
+
+function createProgressState({
+  status = "running",
+  headline = "Procesando",
+  detail = "",
+  steps = [],
+}) {
+  return {
+    status,
+    headline,
+    detail,
+    steps,
+  };
+}
+
+function createDevReleaseProgress({
+  status = "running",
+  headline = "Releasing",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline,
+    detail,
+    steps: DEV_RELEASE_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus[step.key] || "pending",
+    })),
+  });
+}
+
+function createBackfillProgress({
+  status = "running",
+  headline = "Backfilling build",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline,
+    detail,
+    steps: DEV_BACKFILL_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus[step.key] || "pending",
+    })),
+  });
+}
+
+function workflowStateToProgress(status, conclusion) {
+  const s = String(status || "").toLowerCase();
+  const c = String(conclusion || "").toLowerCase();
+  if (["success", "neutral", "skipped"].includes(c)) return "success";
+  if (["failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale"].includes(c)) {
+    return "error";
+  }
+  if (s === "completed" && !c) return "success";
+  if (["in_progress", "queued", "pending", "waiting", "requested"].includes(s)) return "running";
+  return "pending";
+}
+
+function checkStateToProgress(state) {
+  const normalized = normalizeCheckState(state);
+  if (normalized === "success") return "success";
+  if (normalized === "failed") return "error";
+  if (normalized === "pending") return "running";
+  return "pending";
+}
+
+function buildPromoteProgress({
+  status = "running",
+  detail = "",
+  checks = null,
+  prCreated = false,
+  releaseSynced = false,
+  mergeAttempted = false,
+}) {
+  const lint = checkStateToProgress(checks?.lint);
+  const test = checkStateToProgress(checks?.test);
+  const build = checkStateToProgress(checks?.build);
+  const mergeState = releaseSynced
+    ? "success"
+    : mergeAttempted
+      ? "error"
+      : "pending";
+  const verifyState = releaseSynced ? "success" : "pending";
+  return createProgressState({
+    status,
+    headline: "Promoting",
+    detail,
+    steps: [
+      { key: "promote", label: "Promover release en OPS", status: "success" },
+      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prCreated ? "success" : "running" },
+      { key: "lint", label: "Check lint", status: lint },
+      { key: "test", label: "Check test", status: test },
+      { key: "build", label: "Check build", status: build },
+      { key: "merge", label: "Merge PR", status: mergeState },
+      { key: "verify", label: "Verificar release en rama destino", status: verifyState },
+    ],
+  });
+}
+
+function buildMergeProgress({
+  status = "running",
+  detail = "",
+  checks = null,
+  prCreated = false,
+  releaseSynced = false,
+  mergeAttempted = false,
+}) {
+  const lint = checkStateToProgress(checks?.lint);
+  const test = checkStateToProgress(checks?.test);
+  const build = checkStateToProgress(checks?.build);
+  const mergeState = releaseSynced
+    ? "success"
+    : mergeAttempted
+      ? "error"
+      : "pending";
+  const verifyState = releaseSynced ? "success" : "pending";
+  return createProgressState({
+    status,
+    headline: "Merging",
+    detail,
+    steps: [
+      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prCreated ? "success" : "running" },
+      { key: "lint", label: "Check lint", status: lint },
+      { key: "test", label: "Check test", status: test },
+      { key: "build", label: "Check build", status: build },
+      { key: "merge", label: "Merge PR", status: mergeState },
+      { key: "verify", label: "Verificar release en rama destino", status: verifyState },
+    ],
+  });
+}
+
+const DEPLOY_PROGRESS_STEPS = [
+  { key: "gate", label: "Validar gate de migraciones" },
+  { key: "sync", label: "Sincronizar release en rama destino" },
+  { key: "request", label: "Crear / resolver request de deploy" },
+  { key: "pipeline", label: "Ejecutar pipeline de deploy" },
+  { key: "verify", label: "Verificar deploy" },
+];
+
+function createDeployProgress({
+  status = "running",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline: "Deploying",
+    detail,
+    steps: DEPLOY_PROGRESS_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus[step.key] || "pending",
+    })),
+  });
+}
+
 function uniqueReleaseRowsByVersion(rows) {
   const list = [];
   const seen = new Set();
@@ -197,15 +398,39 @@ function VersionCard({
   action = null,
   actions = [],
   message = "",
+  progressState = null,
   disabled = false,
   deployState = "",
   mergeState = null,
+  hasArtifact = false,
+  buildDisplay = "-",
 }) {
   const envKey = String(row?.env_key || "").toLowerCase();
   const isDevelopment = envKey === "dev";
   const isDeployTrackedEnv = envKey === "staging" || envKey === "prod";
   const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
   const actionList = Array.isArray(actions) && actions.length ? actions : action ? [action] : [];
+  const progress = progressState;
+
+  const renderProgressIcon = (state) => {
+    if (state === "success") {
+      return <CheckCircle2 size={13} className="text-emerald-600" />;
+    }
+    if (state === "error") {
+      return <XCircle size={13} className="text-red-600" />;
+    }
+    if (state === "running") {
+      return <RefreshCw size={13} className="text-[#5E30A5] animate-spin" />;
+    }
+    return <span className="inline-block h-[9px] w-[9px] rounded-full border border-slate-300" />;
+  };
+
+  const progressHeadlineClass =
+    progress?.status === "success"
+      ? "text-emerald-700"
+      : progress?.status === "error"
+        ? "text-red-700"
+        : "text-[#5E30A5]";
 
   return (
     <div
@@ -234,9 +459,19 @@ function VersionCard({
         ) : null}
       </div>
       <div className="mt-2 text-2xl font-extrabold text-[#2F1A55]">{row.version_label}</div>
+      <div className="mt-1 text-[11px] text-slate-500">
+        {`build ${buildDisplay}`}
+        {" | "}
+        {row.channel || envKey ? `channel ${row.channel || envKey}` : "channel -"}
+      </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span>Estado: {statusLabel}</span>
         <div className="flex items-center gap-1">
+          {hasArtifact ? (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              built
+            </span>
+          ) : null}
           {isDeployTrackedEnv && mergeState?.merged ? (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
               merged
@@ -269,6 +504,35 @@ function VersionCard({
           {mergeState.error}
         </div>
       ) : null}
+      {progress ? (
+        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-[11px]">
+          <div className={`flex items-center justify-between font-semibold ${progressHeadlineClass}`}>
+            <span>{progress.headline || "Releasing"}</span>
+            {renderProgressIcon(progress.status)}
+          </div>
+          {progress.detail ? (
+            <div className="mt-1 text-[10px] text-slate-600">{progress.detail}</div>
+          ) : null}
+          {Array.isArray(progress.steps) && progress.steps.length ? (
+            <div className="mt-2 space-y-1">
+              {progress.steps.map((step) => {
+                const stepClass =
+                  step.status === "success"
+                    ? "text-emerald-700"
+                    : step.status === "error"
+                      ? "text-red-700"
+                      : "text-slate-600";
+                return (
+                  <div key={step.key} className={`flex items-center justify-between ${stepClass}`}>
+                    <span>{step.label}</span>
+                    {renderProgressIcon(step.status)}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {message ? (
         <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
           {message}
@@ -279,6 +543,7 @@ function VersionCard({
 }
 
 export default function VersioningOverviewPanel() {
+  const [versioningTab, setVersioningTab] = useState("pipeline");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -289,17 +554,21 @@ export default function VersioningOverviewPanel() {
   const [driftTo, setDriftTo] = useState("prod");
   const [driftRows, setDriftRows] = useState([]);
   const [deployRequests, setDeployRequests] = useState([]);
+  const [releaseArtifacts, setReleaseArtifacts] = useState([]);
   const [promotionHistory, setPromotionHistory] = useState([]);
   const [releaseOpsMode, setReleaseOpsMode] = useState("promote");
 
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
+  const [devReleaseProgress, setDevReleaseProgress] = useState(null);
   const [devReleasePreviewInfo, setDevReleasePreviewInfo] = useState(null);
   const [devReleasePreviewLoading, setDevReleasePreviewLoading] = useState(false);
   const [devReleasePreviewError, setDevReleasePreviewError] = useState("");
   const [devReleaseDraft, setDevReleaseDraft] = useState(null);
   const [devReleaseDraftError, setDevReleaseDraftError] = useState("");
   const [devReleaseSyncing, setDevReleaseSyncing] = useState(null);
+  const [backfillActionId, setBackfillActionId] = useState("");
+  const [promoteProgressByEnv, setPromoteProgressByEnv] = useState({});
   const [promoteSourceEnv, setPromoteSourceEnv] = useState("dev");
   const [promoteRows, setPromoteRows] = useState([]);
   const [promoteRowsLoading, setPromoteRowsLoading] = useState(false);
@@ -316,10 +585,18 @@ export default function VersioningOverviewPanel() {
   const [mergeStatusByVersion, setMergeStatusByVersion] = useState({});
   const [envCardMessages, setEnvCardMessages] = useState({});
   const [mergingActionId, setMergingActionId] = useState("");
+  const [syncPipelineState, setSyncPipelineState] = useState(null);
+  const [syncPipelineActionId, setSyncPipelineActionId] = useState("");
+  const [deployMigrationGate, setDeployMigrationGate] = useState(null);
+  const [migrationGateActionId, setMigrationGateActionId] = useState("");
+  const [migrationApplyActionId, setMigrationApplyActionId] = useState("");
+  const [envValidationState, setEnvValidationState] = useState(null);
+  const [envValidationLoading, setEnvValidationLoading] = useState(false);
 
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const autoBackfillAttemptedRef = useRef(new Set());
 
   const selectedProduct = useMemo(
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
@@ -357,15 +634,20 @@ export default function VersioningOverviewPanel() {
       else setLoading(true);
       setError("");
       try {
-        const [dataCatalog, dataLatest, requests] = await Promise.all([
+        const [dataCatalog, dataLatest, requests, artifactRows] = await Promise.all([
           fetchVersioningCatalog(),
           fetchLatestReleases(),
           fetchDeployRequests(),
+          fetchReleaseArtifacts({
+            productKey: activeProductKey || "",
+            limit: 400,
+          }),
         ]);
 
         setCatalog(dataCatalog);
         setLatestReleases(dataLatest);
         setDeployRequests(requests);
+        setReleaseArtifacts(Array.isArray(artifactRows) ? artifactRows : []);
 
         const initializedSet = new Set(
           (dataCatalog.products || [])
@@ -434,6 +716,15 @@ export default function VersioningOverviewPanel() {
     return latest || [];
   }, []);
 
+  const refreshReleaseArtifacts = useCallback(async () => {
+    const artifacts = await fetchReleaseArtifacts({
+      productKey: activeProductKey || "",
+      limit: 400,
+    });
+    const rows = Array.isArray(artifacts) ? artifacts : [];
+    setReleaseArtifacts(rows);
+    return rows;
+  }, [activeProductKey]);
   useEffect(() => {
     if (!devReleaseSyncing) return undefined;
     let cancelled = false;
@@ -444,6 +735,91 @@ export default function VersioningOverviewPanel() {
     const tick = async () => {
       if (cancelled) return;
       try {
+        const workflowStatus = await fetchDevReleaseStatus({
+          productKey: devReleaseSyncing.productKey,
+          ref: devReleaseSyncing.ref || "dev",
+          runId: Number(devReleaseSyncing.runId || 0),
+          dispatchStartedAt: devReleaseSyncing.dispatchStartedAt || "",
+        });
+        if (cancelled) return;
+
+        const run = workflowStatus?.run || null;
+        const jobs = Array.isArray(workflowStatus?.jobs) ? workflowStatus.jobs : [];
+        const runState = workflowStateToProgress(run?.status, run?.conclusion);
+        const isBackfillMode = devReleaseSyncing.mode === "backfill_artifact";
+
+        const dynamicSteps = [
+          {
+            key: "dispatch",
+            label: isBackfillMode ? "Encolar workflow de backfill" : "Encolar workflow de release",
+            status: "success",
+          },
+          {
+            key: "workflow",
+            label: run?.run_number
+              ? `Workflow run #${run.run_number}`
+              : "Workflow versioning-release-dev.yml",
+            status: run ? runState : "running",
+          },
+        ];
+
+        for (const job of jobs) {
+          const jobSteps = Array.isArray(job?.steps) ? job.steps : [];
+          if (jobSteps.length) {
+            for (const step of jobSteps) {
+              dynamicSteps.push({
+                key: `job-${job.id || job.name}-${step.number || step.name}`,
+                label: step?.name || job?.name || "Paso workflow",
+                status: workflowStateToProgress(step?.status, step?.conclusion),
+              });
+            }
+          } else {
+            dynamicSteps.push({
+              key: `job-${job.id || job.name}`,
+              label: job?.name || "Job workflow",
+              status: workflowStateToProgress(job?.status, job?.conclusion),
+            });
+          }
+        }
+
+        dynamicSteps.push({
+          key: "detect",
+          label: isBackfillMode
+            ? "Detectar build registrada en bucket"
+            : "Detectar nueva release en DEVELOPMENT",
+          status: runState === "error" ? "error" : "running",
+        });
+        dynamicSteps.push({
+          key: "refresh",
+          label: "Actualizar estado del panel",
+          status: "pending",
+        });
+
+        const isBuilding = dynamicSteps.some(
+          (step) =>
+            step?.status === "running" &&
+            /build release artifact/i.test(String(step?.label || ""))
+        );
+
+        setDevReleaseProgress(
+          createProgressState({
+            status: runState === "error" ? "error" : "running",
+            headline: isBuilding ? "Building" : isBackfillMode ? "Backfilling build" : "Releasing",
+            detail: isBuilding ? "Building..." : "",
+            steps: dynamicSteps,
+          })
+        );
+
+        if (run && runState === "error") {
+          setDevReleaseMessage(
+            isBackfillMode
+              ? "Backfill build con error. Revisa el workflow y vuelve a intentar."
+              : "Release DEVELOPMENT con error. Revisa el workflow y vuelve a intentar."
+          );
+          setDevReleaseSyncing(null);
+          return;
+        }
+
         const latest = await refreshLatestReleaseRows();
         if (cancelled) return;
 
@@ -456,16 +832,55 @@ export default function VersioningOverviewPanel() {
         const versionLabel = String(devRow?.version_label || "").trim();
         const sourceCommitSha = String(devRow?.source_commit_sha || "").trim();
         const hasAnyDevRelease = Boolean(devRow && versionLabel && versionLabel !== "-");
-        const isNewReleaseDetected = devReleaseSyncing.hadPreviousRelease
-          ? hasAnyDevRelease &&
-            (versionLabel !== String(devReleaseSyncing.previousVersionLabel || "").trim() ||
-              sourceCommitSha !== String(devReleaseSyncing.previousSourceCommitSha || "").trim())
-          : hasAnyDevRelease;
+        let isCompleted = false;
+        let successVersionLabel = versionLabel;
 
-        if (isNewReleaseDetected) {
+        if (isBackfillMode) {
+          const artifacts = await refreshReleaseArtifacts();
+          if (cancelled) return;
+          const targetReleaseId = String(devReleaseSyncing.targetReleaseId || "").trim();
+          isCompleted = Boolean(
+            targetReleaseId &&
+              (artifacts || []).some(
+                (artifactRow) => String(artifactRow?.release_id || "").trim() === targetReleaseId
+              )
+          );
+          successVersionLabel = String(devReleaseSyncing.targetVersionLabel || versionLabel || "").trim();
+        } else {
+          isCompleted = devReleaseSyncing.hadPreviousRelease
+            ? hasAnyDevRelease &&
+              (versionLabel !== String(devReleaseSyncing.previousVersionLabel || "").trim() ||
+                sourceCommitSha !== String(devReleaseSyncing.previousSourceCommitSha || "").trim())
+            : hasAnyDevRelease;
+        }
+
+        if (isCompleted) {
+          const finalSteps = (dynamicSteps || []).map((step) => {
+            if (step.key === "detect" || step.key === "refresh") {
+              return { ...step, status: "success" };
+            }
+            if (step.status === "running") {
+              return { ...step, status: runState === "error" ? "error" : "success" };
+            }
+            return step;
+          });
+          setDevReleaseProgress(
+            createProgressState({
+              status: "success",
+              headline: isBackfillMode
+                ? "Backfill build completado"
+                : "Release DEVELOPMENT creada con éxito",
+              detail: successVersionLabel || versionLabel || "-",
+              steps: finalSteps,
+            })
+          );
           await load(true);
           if (cancelled) return;
-          setDevReleaseMessage(`Release DEVELOPMENT creada: ${versionLabel}.`);
+          setDevReleaseMessage(
+            isBackfillMode
+              ? `Build backfill completada en DEVELOPMENT: ${successVersionLabel || versionLabel || "-"}.`
+              : `Release DEVELOPMENT creada con éxito: ${versionLabel}.`
+          );
           setDevReleaseSyncing(null);
           return;
         }
@@ -475,7 +890,27 @@ export default function VersioningOverviewPanel() {
 
       if (Date.now() - Number(devReleaseSyncing.startedAt || 0) >= MAX_WAIT_MS) {
         setDevReleaseMessage(
-          "Release en cola. Sigue en ejecucion; revisa el workflow si tarda mas de lo esperado."
+          devReleaseSyncing.mode === "backfill_artifact"
+            ? "Backfill en cola. Sigue en ejecución; revisa el workflow si tarda más de lo esperado."
+            : "Release en cola. Sigue en ejecución; revisa el workflow si tarda más de lo esperado."
+        );
+        setDevReleaseProgress((current) =>
+          createProgressState({
+            status: "error",
+            headline:
+              devReleaseSyncing.mode === "backfill_artifact"
+                ? "Backfill build con error"
+                : "Release DEVELOPMENT con error",
+            detail:
+              devReleaseSyncing.mode === "backfill_artifact"
+                ? "No se detectó build registrada dentro del tiempo esperado."
+                : "No se detectó una nueva release dentro del tiempo esperado.",
+            steps: Array.isArray(current?.steps)
+              ? current.steps.map((step) =>
+                  step.status === "running" ? { ...step, status: "error" } : step
+                )
+              : [],
+          })
         );
         setDevReleaseSyncing(null);
         return;
@@ -490,7 +925,7 @@ export default function VersioningOverviewPanel() {
       cancelled = true;
       if (timerId) clearTimeout(timerId);
     };
-  }, [devReleaseSyncing, refreshLatestReleaseRows, load]);
+  }, [devReleaseSyncing, refreshLatestReleaseRows, refreshReleaseArtifacts, load]);
 
   useEffect(() => {
     if (!activeProductKey) {
@@ -531,6 +966,16 @@ export default function VersioningOverviewPanel() {
     setDevReleaseDraft(null);
     setDevReleaseDraftError("");
     setEnvCardMessages({});
+    setSyncPipelineState(null);
+    setSyncPipelineActionId("");
+    setDeployMigrationGate(null);
+    setMigrationGateActionId("");
+    setMigrationApplyActionId("");
+    setEnvValidationState(null);
+    setEnvValidationLoading(false);
+    setDevReleaseProgress(null);
+    setBackfillActionId("");
+    setPromoteProgressByEnv({});
   }, [activeProductKey]);
 
   useEffect(() => {
@@ -638,6 +1083,15 @@ export default function VersioningOverviewPanel() {
     [mergeStatusByVersion]
   );
 
+  const artifactReleaseIdSet = useMemo(() => {
+    const set = new Set();
+    for (const row of releaseArtifacts || []) {
+      const releaseId = String(row?.release_id || "").trim();
+      if (releaseId) set.add(releaseId);
+    }
+    return set;
+  }, [releaseArtifacts]);
+
   const envCards = useMemo(() => {
     const rowsByEnv = new Map(
       latestReleases
@@ -735,6 +1189,9 @@ export default function VersioningOverviewPanel() {
             toEnv: target.envKey,
             semver: target.semver,
             checkOnly: true,
+            autoMerge: false,
+            createPr: false,
+            operation: "refresh_pr",
           });
           return [
             key,
@@ -767,6 +1224,59 @@ export default function VersioningOverviewPanel() {
   useEffect(() => {
     refreshMergeStatuses();
   }, [refreshMergeStatuses]);
+
+  const setSyncPipelineFromPayload = useCallback(
+    (payload, context = {}, isError = false) => {
+      const pr = payload?.pr || null;
+      const checks = payload?.checks || null;
+      if (!pr && !checks && !payload?.branches) return;
+      setSyncPipelineState({
+        productKey: context.productKey || activeProductKey || "",
+        toEnv: String(context.toEnv || payload?.to_env || "").toLowerCase(),
+        semver: String(context.semver || payload?.semver || "").trim(),
+        source: context.source || "sync",
+        error: isError,
+        errorCode: payload?.error || "",
+        detail: payload?.detail || "",
+        branches: payload?.branches || null,
+        pr,
+        checks,
+        updatedAt: Date.now(),
+      });
+    },
+    [activeProductKey]
+  );
+
+  const setPromoteProgressForEnv = useCallback((envKey, progress) => {
+    const key = String(envKey || "").toLowerCase();
+    if (!key) return;
+    setPromoteProgressByEnv((current) => ({
+      ...current,
+      [key]: progress,
+    }));
+  }, []);
+
+  const setPromoteProgressFromSyncPayload = useCallback(
+    (payload, { toEnv = "", detail = "", status = "running", mergeAttempted = false } = {}) => {
+      const envKey = String(toEnv || payload?.to_env || "").toLowerCase();
+      if (!envKey) return;
+      const checks = payload?.checks || null;
+      const prCreated = Boolean(payload?.pr);
+      const releaseSynced = payload?.release_synced === true || payload?.already_synced === true;
+      setPromoteProgressForEnv(
+        envKey,
+        buildPromoteProgress({
+          status,
+          detail,
+          checks,
+          prCreated,
+          releaseSynced,
+          mergeAttempted,
+        })
+      );
+    },
+    [setPromoteProgressForEnv]
+  );
 
   useEffect(() => {
     if (!orderedProducts.length) return;
@@ -812,6 +1322,128 @@ export default function VersioningOverviewPanel() {
     setConfirmDialog(null);
   }, [confirmLoading]);
 
+  const handlePipelineRefreshChecks = async () => {
+    if (!syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("refresh");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        sourceBranch: syncPipelineState?.branches?.source || "",
+        targetBranch: syncPipelineState?.branches?.target || "",
+        checkOnly: true,
+        autoMerge: false,
+        createPr: false,
+        operation: "refresh_pr",
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteProgressFromSyncPayload(result, {
+        toEnv: syncPipelineState?.toEnv,
+        detail: "Checks actualizados.",
+        status: "running",
+        mergeAttempted: false,
+      });
+      setPromoteMessage(
+        `Checks actualizados. lint=${result?.checks?.lint || "-"}, test=${result?.checks?.test || "-"}, build=${result?.checks?.build || "-"}.`
+      );
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteProgressFromSyncPayload(err?.payload || {}, {
+        toEnv: syncPipelineState?.toEnv,
+        detail: err?.message || "No se pudieron refrescar los checks del PR.",
+        status: "error",
+        mergeAttempted: false,
+      });
+      setPromoteMessage(err?.message || "No se pudieron refrescar los checks del PR.");
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
+  const handlePipelineAutoMerge = async () => {
+    if (!syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("auto-merge");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        sourceBranch: syncPipelineState?.branches?.source || "",
+        targetBranch: syncPipelineState?.branches?.target || "",
+        checkOnly: false,
+        autoMerge: true,
+        createPr: false,
+        operation: "merge_pr",
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteProgressFromSyncPayload(result, {
+        toEnv: syncPipelineState?.toEnv,
+        detail: `PR mergeado correctamente hacia ${normalizeEnvLabel(syncPipelineState?.toEnv || "-")}.`,
+        status: "success",
+        mergeAttempted: true,
+      });
+      setPromoteMessage(
+        `PR mergeado correctamente a ${normalizeEnvLabel(syncPipelineState.toEnv)}.`
+      );
+      await load(true);
+      await refreshMergeStatuses();
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteProgressFromSyncPayload(err?.payload || {}, {
+        toEnv: syncPipelineState?.toEnv,
+        detail: err?.message || "No se pudo hacer auto-merge del PR.",
+        status: "error",
+        mergeAttempted: true,
+      });
+      setPromoteMessage(err?.message || "No se pudo hacer auto-merge del PR.");
+      await refreshMergeStatuses();
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
+  const handlePipelineCancel = async () => {
+    const pullNumber = Number(syncPipelineState?.pr?.number || 0);
+    if (!pullNumber || !syncPipelineState?.productKey || !syncPipelineState?.toEnv || !syncPipelineState?.semver) return;
+    setSyncPipelineActionId("cancel");
+    try {
+      const result = await syncReleaseBranch({
+        productKey: syncPipelineState.productKey,
+        toEnv: syncPipelineState.toEnv,
+        semver: syncPipelineState.semver,
+        operation: "close_pr",
+        pullNumber,
+      });
+      setSyncPipelineFromPayload(result, syncPipelineState, false);
+      setPromoteProgressForEnv(
+        syncPipelineState?.toEnv,
+        createProgressState({
+          status: "error",
+          headline: "Promoting",
+          detail: `PR #${pullNumber} cerrado.`,
+          steps: [
+            { key: "promote", label: "Promover release en OPS", status: "success" },
+            { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: "error" },
+          ],
+        })
+      );
+      setPromoteMessage(`PR #${pullNumber} cerrado.`);
+      await refreshMergeStatuses();
+    } catch (err) {
+      setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
+      setPromoteProgressFromSyncPayload(err?.payload || {}, {
+        toEnv: syncPipelineState?.toEnv,
+        detail: err?.message || "No se pudo cerrar el PR.",
+        status: "error",
+        mergeAttempted: false,
+      });
+      setPromoteMessage(err?.message || "No se pudo cerrar el PR.");
+    } finally {
+      setSyncPipelineActionId("");
+    }
+  };
+
   const handleMergeRelease = async ({
     envKey,
     semver,
@@ -829,6 +1461,17 @@ export default function VersioningOverviewPanel() {
     const currentActionId = actionKey("merge", source, envKey, semver);
     setMergingActionId(currentActionId);
     setEnvCardMessages((current) => ({ ...current, [envKey]: "" }));
+    setPromoteProgressForEnv(
+      envKey,
+      buildMergeProgress({
+        status: "running",
+        detail: `Iniciando merge de ${semver} hacia ${normalizeEnvLabel(envKey)}...`,
+        checks: null,
+        prCreated: false,
+        releaseSynced: false,
+        mergeAttempted: false,
+      })
+    );
 
     try {
       const result = await syncReleaseBranch({
@@ -836,6 +1479,27 @@ export default function VersioningOverviewPanel() {
         toEnv: envKey,
         semver,
       });
+      setSyncPipelineFromPayload(
+        result,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        false
+      );
+      setPromoteProgressForEnv(
+        envKey,
+        buildMergeProgress({
+          status: "success",
+          detail: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)}.`,
+          checks: result?.checks || null,
+          prCreated: Boolean(result?.pr),
+          releaseSynced: true,
+          mergeAttempted: true,
+        })
+      );
       setEnvCardMessages((current) => ({
         ...current,
         [envKey]: `Release ${semver} mergeada a ${normalizeEnvLabel(envKey)} (${result?.branches?.target || "-"})`,
@@ -843,6 +1507,27 @@ export default function VersioningOverviewPanel() {
       await load(true);
       await refreshMergeStatuses();
     } catch (err) {
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        true
+      );
+      setPromoteProgressForEnv(
+        envKey,
+        buildMergeProgress({
+          status: "error",
+          detail: err?.message || "No se pudo hacer merge a la rama destino.",
+          checks: err?.payload?.checks || null,
+          prCreated: Boolean(err?.payload?.pr),
+          releaseSynced: false,
+          mergeAttempted: true,
+        })
+      );
       setEnvCardMessages((current) => ({
         ...current,
         [envKey]: err?.message || "No se pudo hacer merge a la rama destino.",
@@ -869,6 +1554,23 @@ export default function VersioningOverviewPanel() {
     const currentActionId = actionKey("promote", source, fromEnv, toEnv, semver);
     setPromotingActionId(currentActionId);
     setPromoteMessage("");
+    setPromoteProgressForEnv(
+      toEnv,
+      createProgressState({
+        status: "running",
+        headline: "Promoting",
+        detail: `Promoviendo ${semver} de ${normalizeEnvLabel(fromEnv)} a ${normalizeEnvLabel(toEnv)}...`,
+        steps: [
+          { key: "promote", label: "Promover release en OPS", status: "running" },
+          { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: "pending" },
+          { key: "lint", label: "Check lint", status: "pending" },
+          { key: "test", label: "Check test", status: "pending" },
+          { key: "build", label: "Check build", status: "pending" },
+          { key: "merge", label: "Merge PR", status: "pending" },
+          { key: "verify", label: "Verificar release en rama destino", status: "pending" },
+        ],
+      })
+    );
 
     try {
       await promoteRelease({
@@ -879,8 +1581,32 @@ export default function VersioningOverviewPanel() {
         notes,
       });
 
+      if (!syncRelease) {
+        setPromoteProgressForEnv(
+          toEnv,
+          createProgressState({
+            status: "success",
+            headline: "Promote completado",
+            detail: `Release ${semver} promovida (sin merge automatico).`,
+            steps: [{ key: "promote", label: "Promover release en OPS", status: "success" }],
+          })
+        );
+      }
+
       if (syncRelease) {
         if (!DEPLOYABLE_PRODUCTS.includes(activeProductKey) || !DEPLOY_ENV_OPTIONS.includes(toEnv)) {
+          setPromoteProgressForEnv(
+            toEnv,
+            createProgressState({
+              status: "error",
+              headline: "Promote completado con advertencia",
+              detail: "Merge automatico no disponible para esta app/entorno.",
+              steps: [
+                { key: "promote", label: "Promover release en OPS", status: "success" },
+                { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: "error" },
+              ],
+            })
+          );
           setPromoteMessage(
             `Release ${semver} promovida de ${fromEnv} a ${toEnv}. Merge automatico no disponible para esta app/entorno.`
           );
@@ -889,24 +1615,73 @@ export default function VersioningOverviewPanel() {
           return;
         }
 
+        setPromoteProgressFromSyncPayload(
+          {},
+          {
+            toEnv,
+            detail: "Release promovida en OPS. Creando/actualizando PR...",
+            status: "running",
+          }
+        );
+
         try {
           const syncResult = await syncReleaseBranch({
             productKey: activeProductKey,
             fromEnv,
             toEnv,
             semver,
+            autoMerge: true,
+            createPr: true,
+          });
+          setSyncPipelineFromPayload(
+            syncResult,
+            {
+              productKey: activeProductKey,
+              toEnv,
+              semver,
+              source,
+            },
+            false
+          );
+          setPromoteProgressFromSyncPayload(syncResult, {
+            toEnv,
+            detail: `Release ${semver} sincronizada por PR.`,
+            status: "success",
+            mergeAttempted: true,
           });
           setPromoteMessage(
-            `Release ${semver} promovida de ${fromEnv} a ${toEnv} y subida a rama destino (${syncResult?.branches?.target || "-"})`
+            `Release ${semver} promovida de ${fromEnv} a ${toEnv} y sincronizada por PR a rama destino (${syncResult?.branches?.target || "-"}).`
           );
           setPromoteDraft(null);
           await load(true);
           return;
         } catch (syncErr) {
+          setSyncPipelineFromPayload(
+            syncErr?.payload || null,
+            {
+              productKey: activeProductKey,
+              toEnv,
+              semver,
+              source,
+            },
+            true
+          );
+          setPromoteProgressFromSyncPayload(syncErr?.payload || {}, {
+            toEnv,
+            detail: syncErr?.message || "No se pudo sincronizar release por PR.",
+            status: "error",
+            mergeAttempted: true,
+          });
+          const checks = syncErr?.payload?.checks || null;
+          const checksText = checks
+            ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+            : "";
+          const prNumber = syncErr?.payload?.pr?.number || null;
+          const prText = prNumber ? ` PR #${prNumber}.` : "";
           setPromoteMessage(
             `Release ${semver} promovida de ${fromEnv} a ${toEnv}, pero no se pudo subir a la rama destino: ${
               syncErr?.message || "error de sync"
-            }`
+            }.${prText}${checksText}`
           );
           setPromoteDraft(null);
           await load(true);
@@ -918,9 +1693,151 @@ export default function VersioningOverviewPanel() {
       setPromoteDraft(null);
       await load(true);
     } catch (err) {
+      setPromoteProgressForEnv(
+        toEnv,
+        createProgressState({
+          status: "error",
+          headline: "Promoting",
+          detail: err?.message || "No se pudo promover la release.",
+          steps: [{ key: "promote", label: "Promover release en OPS", status: "error" }],
+        })
+      );
       setPromoteMessage(err?.message || "No se pudo promover la release.");
     } finally {
       setPromotingActionId("");
+    }
+  };
+
+  const handleCheckReleaseGateByVersion = async ({
+    envKey,
+    semver,
+    source = "history",
+  }) => {
+    if (!activeProductKey || !envKey || !semver) return null;
+
+    const actionId = actionKey("gate-check", source, envKey, semver);
+    setMigrationGateActionId(actionId);
+    setDeployMessage("");
+    try {
+      const result = await checkReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+      });
+
+      const gateState = {
+        ...result,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+      };
+      setDeployMigrationGate(gateState);
+
+      const missingCount = Array.isArray(result?.missing_versions)
+        ? result.missing_versions.length
+        : 0;
+      if (result?.gate_passed) {
+        setDeployMessage(`Gate de migraciones OK para ${envKey} ${semver}.`);
+      } else {
+        setDeployMessage(
+          `Gate bloqueado para ${envKey} ${semver}. Faltan ${missingCount} migracion(es).`
+        );
+      }
+      return gateState;
+    } catch (err) {
+      const payload = err?.payload || {};
+      const gateState = {
+        gate_passed: false,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+        error: err?.code || payload?.error || "check_release_migrations_failed",
+        detail: err?.message || payload?.detail || "No se pudo validar gate de migraciones.",
+        missing_versions: Array.isArray(payload?.missing_versions) ? payload.missing_versions : [],
+        missing_migrations: Array.isArray(payload?.missing_migrations)
+          ? payload.missing_migrations
+          : [],
+      };
+      setDeployMigrationGate(gateState);
+      setDeployMessage(gateState.detail || "No se pudo validar gate de migraciones.");
+      throw err;
+    } finally {
+      setMigrationGateActionId("");
+    }
+  };
+
+  const handleApplyMigrationsForCurrentGate = async () => {
+    const gate = deployMigrationGate || null;
+    const envKey = String(gate?.env_key || deployTargetEnv || "").toLowerCase();
+    const semver = String(gate?.semver || "").trim();
+    if (!activeProductKey || !envKey || !semver) {
+      setDeployMessage("No hay release seleccionada para aplicar migraciones.");
+      return;
+    }
+
+    const actionId = actionKey("gate-apply", envKey, semver);
+    setMigrationApplyActionId(actionId);
+    setDeployMessage("");
+    try {
+      const result = await applyReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+        sourceBranch: gate?.release?.source_branch || "",
+        targetBranch: "",
+      });
+
+      const logsUrl = String(result?.logs_url || "").trim();
+      if (result?.already_applied) {
+        setDeployMessage(`No habia migraciones pendientes para ${envKey} ${semver}.`);
+      } else {
+        setDeployMessage(
+          `Apply migrations disparado para ${envKey} ${semver}.${logsUrl ? ` Logs: ${logsUrl}` : ""}`
+        );
+      }
+
+      const refreshedGate = await checkReleaseMigrations({
+        productKey: activeProductKey,
+        envKey,
+        semver,
+      });
+      setDeployMigrationGate({
+        ...refreshedGate,
+        env_key: envKey,
+        semver,
+        checked_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      setDeployMessage(err?.message || "No se pudo disparar apply migrations.");
+    } finally {
+      setMigrationApplyActionId("");
+    }
+  };
+
+  const handleValidateEnvironment = async () => {
+    if (!activeProductKey || !deployTargetEnv) {
+      setDeployMessage("Selecciona producto y entorno para validar.");
+      return;
+    }
+
+    setEnvValidationLoading(true);
+    setDeployMessage("");
+    try {
+      const validation = await validateEnvironmentContract({
+        productKey: activeProductKey,
+        envKey: deployTargetEnv,
+      });
+      setEnvValidationState(validation);
+      setDeployMessage(validation?.summary || "Validacion de entorno completada.");
+    } catch (err) {
+      setEnvValidationState({
+        validation_ok: false,
+        summary: err?.message || "No se pudo validar entorno.",
+        details: err?.payload || null,
+      });
+      setDeployMessage(err?.message || "No se pudo validar entorno.");
+    } finally {
+      setEnvValidationLoading(false);
     }
   };
 
@@ -952,12 +1869,57 @@ export default function VersioningOverviewPanel() {
     setDeployTargetEnv(envKey);
 
     let normalizedRequestId = "";
+    let currentStage = "gate";
+    const deployStepStatus = {
+      gate: "running",
+      sync: "pending",
+      request: "pending",
+      pipeline: "pending",
+      verify: "pending",
+    };
+    const updateDeployProgress = (status = "running", detail = "") => {
+      setPromoteProgressForEnv(
+        envKey,
+        createDeployProgress({
+          status,
+          detail,
+          stepStatus: deployStepStatus,
+        })
+      );
+    };
+    updateDeployProgress(
+      "running",
+      `Iniciando deploy de ${semver} hacia ${normalizeEnvLabel(envKey)}...`
+    );
+
     try {
+      const gateResult = await handleCheckReleaseGateByVersion({
+        envKey,
+        semver,
+        source: `${source}-predeploy`,
+      });
+      if (!gateResult?.gate_passed) {
+        deployStepStatus.gate = "error";
+        updateDeployProgress(
+          "error",
+          gateResult?.detail || "Gate de migraciones no aprobado."
+        );
+        return;
+      }
+      deployStepStatus.gate = "success";
+      deployStepStatus.sync = "running";
+      updateDeployProgress("running", "Gate de migraciones OK. Sincronizando release...");
+
+      currentStage = "sync";
       await syncReleaseBranch({
         productKey: activeProductKey,
         toEnv: envKey,
         semver,
       });
+      deployStepStatus.sync = "success";
+      deployStepStatus.request = "running";
+      updateDeployProgress("running", "Release sincronizada. Resolviendo request de deploy...");
+      currentStage = "request";
 
       const existingRequest = selectedProductDeployRequests.find(
         (row) =>
@@ -991,7 +1953,12 @@ export default function VersioningOverviewPanel() {
         throw new Error("No se pudo resolver request_id para ejecutar deploy.");
       }
 
+      deployStepStatus.request = "success";
+      deployStepStatus.pipeline = "running";
+      updateDeployProgress("running", "Request listo. Ejecutando pipeline de deploy...");
+
       setActiveDeployRequestId(normalizedRequestId);
+      currentStage = "pipeline";
       const result = await triggerDeployPipeline({
         requestId: normalizedRequestId,
         forceAdminOverride: true,
@@ -999,6 +1966,12 @@ export default function VersioningOverviewPanel() {
         syncOnly: false,
       });
 
+      deployStepStatus.pipeline = "success";
+      deployStepStatus.verify = "success";
+      updateDeployProgress(
+        "success",
+        `Deploy ejecutado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
+      );
       setDeploySyncRequired(null);
       setActiveDeployRequestId("");
       setDeployMessage(
@@ -1006,7 +1979,23 @@ export default function VersioningOverviewPanel() {
       );
       await load(true);
     } catch (err) {
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: envKey,
+          semver,
+          source,
+        },
+        true
+      );
       if (err?.code === "release_sync_required") {
+        deployStepStatus.sync = "error";
+        updateDeployProgress(
+          "error",
+          err?.message ||
+            "Este release aun no esta en la rama destino. Debes subir release antes de desplegar."
+        );
         setDeploySyncRequired(err?.payload || null);
         setDeployMessage(
           err?.message ||
@@ -1014,6 +2003,14 @@ export default function VersioningOverviewPanel() {
         );
         await load(true);
       } else {
+        if (currentStage === "gate") deployStepStatus.gate = "error";
+        else if (currentStage === "sync") deployStepStatus.sync = "error";
+        else if (currentStage === "request") deployStepStatus.request = "error";
+        else if (currentStage === "pipeline") deployStepStatus.pipeline = "error";
+        updateDeployProgress(
+          "error",
+          err?.message || "No se pudo ejecutar deploy como admin."
+        );
         setDeployMessage(err?.message || "No se pudo ejecutar deploy como admin.");
       }
     } finally {
@@ -1028,21 +2025,63 @@ export default function VersioningOverviewPanel() {
       return;
     }
 
+    const requestRow = (selectedProductDeployRequests || []).find(
+      (row) => String(row.id || "") === String(requestId)
+    );
+    const toEnv = String(requestRow?.env_key || deployTargetEnv || "").toLowerCase();
+    const semver = String(requestRow?.version_label || "").trim();
+
     setDeployingActionId("sync-release");
     try {
-      const result = await triggerDeployPipeline({
-        requestId,
-        forceAdminOverride: true,
-        syncRelease: true,
-        syncOnly: true,
+      if (!toEnv || !semver) {
+        throw new Error("No se pudo resolver env/version para sincronizar release.");
+      }
+
+      const result = await syncReleaseBranch({
+        productKey: activeProductKey,
+        toEnv,
+        semver,
+        checkOnly: false,
+        autoMerge: true,
+        createPr: true,
       });
-      setDeploySyncRequired(null);
-      setDeployMessage(
-        `Release subido correctamente a ${result?.branches?.target || "rama destino"}. Ahora puedes hacer deploy.`
+      setSyncPipelineFromPayload(
+        result,
+        {
+          productKey: activeProductKey,
+          toEnv,
+          semver,
+          source: "deploy-sync",
+        },
+        false
       );
+      setDeploySyncRequired(null);
+      const checks = result?.checks || null;
+      const checksText = checks
+        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+        : "";
+      const prNumber = result?.pr?.number || null;
+      const prText = prNumber ? ` PR #${prNumber}.` : "";
+      setDeployMessage(`Release sincronizada por PR a ${result?.branches?.target || "rama destino"}.${prText}${checksText} Ahora puedes hacer deploy.`);
       await load(true);
     } catch (err) {
-      setDeployMessage(err?.message || "No se pudo subir release a la rama destino.");
+      setSyncPipelineFromPayload(
+        err?.payload || null,
+        {
+          productKey: activeProductKey,
+          toEnv: toEnv || String(deployTargetEnv || "").toLowerCase(),
+          semver,
+          source: "deploy-sync",
+        },
+        true
+      );
+      const checks = err?.payload?.checks || null;
+      const checksText = checks
+        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
+        : "";
+      const prNumber = err?.payload?.pr?.number || null;
+      const prText = prNumber ? ` PR #${prNumber}.` : "";
+      setDeployMessage(`${err?.message || "No se pudo sincronizar release por PR a la rama destino."}.${prText}${checksText}`);
     } finally {
       setDeployingActionId("");
     }
@@ -1092,6 +2131,30 @@ export default function VersioningOverviewPanel() {
       setCreatingDevRelease(false);
     }
   }, [activeProductKey, selectedProductLabel]);
+
+  const requestBackfillBuild = useCallback(
+    ({ releaseId, semver, sourceCommitSha = "", source = "quick-dev-card" }) => {
+      if (!releaseId) {
+        setDevReleaseMessage("No se pudo resolver release_id para backfill.");
+        return;
+      }
+      openConfirmDialog({
+        title: "Confirmar backfill de build",
+        copy: `Se generará artifact/bucket para la release ${semver || "-"} en DEVELOPMENT.`,
+        confirmLabel: "Confirmar",
+        action: {
+          type: "backfill-build",
+          payload: {
+            releaseId,
+            semver,
+            sourceCommitSha,
+            source,
+          },
+        },
+      });
+    },
+    [openConfirmDialog]
+  );
 
   const requestPromoteVersion = useCallback(
     ({ semver, fromEnv, toEnv, source = "list", notes = "" }) => {
@@ -1172,6 +2235,19 @@ export default function VersioningOverviewPanel() {
     }
 
     setCreatingDevRelease(true);
+    setDevReleaseProgress(
+      createDevReleaseProgress({
+        status: "running",
+        headline: "Releasing",
+        detail: "Iniciando release de DEVELOPMENT...",
+        stepStatus: {
+          dispatch: "running",
+          workflow: "pending",
+          detect: "pending",
+          refresh: "pending",
+        },
+      })
+    );
     try {
       const previousDevRelease = (latestReleases || []).find(
         (row) =>
@@ -1186,10 +2262,29 @@ export default function VersioningOverviewPanel() {
         releaseNotes: releaseNotes || "",
       });
       setDevReleaseMessage(
-        `Release de DEVELOPMENT en cola. workflow=${result?.workflow || "-"} ref=${result?.ref || "dev"}. Actualizando estado...`
+        "Releasing..."
+      );
+      setDevReleaseProgress(
+        createDevReleaseProgress({
+          status: "running",
+          headline: "Releasing",
+          detail: "Building...",
+          stepStatus: {
+            dispatch: "success",
+            workflow: "running",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
       );
       setDevReleaseSyncing({
+        mode: "release",
         productKey: activeProductKey,
+        ref: result?.ref || "dev",
+        runId: Number(result?.run?.id || 0),
+        dispatchStartedAt:
+          String(result?.dispatch_started_at || "").trim() ||
+          new Date().toISOString(),
         hadPreviousRelease: Boolean(previousDevRelease),
         previousVersionLabel: previousDevRelease
           ? String(previousDevRelease.version_label || "").trim()
@@ -1203,10 +2298,165 @@ export default function VersioningOverviewPanel() {
       setDevReleaseDraftError("");
     } catch (err) {
       setDevReleaseMessage(err?.message || "No se pudo crear release de development.");
+      setDevReleaseProgress(
+        createDevReleaseProgress({
+          status: "error",
+          headline: "Release DEVELOPMENT con error",
+          detail: err?.message || "No se pudo crear release de development.",
+          stepStatus: {
+            dispatch: "error",
+            workflow: "pending",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
+      );
+      setDevReleaseSyncing(null);
     } finally {
       setCreatingDevRelease(false);
     }
   };
+
+  const handleBackfillDevArtifact = useCallback(async ({
+    releaseId = "",
+    semver = "",
+    sourceCommitSha = "",
+  } = {}) => {
+    const resolvedReleaseId = String(releaseId || "").trim();
+    const resolvedSemver = String(semver || "").trim();
+    if (!resolvedReleaseId) {
+      setDevReleaseMessage("release_id inválido para backfill.");
+      return;
+    }
+    if (!activeProductKey) {
+      setDevReleaseMessage("Selecciona una app para ejecutar backfill de build.");
+      return;
+    }
+
+    const currentActionId = actionKey(
+      "backfill-build",
+      "dev",
+      activeProductKey,
+      resolvedSemver || resolvedReleaseId
+    );
+
+    setBackfillActionId(currentActionId);
+    setDevReleaseMessage("");
+    setDevReleaseProgress(
+      createBackfillProgress({
+        status: "running",
+        headline: "Backfilling build",
+        detail: "Iniciando backfill de build para DEVELOPMENT...",
+        stepStatus: {
+          dispatch: "running",
+          workflow: "pending",
+          detect: "pending",
+          refresh: "pending",
+        },
+      })
+    );
+
+    try {
+      const result = await backfillReleaseArtifact({
+        releaseId: resolvedReleaseId,
+        productKey: activeProductKey,
+        ref: "dev",
+        sourceCommitSha,
+      });
+
+      setDevReleaseMessage(
+        "Building..."
+      );
+      setDevReleaseProgress(
+        createBackfillProgress({
+          status: "running",
+          headline: "Backfilling build",
+          detail: "Building...",
+          stepStatus: {
+            dispatch: "success",
+            workflow: "running",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
+      );
+
+      setDevReleaseSyncing({
+        mode: "backfill_artifact",
+        productKey: activeProductKey,
+        ref: result?.ref || "dev",
+        runId: Number(result?.run?.id || 0),
+        dispatchStartedAt:
+          String(result?.dispatch_started_at || "").trim() || new Date().toISOString(),
+        targetReleaseId: resolvedReleaseId,
+        targetVersionLabel: resolvedSemver,
+        startedAt: Date.now(),
+      });
+    } catch (err) {
+      setDevReleaseMessage(err?.message || "No se pudo ejecutar backfill de build.");
+      setDevReleaseProgress(
+        createBackfillProgress({
+          status: "error",
+          headline: "Backfill build con error",
+          detail: err?.message || "No se pudo ejecutar backfill de build.",
+          stepStatus: {
+            dispatch: "error",
+            workflow: "pending",
+            detect: "pending",
+            refresh: "pending",
+          },
+        })
+      );
+      setDevReleaseSyncing(null);
+    } finally {
+      setBackfillActionId("");
+    }
+  }, [activeProductKey]);
+
+  useEffect(() => {
+    if (loading || refreshing) return;
+    if (!activeProductKey || !isActiveProductInitialized) return;
+    if (!Array.isArray(envCards) || !envCards.length) return;
+    if (creatingDevRelease || devReleaseSyncing || backfillActionId) return;
+
+    const devRow = envCards.find((row) => String(row?.env_key || "").toLowerCase() === "dev");
+    if (!devRow) return;
+
+    const releaseId = String(devRow?.id || "").trim();
+    const releaseVersion = String(devRow?.version_label || "").trim();
+    const normalizedStatus = normalizeReleaseStatus("dev", devRow?.status);
+    const hasValidVersion = Boolean(releaseVersion && releaseVersion !== "-");
+    const canBackfill =
+      normalizedStatus === "released" &&
+      hasValidVersion &&
+      !devPreviewHasPendingRelease &&
+      Boolean(releaseId) &&
+      !artifactReleaseIdSet.has(releaseId);
+
+    if (!canBackfill) return;
+
+    const attemptKey = `${activeProductKey}::${releaseId}`;
+    if (autoBackfillAttemptedRef.current.has(attemptKey)) return;
+    autoBackfillAttemptedRef.current.add(attemptKey);
+
+    handleBackfillDevArtifact({
+      releaseId,
+      semver: releaseVersion,
+      sourceCommitSha: String(devRow?.source_commit_sha || ""),
+    });
+  }, [
+    loading,
+    refreshing,
+    activeProductKey,
+    isActiveProductInitialized,
+    envCards,
+    creatingDevRelease,
+    devReleaseSyncing,
+    backfillActionId,
+    devPreviewHasPendingRelease,
+    artifactReleaseIdSet,
+    handleBackfillDevArtifact,
+  ]);
 
   const closeDevReleaseDraft = () => {
     if (creatingDevRelease) return;
@@ -1255,6 +2505,8 @@ export default function VersioningOverviewPanel() {
     const { type, payload } = action;
     if (type === "promote") {
       await handlePromoteVersion(payload || {});
+    } else if (type === "backfill-build") {
+      await handleBackfillDevArtifact(payload || {});
     } else if (type === "deploy") {
       await handleDeployByVersion(payload || {});
     } else if (type === "sync-release") {
@@ -1330,33 +2582,62 @@ export default function VersioningOverviewPanel() {
     }
   };
 
+  const pipelineChecks = syncPipelineState?.checks || null;
+  const pipelinePrNumber = Number(syncPipelineState?.pr?.number || 0);
+  const pipelineChecksGreen = pipelineChecks?.required_green === true;
+  const pipelineHasConflicts =
+    syncPipelineState?.pr?.mergeable === false ||
+    String(syncPipelineState?.errorCode || "") === "pr_has_conflicts";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {orderedProducts.map((product) => {
-            const disabled = !product.initializedInDev;
-            return (
+        <div className="space-y-2">
+          <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
             <button
-              key={product.id}
               type="button"
-              onClick={() => {
-                if (disabled) return;
-                setActiveProductKey(product.product_key);
-              }}
-              disabled={disabled}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                activeProductKey === product.product_key
-                  ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                  : disabled
-                    ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                    : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+              onClick={() => setVersioningTab("pipeline")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                versioningTab === "pipeline" ? "bg-[#2F1A55] text-white" : "text-slate-500"
               }`}
             >
-              {normalizeProductLabel(product)}
+              Flujo release
             </button>
-            );
-          })}
+            <button
+              type="button"
+              onClick={() => setVersioningTab("artifacts")}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                versioningTab === "artifacts" ? "bg-[#2F1A55] text-white" : "text-slate-500"
+              }`}
+            >
+              Builds
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {orderedProducts.map((product) => {
+              const disabled = !product.initializedInDev;
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => {
+                    if (disabled) return;
+                    setActiveProductKey(product.product_key);
+                  }}
+                  disabled={disabled}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    activeProductKey === product.product_key
+                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                      : disabled
+                        ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                  }`}
+                >
+                  {normalizeProductLabel(product)}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <button
           type="button"
@@ -1379,6 +2660,11 @@ export default function VersioningOverviewPanel() {
         <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-500">
           Cargando versionado...
         </div>
+      ) : versioningTab === "artifacts" ? (
+        <VersioningArtifactsPanel
+          activeProductKey={activeProductKey}
+          selectedProductLabel={selectedProductLabel}
+        />
       ) : (
         <>
           <div className="space-y-3">
@@ -1389,9 +2675,18 @@ export default function VersioningOverviewPanel() {
             <div className="grid gap-4 md:grid-cols-3">
               {envCards.map((row) => {
                 const envKey = String(row.env_key || "").toLowerCase();
+                const releaseId = String(row.id || "").trim();
                 const normalizedStatus = normalizeReleaseStatus(envKey, row.status);
                 const releaseVersion = String(row.version_label || "").trim();
                 const hasValidVersion = releaseVersion && releaseVersion !== "-";
+                const hasArtifactForRelease = releaseId
+                  ? artifactReleaseIdSet.has(releaseId)
+                  : false;
+                const buildDisplay = row.build_number
+                  ? String(row.build_number)
+                  : hasArtifactForRelease
+                    ? "artifact"
+                    : "-";
                 const deployStateForCard =
                   DEPLOY_ENV_OPTIONS.includes(envKey) && hasValidVersion
                     ? getDeploymentStateForVersion(envKey, releaseVersion)
@@ -1412,8 +2707,9 @@ export default function VersioningOverviewPanel() {
                     (normalizedStatus !== "released" && normalizedStatus !== "promoted");
                   const showPromoteAction =
                     normalizedStatus === "released" &&
-                    hasValidVersion &&
-                    !devPreviewHasPendingRelease;
+                    hasValidVersion;
+                  const showBackfillAction =
+                    showPromoteAction && !hasArtifactForRelease && Boolean(releaseId);
 
                   if (showReleaseAction) {
                     const releaseActionId = actionKey("release", "quick-dev-card", releaseVersion || "pending");
@@ -1425,7 +2721,30 @@ export default function VersioningOverviewPanel() {
                       disabled: creatingDevRelease,
                       onClick: requestCreateDevRelease,
                     });
-                  } else if (showPromoteAction) {
+                  }
+                  if (showBackfillAction) {
+                    const backfillBuildActionId = actionKey(
+                      "backfill-build",
+                      "quick-dev-card",
+                      "dev",
+                      releaseVersion || releaseId
+                    );
+                    actions.push({
+                      key: backfillBuildActionId,
+                      label: "Backfill build",
+                      loadingLabel: "Backfilling...",
+                      loading: backfillActionId === backfillBuildActionId,
+                      disabled: backfillActionId === backfillBuildActionId,
+                      onClick: () =>
+                        requestBackfillBuild({
+                          releaseId,
+                          semver: releaseVersion,
+                          sourceCommitSha: String(row.source_commit_sha || ""),
+                          source: "quick-dev-card",
+                        }),
+                    });
+                  }
+                  if (showPromoteAction) {
                     const promoteActionId = actionKey(
                       "promote",
                       "quick-dev-card",
@@ -1524,11 +2843,18 @@ export default function VersioningOverviewPanel() {
                     actions={actions}
                     deployState={deployStateForCard}
                     mergeState={mergeStateForCard}
+                    hasArtifact={hasArtifactForRelease}
+                    buildDisplay={buildDisplay}
                     message={
                       envCardMessages[envKey] ||
                       (envKey === "dev"
                         ? devReleaseMessage || devPreviewSummaryMessage
                         : "")
+                    }
+                    progressState={
+                      envKey === "dev"
+                        ? devReleaseProgress
+                        : promoteProgressByEnv[String(envKey || "").toLowerCase()] || null
                     }
                     disabled={!isActiveProductInitialized}
                   />
@@ -1701,6 +3027,85 @@ export default function VersioningOverviewPanel() {
                 </button>
               </div>
             </div>
+
+            {syncPipelineState ? (
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold text-[#2F1A55]">
+                    Pipeline PR {pipelinePrNumber ? `#${pipelinePrNumber}` : ""} ({normalizeEnvLabel(syncPipelineState?.toEnv || "-")})
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {syncPipelineState?.semver ? `Release ${syncPipelineState.semver}` : "-"}
+                  </div>
+                </div>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    PR creado:{" "}
+                    <span className={syncPipelineState?.pr ? "text-emerald-700 font-semibold" : "text-red-700 font-semibold"}>
+                      {syncPipelineState?.pr ? "SI" : "NO"}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    Conflictos:{" "}
+                    <span className={pipelineHasConflicts ? "text-red-700 font-semibold" : "text-emerald-700 font-semibold"}>
+                      {pipelineHasConflicts ? "SI" : "NO"}
+                    </span>
+                  </div>
+                  {["lint", "test", "build"].map((checkKey) => {
+                    const state = normalizeCheckState(pipelineChecks?.[checkKey]);
+                    return (
+                      <div key={`pipeline-check-${checkKey}`} className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                        <span className="mr-1 uppercase tracking-[0.08em] text-slate-500">{checkKey}:</span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${checkBadgeClass(state)}`}>
+                          {checkBadgeLabel(state)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {syncPipelineState?.detail ? (
+                  <div className="mt-2 text-[11px] text-slate-600">{syncPipelineState.detail}</div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePipelineRefreshChecks}
+                    disabled={syncPipelineActionId === "refresh" || !pipelinePrNumber}
+                    className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "refresh" ? "Reintentando..." : "Reintentar checks"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePipelineAutoMerge}
+                    disabled={
+                      syncPipelineActionId === "auto-merge" ||
+                      !pipelinePrNumber ||
+                      pipelineHasConflicts ||
+                      !pipelineChecks ||
+                      !pipelineChecksGreen
+                    }
+                    className="rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "auto-merge" ? "Mergeando..." : "Auto-merge cuando esté verde"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePipelineCancel}
+                    disabled={syncPipelineActionId === "cancel" || !pipelinePrNumber}
+                    className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-60"
+                  >
+                    {syncPipelineActionId === "cancel" ? "Cancelando..." : "Cancelar PR"}
+                  </button>
+                  <div className="text-[11px] text-slate-500">
+                    {pipelineChecksGreen ? "Checks obligatorios en verde." : "Checks pendientes/fallando."}
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {releaseOpsMode === "promote" ? (
               <>
@@ -1884,6 +3289,50 @@ export default function VersioningOverviewPanel() {
                     ))}
                   </div>
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2">
+                  <div className="text-xs text-slate-600">
+                    Validacion de entorno (secrets + runtime + github)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleValidateEnvironment}
+                    disabled={envValidationLoading || !activeProductKey}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                  >
+                    {envValidationLoading ? "Validando..." : "Validar entorno"}
+                  </button>
+                </div>
+
+                {envValidationState ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-xs ${
+                      envValidationState?.validation_ok
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      {envValidationState?.validation_ok ? "Entorno valido" : "Entorno con observaciones"}
+                    </div>
+                    <div className="mt-1">{envValidationState?.summary || "-"}</div>
+                    <div className="mt-1">
+                      OPS faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.ops?.missing)
+                        ? envValidationState.details.ops.missing.length
+                        : 0}
+                      {" | "}
+                      GitHub faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.github?.missing_secrets)
+                        ? envValidationState.details.github.missing_secrets.length
+                        : 0}
+                      {" | "}
+                      Runtime faltantes:{" "}
+                      {Array.isArray(envValidationState?.details?.runtime?.missing_env)
+                        ? envValidationState.details.runtime.missing_env.length
+                        : 0}
+                    </div>
+                  </div>
+                ) : null}
 
                 <textarea
                   value={deployNotes}
@@ -1891,6 +3340,47 @@ export default function VersioningOverviewPanel() {
                   className="min-h-[64px] w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5] resize-none"
                   placeholder="Notas opcionales de deploy"
                 />
+
+                {deployMigrationGate ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-xs ${
+                      deployMigrationGate?.gate_passed
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      Gate migraciones {deployMigrationGate?.gate_passed ? "OK" : "bloqueado"}
+                    </div>
+                    <div className="mt-1">
+                      Release: {String(deployMigrationGate?.env_key || "-").toUpperCase()}{" "}
+                      {deployMigrationGate?.semver || "-"}
+                    </div>
+                    <div className="mt-1">
+                      Faltantes:{" "}
+                      {Array.isArray(deployMigrationGate?.missing_versions)
+                        ? deployMigrationGate.missing_versions.length
+                        : 0}
+                    </div>
+                    {!deployMigrationGate?.gate_passed &&
+                    Array.isArray(deployMigrationGate?.missing_versions) &&
+                    deployMigrationGate.missing_versions.length ? (
+                      <div className="mt-1 break-all">
+                        {deployMigrationGate.missing_versions.join(", ")}
+                      </div>
+                    ) : null}
+                    {!deployMigrationGate?.gate_passed ? (
+                      <button
+                        type="button"
+                        onClick={handleApplyMigrationsForCurrentGate}
+                        disabled={Boolean(migrationApplyActionId)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800 disabled:opacity-60"
+                      >
+                        {migrationApplyActionId ? "Aplicando..." : "Apply migrations"}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <Table
                   columns={[
@@ -1911,6 +3401,12 @@ export default function VersioningOverviewPanel() {
                     const deployState = deploymentStateFromRequest(latestRequest);
                     const currentActionId = actionKey(
                       "deploy",
+                      "history",
+                      deployTargetEnv,
+                      versionLabel
+                    );
+                    const gateActionId = actionKey(
+                      "gate-check",
                       "history",
                       deployTargetEnv,
                       versionLabel
@@ -1955,26 +3451,46 @@ export default function VersioningOverviewPanel() {
                           ) : null}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              requestDeployVersion({
-                                envKey: deployTargetEnv,
-                                semver: versionLabel,
-                                source: "history",
-                                notes: deployNotes,
-                              })
-                            }
-                            disabled={deployingActionId === currentActionId}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
-                          >
-                            <Rocket size={12} />
-                            {deployingActionId === currentActionId
-                              ? "Ejecutando..."
-                              : deployState === "deployed"
-                                ? "Re-deploy"
-                                : "Deploy"}
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await handleCheckReleaseGateByVersion({
+                                    envKey: deployTargetEnv,
+                                    semver: versionLabel,
+                                    source: "history",
+                                  });
+                                } catch {
+                                  // handled by state/message
+                                }
+                              }}
+                              disabled={migrationGateActionId === gateActionId}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                            >
+                              {migrationGateActionId === gateActionId ? "Gate..." : "Gate"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                requestDeployVersion({
+                                  envKey: deployTargetEnv,
+                                  semver: versionLabel,
+                                  source: "history",
+                                  notes: deployNotes,
+                                })
+                              }
+                              disabled={deployingActionId === currentActionId}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] font-semibold text-[#5E30A5] disabled:opacity-60"
+                            >
+                              <Rocket size={12} />
+                              {deployingActionId === currentActionId
+                                ? "Ejecutando..."
+                                : deployState === "deployed"
+                                  ? "Re-deploy"
+                                  : "Deploy"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

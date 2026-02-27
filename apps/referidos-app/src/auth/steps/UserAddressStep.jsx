@@ -14,6 +14,7 @@ import { toTitleCaseEs } from "../../utils/textCase";
 import useLocationStep from "../hooks/useLocationStep";
 import { useModal } from "../../modals/useModal";
 
+// Lint purge (no-unused-vars): se purgaron lecturas de `addressLabel`, `hasMapMoved` y `hasMapZoomed` (estado de flujo del mapa).
 const DEFAULT_MAP_CENTER = { lat: -0.2200934426615961, lng: -78.51208009501421 };
 const FALLBACK_ZOOM = 11;
 const CLOSE_ZOOM = 16;
@@ -82,7 +83,7 @@ export default function UserAddressStep({
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
-  const [addressLabel, setAddressLabel] = useState("");
+  const [, setAddressLabel] = useState("");
   const [reverseError, setReverseError] = useState("");
   const [isReverseLoading, setIsReverseLoading] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -111,8 +112,8 @@ export default function UserAddressStep({
   );
   const [parroquiaId, setParroquiaId] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [hasMapMoved, setHasMapMoved] = useState(false);
-  const [hasMapZoomed, setHasMapZoomed] = useState(false);
+  const [, setHasMapMoved] = useState(false);
+  const [, setHasMapZoomed] = useState(false);
   const [addressTag, setAddressTag] = useState("");
   const [activeTag, setActiveTag] = useState("");
   const [customTagInput, setCustomTagInput] = useState("");
@@ -346,7 +347,7 @@ export default function UserAddressStep({
     return () => {
       active = false;
     };
-  }, [coords, coordsSource, setCoords, setCoordsSource]);
+  }, [coords, coordsSource, setCoords, setCoordsSource, stage]);
 
   const startConfirmZoom = () => {
     if (animateZoom) return;
@@ -1976,7 +1977,7 @@ function SearchableSelect({
     if (selected) {
       lastSelectedRef.current = selected;
     }
-  }, [selected?.nombre]);
+  }, [selected]);
 
   const filtered = useMemo(() => {
     const query = inputValue.trim().toLowerCase();

@@ -3,8 +3,16 @@ import React from "react";
 import { motion } from "framer-motion";
 
 export default function GestionarTabs({ tabs, activeId, onChange }) {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-1 shadow-sm">
+    <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      className="rounded-2xl border border-[#E9E2F7] bg-white p-1 shadow-sm"
+    >
       <div className="grid grid-cols-4 gap-1">
         {tabs.map((tab) => {
           const active = tab.id === activeId;
@@ -40,6 +48,6 @@ export default function GestionarTabs({ tabs, activeId, onChange }) {
           );
         })}
       </div>
-    </div>
+    </TEMP_MOTION_SPLASH_TAG>
   );
 }

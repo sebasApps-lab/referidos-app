@@ -2,6 +2,7 @@ import React from "react";
 import ErrorBanner from "../blocks/ErrorBanner";
 import { normalizeBusinessName } from "../utils/businessDataUtils";
 
+// Lint purge (no-unused-vars): se removio prop `onGoWelcome` no consumida (firma del componente).
 export default function BusinessDataStep({
   error,
   inputClassName,
@@ -14,7 +15,6 @@ export default function BusinessDataStep({
   onOpenCategory,
   onSubmit,
   innerRef,
-  onGoWelcome,
 }) {
   const fieldClassName = `${inputClassName} !mt-0 !mb-0 !border-gray-200 focus:border-[#5E30A5] focus:ring-2 focus:ring-[#5E30A5]/30 focus:outline-none`;
   const labelClassName = "block text-xs text-gray-500 ml-1 mb-0";

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { subscribeErrorEvents } from "../../services/loggingClient";
 
+// Lint purge (no-unused-vars): se elimino lectura de `lastByKey` del estado local (zona de estado inicial).
 const DEDUPE_WINDOW_MS = 60_000;
 
 function toEventKey(event = {}) {
@@ -21,7 +22,7 @@ function formatNow() {
 
 export default function AdminRuntimeErrorModalHost() {
   const [queue, setQueue] = useState([]);
-  const [lastByKey, setLastByKey] = useState({});
+  const [, setLastByKey] = useState({});
 
   useEffect(() => {
     const unsubscribe = subscribeErrorEvents((event) => {

@@ -560,8 +560,8 @@ export default function useAuthPrefill({
     setIsSucursalPrincipal,
     setHorarios,
     setSectorNegocio,
+    skipStepChange,
     setTelefono,
     usuario,
-    setHorarios,
   ]);
 }

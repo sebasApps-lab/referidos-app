@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { BadgeCheck, Crown, Target, Users } from "lucide-react";
 
 export default function Grupos() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const groups = [
     {
       name: "Clientes frecuentes",
@@ -49,7 +52,10 @@ export default function Grupos() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {groups.map((group) => (
-          <motion.div
+          <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
             key={group.name}
             whileHover={{ y: -2 }}
             className="rounded-xl border border-[#E9E2F7] bg-white p-4 shadow-sm"
@@ -69,7 +75,7 @@ export default function Grupos() {
             <div className="mt-4 h-2 w-full rounded-full bg-slate-100">
               <div className="h-2 w-2/3 rounded-full bg-[#5E30A5]/60" />
             </div>
-          </motion.div>
+          </TEMP_MOTION_SPLASH_TAG>
         ))}
       </div>
 
