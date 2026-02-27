@@ -559,7 +559,10 @@ export default function AdminSupportControlPanel({
   );
 
   const selected = selectedPublicId ? byPublic[selectedPublicId] : null;
-  const selectedTimeline = selected ? eventsByThread[selected.id] || [] : [];
+  const selectedTimeline = useMemo(
+    () => (selected ? eventsByThread[selected.id] || [] : []),
+    [selected, eventsByThread]
+  );
   const timelineRows = useMemo(() => {
     const sortedThreads = [...threads].sort(
       (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()

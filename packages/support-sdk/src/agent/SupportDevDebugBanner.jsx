@@ -34,7 +34,6 @@ export default function SupportDevDebugBanner({ scope = "support" }) {
       };
 
       // Console trace survives unload/navigation better than UI updates.
-      // eslint-disable-next-line no-console
       console.debug(`[support-dev-debug][${scope}] ${line.type}`, line.detail);
 
       let persisted = false;

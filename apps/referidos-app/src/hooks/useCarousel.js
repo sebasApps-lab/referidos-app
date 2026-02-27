@@ -223,7 +223,6 @@ export function useCarousel(
   }, [
     clampScrollLeft,
     getItems,
-    getLoopCenterDup,
     getLoopGeometry,
     idleThresholdMs,
     jumpTo,
@@ -282,7 +281,7 @@ export function useCarousel(
       update();
     });
     return () => cancelAnimationFrame(id);
-  }, [centerInitialItem, itemsCount, loopEnabled, update]);
+  }, [centerInitialItem, itemsCount, loopEnabled, ref, update]);
 
   useEffect(() => {
     const el = ref.current;

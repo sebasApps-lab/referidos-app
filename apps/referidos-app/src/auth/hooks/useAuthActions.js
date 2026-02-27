@@ -329,7 +329,7 @@ export default function useAuthActions({
       goToStep(AUTH_STEPS.USER_PROFILE);
     }
     return { ok: true };
-  }, [bootstrapAuth, email, setEmailError]);
+  }, [bootstrapAuth, email, goToStep, setEmailError]);
 
   const handleRoleSelect = useCallback(
     async (role) => {
@@ -718,16 +718,12 @@ export default function useAuthActions({
       setEmailError(err?.message || "Error al registrar negocio");
     }
   }, [
-    apellidoDueno,
     bootstrapAuth,
     businessPrefill,
     categoriaNegocio,
-    isSucursalPrincipal,
     goToStep,
-    nombreDueno,
     nombreNegocio,
     setEmailError,
-    telefono,
   ]);
 
   const startOAuth = useCallback(async (provider) => {

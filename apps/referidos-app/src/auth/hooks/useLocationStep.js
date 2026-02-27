@@ -172,6 +172,7 @@ export default function useLocationStep({
     coords,
     direccionPayload?.lat,
     direccionPayload?.lng,
+    locationTitle,
     openModal,
     requestLocation,
     stage,

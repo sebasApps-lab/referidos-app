@@ -832,7 +832,7 @@ export default function IssuesTable() {
       return;
     }
     void loadEvents(issueId);
-  }, [isEventsRoute, isDetailsRoute, issueId]);
+  }, [isEventsRoute, isDetailsRoute, issueId, navigate]);
 
   useEffect(() => {
     if (!isDetailsRoute || !eventId || !issueId) return;
@@ -881,9 +881,13 @@ export default function IssuesTable() {
     return symbolicationByEvent[selectedEvent.id] || parseSymbolicationFromEvent(selectedEvent);
   }, [selectedEvent, symbolicationByEvent]);
 
-  const symbolicatedFrames = Array.isArray(symbolicationInfo?.symbolicated_stack?.frames)
-    ? symbolicationInfo.symbolicated_stack.frames
-    : [];
+  const symbolicatedFrames = useMemo(
+    () =>
+      Array.isArray(symbolicationInfo?.symbolicated_stack?.frames)
+        ? symbolicationInfo.symbolicated_stack.frames
+        : [],
+    [symbolicationInfo],
+  );
 
   const breadcrumbDiagnostics = useMemo(
     () => resolveBreadcrumbDiagnostics(selectedEvent),

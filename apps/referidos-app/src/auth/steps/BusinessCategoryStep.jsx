@@ -13,8 +13,8 @@ export default function BusinessCategoryStep({
   const [selectedParent, setSelectedParent] = useState("");
   const [selectedSub, setSelectedSub] = useState("");
 
-  const categoryList = categories || [];
-  const subcategoryMap = subcategories || {};
+  const categoryList = useMemo(() => categories || [], [categories]);
+  const subcategoryMap = useMemo(() => subcategories || {}, [subcategories]);
 
   useEffect(() => {
     if (!currentCategory) {

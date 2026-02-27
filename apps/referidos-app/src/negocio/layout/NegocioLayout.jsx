@@ -237,7 +237,7 @@ function NegocioLayoutInner({ children }) {
     return () => {
       active = false;
     };
-  }, [bootstrap, usuario, openModal]);
+  }, [bootstrap, usuario, openModal, setAccessMethods, setUser]);
 
   if (bootstrap || typeof usuario === "undefined") return null;
   if (hideUntilPreloaded) return null;

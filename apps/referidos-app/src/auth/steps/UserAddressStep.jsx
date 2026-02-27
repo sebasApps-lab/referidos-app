@@ -347,7 +347,7 @@ export default function UserAddressStep({
     return () => {
       active = false;
     };
-  }, [coords, coordsSource, setCoords, setCoordsSource]);
+  }, [coords, coordsSource, setCoords, setCoordsSource, stage]);
 
   const startConfirmZoom = () => {
     if (animateZoom) return;
@@ -1977,7 +1977,7 @@ function SearchableSelect({
     if (selected) {
       lastSelectedRef.current = selected;
     }
-  }, [selected?.nombre]);
+  }, [selected]);
 
   const filtered = useMemo(() => {
     const query = inputValue.trim().toLowerCase();

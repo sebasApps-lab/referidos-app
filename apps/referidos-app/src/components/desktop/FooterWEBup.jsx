@@ -18,14 +18,16 @@ export default function Header({
   const onboarding = useAppStore((s) => s.onboarding);
   const headerRef = useRef(null);
 
-  if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || !onboarding?.allowAccess) return null;
-
   useLayoutEffect(() => {
+    if (bootstrap || typeof usuario === "undefined") return;
+    if (!usuario || !onboarding?.allowAccess) return;
     if (headerRef.current && onHeaderHeightChange) {
       onHeaderHeightChange(headerRef.current.offsetHeight);
     }
-  });
+  }, [bootstrap, usuario, onboarding, onHeaderHeightChange]);
+
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
 
   return (
     <>

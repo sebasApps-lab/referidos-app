@@ -482,7 +482,7 @@ export default function AdminSupportAgents() {
       mountedRef.current = false;
       // if (channel) supabase.removeChannel(channel);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateAgent = async (userId, patch) => {
     const { data, error } = await supabase

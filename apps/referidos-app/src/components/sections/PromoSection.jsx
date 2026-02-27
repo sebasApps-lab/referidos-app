@@ -56,8 +56,6 @@ export default function PromoSection({
     },
   });
 
-  if (!promos || promos.length === 0) return null;
-
   useEffect(() => {
     return () => {
       if (resumeTimerRef.current) {
@@ -65,6 +63,8 @@ export default function PromoSection({
       }
     };
   }, []);
+
+  if (!promos || promos.length === 0) return null;
 
   const renderItems = loopEnabled
     ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((loopIndex) =>

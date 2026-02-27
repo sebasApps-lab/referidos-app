@@ -97,7 +97,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       .limit(1)
       .maybeSingle();
     setSessionActive(Boolean(data?.id));
-  }, [usuario?.id]);
+  }, [isAdmin, usuario?.id]);
 
   useEffect(() => {
     let active = true;

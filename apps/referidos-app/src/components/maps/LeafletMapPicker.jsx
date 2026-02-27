@@ -104,7 +104,7 @@ export default function LeafletMapPicker({
       mapInstance?.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [lat, lng, tileAttribution, tileUrl, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;

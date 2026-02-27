@@ -37,7 +37,21 @@ export default defineConfig([
   },
   {
     files: [
-      '**/*.config.{js,cjs,mjs}',
+      'eslint.config.js',
+      '**/vite.config.js',
+      'vite.prelaunch.config.js',
+      'tooling/**/*.{js,mjs}',
+      'scripts/**/*.{js,mjs}',
+      '**/*.config.mjs',
+    ],
+    languageOptions: {
+      globals: globals.node,
+      sourceType: 'module',
+    },
+  },
+  {
+    files: [
+      '**/*.cjs',
       '**/react-native.config.js',
       '**/metro.config.js',
       '**/babel.config.js',
