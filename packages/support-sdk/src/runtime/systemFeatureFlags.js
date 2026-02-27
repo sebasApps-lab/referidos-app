@@ -6,6 +6,7 @@ const DEFAULT_FLAGS = Object.freeze({
   maintenance: false,
   freeze_registro: false,
   support_live_updates: false,
+  oauth_apple_enabled: false,
 });
 
 function hasWindow() {
@@ -63,6 +64,10 @@ export function isSupportLiveUpdatesEnabled() {
   return Boolean(getSystemFeatureFlags().support_live_updates);
 }
 
+export function isAppleOAuthEnabled() {
+  return Boolean(getSystemFeatureFlags().oauth_apple_enabled);
+}
+
 export function subscribeSystemFeatureFlags(onChange) {
   if (!hasWindow() || typeof onChange !== "function") {
     return () => {};
@@ -86,4 +91,3 @@ export function subscribeSystemFeatureFlags(onChange) {
     window.removeEventListener("storage", onStorage);
   };
 }
-

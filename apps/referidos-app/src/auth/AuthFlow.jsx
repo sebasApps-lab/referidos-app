@@ -32,6 +32,10 @@ import {
   BUSINESS_SUBCATEGORIES,
   getBusinessCategoryPath,
 } from "./constants/businessCategories";
+import {
+  getSystemFeatureFlags,
+  subscribeSystemFeatureFlags,
+} from "@referidos/support-sdk/runtime/systemFeatureFlags";
 
 const BUSINESS_STEP_COPY = {
   [AUTH_STEPS.USER_PROFILE]: {
@@ -157,6 +161,11 @@ export default function AuthFlow() {
         : AUTH_STEPS.WELCOME,
     [location.pathname]
   );
+  const [systemFlags, setSystemFlags] = React.useState(() =>
+    getSystemFeatureFlags()
+  );
+  useEffect(() => subscribeSystemFeatureFlags(setSystemFlags), []);
+
   const flow = useAuthFlow({ initialStep });
   const isVerificationFlowStep = [
     AUTH_STEPS.BUSINESS_VERIFY,
@@ -570,13 +579,14 @@ export default function AuthFlow() {
           loading={flow.welcomeLoading}
           oauthLoading={flow.oauthLoading}
           oauthProvider={flow.oauthProvider}
+          enableApple={Boolean(systemFlags?.oauth_apple_enabled)}
           onEmail={() => {
             flow.setWelcomeError("");
             flow.setStep(AUTH_STEPS.EMAIL_LOGIN);
           }}
           onGoogle={actions.startGoogleOneTap}
           onFacebook={actions.startFacebookOAuth}
-          // onApple={actions.startAppleOAuth}
+          onApple={actions.startAppleOAuth}
           onTwitter={actions.startTwitterOAuth}
           onDiscord={actions.startDiscordOAuth}
         />

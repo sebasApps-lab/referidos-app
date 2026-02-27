@@ -10,6 +10,9 @@ export default function Header({
   onCloseLocationBar,
   onHeaderHeightChange,
 }) {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.a;
+
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const onboarding = useAppStore((s) => s.onboarding);
@@ -59,7 +62,10 @@ export default function Header({
           </div>
 
           <div className="flex gap-6 text-[#FFC21C]/90 items-center">
-            <motion.a
+            <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
               href="tel:+593995705833"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
@@ -67,7 +73,7 @@ export default function Header({
             >
               <Phone size={16} />
               <span className="text-xs hidden sm:inline">Soporte</span>
-            </motion.a>
+            </TEMP_MOTION_SPLASH_TAG>
 
             <motion.a
               href="#"

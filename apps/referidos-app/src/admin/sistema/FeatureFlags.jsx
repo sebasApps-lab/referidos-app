@@ -35,6 +35,11 @@ const FLAGS = [
     title: "Soporte: actualizacion en vivo",
     desc: "Activa suscripciones realtime para inbox/jornada. Recomendado solo con plan pago.",
   },
+  {
+    key: "oauth_apple_enabled",
+    title: "Auth: Apple OAuth",
+    desc: "Habilita el boton de Apple en autenticacion. Default desactivado.",
+  },
 ];
 
 const SUPPORT_AUTH_FLAGS = [
@@ -80,7 +85,7 @@ export default function FeatureFlags() {
   }, []);
 
   const toggleFlag = (key) => {
-    const nextValue = !Boolean(state[key]);
+    const nextValue = !state[key];
     const nextState = setSystemFeatureFlag(key, nextValue);
     setState(nextState);
   };

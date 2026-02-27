@@ -157,7 +157,7 @@ export default function useLocationStep({
           if (!active) return;
           handlePermissionState(status.state);
         };
-      } catch (error) {
+      } catch {
         return;
       }
     };

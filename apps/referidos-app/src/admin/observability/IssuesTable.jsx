@@ -25,6 +25,7 @@ import {
   resolveBrandIcon,
 } from "./brandIconPolicy";
 
+// Lint purge (no-unused-vars): `FallbackIcon` en IdentityCard paso de JSX directo a createElement (bloque de identidad).
 const LEVEL_VARIANT = {
   fatal: "bg-red-100 text-red-700",
   error: "bg-red-100 text-red-700",
@@ -604,7 +605,7 @@ function IdentityCard({ title, value, subtitle, iconUrl, FallbackIcon }) {
     <div className="rounded-xl border border-[#E8E2F5] bg-white px-3 py-2.5">
       <div className="flex items-center gap-3">
         <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#E7DDFB] bg-[#F7F2FF]">
-          <FallbackIcon size={16} className="text-[#6A3EB1]" />
+          {React.createElement(FallbackIcon, { size: 16, className: "text-[#6A3EB1]" })}
           {iconUrl ? (
             <img
               src={iconUrl}

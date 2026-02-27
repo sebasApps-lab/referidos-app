@@ -7,6 +7,7 @@ import {
 import { supabase } from "../lib/supabaseClient";
 import { runtimeConfig } from "../config/runtimeConfig";
 
+// Lint purge (no-unused-vars): se removio alias `observabilityClient` del singleton (bloque de bootstrap).
 const importEnv = import.meta.env || {};
 const DEFAULT_TENANT_HINT = runtimeConfig.defaultTenantId || "ReferidosAPP";
 const DEFAULT_APP_ID = runtimeConfig.appId || "referidos-app";
@@ -68,7 +69,6 @@ if (!globalScope[RUNTIME_SINGLETON_KEY]) {
   });
 }
 
-const observabilityClient = globalScope[OBS_SINGLETON_KEY];
 const runtime = globalScope[RUNTIME_SINGLETON_KEY];
 
 let initialized = false;

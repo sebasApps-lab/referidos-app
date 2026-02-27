@@ -9,8 +9,8 @@ import { cancelSupportThread } from "@referidos/support-sdk/supportClient";
 import { logCatalogBreadcrumb } from "../../../services/loggingClient";
 import { runtimeConfig } from "../../../config/runtimeConfig";
 
+// Lint purge (no-unused-vars): se purgo `usuario` no consumido (cabecera del bloque soporte).
 export default function SupportChatHubBlock({ role, onShowTickets }) {
-  const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const location = useLocation();
   const { openModal } = useModal();

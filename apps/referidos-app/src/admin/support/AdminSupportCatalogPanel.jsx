@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronUp, Plus, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 import {
   createSupportMacro,
-  createSupportMacroCategory,
   deleteSupportMacroCategory,
   deleteSupportMacro,
   dispatchSupportMacrosSync,
@@ -16,6 +15,7 @@ import {
   updateSupportMacro,
 } from "./services/supportMacrosOpsService";
 
+// Lint purge (no-unused-vars): se removieron `formatTargets`, `submitCreateCategory`, `submitCreateMacro`, `renderAdd` y estado `macroForm` (bloques legacy de catalogo/anadir).
 const GROUP_OPTIONS = [
   { id: "categoria", label: "categoria" },
   { id: "estado", label: "estado" },
@@ -112,10 +112,6 @@ const categoryBadge = (status) => (
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-slate-300 bg-slate-100 text-slate-700"
 );
-const formatTargets = (targets, options) => {
-  const map = options.reduce((acc, opt) => ((acc[opt.id] = opt.label), acc), {});
-  return arr(targets, ["all"]).map((id) => map[id] || id).join(", ");
-};
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const resolveAppTagLabels = (targets) => {
   const normalized = arr(targets, ["all"]);
@@ -207,8 +203,6 @@ export default function AdminSupportCatalogPanel() {
   const [inlineAddContext, setInlineAddContext] = useState(null);
   const [workspaceMacroSubgroup, setWorkspaceMacroSubgroup] = useState(null);
 
-  const [categoryForm, setCategoryForm] = useState({ label: "", description: "", app_targets: ["all"] });
-  const [macroForm, setMacroForm] = useState({ ...EMPTY_MACRO_FORM });
   const [workspaceAddForm, setWorkspaceAddForm] = useState({ ...EMPTY_MACRO_FORM });
   const [editForm, setEditForm] = useState({
     code: "",
@@ -338,7 +332,7 @@ export default function AdminSupportCatalogPanel() {
           );
         } else {
           setCatalogHint(
-            "Catálogo OPS vacío (sin categorías ni macros). Crea categorías/macros con el botón + AÑADIR o ejecuta un seed inicial.",
+            "CatÃ¡logo OPS vacÃ­o (sin categorÃ­as ni macros). Crea categorÃ­as/macros con el botÃ³n + AÃ‘ADIR o ejecuta un seed inicial.",
           );
         }
       }
@@ -678,66 +672,6 @@ export default function AdminSupportCatalogPanel() {
     [categories]
   );
 
-  const submitCreateCategory = async (event) => {
-    event.preventDefault();
-    setError("");
-    setOk("");
-    if (!s(categoryForm.label)) {
-      setError("Label de categoria invalido.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await createSupportMacroCategory({
-        label: s(categoryForm.label),
-        description: s(categoryForm.description),
-        app_targets: arr(categoryForm.app_targets, ["all"]),
-        status: "active",
-      });
-      setOk("Categoria creada en active con code automatico.");
-      setCategoryForm({ label: "", description: "", app_targets: ["all"] });
-      await load(true);
-    } catch (err) {
-      setError(err?.message || "No se pudo crear categoria.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const submitCreateMacro = async (event) => {
-    event.preventDefault();
-    setError("");
-    setOk("");
-    if (!s(macroForm.title) || !s(macroForm.body)) {
-      setError("Título/body de macro inválidos.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const created = await createSupportMacro({
-        title: s(macroForm.title),
-        body: s(macroForm.body),
-        category_id: s(macroForm.category_id) || null,
-        thread_status: s(macroForm.thread_status, "new"),
-        audience_roles: normalizeAudienceRoles(macroForm.audience_roles),
-        app_targets: arr(macroForm.app_targets, ["all"]),
-        env_targets: arr(macroForm.env_targets, ["all"]),
-        status: "draft",
-      });
-      const createdId = s(created?.id);
-      setOk("Macro creado en draft con code automatico.");
-      setMacroForm({ ...EMPTY_MACRO_FORM });
-      await load(true);
-      if (createdId) {
-        navigate(`/admin/macros/${createdId}`);
-      }
-    } catch (err) {
-      setError(err?.message || "No se pudo crear macro.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const openInlineAddMacro = useCallback(
     (context) => {
       const next = {
@@ -770,7 +704,7 @@ export default function AdminSupportCatalogPanel() {
     setError("");
     setOk("");
     if (!s(workspaceAddForm.title) || !s(workspaceAddForm.body)) {
-      setError("Título/body de macro inválidos.");
+      setError("TÃ­tulo/body de macro invÃ¡lidos.");
       return;
     }
     setSaving(true);
@@ -806,7 +740,7 @@ export default function AdminSupportCatalogPanel() {
     setError("");
     setOk("");
     if (!s(editForm.title) || !s(editForm.body)) {
-      setError("Título/body de macro inválidos.");
+      setError("TÃ­tulo/body de macro invÃ¡lidos.");
       return;
     }
     setSaving(true);
@@ -1220,7 +1154,7 @@ export default function AdminSupportCatalogPanel() {
   };
 
   const renderCatalog = () => {
-    const selectionLabel = groupBy === "categoria" ? "categoría" : groupBy === "estado" ? "estado" : "rol";
+    const selectionLabel = groupBy === "categoria" ? "categorÃ­a" : groupBy === "estado" ? "estado" : "rol";
     const selectionArticle = groupBy === "categoria" ? "una" : "un";
     const showMacroWorkspace = Boolean(macroId);
     const showRightWorkspace = Boolean(macroId) || Boolean(inlineAddContext);
@@ -1232,7 +1166,7 @@ export default function AdminSupportCatalogPanel() {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 px-1 py-0.5">
           <div className="text-sm font-semibold text-[#2F1A55]">
-            Añadir macro
+            AÃ±adir macro
             {inlineAddContext?.title ? (
               <span className="ml-2 text-xs font-medium text-slate-500">{inlineAddContext.title}</span>
             ) : null}
@@ -1251,7 +1185,7 @@ export default function AdminSupportCatalogPanel() {
           <input
             value={workspaceAddForm.title}
             onChange={(e) => setWorkspaceAddForm((prev) => ({ ...prev, title: e.target.value }))}
-            placeholder="título"
+            placeholder="tÃ­tulo"
             className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm"
           />
           <textarea
@@ -1318,7 +1252,7 @@ export default function AdminSupportCatalogPanel() {
 
     return (
       <Card
-        title={<span className="text-lg font-extrabold tracking-wide text-[#2F1A55]">CATÁLOGO DE MACROS</span>}
+        title={<span className="text-lg font-extrabold tracking-wide text-[#2F1A55]">CATÃLOGO DE MACROS</span>}
         headerRight={(
           <div className="flex items-center gap-1">
             <label className="text-xs font-semibold text-slate-500">Periodo de tiempo</label>
@@ -1378,7 +1312,7 @@ export default function AdminSupportCatalogPanel() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Título, body, code..."
+                placeholder="TÃ­tulo, body, code..."
                 className="w-full rounded-xl border border-[#E9E2F7] py-2 pl-9 pr-3 text-xs"
               />
             </div>
@@ -1529,7 +1463,7 @@ export default function AdminSupportCatalogPanel() {
                                     openInlineAddMacro(
                                       groupBy === "categoria"
                                         ? {
-                                            title: `${selectedGroup?.label || "categoría"} / ${macroGroup.label}`,
+                                            title: `${selectedGroup?.label || "categorÃ­a"} / ${macroGroup.label}`,
                                             category_id:
                                               s(selectedGroup?.category_id) && s(selectedGroup?.category_id) !== "general"
                                                 ? s(selectedGroup?.category_id)
@@ -1552,7 +1486,7 @@ export default function AdminSupportCatalogPanel() {
                                   className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[10px] font-semibold text-[#5E30A5] hover:bg-[#F9F7FF]"
                                 >
                                   <Plus size={12} />
-                                  AÑADIR
+                                  AÃ‘ADIR
                                 </button>
                               ) : null}
                             </div>
@@ -1616,25 +1550,6 @@ export default function AdminSupportCatalogPanel() {
       </Card>
     );
   };
-
-  const renderAdd = () => (
-    <div className="space-y-5">
-      <Card title="Añadir macro (draft)" subtitle="Macro nueva lista para editar/publicar.">
-        <form className="space-y-4" onSubmit={submitCreateMacro}>
-          <input value={macroForm.title} onChange={(e) => setMacroForm((p) => ({ ...p, title: e.target.value }))} placeholder="titulo" className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          <textarea rows={4} value={macroForm.body} onChange={(e) => setMacroForm((p) => ({ ...p, body: e.target.value }))} placeholder="body" className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm" />
-          <div className="grid gap-3 md:grid-cols-2">
-            <select value={macroForm.category_id} onChange={(e) => setMacroForm((p) => ({ ...p, category_id: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm">{categoryOptions.map((o) => <option key={o.id || "general"} value={o.id}>{o.label}</option>)}</select>
-            <select value={macroForm.thread_status} onChange={(e) => setMacroForm((p) => ({ ...p, thread_status: e.target.value }))} className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm">{THREAD_STATUS_ORDER.filter((st) => st !== "sin_estado").map((st) => <option key={st} value={st}>{THREAD_STATUS_LABEL[st]}</option>)}</select>
-          </div>
-          <TogglePills options={ROLE_OPTIONS} values={macroForm.audience_roles} onChange={(values) => setMacroForm((p) => ({ ...p, audience_roles: values }))} />
-          <TogglePills options={APP_OPTIONS} values={macroForm.app_targets} onChange={(values) => setMacroForm((p) => ({ ...p, app_targets: values }))} />
-          <TogglePills options={ENV_OPTIONS} values={macroForm.env_targets} onChange={(values) => setMacroForm((p) => ({ ...p, env_targets: values }))} />
-          <button type="submit" disabled={saving} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold text-white ${saving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"}`}><Plus size={14} />Crear macro draft</button>
-        </form>
-      </Card>
-    </div>
-  );
 
   const renderCategoryEdit = () => {
     if (loading) return <Card title="Cargando..." subtitle="Buscando categoria seleccionada." />;
@@ -1712,7 +1627,7 @@ export default function AdminSupportCatalogPanel() {
     const heading = (
       <div className="flex items-center justify-between gap-3 px-1 py-0.5">
         <div className="text-sm font-semibold">
-          <span className="text-[#2F1A55]">Modo Edición</span>
+          <span className="text-[#2F1A55]">Modo EdiciÃ³n</span>
           <span className="ml-2 font-medium text-slate-500">{s(editing.code, "sin_code")}</span>
         </div>
         <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-1.5 text-xs font-semibold text-[#5E30A5]">
@@ -1766,7 +1681,7 @@ export default function AdminSupportCatalogPanel() {
 
     return (
       <Card
-        title={`Modo Edición ${s(editing.code, "sin_code")}`}
+        title={`Modo EdiciÃ³n ${s(editing.code, "sin_code")}`}
         headerRight={(
           <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
@@ -1780,7 +1695,7 @@ export default function AdminSupportCatalogPanel() {
   };
 
   return (
-    <AdminLayout title="Macros" subtitle="Catálogo operativo y CRUD desde panel admin">
+    <AdminLayout title="Macros" subtitle="CatÃ¡logo operativo y CRUD desde panel admin">
       {hasPendingPriorityChanges || priorityFloatingMessage ? (
         <div className="fixed left-1/2 top-0 z-40 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 shadow-lg backdrop-blur">

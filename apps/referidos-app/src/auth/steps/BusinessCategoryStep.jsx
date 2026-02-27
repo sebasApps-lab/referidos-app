@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 
+// Lint purge (no-unused-vars): se removio prop `onGoWelcome` no consumida (firma del componente).
 export default function BusinessCategoryStep({
   subtitle,
   helperLabel,
@@ -8,7 +9,6 @@ export default function BusinessCategoryStep({
   currentCategory,
   onConfirmCategory,
   innerRef,
-  onGoWelcome,
 }) {
   const [selectedParent, setSelectedParent] = useState("");
   const [selectedSub, setSelectedSub] = useState("");

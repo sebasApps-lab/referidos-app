@@ -23,6 +23,7 @@ import { logCatalogBreadcrumb } from "../../services/loggingClient";
 import { toTitleCaseEs } from "../../utils/textCase";
 import { runtimeConfig } from "../../config/runtimeConfig";
 
+// Lint purge (no-unused-vars): se elimino `negocioId` temporal en submitBusinessData (bloque crear/actualizar negocio).
 const OAUTH_INTENT_KEY = "oauth_intent";
 const OAUTH_LOGIN_PENDING = "oauth_login_pending";
 const GOOGLE_ONE_TAP_CLIENT_ID =
@@ -686,9 +687,6 @@ export default function useAuthActions({
         categoria: businessStatus.categoria || existingNeg?.categoria || null,
       };
 
-      //Crear/actualizar negocio
-      let negocioId = existingNeg?.id || null;
-
       if (existingNeg && !unchanged) {
         const { data: updatedNeg, error } = await supabase
           .from("negocios")
@@ -701,7 +699,6 @@ export default function useAuthActions({
           setEmailError("No se pudo actualizar el negocio");
           return;
         }
-        negocioId = updatedNeg.id;
       } else if (!existingNeg) {
         const { data: createdNeg, error } = await supabase
           .from("negocios")
@@ -713,7 +710,6 @@ export default function useAuthActions({
           setEmailError("No se pudo crear el negocio");
           return;
         }
-        negocioId = createdNeg.id;
       }
 
       await bootstrapAuth({ force: true });
@@ -792,7 +788,7 @@ export default function useAuthActions({
       });
 
       await bootstrapAuth({ force: true });
-    } catch (err) {
+    } catch {
       const redirected = await fallbackToOAuth();
       if (!redirected) {
         setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");

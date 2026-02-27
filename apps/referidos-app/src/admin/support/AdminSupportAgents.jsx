@@ -11,6 +11,7 @@ import {
   startAdminSupportSession,
 } from "@referidos/support-sdk/supportClient";
 
+// Lint purge (no-unused-vars): se purgaron lecturas de `recentTicketsMap` y `nameDrafts` (estado inicial) y helper `updateUsuario` (bloque de mutaciones).
 export default function AdminSupportAgents() {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,8 +21,8 @@ export default function AdminSupportAgents() {
   const [usersMap, setUsersMap] = useState({});
   const [sessionsMap, setSessionsMap] = useState({});
   const [activeTicketsMap, setActiveTicketsMap] = useState({});
-  const [recentTicketsMap, setRecentTicketsMap] = useState({});
-  const [nameDrafts, setNameDrafts] = useState({});
+  const [, setRecentTicketsMap] = useState({});
+  const [, setNameDrafts] = useState({});
   const [expandedMap, setExpandedMap] = useState({});
   const [agentErrors, setAgentErrors] = useState({});
   const [availableThreads, setAvailableThreads] = useState([]);
@@ -536,27 +537,6 @@ export default function AdminSupportAgents() {
     return (
       (digits.length === 10 && digits.startsWith("0")) || digits.length === 9
     );
-  };
-
-  const updateUsuario = async (userId, patch) => {
-    const { data } = await supabase
-      .from("usuarios")
-      .update(patch)
-      .eq("id", userId)
-      .select("id, nombre, apellido, public_id")
-      .single();
-    if (!data) return;
-    setUsersMap((prev) => ({
-      ...prev,
-      [userId]: data,
-    }));
-    setNameDrafts((prev) => ({
-      ...prev,
-      [userId]: {
-        nombre: data.nombre || "",
-        apellido: data.apellido || "",
-      },
-    }));
   };
 
   const handleCreateChange = (field) => (event) => {

@@ -35,6 +35,7 @@ import {
 } from "./services/versioningService";
 import VersioningArtifactsPanel from "./VersioningArtifactsPanel";
 
+// Lint purge (no-unused-vars): se removio `artifactRowForRelease` en el render de releases por entorno.
 const ENV_OPTIONS = ["dev", "staging", "prod"];
 const DEPLOY_ENV_OPTIONS = ["staging", "prod"];
 const DEPLOYABLE_PRODUCTS = ["referidos_app", "prelaunch_web"];
@@ -1089,16 +1090,6 @@ export default function VersioningOverviewPanel() {
       if (releaseId) set.add(releaseId);
     }
     return set;
-  }, [releaseArtifacts]);
-
-  const artifactByReleaseId = useMemo(() => {
-    const map = new Map();
-    for (const row of releaseArtifacts || []) {
-      const releaseId = String(row?.release_id || "").trim();
-      if (!releaseId || map.has(releaseId)) continue;
-      map.set(releaseId, row);
-    }
-    return map;
   }, [releaseArtifacts]);
 
   const envCards = useMemo(() => {
@@ -2691,9 +2682,6 @@ export default function VersioningOverviewPanel() {
                 const hasArtifactForRelease = releaseId
                   ? artifactReleaseIdSet.has(releaseId)
                   : false;
-                const artifactRowForRelease = releaseId
-                  ? artifactByReleaseId.get(releaseId) || null
-                  : null;
                 const buildDisplay = row.build_number
                   ? String(row.build_number)
                   : hasArtifactForRelease

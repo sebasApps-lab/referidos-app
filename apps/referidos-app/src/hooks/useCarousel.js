@@ -1,12 +1,12 @@
 // src/hooks/useCarousel.js
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+// Lint purge (no-unused-vars): se removio parametro reservado `loopPeek` no consumido.
 export function useCarousel(
   ref,
   {
     loop = false,
     itemsCount = 0,
-    loopPeek = 0,
     onInteract,
     snap = true,
     snapDelay = 140,

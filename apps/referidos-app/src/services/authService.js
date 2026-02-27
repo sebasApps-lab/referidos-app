@@ -291,7 +291,7 @@ export async function getSessionUserProfile() {
       .maybeSingle();
 
     return userData || null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

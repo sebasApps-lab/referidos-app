@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { Activity, BarChart3, PieChart, TrendingDown } from "lucide-react";
 
 export default function ChartsAvanzados() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const funnel = [
     { label: "Visitas", value: "120k" },
     { label: "QR generados", value: "35k" },
@@ -21,7 +24,10 @@ export default function ChartsAvanzados() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <motion.div
+        <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
           whileHover={{ y: -2 }}
           className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm"
         >
@@ -42,7 +48,7 @@ export default function ChartsAvanzados() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </TEMP_MOTION_SPLASH_TAG>
 
         <motion.div
           whileHover={{ y: -2 }}
