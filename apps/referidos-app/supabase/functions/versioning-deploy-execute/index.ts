@@ -122,64 +122,6 @@ function asNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(num) ? num : fallback;
 }
 
-async function mergeBranches({
-  owner,
-  repo,
-  token,
-  base,
-  head,
-  actor,
-  requestId,
-}: {
-  owner: string;
-  repo: string;
-  token: string;
-  base: string;
-  head: string;
-  actor: string;
-  requestId: string;
-}) {
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/merges`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "User-Agent": "referidos-versioning-edge",
-    },
-    body: JSON.stringify({
-      base,
-      head,
-      commit_message: `[deploy-gate] merge ${head} -> ${base} (request ${requestId}) by ${actor}`,
-    }),
-  });
-
-  const text = await response.text();
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    parsed = { raw: text };
-  }
-
-  if (response.status === 201 || response.status === 204) {
-    return {
-      ok: true,
-      status: response.status,
-      mergedSha: asString(parsed.sha),
-      message: asString(parsed.message, "merge_executed"),
-      payload: parsed,
-    };
-  }
-
-  return {
-    ok: false,
-    status: response.status,
-    message: asString(parsed.message, "github_merge_failed"),
-    payload: parsed,
-  };
-}
-
 async function dispatchGithubWorkflow({
   owner,
   repo,
@@ -498,98 +440,29 @@ serve(async (req) => {
   };
 
   if (!branchCheckBefore.inBranch) {
-    if (!syncRelease) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "release_sync_required",
-          detail: `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}).`,
-          request_id: requestId,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          branch_check: branchCheckBefore,
+    return jsonResponse(
+      {
+        ok: false,
+        error: "release_sync_required",
+        detail:
+          `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}). ` +
+          "Debes sincronizar release por PR (versioning-release-sync) antes de desplegar.",
+        request_id: requestId,
+        source_commit_sha: sourceCommitSha,
+        branches: {
+          source: sourceBranch,
+          target: targetBranch,
         },
-        409,
-        cors
-      );
-    }
+        sync_requested: syncRelease,
+        sync_only: syncOnly,
+        branch_check: branchCheckBefore,
+      },
+      409,
+      cors
+    );
+  }
 
-    const mergeResult = await mergeBranches({
-      owner: githubOwner,
-      repo: githubRepo,
-      token: githubToken,
-      base: targetBranch,
-      head: sourceBranch,
-      actor,
-      requestId,
-    });
-
-    mergeSummary = {
-      ...mergeSummary,
-      merge: mergeResult,
-    };
-
-    if (!mergeResult.ok) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "github_merge_failed",
-          detail: mergeResult.message,
-          merge: mergeSummary,
-        },
-        409,
-        cors
-      );
-    }
-
-    const branchCheckAfter = await checkCommitInBranch({
-      owner: githubOwner,
-      repo: githubRepo,
-      token: githubToken,
-      commitSha: sourceCommitSha,
-      branch: targetBranch,
-    });
-
-    mergeSummary = {
-      ...mergeSummary,
-      branch_check_after: branchCheckAfter,
-    };
-
-    if (!branchCheckAfter.ok || !branchCheckAfter.inBranch) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "release_sync_failed",
-          detail: "No se pudo verificar la release en la rama destino despues del merge.",
-          merge: mergeSummary,
-        },
-        409,
-        cors
-      );
-    }
-
-    if (syncOnly) {
-      return jsonResponse(
-        {
-          ok: true,
-          request_id: requestId,
-          release_synced: true,
-          sync_only: true,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          merge: mergeSummary,
-        },
-        200,
-        cors
-      );
-    }
-  } else if (syncOnly) {
+  if (syncOnly) {
     return jsonResponse(
       {
         ok: true,

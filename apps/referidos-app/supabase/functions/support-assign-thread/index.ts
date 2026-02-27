@@ -3,6 +3,7 @@ import {
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
+  loadSupportRuntimeFlags,
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
@@ -48,6 +49,8 @@ serve(async (req) => {
   }
 
   const isAdminSelf = usuario.role === "admin" && agentId === usuario.id;
+  const runtimeFlags = await loadSupportRuntimeFlags();
+  const requireJornadaAuthorization = runtimeFlags.require_jornada_authorization;
   const { data: sessionRow } = await supabaseAdmin
     .from("support_agent_sessions")
     .select("id")
@@ -70,11 +73,18 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "agent_not_found" }, 404, cors);
   }
 
-  if (!isAdminSelf && (agentProfile?.blocked || !agentProfile?.authorized_for_work)) {
+  if (
+    !isAdminSelf &&
+    (
+      agentProfile?.blocked ||
+      (requireJornadaAuthorization && !agentProfile?.authorized_for_work)
+    )
+  ) {
     return jsonResponse({ ok: false, error: "agent_not_authorized" }, 403, cors);
   }
   if (
     !isAdminSelf &&
+    requireJornadaAuthorization &&
     agentProfile?.authorized_until &&
     new Date(agentProfile.authorized_until).getTime() < Date.now()
   ) {

@@ -27,7 +27,7 @@ function readChangedFiles() {
     }).trim();
     if (!raw) return [];
     return raw.split("\n").map((line) => line.trim()).filter(Boolean);
-  } catch (error) {
+  } catch {
     const fallback = String(process.env.ANDROID_GUARDRAIL_FILES || "").trim();
     if (!fallback) {
       console.warn(

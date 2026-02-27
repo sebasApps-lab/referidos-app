@@ -52,12 +52,135 @@ function clampLimit(value: unknown, fallback: number) {
   return Math.min(2000, Math.max(1, raw));
 }
 
-function normalizeArray(value: unknown, fallback: string[]) {
-  const source = asArray(value);
+const ALLOWED_APP_TARGETS = new Set(["all", "referidos_app", "prelaunch_web", "android_app"]);
+const ALLOWED_ENV_TARGETS = new Set(["all", "dev", "staging", "prod"]);
+const ALLOWED_AUDIENCE_ROLES = new Set(["cliente", "negocio", "anonimo"]);
+const ALLOWED_THREAD_STATUSES = new Set([
+  "new",
+  "assigned",
+  "in_progress",
+  "waiting_user",
+  "queued",
+  "closed",
+  "cancelled",
+]);
+
+function normalizeByAlias(value: string, aliases: Record<string, string>) {
+  return aliases[value] || value;
+}
+
+function canonicalToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function normalizeStringList(value: unknown, fallback: string[]) {
+  if (Array.isArray(value)) {
+    return value.map((item) => asString(item).toLowerCase()).filter(Boolean);
+  }
+  const single = asString(value).toLowerCase();
+  if (!single) return fallback;
+  return [single];
+}
+
+function normalizeAllowedArray(
+  value: unknown,
+  {
+    fallback,
+    allowed,
+    aliases = {},
+  }: {
+    fallback: string[];
+    allowed: Set<string>;
+    aliases?: Record<string, string>;
+  },
+) {
+  const raw = normalizeStringList(value, fallback);
   const normalized = Array.from(
-    new Set(source.map((item) => asString(item).toLowerCase()).filter(Boolean)),
+    new Set(
+      raw
+        .map((item) => canonicalToken(item))
+        .map((item) => normalizeByAlias(item, aliases))
+        .map((item) => item.trim())
+        .filter((item) => allowed.has(item)),
+    ),
   );
+  if (normalized.includes("all") && allowed.has("all")) return ["all"];
   return normalized.length ? normalized : fallback;
+}
+
+function normalizeCategoryStatus(value: unknown) {
+  const status = asString(value, "active").toLowerCase();
+  if (status === "active" || status === "published") return "active";
+  if (status === "inactive" || status === "archived" || status === "draft") return "inactive";
+  return "active";
+}
+
+function normalizeMacroStatus(value: unknown) {
+  const status = asString(value, "draft").toLowerCase();
+  if (status === "published" || status === "active") return "published";
+  if (status === "archived" || status === "inactive") return "archived";
+  return "draft";
+}
+
+function normalizeThreadStatus(value: unknown) {
+  const raw = asString(value, "new").toLowerCase();
+  const aliases: Record<string, string> = {
+    inprogress: "in_progress",
+    "in-progress": "in_progress",
+    waiting: "waiting_user",
+    wait_user: "waiting_user",
+    cancelled_by_user: "cancelled",
+  };
+  const normalized = normalizeByAlias(raw, aliases);
+  return ALLOWED_THREAD_STATUSES.has(normalized) ? normalized : "new";
+}
+
+function normalizeAppTargets(value: unknown) {
+  return normalizeAllowedArray(value, {
+    fallback: ["all"],
+    allowed: ALLOWED_APP_TARGETS,
+    aliases: {
+      "referidos-app": "referidos_app",
+      referidosapp: "referidos_app",
+      referidos: "referidos_app",
+      "prelaunch-web": "prelaunch_web",
+      prelaunch: "prelaunch_web",
+      "android-app": "android_app",
+      android: "android_app",
+    },
+  });
+}
+
+function normalizeEnvTargets(value: unknown) {
+  return normalizeAllowedArray(value, {
+    fallback: ["all"],
+    allowed: ALLOWED_ENV_TARGETS,
+    aliases: {
+      production: "prod",
+      stage: "staging",
+    },
+  });
+}
+
+function normalizeAudienceRoles(value: unknown) {
+  return normalizeAllowedArray(value, {
+    fallback: ["cliente", "negocio"],
+    allowed: ALLOWED_AUDIENCE_ROLES,
+    aliases: {
+      anonymous: "anonimo",
+      anon: "anonimo",
+      anonim: "anonimo",
+      support: "cliente",
+      soporte: "cliente",
+      admin: "cliente",
+      customer: "cliente",
+      business: "negocio",
+    },
+  });
 }
 
 const opsUrl = asString(Deno.env.get("SUPPORT_OPS_URL"));
@@ -93,6 +216,13 @@ function ensureEnv() {
     };
   }
   return { ok: true };
+}
+
+function isInternalProxyAuthorized(req: Request) {
+  const expected = asString(Deno.env.get("SUPPORT_OPS_SHARED_TOKEN"));
+  if (!expected) return false;
+  const received = asString(req.headers.get("x-support-ops-token"));
+  return Boolean(received) && received === expected;
 }
 
 async function validateCronToken(token: string) {
@@ -219,45 +349,52 @@ async function upsertSyncState(
 }
 
 async function applyChanges(tenantId: string, changes: ChangeRow[]) {
-  const categoryDeleteIds: string[] = [];
-  const categoryUpserts: JsonObject[] = [];
-  const macroDeleteIds: string[] = [];
-  const macroUpserts: JsonObject[] = [];
+  type PendingChange = { seq: number; op: "upsert" | "delete"; row?: JsonObject };
+  const categoryPending = new Map<string, PendingChange>();
+  const macroPending = new Map<string, PendingChange>();
 
   for (const change of changes) {
     const payload = asObject(change.payload);
-    const payloadTenantId = asString(payload.tenant_id, tenantId);
-    if (payloadTenantId !== tenantId) continue;
 
     const rowId = asString(payload.id);
     if (!rowId) continue;
 
     if (change.entity_type === "category") {
       if (change.op === "delete") {
-        categoryDeleteIds.push(rowId);
+        const current = categoryPending.get(rowId);
+        if (!current || change.seq >= current.seq) {
+          categoryPending.set(rowId, { seq: change.seq, op: "delete" });
+        }
       } else {
-        categoryUpserts.push({
+        const row = {
           id: rowId,
           tenant_id: tenantId,
           code: asString(payload.code),
           label: asString(payload.label),
           description: asString(payload.description) || null,
-          app_targets: normalizeArray(payload.app_targets, ["all"]),
+          app_targets: normalizeAppTargets(payload.app_targets),
           sort_order: Math.trunc(asNumber(payload.sort_order, 100)),
-          status: asString(payload.status, "active"),
+          status: normalizeCategoryStatus(payload.status),
           metadata: asObject(payload.metadata),
           source_updated_at: asString(payload.updated_at) || null,
           source_seq: Math.max(0, Math.trunc(change.seq)),
-        });
+        };
+        const current = categoryPending.get(rowId);
+        if (!current || change.seq >= current.seq) {
+          categoryPending.set(rowId, { seq: change.seq, op: "upsert", row });
+        }
       }
       continue;
     }
 
     if (change.entity_type === "macro") {
       if (change.op === "delete") {
-        macroDeleteIds.push(rowId);
+        const current = macroPending.get(rowId);
+        if (!current || change.seq >= current.seq) {
+          macroPending.set(rowId, { seq: change.seq, op: "delete" });
+        }
       } else {
-        macroUpserts.push({
+        const row = {
           id: rowId,
           tenant_id: tenantId,
           category_id: asString(payload.category_id) || null,
@@ -265,18 +402,36 @@ async function applyChanges(tenantId: string, changes: ChangeRow[]) {
           code: asString(payload.code),
           title: asString(payload.title),
           body: asString(payload.body),
-          thread_status: asString(payload.thread_status, "new"),
-          audience_roles: normalizeArray(payload.audience_roles, ["cliente", "negocio"]),
-          app_targets: normalizeArray(payload.app_targets, ["all"]),
-          env_targets: normalizeArray(payload.env_targets, ["all"]),
+          thread_status: normalizeThreadStatus(payload.thread_status),
+          audience_roles: normalizeAudienceRoles(payload.audience_roles),
+          app_targets: normalizeAppTargets(payload.app_targets),
+          env_targets: normalizeEnvTargets(payload.env_targets),
           sort_order: Math.trunc(asNumber(payload.sort_order, 100)),
-          status: asString(payload.status, "draft"),
+          status: normalizeMacroStatus(payload.status),
           metadata: asObject(payload.metadata),
           source_updated_at: asString(payload.updated_at) || null,
           source_seq: Math.max(0, Math.trunc(change.seq)),
-        });
+        };
+        const current = macroPending.get(rowId);
+        if (!current || change.seq >= current.seq) {
+          macroPending.set(rowId, { seq: change.seq, op: "upsert", row });
+        }
       }
     }
+  }
+
+  const categoryDeleteIds: string[] = [];
+  const categoryUpserts: JsonObject[] = [];
+  const macroDeleteIds: string[] = [];
+  const macroUpserts: JsonObject[] = [];
+
+  for (const [id, pending] of categoryPending.entries()) {
+    if (pending.op === "delete") categoryDeleteIds.push(id);
+    else if (pending.row) categoryUpserts.push(pending.row);
+  }
+  for (const [id, pending] of macroPending.entries()) {
+    if (pending.op === "delete") macroDeleteIds.push(id);
+    else if (pending.row) macroUpserts.push(pending.row);
   }
 
   if (macroDeleteIds.length > 0) {
@@ -319,6 +474,25 @@ async function applyChanges(tenantId: string, changes: ChangeRow[]) {
   };
 }
 
+async function isRuntimeCacheEmpty(tenantId: string) {
+  const [{ count: categoriesCount, error: categoriesError }, { count: macrosCount, error: macrosError }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("support_macro_categories_cache")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      supabaseAdmin
+        .from("support_macros_cache")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+    ]);
+
+  if (categoriesError) throw new Error(categoriesError.message);
+  if (macrosError) throw new Error(macrosError.message);
+
+  return (categoriesCount || 0) === 0 && (macrosCount || 0) === 0;
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -337,13 +511,15 @@ serve(async (req) => {
 
   const body = asObject(await req.json().catch(() => ({})));
   const requestedMode = asString(body.mode, "").toLowerCase();
+  const internalProxyCall = isInternalProxyAuthorized(req);
   const internalCronCall = await validateCronToken(
     asString(req.headers.get("x-ops-sync-cron-token")),
   );
+  const internalAuthCall = internalCronCall || internalProxyCall;
 
   let actor = "system:cold-cron";
   let tenantIdFromUser = asString(body.tenant_id);
-  if (!internalCronCall) {
+  if (!internalAuthCall) {
     const authHeader = req.headers.get("authorization") ?? "";
     const token = authHeader.replace("Bearer ", "").trim();
     if (!token) {
@@ -408,7 +584,23 @@ serve(async (req) => {
     );
   }
 
-  const afterSeq = forceFull ? 0 : currentSeq;
+  let cacheEmpty = false;
+  try {
+    cacheEmpty = await isRuntimeCacheEmpty(tenantId);
+  } catch (error) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "cache_probe_failed",
+        detail: error instanceof Error ? error.message : "cache_probe_failed",
+      },
+      500,
+      cors,
+    );
+  }
+
+  const effectiveForceFull = forceFull || cacheEmpty;
+  const afterSeq = effectiveForceFull ? 0 : currentSeq;
 
   const opsSyncResponse = await invokeOpsSync({
     tenant_id: tenantId,
@@ -420,6 +612,7 @@ serve(async (req) => {
     mode,
     panel_key: panelKey,
     actor,
+    force_full: effectiveForceFull,
   });
 
   if (!opsSyncResponse.ok) {
@@ -506,6 +699,8 @@ serve(async (req) => {
       panel_key: panelKey,
       tenant_id: tenantId,
       after_seq: afterSeq,
+      force_full: effectiveForceFull,
+      runtime_cache_empty: cacheEmpty,
       synced_seq: maxSeq,
       received_changes: changes.length,
       ...applySummary,

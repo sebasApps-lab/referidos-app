@@ -8,6 +8,7 @@ import EscanerCamera from "./EscanerCamera";
 import EscanerPermisos from "./EscanerPermisos";
 import EscanerFallback from "./EscanerFallback";
 
+// Lint purge (no-unused-vars): se purgaron lecturas de `statusMsg` y `statusType` (estado de feedback del escaner).
 const parseCode = (raw) => {
   if (!raw) throw new Error("QR vacio");
   const value = raw.trim();
@@ -88,8 +89,8 @@ export default function EscanerView() {
   const [scanSupported, setScanSupported] = useState(null);
   const [camGranted, setCamGranted] = useState(null);
   const [manualValue, setManualValue] = useState("");
-  const [statusMsg, setStatusMsg] = useState("");
-  const [statusType, setStatusType] = useState("info");
+  const [, setStatusMsg] = useState("");
+  const [, setStatusType] = useState("info");
   const [result, setResult] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [manualRequested, setManualRequested] = useState(false);

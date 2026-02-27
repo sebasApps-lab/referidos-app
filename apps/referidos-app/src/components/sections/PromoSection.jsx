@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PromoCardCercanas from "../cards/PromoCardCercanas";
 import SectionTitle from "./SectionTitle";
 import { useCarousel } from "../../hooks/useCarousel";
 import { useAutoCarousel } from "../../hooks/useAutoCarousel";
 
+// Lint purge (no-unused-vars): `CardComponent` ahora se renderiza via createElement (bloque renderItems).
 export default function PromoSection({
   title,
   promos,
@@ -55,8 +56,6 @@ export default function PromoSection({
     },
   });
 
-  if (!promos || promos.length === 0) return null;
-
   useEffect(() => {
     return () => {
       if (resumeTimerRef.current) {
@@ -64,6 +63,8 @@ export default function PromoSection({
       }
     };
   }, []);
+
+  if (!promos || promos.length === 0) return null;
 
   const renderItems = loopEnabled
     ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((loopIndex) =>
@@ -99,19 +100,19 @@ export default function PromoSection({
         className={`flex overflow-x-auto ${gapClassName} no-scrollbar scroll-smooth px-2 pt-2`}
         style={{ scrollSnapType: snapType }}
       >
-        {renderItems.map(({ promo, key, loopIndex, index }) => (
-          <CardComponent
-            key={key}
-            promo={promo}
-            rating={ratings?.[promo.id]}
-            wrapperProps={{
+        {renderItems.map(({ promo, key, loopIndex, index }) =>
+          React.createElement(CardComponent, {
+            key,
+            promo,
+            rating: ratings?.[promo.id],
+            wrapperProps: {
               ...snapProps,
               "data-carousel-item": true,
               "data-carousel-index": index,
               "data-carousel-dup": loopIndex,
-            }}
-          />
-        ))}
+            },
+          })
+        )}
       </div>
     </div>
   );

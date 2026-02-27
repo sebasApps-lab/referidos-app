@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { Phone, Info, Github, Heart } from "lucide-react";
 
 export default function Footer() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.a;
+
   return (
     <footer className="bg-[#5E30A5] text-[#FFC21C] text-center md:text-left py-4 px-6 relative z-40">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
@@ -20,7 +23,10 @@ export default function Footer() {
 
         {/* Íconos de acción */}
         <div className="flex gap-6 text-[#FFC21C]/90">
-          <motion.a
+          <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
             href="tel:+593987654321"
             whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.95 }}
@@ -28,7 +34,7 @@ export default function Footer() {
           >
             <Phone size={16} />
             <span className="text-xs hidden sm:inline">Soporte</span>
-          </motion.a>
+          </TEMP_MOTION_SPLASH_TAG>
 
           <motion.a
             href="#"

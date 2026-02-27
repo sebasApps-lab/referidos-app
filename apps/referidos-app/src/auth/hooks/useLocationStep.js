@@ -157,7 +157,7 @@ export default function useLocationStep({
           if (!active) return;
           handlePermissionState(status.state);
         };
-      } catch (error) {
+      } catch {
         return;
       }
     };
@@ -172,6 +172,7 @@ export default function useLocationStep({
     coords,
     direccionPayload?.lat,
     direccionPayload?.lng,
+    locationTitle,
     openModal,
     requestLocation,
     stage,

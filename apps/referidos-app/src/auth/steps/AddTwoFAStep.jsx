@@ -202,7 +202,7 @@ export default function AddTwoFAStep({ innerRef, onCancel, onContinue }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const helperText = useMemo(() => {
     if (loading) return "Generando tu código...";

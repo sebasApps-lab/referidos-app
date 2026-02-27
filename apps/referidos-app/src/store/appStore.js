@@ -30,6 +30,7 @@ import { clearUserSecurityMaterial, loadBiometricToken } from "../services/secur
 import { useCacheStore } from "../cache/cacheStore";
 import { useModalStore } from "../modals/modalStore";
 
+// Lint purge (no-unused-vars): se purgaron `resolvedEmail`, `resolvedName` y lectura de `promosVisible` (bloques de auth/promo refresh).
 let promosRefreshTimer = null;
 let promosVisibilityHandler = null;
 let promosAutoRefreshActive = false;
@@ -152,8 +153,6 @@ export const useAppStore = create(
           onBlocked,
           requireVerifiedEmail = false,
           userId,
-          email,
-          displayName,
         } = {}) => {
           const { accessMethods, usuario } = get();
           const onboarding = get().onboarding;
@@ -169,8 +168,6 @@ export const useAppStore = create(
             Boolean(accessMethods?.pin) ||
             Boolean(usuario?.has_pin);
           const resolvedUserId = userId ?? usuario?.id_auth ?? usuario?.id ?? null;
-          const resolvedEmail = email ?? usuario?.email ?? null;
-          const resolvedName = displayName ?? usuario?.nombre ?? usuario?.alias ?? "Usuario";
 
           if (hasFingerprint) {
             (async () => {
@@ -298,7 +295,6 @@ export const useAppStore = create(
         }
         if (typeof document === "undefined") return;
         if (document.visibilityState === "hidden") return;
-        const { promosVisible } = get();
         const intervalMs = 12 * 60 * 60 * 1000;
         promosRefreshTimer = setTimeout(async () => {
           if (!promosAutoRefreshActive) return;
@@ -457,7 +453,7 @@ export const useAppStore = create(
           try {
             const { data } = await supabase.auth.getSession();
             userId = data?.session?.user?.id ?? null;
-          } catch (e) {
+          } catch {
             userId = null;
           }
           try{

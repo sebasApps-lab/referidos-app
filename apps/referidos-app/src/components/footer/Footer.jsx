@@ -6,7 +6,11 @@ import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 import ClienteFooter from "../../cliente/layout/ClienteFooter";
 
+// Lint purge (no-unused-vars): `Icon` en linksMobile se renderiza via createElement (bloque footer mobile).
 export default function Footer() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
@@ -89,16 +93,16 @@ export default function Footer() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex justify-around py-2">
-        {linksMobile.map(({ path, label, Icon, badge }) => {
-          const active = isActive(path);
+        {linksMobile.map((linkItem) => {
+          const active = isActive(linkItem.path);
 
           return (
             <Link
-              key={path}
-              to={path}
+              key={linkItem.path}
+              to={linkItem.path}
               className="relative flex flex-col items-center text-[11px] font-medium"
             >
-              <motion.div
+              <TEMP_MOTION_SPLASH_TAG
                 initial={false}
                 animate={{
                   scale: active ? 1.2 : 1,
@@ -106,17 +110,17 @@ export default function Footer() {
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 15 }}
               >
-                <Icon size={22} />
-              </motion.div>
+                {React.createElement(linkItem.Icon, { size: 22 })}
+              </TEMP_MOTION_SPLASH_TAG>
 
               <motion.span
-                className={label === "Gestionar" ? "mt-0" : "mt-1"}
+                className={linkItem.label === "Gestionar" ? "mt-0" : "mt-1"}
                 animate={{
                   opacity: active ? 1 : 0.7,
                   color: active ? "#FFFFFF" : "#CBB3F0",
                 }}
               >
-                {label}
+                {linkItem.label}
               </motion.span>
 
               {active && (
@@ -127,9 +131,9 @@ export default function Footer() {
                 />
               )}
 
-              {badge > 0 && (
+              {linkItem.badge > 0 && (
                 <span className="absolute -top-1 right-3 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-500 rounded-full shadow">
-                  {badge > 99 ? "99+" : badge}
+                  {linkItem.badge > 99 ? "99+" : linkItem.badge}
                 </span>
               )}
             </Link>

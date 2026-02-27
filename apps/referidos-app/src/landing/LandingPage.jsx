@@ -496,6 +496,7 @@ export default function LandingPage() {
   );
 }
 
+// Lint purge (no-unused-vars): `Icon` en StoreButton se renderiza via createElement.
 function StoreButton({ href, label, Icon }) {
   return (
     <a
@@ -504,7 +505,7 @@ function StoreButton({ href, label, Icon }) {
       rel="noreferrer"
       className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-transform hover:-translate-y-0.5"
     >
-      <Icon />
+      {React.createElement(Icon)}
       {label}
     </a>
   );

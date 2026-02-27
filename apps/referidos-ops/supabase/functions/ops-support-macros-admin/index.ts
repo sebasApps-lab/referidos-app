@@ -22,7 +22,7 @@ const THREAD_STATUSES = new Set([
 ]);
 const APP_TARGETS = new Set(["all", "referidos_app", "prelaunch_web", "android_app"]);
 const ENV_TARGETS = new Set(["all", "dev", "staging", "prod"]);
-const MACRO_AUDIENCE_ROLES = new Set(["cliente", "negocio"]);
+const MACRO_AUDIENCE_ROLES = new Set(["cliente", "negocio", "anonimo"]);
 
 class HttpError extends Error {
   status: number;
@@ -56,6 +56,14 @@ function asObject(value: unknown): JsonObject {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonObject)
     : {};
+}
+
+function canonicalToken(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function normalizeCode(input: unknown, fieldName: string) {
@@ -110,12 +118,14 @@ function normalizeStringArray(
   allowed: Set<string>,
   fallback: string[],
   fieldName: string,
+  aliases: Record<string, string> = {},
 ) {
   const source = Array.isArray(input) ? input : fallback;
   const normalized = Array.from(
     new Set(
       source
-        .map((item) => asString(item).toLowerCase())
+        .map((item) => canonicalToken(asString(item)))
+        .map((item) => aliases[item] || item)
         .filter(Boolean),
     ),
   );
@@ -550,6 +560,13 @@ async function createMacro(tenantId: string, actor: string, payload: JsonObject)
     MACRO_AUDIENCE_ROLES,
     ["cliente", "negocio"],
     "audience_roles",
+    {
+      anonymous: "anonimo",
+      anon: "anonimo",
+      anonim: "anonimo",
+      business: "negocio",
+      customer: "cliente",
+    },
   );
   const appTargets = normalizeStringArray(payload.app_targets, APP_TARGETS, ["all"], "app_targets");
   const envTargets = normalizeStringArray(payload.env_targets, ENV_TARGETS, ["all"], "env_targets");
@@ -632,6 +649,13 @@ async function updateMacro(tenantId: string, actor: string, payload: JsonObject)
       MACRO_AUDIENCE_ROLES,
       ["cliente", "negocio"],
       "audience_roles",
+      {
+        anonymous: "anonimo",
+        anon: "anonimo",
+        anonim: "anonimo",
+        business: "negocio",
+        customer: "cliente",
+      },
     );
   }
   if (payload.app_targets !== undefined) {

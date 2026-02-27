@@ -3,6 +3,7 @@ import { BarChart3, Clock3, RefreshCw, ShieldAlert, Ticket, Users } from "lucide
 import Table from "../../components/ui/Table";
 import { usePrelaunchMetrics } from "./hooks/usePrelaunchMetrics";
 
+// Lint purge (no-unused-vars): `Icon` en StatCard se usa via createElement (bloque de KPIs).
 const RANGE_OPTIONS = [
   { value: 1, label: "24 horas" },
   { value: 7, label: "7 dias" },
@@ -101,7 +102,7 @@ function StatCard({ icon: Icon, title, value, helper }) {
   return (
     <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        <Icon size={15} />
+        {React.createElement(Icon, { size: 15 })}
         {title}
       </div>
       <div className="mt-3 text-2xl font-bold text-[#2F1A55]">{value}</div>

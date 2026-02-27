@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Copy, ClipboardCheck } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ChevronDown, ChevronRight, Copy, ClipboardCheck, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
@@ -14,6 +14,7 @@ import {
   normalizeSupportAppKey,
   normalizeSupportEnvKey,
 } from "../data/supportCatalog";
+import SupportDevDebugBanner from "./SupportDevDebugBanner";
 
 function normalizeThreadRow(thread) {
   if (!thread) return null;
@@ -25,8 +26,36 @@ function normalizeThreadRow(thread) {
   };
 }
 
+function splitMacroGroupAndTitle(rawTitle) {
+  const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
+  const fallback = title || "Macro sin titulo";
+  const match = fallback.match(/^(.+?)\s*-\s*(.+)$/);
+  if (!match) {
+    return {
+      group: "Varios",
+      title: fallback,
+    };
+  }
+
+  const group = match[1]?.trim();
+  const normalizedTitle = match[2]?.trim();
+  if (!group || !normalizedTitle) {
+    return {
+      group: "Varios",
+      title: fallback,
+    };
+  }
+
+  return {
+    group,
+    title: normalizedTitle,
+  };
+}
+
 export default function SupportTicket() {
   const { threadId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [thread, setThread] = useState(null);
   const [events, setEvents] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -38,6 +67,9 @@ export default function SupportTicket() {
   const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
   const [catalog, setCatalog] = useState({ categories: [], macros: [] });
+  const [catalogLoadError, setCatalogLoadError] = useState("");
+  const [refreshingMacros, setRefreshingMacros] = useState(false);
+  const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
   const shownTrackerRef = useRef(new Set());
 
   const formatDateTime = (value) =>
@@ -136,21 +168,89 @@ export default function SupportTicket() {
     };
   }, [threadId]);
 
+  const fetchCatalog = useCallback(async ({ forceSync = false } = {}) => {
+    let result = await loadSupportCatalogFromCache({ publishedOnly: true });
+    let categories = result.categories || [];
+    let macros = result.macros || [];
+    let cacheError = typeof result.error === "string" ? result.error : "";
+    let syncError = "";
+
+    const shouldSync = forceSync || categories.length === 0 || macros.length === 0;
+    if (shouldSync) {
+      const { data, error } = await supabase.functions.invoke(
+        "ops-support-macros-sync-dispatch",
+        {
+          body: {
+            mode: "hot",
+            panel_key: "support_ticket",
+          },
+        }
+      );
+      if (error) {
+        syncError = error.message || "sync_dispatch_failed";
+      } else if (data?.ok === false) {
+        syncError = data?.detail || data?.error || "sync_dispatch_failed";
+      }
+
+      result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      categories = result.categories || [];
+      macros = result.macros || [];
+      cacheError = typeof result.error === "string" ? result.error : cacheError;
+    }
+
+    let catalogError = "";
+    if (categories.length === 0 && macros.length === 0) {
+      if (syncError) {
+        catalogError = `No se pudo sincronizar macros desde OPS y el cache runtime esta vacio. Detalle: ${syncError}`;
+      } else if (cacheError) {
+        catalogError = `No se pudo leer el cache runtime de macros. Detalle: ${cacheError}`;
+      } else if (shouldSync) {
+        catalogError =
+          "El cache runtime de macros sigue vacio despues de sincronizar. Verifica secretos de sync y tenant en runtime.";
+      }
+    }
+
+    return { categories, macros, catalogError };
+  }, []);
+
+  const refreshCatalog = useCallback(
+    async ({ forceSync = false } = {}) => {
+      setRefreshingMacros(true);
+      try {
+        const nextCatalog = await fetchCatalog({ forceSync });
+        setCatalog({
+          categories: nextCatalog.categories || [],
+          macros: nextCatalog.macros || [],
+        });
+        setCatalogLoadError(nextCatalog.catalogError || "");
+      } finally {
+        setRefreshingMacros(false);
+      }
+    },
+    [fetchCatalog]
+  );
+
   useEffect(() => {
     let active = true;
-    const loadCatalog = async () => {
-      const result = await loadSupportCatalogFromCache({ publishedOnly: true });
-      if (!active) return;
-      setCatalog({
-        categories: result.categories || [],
-        macros: result.macros || [],
+    setRefreshingMacros(true);
+    fetchCatalog({ forceSync: false })
+      .then((nextCatalog) => {
+        if (!active) return;
+        setCatalog({
+          categories: nextCatalog.categories || [],
+          macros: nextCatalog.macros || [],
+        });
+        setCatalogLoadError(nextCatalog.catalogError || "");
+      })
+      .finally(() => {
+        if (!active) return;
+        setRefreshingMacros(false);
       });
-    };
-    loadCatalog();
+
     return () => {
       active = false;
     };
-  }, [threadId]);
+  }, [fetchCatalog, threadId]);
 
   const runtimeEnvKey = normalizeSupportEnvKey(
     import.meta.env.VITE_ENV || import.meta.env.MODE || "dev",
@@ -165,6 +265,16 @@ export default function SupportTicket() {
     );
   }, [thread]);
 
+  const backPath = useMemo(() => {
+    if (location.pathname.startsWith("/admin/")) return "/admin/soporte";
+    return "/soporte/inbox";
+  }, [location.pathname]);
+  const debugBanner = import.meta.env.DEV ? (
+    <SupportDevDebugBanner
+      scope={location.pathname.startsWith("/admin/") ? "admin-ticket" : "support-ticket"}
+    />
+  ) : null;
+
   const macros = useMemo(() => {
     return filterSupportMacrosForThread({
       thread,
@@ -173,6 +283,50 @@ export default function SupportTicket() {
       runtimeEnvKey,
     });
   }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
+
+  const macroGroups = useMemo(() => {
+    const grouped = new Map();
+
+    macros.forEach((macro) => {
+      const parsed = splitMacroGroupAndTitle(macro.title);
+      const key = parsed.group.toLowerCase();
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          label: parsed.group,
+          items: [],
+        });
+      }
+      grouped.get(key).items.push({
+        ...macro,
+        displayTitle: parsed.title,
+      });
+    });
+
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, "es", { sensitivity: "base" })
+    );
+  }, [macros]);
+
+  useEffect(() => {
+    setExpandedMacroGroups((previous) => {
+      const validKeys = new Set(macroGroups.map((group) => group.key));
+      const next = {};
+      Object.entries(previous).forEach(([key, isOpen]) => {
+        if (validKeys.has(key)) next[key] = isOpen;
+      });
+      return next;
+    });
+  }, [macroGroups]);
+
+  const toggleMacroGroup = useCallback((groupKey) => {
+    setExpandedMacroGroups((previous) => ({
+      ...previous,
+      [groupKey]: !previous[groupKey],
+    }));
+  }, []);
+
+  const hasCatalogData = catalog.categories.length > 0 || catalog.macros.length > 0;
 
   useEffect(() => {
     shownTrackerRef.current.clear();
@@ -260,6 +414,7 @@ export default function SupportTicket() {
     });
     if (result.ok) {
       setThread((prev) => ({ ...prev, status }));
+      await refreshCatalog({ forceSync: true });
     }
   };
 
@@ -275,6 +430,7 @@ export default function SupportTicket() {
       if (result.ok) {
         setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
         setClosing(false);
+        await refreshCatalog({ forceSync: true });
       }
     } finally {
       setClosingRequest(false);
@@ -287,9 +443,19 @@ export default function SupportTicket() {
 
   return (
     <div className="space-y-6">
+      {debugBanner}
       <div className="space-y-2">
-        <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
-          Ticket {thread.public_id}
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
+            Ticket {thread.public_id}
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(backPath)}
+            className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
+          >
+            Volver
+          </button>
         </div>
         <h1 className="text-2xl font-extrabold text-[#2F1A55]">
           {thread.summary || "Detalle de ticket"}
@@ -454,41 +620,86 @@ export default function SupportTicket() {
 
         <div className="space-y-6">
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="text-sm font-semibold text-[#2F1A55]">
-              Macros sugeridas
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-[#2F1A55]">
+                Macros sugeridas
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void refreshCatalog({ forceSync: true });
+                }}
+                disabled={refreshingMacros}
+                className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2.5 py-1 text-[11px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={12} className={refreshingMacros ? "animate-spin" : ""} />
+                Refresh
+              </button>
             </div>
             <div className="space-y-3">
-              {macros.length === 0 ? (
+              {catalogLoadError && !hasCatalogData ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {catalogLoadError}
+                </div>
+              ) : macros.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
                   No hay macros publicadas para este estado/app.
                 </div>
               ) : (
-                macros.map((macro) => (
-                  <div
-                    key={macro.id}
-                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600 space-y-2"
-                  >
-                    <div className="font-semibold text-[#2F1A55]">
-                      {macro.title}
-                    </div>
-                    <div>{macro.body}</div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(macro)}
-                      className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                macroGroups.map((group) => {
+                  const isOpen = Boolean(expandedMacroGroups[group.key]);
+                  return (
+                    <div
+                      key={group.key}
+                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
                     >
-                      {copiedId === macro.id ? (
-                        <>
-                          <ClipboardCheck size={14} /> Copiado
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} /> Copiar
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))
+                      <button
+                        type="button"
+                        onClick={() => toggleMacroGroup(group.key)}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                      >
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
+                          {group.label}
+                        </div>
+                        <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+                          <span>{group.items.length}</span>
+                          {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </div>
+                      </button>
+
+                      {isOpen ? (
+                        <div className="mt-2 space-y-2">
+                          {group.items.map((macro) => (
+                            <div
+                              key={macro.id}
+                              className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 space-y-2"
+                            >
+                              <div className="font-semibold text-[#2F1A55]">
+                                {macro.displayTitle || macro.title}
+                              </div>
+                              <div>{macro.body}</div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(macro)}
+                                className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                              >
+                                {copiedId === macro.id ? (
+                                  <>
+                                    <ClipboardCheck size={14} /> Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={14} /> Copiar
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

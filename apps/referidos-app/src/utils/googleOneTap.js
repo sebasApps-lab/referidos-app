@@ -8,16 +8,7 @@ function ensureBrowser() {
   }
 }
 
-function base64UrlEncode(buffer) {
-  const text = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  return text.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function createNonce(length = 32) {
-  const bytes = new Uint8Array(length);
-  window.crypto.getRandomValues(bytes);
-  return base64UrlEncode(bytes);
-}
+// Lint purge (no-unused-vars): se removio helper `createNonce` y su utilitario `base64UrlEncode` (bloque legacy no consumido).
 
 function loadGoogleClient() {
   ensureBrowser();

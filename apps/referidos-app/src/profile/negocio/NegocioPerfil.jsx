@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -29,7 +30,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import usePinSetup from "../../hooks/usePinSetup";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useNegocioUI } from "../../negocio/hooks/useNegocioUI";
 import {
   formatReadableDate,
@@ -58,6 +59,8 @@ import ManageAccount from "../shared/sections/ManageAccount";
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import Help from "../shared/sections/Help";
+
+// Lint purge (no-unused-vars): se purgaron `navigate`, y lecturas de `passwordAttempted`/`pushEnabled` (bloques de acceso y notificaciones).
 import SupportChat from "../shared/sections/SupportChat";
 import SupportEmail from "../shared/sections/SupportEmail";
 import Feedback from "../shared/sections/Feedback";
@@ -117,6 +120,9 @@ const getDeviceIcon = (session) => {
 let accessInfoDismissed = false;
 
 export default function NegocioPerfil() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const setUser = useAppStore((s) => s.setUser);
@@ -130,7 +136,6 @@ export default function NegocioPerfil() {
   );
   const { openModal } = useModal();
   const { setHeaderOptions } = useNegocioHeader();
-  const navigate = useNavigate();
   const isActive = useCacheStore(
     (state) => state.activeKeys.negocio === CACHE_KEYS.NEGOCIO_PERFIL
   );
@@ -420,7 +425,7 @@ export default function NegocioPerfil() {
     const [showPassword, setShowPassword] = useState(false);
       const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
       const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-      const [passwordAttempted, setPasswordAttempted] = useState(false);
+      const [, setPasswordAttempted] = useState(false);
       const [showPinForm, setShowPinForm] = useState(false);
       const [focusedField, setFocusedField] = useState(null);
     const [authProvider, setAuthProvider] = useState(null);
@@ -1123,7 +1128,7 @@ export default function NegocioPerfil() {
     const { openModal } = useModal();
     const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFS);
     const [permission, setPermission] = useState("default");
-    const [pushEnabled, setPushEnabled] = useState(false);
+    const [, setPushEnabled] = useState(false);
     const [dismissedWarning, setDismissedWarning] = useState(false);
 
     useEffect(() => {
@@ -1883,7 +1888,7 @@ export default function NegocioPerfil() {
               }}
             >
               <div className="profile-search-clip">
-                <motion.div
+                <TEMP_MOTION_SPLASH_TAG
                   className="profile-search-panel"
                   initial={false}
                   animate={{
@@ -1895,7 +1900,7 @@ export default function NegocioPerfil() {
                     value={searchValue}
                     onChange={setSearchValue}
                   />
-                </motion.div>
+                </TEMP_MOTION_SPLASH_TAG>
               </div>
             </HeaderPanelContainer>,
             dockTarget

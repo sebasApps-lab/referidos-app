@@ -220,8 +220,13 @@ export async function syncReleaseBranch({
   toEnv,
   semver,
   checkOnly = false,
+  autoMerge = !checkOnly,
+  createPr = true,
   sourceBranch = "",
   targetBranch = "",
+  operation = "sync",
+  pullNumber = 0,
+  commentBody = "",
 }) {
   return invokeVersioningOps("sync_release_branch", {
     productKey,
@@ -229,8 +234,13 @@ export async function syncReleaseBranch({
     toEnv,
     semver,
     checkOnly,
+    autoMerge,
+    createPr,
     sourceBranch,
     targetBranch,
+    operation,
+    pullNumber,
+    commentBody,
   });
 }
 
@@ -255,5 +265,147 @@ export async function createDevRelease({
     ref,
     overrideSemver,
     releaseNotes,
+  });
+}
+
+export async function backfillReleaseArtifact({
+  releaseId = "",
+  productKey = "",
+  ref = "dev",
+  sourceCommitSha = "",
+  releaseNotes = "",
+} = {}) {
+  return invokeVersioningOps("backfill_release_artifact", {
+    releaseId,
+    productKey,
+    ref,
+    sourceCommitSha,
+    releaseNotes,
+  });
+}
+
+export async function fetchDevReleaseStatus({
+  productKey = "",
+  ref = "dev",
+  runId = 0,
+  dispatchStartedAt = "",
+} = {}) {
+  return invokeVersioningOps("dev_release_status", {
+    productKey,
+    ref,
+    runId,
+    dispatchStartedAt,
+  });
+}
+
+export async function checkReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+}) {
+  return invokeVersioningOps("check_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+  });
+}
+
+export async function applyReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+  sourceBranch = "",
+  targetBranch = "",
+}) {
+  return invokeVersioningOps("apply_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+    sourceBranch,
+    targetBranch,
+  });
+}
+
+export async function validateEnvironmentContract({
+  productKey,
+  envKey,
+}) {
+  return invokeVersioningOps("validate_environment", {
+    productKey,
+    envKey,
+  });
+}
+
+export async function fetchReleaseArtifacts({
+  productKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_release_artifacts", {
+    productKey,
+    limit,
+  });
+}
+
+export async function fetchLocalArtifactNodes({
+  onlyActive = false,
+  limit = 200,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_nodes", {
+    onlyActive,
+    limit,
+  });
+}
+
+export async function upsertLocalArtifactNode({
+  nodeKey,
+  displayName,
+  runnerLabel,
+  osName = "",
+  active = true,
+  metadata = {},
+}) {
+  return invokeVersioningOps("upsert_local_artifact_node", {
+    nodeKey,
+    displayName,
+    runnerLabel,
+    osName,
+    active,
+    metadata,
+  });
+}
+
+export async function fetchLocalArtifactSyncRequests({
+  productKey = "",
+  envKey = "",
+  status = "",
+  nodeKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_sync_requests", {
+    productKey,
+    envKey,
+    status,
+    nodeKey,
+    limit,
+  });
+}
+
+export async function requestLocalArtifactSync({
+  releaseId = "",
+  productKey = "",
+  envKey = "",
+  semver = "",
+  nodeKey,
+  notes = "",
+  metadata = {},
+}) {
+  return invokeVersioningOps("request_local_artifact_sync", {
+    releaseId,
+    productKey,
+    envKey,
+    semver,
+    nodeKey,
+    notes,
+    metadata,
   });
 }

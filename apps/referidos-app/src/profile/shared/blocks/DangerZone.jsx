@@ -41,13 +41,17 @@ export default function DangerZone({ usuario, setUser }) {
 
         try {
           localStorage.removeItem("referidos_app_user");
-        } catch {}
+        } catch {
+          // noop
+        }
 
         try {
           const sbKey = supabase.auth.storageKey;
           localStorage.removeItem(sbKey);
           localStorage.removeItem(`${sbKey}-code-verifier`);
-        } catch {}
+        } catch {
+          // noop
+        }
 
         window.location.replace("/");
       },

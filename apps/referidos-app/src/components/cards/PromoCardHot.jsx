@@ -7,12 +7,15 @@ import sparklesOverlay from "../../assets/overlays/hot-sparkles-overlay.png";
 
 export default function PromoCardHot({ promo, className, wrapperProps }) {
   const navigate = useNavigate();
-  if (!promo) return null;
+  const safePromo = promo || null;
 
-  const goDetalle = () => navigate(`/detalle/${promo.id}`);
-  const titulo = sanitizeText(promo.titulo || "Promo hot");
-  const descripcion = sanitizeText(promo.descripcion || "Sin descripcion");
-  const nombreLocal = sanitizeText(promo.nombreLocal || "Local");
+  const goDetalle = () => {
+    if (!safePromo?.id) return;
+    navigate(`/detalle/${safePromo.id}`);
+  };
+  const titulo = sanitizeText(safePromo?.titulo || "Promo hot");
+  const descripcion = sanitizeText(safePromo?.descripcion || "Sin descripcion");
+  const nombreLocal = sanitizeText(safePromo?.nombreLocal || "Local");
   const cardRef = useRef(null);
   const localWrapperRef = useRef(null);
   const localTextRef = useRef(null);
@@ -164,6 +167,8 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
     };
   }, []);
 
+  if (!safePromo) return null;
+
   return (
     <div
       className={mergedClassName}
@@ -177,9 +182,9 @@ export default function PromoCardHot({ promo, className, wrapperProps }) {
       >
         <div className="absolute inset-0">
           <div className="absolute inset-y-0 left-0 w-[65%]">
-            {promo.imagen ? (
+            {safePromo.imagen ? (
               <img
-                src={promo.imagen}
+                src={safePromo.imagen}
                 alt={titulo}
                 className="h-full w-full object-cover"
               />

@@ -53,40 +53,109 @@ const opsAdmin = createClient(opsUrl || "https://invalid.local", opsSecretKey ||
   },
 });
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isHtmlPayload(text: string) {
+  const normalized = String(text || "").trim().toLowerCase();
+  return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
+}
+
+function sanitizeOpsDetail(rawDetail: string, status: number) {
+  const detail = String(rawDetail || "").trim();
+  if (!detail) return status ? `OPS request failed (${status}).` : "OPS request failed.";
+  if (isHtmlPayload(detail)) {
+    return status
+      ? `OPS host unavailable (${status}). Intenta nuevamente en unos segundos.`
+      : "OPS host unavailable. Intenta nuevamente en unos segundos.";
+  }
+  if (detail.length > 500) {
+    return `${detail.slice(0, 500)}...`;
+  }
+  return detail;
+}
+
 async function invokeOpsFunction(functionName: string, payload: JsonObject) {
   const url = `${opsUrl.replace(/\/+$/, "")}/functions/v1/${functionName}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: opsSecretKey,
-      Authorization: `Bearer ${opsSecretKey}`,
-      "x-versioning-proxy-token": proxySharedToken,
-    },
-    body: JSON.stringify(payload),
-  });
+  const maxAttempts = 3;
 
-  const text = await response.text();
-  let parsed: JsonObject = {};
-  try {
-    parsed = text ? (JSON.parse(text) as JsonObject) : {};
-  } catch {
-    parsed = { raw: text };
-  }
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: opsSecretKey,
+          Authorization: `Bearer ${opsSecretKey}`,
+          "x-versioning-proxy-token": proxySharedToken,
+        },
+        body: JSON.stringify(payload),
+      });
 
-  if (!response.ok || parsed.ok === false) {
-    return {
-      ok: false,
-      status: response.status,
-      detail: asString(parsed.detail, asString(parsed.error, "ops_function_failed")),
-      payload: parsed,
-    };
+      const text = await response.text();
+      let parsed: JsonObject = {};
+      try {
+        parsed = text ? (JSON.parse(text) as JsonObject) : {};
+      } catch {
+        parsed = { raw: text };
+      }
+
+      if (!response.ok || parsed.ok === false) {
+        const rawDetail =
+          asString(parsed.detail) ||
+          asString(parsed.message) ||
+          asString(parsed.error) ||
+          asString(parsed.raw) ||
+          "ops_function_failed";
+        const safeDetail = sanitizeOpsDetail(rawDetail, response.status);
+        const normalizedPayload: JsonObject = {
+          ...parsed,
+          detail: safeDetail,
+        };
+
+        const shouldRetry = [502, 503, 504].includes(response.status) && attempt < maxAttempts;
+        if (shouldRetry) {
+          await sleep(350 * attempt);
+          continue;
+        }
+
+        return {
+          ok: false,
+          status: response.status,
+          detail: safeDetail,
+          payload: normalizedPayload,
+        };
+      }
+
+      return {
+        ok: true,
+        status: response.status,
+        payload: parsed,
+      };
+    } catch (error) {
+      const detail = sanitizeOpsDetail(
+        error instanceof Error ? error.message : "ops_request_exception",
+        0
+      );
+      if (attempt < maxAttempts) {
+        await sleep(350 * attempt);
+        continue;
+      }
+      return {
+        ok: false,
+        status: 0,
+        detail,
+        payload: { detail },
+      };
+    }
   }
 
   return {
-    ok: true,
-    status: response.status,
-    payload: parsed,
+    ok: false,
+    status: 0,
+    detail: "OPS request failed.",
+    payload: { detail: "OPS request failed." },
   };
 }
 
@@ -140,13 +209,28 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
     case "fetch_latest_releases": {
       const envKey = asString(payload.envKey);
       let query = opsAdmin
-        .from("version_latest_releases")
+        .from("version_releases_labeled")
         .select("*")
-        .order("product_name", { ascending: true });
+        .order("product_name", { ascending: true })
+        .order("env_key", { ascending: true })
+        .order("semver_major", { ascending: false })
+        .order("semver_minor", { ascending: false })
+        .order("semver_patch", { ascending: false })
+        .order("created_at", { ascending: false });
       if (envKey) query = query.eq("env_key", envKey);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return data || [];
+      const rows = data || [];
+      const latestByProductEnv = new Map<string, JsonObject>();
+      for (const row of rows) {
+        const productKey = asString((row as JsonObject).product_key);
+        const rowEnvKey = asString((row as JsonObject).env_key);
+        const key = `${productKey}::${rowEnvKey}`;
+        if (!latestByProductEnv.has(key)) {
+          latestByProductEnv.set(key, row as JsonObject);
+        }
+      }
+      return Array.from(latestByProductEnv.values());
     }
 
     case "fetch_releases_by_product_env": {
@@ -203,6 +287,14 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
             "prerelease_no",
             "version_label",
             "status",
+            "build_number",
+            "channel",
+            "pr_number",
+            "tag_name",
+            "release_notes_auto",
+            "release_notes_final",
+            "ci_run_id",
+            "ci_run_number",
             "source_commit_sha",
             "created_at",
             "updated_at",
@@ -596,6 +688,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       }
 
       const result = await invokeOpsFunction("versioning-release-sync", {
+        operation: asString(payload.operation) || null,
         product_key: productKey,
         from_env: asString(payload.fromEnv) || null,
         to_env: toEnv,
@@ -603,6 +696,10 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         source_branch: asString(payload.sourceBranch) || null,
         target_branch: asString(payload.targetBranch) || null,
         check_only: asBoolean(payload.checkOnly, false),
+        auto_merge: asBoolean(payload.autoMerge, !asBoolean(payload.checkOnly, false)),
+        create_pr: asBoolean(payload.createPr, true),
+        pull_number: asNumber(payload.pullNumber, 0) || null,
+        comment_body: asString(payload.commentBody) || null,
         actor: asString(payload.actor, actor),
       });
 
@@ -625,6 +722,8 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
 
     case "create_dev_release": {
       const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "dispatch",
+        mode: "release",
         product_key: asString(payload.productKey) || null,
         ref: asString(payload.ref, "dev"),
         override_semver: asString(payload.overrideSemver) || null,
@@ -635,6 +734,57 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       if (!result.ok) {
         throw new Error(
           asString(result.payload?.detail, asString(result.payload?.error, "No se pudo crear release de development."))
+        );
+      }
+
+      return result.payload;
+    }
+
+    case "backfill_release_artifact": {
+      const releaseId = asString(payload.releaseId || payload.release_id);
+      if (!releaseId) {
+        throw new Error("releaseId requerido");
+      }
+
+      const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "dispatch",
+        mode: "backfill_artifact",
+        release_id: releaseId,
+        product_key: asString(payload.productKey || payload.product_key) || null,
+        ref: asString(payload.ref, "dev"),
+        source_commit_sha: asString(payload.sourceCommitSha || payload.source_commit_sha) || null,
+        release_notes: asString(payload.releaseNotes || payload.release_notes) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo ejecutar backfill de build.")
+          )
+        );
+      }
+
+      return result.payload;
+    }
+
+    case "dev_release_status": {
+      const result = await invokeOpsFunction("versioning-dev-release-create", {
+        operation: "status",
+        product_key: asString(payload.productKey) || null,
+        ref: asString(payload.ref, "dev"),
+        run_id: asNumber(payload.runId, 0) || null,
+        dispatch_started_at: asString(payload.dispatchStartedAt) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo consultar estado del release de development.")
+          )
         );
       }
 
@@ -657,6 +807,258 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         );
       }
 
+      return result.payload;
+    }
+
+    case "check_release_migrations": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      const semver = asString(payload.semver);
+      if (!productKey || !envKey || !semver) {
+        throw new Error("productKey/envKey/semver requeridos para check_release_migrations.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "check_release_migrations",
+        product_key: productKey,
+        to_env: envKey,
+        semver,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const gateError = new Error(detail || "No se pudo validar gate de migraciones.");
+        (gateError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "check_release_migrations_failed"
+        );
+        (gateError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw gateError;
+      }
+
+      return result.payload;
+    }
+
+    case "apply_release_migrations": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      const semver = asString(payload.semver);
+      if (!productKey || !envKey || !semver) {
+        throw new Error("productKey/envKey/semver requeridos para apply_release_migrations.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "apply_release_migrations",
+        product_key: productKey,
+        to_env: envKey,
+        semver,
+        source_branch: asString(payload.sourceBranch || payload.source_branch) || null,
+        target_branch: asString(payload.targetBranch || payload.target_branch) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const applyError = new Error(detail || "No se pudo disparar apply migrations.");
+        (applyError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "apply_release_migrations_failed"
+        );
+        (applyError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw applyError;
+      }
+
+      return result.payload;
+    }
+
+    case "validate_environment": {
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key || payload.toEnv || payload.to_env)
+        .toLowerCase();
+      if (!productKey || !envKey) {
+        throw new Error("productKey/envKey requeridos para validate_environment.");
+      }
+
+      const result = await invokeOpsFunction("versioning-release-gate", {
+        operation: "validate_environment",
+        product_key: productKey,
+        to_env: envKey,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const validationError = new Error(detail || "No se pudo validar entorno.");
+        (validationError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "validate_environment_failed"
+        );
+        (validationError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw validationError;
+      }
+
+      return result.payload;
+    }
+
+    case "fetch_release_artifacts": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_release_artifacts",
+        payload: {
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          limit: normalizeLimit(payload.limit, 120, 1, 400),
+        },
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(result.payload?.error, asString(result.detail, "No se pudo cargar catalogo de artefactos."))
+            )
+          )
+        );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
+      return result.payload;
+    }
+
+    case "fetch_local_artifact_nodes": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_local_nodes",
+        payload: {
+          only_active: asBoolean(payload.onlyActive, false),
+          limit: normalizeLimit(payload.limit, 200, 1, 500),
+        },
+      });
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(result.payload?.error, asString(result.detail, "No se pudo cargar nodos locales."))
+            )
+          )
+        );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
+      return result.payload;
+    }
+
+    case "upsert_local_artifact_node": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "upsert_local_node",
+        payload: {
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase(),
+          display_name: asString(payload.displayName || payload.display_name),
+          runner_label: asString(payload.runnerLabel || payload.runner_label),
+          os_name: asString(payload.osName || payload.os_name),
+          active: asBoolean(payload.active, true),
+          metadata:
+            payload.metadata && typeof payload.metadata === "object"
+              ? (payload.metadata as JsonObject)
+              : {},
+        },
+      });
+
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(result.payload?.error, "No se pudo guardar nodo local.")
+          )
+        );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
+      return result.payload;
+    }
+
+    case "fetch_local_artifact_sync_requests": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "list_local_sync_requests",
+        payload: {
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          env_key: asString(payload.envKey || payload.env_key).toLowerCase() || null,
+          status: asString(payload.status).toLowerCase() || null,
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase() || null,
+          limit: normalizeLimit(payload.limit, 120, 1, 400),
+        },
+      });
+      if (!result.ok) {
+        throw new Error(
+          asString(
+            result.payload?.detail,
+            asString(
+              result.payload?.message,
+              asString(
+                result.payload?.error,
+                asString(result.detail, "No se pudo cargar historial de sincronizacion local.")
+              )
+            )
+          )
+        );
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
+      return result.payload;
+    }
+
+    case "request_local_artifact_sync": {
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "request_local_sync",
+        payload: {
+          release_id: asString(payload.releaseId || payload.release_id) || null,
+          product_key: asString(payload.productKey || payload.product_key).toLowerCase() || null,
+          env_key: asString(payload.envKey || payload.env_key).toLowerCase() || null,
+          semver: asString(payload.semver) || null,
+          node_key: asString(payload.nodeKey || payload.node_key).toLowerCase(),
+          notes: asString(payload.notes) || null,
+          metadata:
+            payload.metadata && typeof payload.metadata === "object"
+              ? (payload.metadata as JsonObject)
+              : {},
+        },
+      });
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(
+            result.payload?.message,
+            asString(result.payload?.error, asString(result.detail, "No se pudo encolar sync local."))
+          )
+        );
+        const syncError = new Error(detail);
+        (syncError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "request_local_artifact_sync_failed"
+        );
+        (syncError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw syncError;
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
       return result.payload;
     }
 

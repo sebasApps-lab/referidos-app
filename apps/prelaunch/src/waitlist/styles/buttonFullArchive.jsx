@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export const archivedButtonTraceCss = `
+const ARCHIVED_TRACE_STYLE_ID = "waitlist-archived-button-trace-css";
+
+const archivedButtonTraceCss = `
 @keyframes borderDrawPath {
   0% {
     opacity: 0;
@@ -54,7 +56,7 @@ export const archivedButtonTraceCss = `
 }
 `;
 
-export const archivedButtonStyleSnapshot = {
+const archivedButtonStyleSnapshot = {
   traceTimeoutMs: 1200,
   joinClass:
     "waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70",
@@ -62,7 +64,19 @@ export const archivedButtonStyleSnapshot = {
     "waitlist-btn-trace w-[288px] translate-x-2 rounded-2xl border border-transparent bg-[#1F1F1E] px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1",
 };
 
-export function useArchivedButtonTrace({ timeoutMs = 1200 } = {}) {
+function useEnsureArchivedTraceCss() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.getElementById(ARCHIVED_TRACE_STYLE_ID)) return;
+
+    const style = document.createElement("style");
+    style.id = ARCHIVED_TRACE_STYLE_ID;
+    style.textContent = archivedButtonTraceCss;
+    document.head.appendChild(style);
+  }, []);
+}
+
+function useArchivedButtonTrace({ timeoutMs = 1200 } = {}) {
   const [isBorderTracing, setIsBorderTracing] = useState(false);
   const [isBusinessBorderTracing, setIsBusinessBorderTracing] = useState(false);
   const borderTraceRafRef = useRef(null);
@@ -152,11 +166,16 @@ export function ArchivedJoinWaitlistButton({
   loadingLabel = "Enviando...",
   label = "Unirse a la lista de espera",
 }) {
+  useEnsureArchivedTraceCss();
+  const fallbackTrace = useArchivedButtonTrace({
+    timeoutMs: archivedButtonStyleSnapshot.traceTimeoutMs,
+  });
+  const traceSource = trace || fallbackTrace;
   const {
     isBorderTracing,
     triggerBorderTrace,
     handleBorderTraceAnimationEnd,
-  } = trace;
+  } = traceSource;
 
   return (
     <button
@@ -165,7 +184,7 @@ export function ArchivedJoinWaitlistButton({
       onPointerEnter={triggerBorderTrace}
       onPointerDown={triggerBorderTrace}
       onFocus={triggerBorderTrace}
-      className={`waitlist-btn-trace w-[288px] rounded-2xl border border-transparent bg-[#1F1F1E] px-6 py-3 text-sm font-semibold text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${isBorderTracing ? "is-tracing" : ""}`}
+      className={`${archivedButtonStyleSnapshot.joinClass} ${isBorderTracing ? "is-tracing" : ""}`}
     >
       {loading ? loadingLabel : label}
       <svg
@@ -195,11 +214,16 @@ export function ArchivedBusinessDownloadButton({
   label = "Descargar panel para negocio",
   subLabel = "(Acceso anticipado)",
 }) {
+  useEnsureArchivedTraceCss();
+  const fallbackTrace = useArchivedButtonTrace({
+    timeoutMs: archivedButtonStyleSnapshot.traceTimeoutMs,
+  });
+  const traceSource = trace || fallbackTrace;
   const {
     isBusinessBorderTracing,
     triggerBusinessBorderTrace,
     handleBusinessBorderTraceAnimationEnd,
-  } = trace;
+  } = traceSource;
 
   return (
     <a
@@ -208,7 +232,7 @@ export function ArchivedBusinessDownloadButton({
       onPointerEnter={triggerBusinessBorderTrace}
       onPointerDown={triggerBusinessBorderTrace}
       onFocus={triggerBusinessBorderTrace}
-      className={`waitlist-btn-trace w-[288px] translate-x-2 rounded-2xl border border-transparent bg-[#1F1F1E] px-6 pb-1 pt-2 text-center text-sm font-semibold leading-tight text-[#FFC21C]/80 shadow-md shadow-purple-900/20 transition-colors transition-transform hover:-translate-y-0.5 hover:bg-[#1F1F1E] hover:text-[#FFC21C]/80 active:bg-[#171716] active:text-[#FFC21C]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(111,63,217,0.4)] focus-visible:ring-offset-1 ${isBusinessBorderTracing ? "is-tracing" : ""}`}
+      className={`${archivedButtonStyleSnapshot.businessClass} ${isBusinessBorderTracing ? "is-tracing" : ""}`}
     >
       {label}
       <span className="block text-xs font-semibold text-[#FFC21C]">

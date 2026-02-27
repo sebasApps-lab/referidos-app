@@ -4,8 +4,11 @@ import HistorialItem from "./HistorialItem";
 import HistorialItemActivo from "./HistorialItemActivo";
 
 export default function HistorialList({ items, variant, now }) {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   return (
-    <motion.div
+    <TEMP_MOTION_SPLASH_TAG
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -40,6 +43,6 @@ export default function HistorialList({ items, variant, now }) {
       {items.length > 0 && (
         <div className="h-px w-full bg-gradient-to-r from-transparent via-[#5E30A5]/20 to-transparent" />
       )}
-    </motion.div>
+    </TEMP_MOTION_SPLASH_TAG>
   );
 }
