@@ -98,7 +98,46 @@ jobs:
     steps:
       - name: Mark request running
         run: |
-          node -e "(async()=>{const base=(process.env.OPS_SUPABASE_URL||'').replace(/\/+$/,'');const token=process.env.VERSIONING_LOCAL_SYNC_TOKEN||'';if(!base||!token){throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');}const payload={operation:'finalize_local_sync',payload:{request_id:process.env.REQUEST_ID,status:'running',workflow_run_id:Number(process.env.GITHUB_RUN_ID||0)||null,workflow_run_url:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,actor:process.env.ACTOR||'github-actions'}};const res=await fetch(`${base}/functions/v1/versioning-artifact-sync`,{method:'POST',headers:{'Content-Type':'application/json','x-versioning-local-sync-token':token},body:JSON.stringify(payload)});const text=await res.text();if(!res.ok){throw new Error(text||`HTTP ${res.status}`);}console.log(text||'OK');})().catch((err)=>{console.error(err.message||err);process.exit(1);});"
+          $script = @'
+          (async () => {
+            const base = (process.env.OPS_SUPABASE_URL || '').replace(/\/+$/, '');
+            const token = process.env.VERSIONING_LOCAL_SYNC_TOKEN || '';
+            if (!base || !token) {
+              throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');
+            }
+            const runId = Number(process.env.GITHUB_RUN_ID || 0) || null;
+            const workflowRunUrl = runId
+              ? ('https://github.com/' + (process.env.GITHUB_REPOSITORY || '') + '/actions/runs/' + String(runId))
+              : null;
+            const payload = {
+              operation: 'finalize_local_sync',
+              payload: {
+                request_id: process.env.REQUEST_ID,
+                status: 'running',
+                workflow_run_id: runId,
+                workflow_run_url: workflowRunUrl,
+                actor: process.env.ACTOR || 'github-actions',
+              },
+            };
+            const res = await fetch(base + '/functions/v1/versioning-artifact-sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-versioning-local-sync-token': token,
+              },
+              body: JSON.stringify(payload),
+            });
+            const text = await res.text();
+            if (!res.ok) {
+              throw new Error(text || ('HTTP ' + res.status));
+            }
+            console.log(text || 'OK');
+          })().catch((err) => {
+            console.error(err.message || err);
+            process.exit(1);
+          });
+          '@
+          node -e $script
 
       - name: Download release artifact (GitHub Actions)
         if: ${{ (inputs.artifact_provider == '' || inputs.artifact_provider == 'github_actions') }}
@@ -136,7 +175,49 @@ jobs:
         env:
           SOURCE_DIR: downloaded-artifact
         run: |
-          node -e "const fs=require('fs');const path=require('path');const source=path.resolve(process.env.SOURCE_DIR||'downloaded-artifact');const root=String(process.env.VERSIONING_LOCAL_ARTIFACTS_DIR||'').trim()||path.resolve(process.env.GITHUB_WORKSPACE||process.cwd(),'versioning/local-artifacts');const sanitize=(s)=>String(s||'').trim().replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'')||'unknown';const target=path.join(root,sanitize(process.env.PRODUCT_KEY),sanitize(process.env.ENV_KEY),sanitize(process.env.SEMVER),sanitize(process.env.SOURCE_COMMIT_SHA));if(!fs.existsSync(source)){throw new Error('Artifact source not found: '+source);}fs.mkdirSync(target,{recursive:true});const copy=(src,dst)=>{const st=fs.statSync(src);if(st.isDirectory()){fs.mkdirSync(dst,{recursive:true});for(const name of fs.readdirSync(src)){copy(path.join(src,name),path.join(dst,name));}return;}fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(src,dst);};copy(source,target);const out=process.env.GITHUB_OUTPUT;if(out){fs.appendFileSync(out,`local_path=${target}\n`);}console.log('LOCAL_ARTIFACT_PATH='+target);"
+          $script = @'
+          const fs = require('fs');
+          const path = require('path');
+          const source = path.resolve(process.env.SOURCE_DIR || 'downloaded-artifact');
+          const root = String(process.env.VERSIONING_LOCAL_ARTIFACTS_DIR || '').trim() ||
+            path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), 'versioning/local-artifacts');
+          const sanitize = (s) =>
+            String(s || '')
+              .trim()
+              .replace(/[^a-zA-Z0-9._-]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '') || 'unknown';
+          const target = path.join(
+            root,
+            sanitize(process.env.PRODUCT_KEY),
+            sanitize(process.env.ENV_KEY),
+            sanitize(process.env.SEMVER),
+            sanitize(process.env.SOURCE_COMMIT_SHA)
+          );
+          if (!fs.existsSync(source)) {
+            throw new Error('Artifact source not found: ' + source);
+          }
+          const copy = (src, dst) => {
+            const st = fs.statSync(src);
+            if (st.isDirectory()) {
+              fs.mkdirSync(dst, { recursive: true });
+              for (const name of fs.readdirSync(src)) {
+                copy(path.join(src, name), path.join(dst, name));
+              }
+              return;
+            }
+            fs.mkdirSync(path.dirname(dst), { recursive: true });
+            fs.copyFileSync(src, dst);
+          };
+          fs.mkdirSync(target, { recursive: true });
+          copy(source, target);
+          const out = process.env.GITHUB_OUTPUT;
+          if (out) {
+            fs.appendFileSync(out, 'local_path=' + target + '\n');
+          }
+          console.log('LOCAL_ARTIFACT_PATH=' + target);
+          '@
+          node -e $script
 
       - name: Finalize local sync callback
         if: ${{ always() }}
@@ -144,4 +225,57 @@ jobs:
           FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
           LOCAL_PATH: ${{ steps.copy_local.outputs.local_path }}
         run: |
-          node -e "(async()=>{const base=(process.env.OPS_SUPABASE_URL||'').replace(/\/+$/,'');const token=process.env.VERSIONING_LOCAL_SYNC_TOKEN||'';if(!base||!token){throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');}const status=(process.env.FINAL_STATUS||'failed').toLowerCase();const payload={operation:'finalize_local_sync',payload:{request_id:process.env.REQUEST_ID,status,workflow_run_id:Number(process.env.GITHUB_RUN_ID||0)||null,workflow_run_url:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,local_path:status==='success'?(process.env.LOCAL_PATH||''):null,error_detail:status==='failed'?'local_sync_workflow_failed':null,actor:process.env.ACTOR||'github-actions',metadata:{node_key:process.env.NODE_KEY,product_key:process.env.PRODUCT_KEY,env_key:process.env.ENV_KEY,semver:process.env.SEMVER,artifact_name:'${{ inputs.artifact_name }}',artifact_key:'${{ inputs.artifact_key }}',artifact_provider:process.env.ARTIFACT_PROVIDER||'github_actions',artifact_storage_bucket:process.env.ARTIFACT_STORAGE_BUCKET||'',artifact_storage_path:process.env.ARTIFACT_STORAGE_PATH||''}}};const res=await fetch(`${base}/functions/v1/versioning-artifact-sync`,{method:'POST',headers:{'Content-Type':'application/json','x-versioning-local-sync-token':token},body:JSON.stringify(payload)});const text=await res.text();if(!res.ok){throw new Error(text||`HTTP ${res.status}`);}console.log(text||'OK');})().catch((err)=>{console.error(err.message||err);process.exit(1);});"
+          $script = @'
+          (async () => {
+            const base = (process.env.OPS_SUPABASE_URL || '').replace(/\/+$/, '');
+            const token = process.env.VERSIONING_LOCAL_SYNC_TOKEN || '';
+            if (!base || !token) {
+              throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');
+            }
+            const status = (process.env.FINAL_STATUS || 'failed').toLowerCase();
+            const runId = Number(process.env.GITHUB_RUN_ID || 0) || null;
+            const workflowRunUrl = runId
+              ? ('https://github.com/' + (process.env.GITHUB_REPOSITORY || '') + '/actions/runs/' + String(runId))
+              : null;
+            const payload = {
+              operation: 'finalize_local_sync',
+              payload: {
+                request_id: process.env.REQUEST_ID,
+                status,
+                workflow_run_id: runId,
+                workflow_run_url: workflowRunUrl,
+                local_path: status === 'success' ? (process.env.LOCAL_PATH || '') : null,
+                error_detail: status === 'failed' ? 'local_sync_workflow_failed' : null,
+                actor: process.env.ACTOR || 'github-actions',
+                metadata: {
+                  node_key: process.env.NODE_KEY,
+                  product_key: process.env.PRODUCT_KEY,
+                  env_key: process.env.ENV_KEY,
+                  semver: process.env.SEMVER,
+                  artifact_name: '${{ inputs.artifact_name }}',
+                  artifact_key: '${{ inputs.artifact_key }}',
+                  artifact_provider: process.env.ARTIFACT_PROVIDER || 'github_actions',
+                  artifact_storage_bucket: process.env.ARTIFACT_STORAGE_BUCKET || '',
+                  artifact_storage_path: process.env.ARTIFACT_STORAGE_PATH || '',
+                },
+              },
+            };
+            const res = await fetch(base + '/functions/v1/versioning-artifact-sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-versioning-local-sync-token': token,
+              },
+              body: JSON.stringify(payload),
+            });
+            const text = await res.text();
+            if (!res.ok) {
+              throw new Error(text || ('HTTP ' + res.status));
+            }
+            console.log(text || 'OK');
+          })().catch((err) => {
+            console.error(err.message || err);
+            process.exit(1);
+          });
+          '@
+          node -e $script
