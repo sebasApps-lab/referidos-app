@@ -248,6 +248,56 @@ async function dispatchGithubWorkflow({
   };
 }
 
+async function cancelGithubWorkflowRun({
+  owner,
+  repo,
+  token,
+  runId,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  runId: number;
+}) {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-artifact-sync",
+      },
+    }
+  );
+
+  const text = await response.text();
+  let parsed: JsonObject = {};
+  try {
+    parsed = text ? (JSON.parse(text) as JsonObject) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  if (!response.ok) {
+    const rawDetail = asString(parsed.message, asString(parsed.raw, "github_workflow_cancel_failed"));
+    return {
+      ok: false,
+      status: response.status,
+      detail: `${rawDetail} (run_id=${runId}, status=${response.status})`,
+      payload: parsed,
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    detail: "workflow_cancel_requested",
+    payload: parsed,
+  };
+}
+
 async function updateLocalSyncRequest({
   requestId,
   actor,
@@ -621,6 +671,72 @@ async function handleOperation({
       return data;
     }
 
+    case "cancel_local_sync": {
+      if (!allowAdminOrProxy) {
+        throw new Error("forbidden_operation");
+      }
+
+      const requestId = asString(payload.request_id || payload.requestId);
+      if (!requestId) throw new Error("request_id_required");
+
+      const currentRequest = await fetchSyncRequestRow(requestId);
+      const currentStatus = asString(currentRequest.status).toLowerCase();
+      if (["success", "failed", "cancelled"].includes(currentStatus)) {
+        return currentRequest;
+      }
+
+      const cancelMetadata: JsonObject = {
+        ...asObject(payload.metadata),
+        cancel_requested_at: new Date().toISOString(),
+        cancel_requested_by: asString(payload.actor, actor),
+      };
+
+      const workflowRunId = asNumber(currentRequest.workflow_run_id, 0);
+      if (workflowRunId > 0) {
+        const githubAuth = await getGithubAuthConfig();
+        if (githubAuth.ok) {
+          let owner = githubAuth.data.owner;
+          let repo = githubAuth.data.repo;
+          const requestMetadata = asObject(currentRequest.metadata);
+          const githubRepository = asString(requestMetadata.github_repository);
+          const repositoryMatch = githubRepository.match(/^([^/]+)\/([^/]+)$/);
+          if (repositoryMatch) {
+            owner = repositoryMatch[1];
+            repo = repositoryMatch[2];
+          }
+
+          const cancelResult = await cancelGithubWorkflowRun({
+            owner,
+            repo,
+            token: githubAuth.data.token,
+            runId: workflowRunId,
+          });
+          cancelMetadata.github_cancel = {
+            ...cancelResult,
+            owner,
+            repo,
+            run_id: workflowRunId,
+          };
+        } else {
+          cancelMetadata.github_cancel = {
+            ok: false,
+            detail: githubAuth.data.detail,
+            run_id: workflowRunId,
+          };
+        }
+      }
+
+      await updateLocalSyncRequest({
+        requestId,
+        actor: asString(payload.actor, actor),
+        status: "cancelled",
+        errorDetail: asString(payload.error_detail, "cancelled_by_user"),
+        metadata: cancelMetadata,
+      });
+
+      return await fetchSyncRequestRow(requestId);
+    }
+
     case "finalize_local_sync": {
       if (!(localSyncCall || internalProxyCall)) {
         throw new Error("forbidden_operation");
@@ -628,11 +744,17 @@ async function handleOperation({
 
       const requestId = asString(payload.request_id || payload.requestId);
       if (!requestId) throw new Error("request_id_required");
+      const incomingStatus = asString(payload.status, "failed").toLowerCase();
+      const currentRequest = await fetchSyncRequestRow(requestId);
+      const currentStatus = asString(currentRequest.status).toLowerCase();
+      if (currentStatus === "cancelled" && incomingStatus !== "cancelled") {
+        return currentRequest;
+      }
 
       await updateLocalSyncRequest({
         requestId,
         actor: asString(payload.actor, actor),
-        status: asString(payload.status, "failed").toLowerCase(),
+        status: incomingStatus,
         workflowRunId: asNumber(payload.workflow_run_id, 0) || null,
         workflowRunUrl: asString(payload.workflow_run_url),
         localPath: asString(payload.local_path),

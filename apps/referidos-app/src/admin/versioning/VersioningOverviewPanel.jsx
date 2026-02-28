@@ -2841,33 +2841,6 @@ export default function VersioningOverviewPanel() {
               Builds
             </button>
           </div>
-          {versioningTab === "artifacts" ? (
-            <div className="flex flex-wrap gap-2">
-              {orderedProducts.map((product) => {
-                const disabled = !product.initializedInDev;
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => {
-                      if (disabled) return;
-                      setActiveProductKey(product.product_key);
-                    }}
-                    disabled={disabled}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      activeProductKey === product.product_key
-                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                        : disabled
-                          ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                          : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                    }`}
-                  >
-                    {normalizeProductLabel(product)}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
         </div>
         <button
           type="button"
@@ -2880,7 +2853,8 @@ export default function VersioningOverviewPanel() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+      {versioningTab === "pipeline" ? (
+        <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
         <div className="mb-1 text-xs font-semibold text-[#2F1A55]">Workflow pack</div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
@@ -2966,7 +2940,8 @@ export default function VersioningOverviewPanel() {
             ) : null}
           </div>
         ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
@@ -2979,10 +2954,42 @@ export default function VersioningOverviewPanel() {
           Cargando versionado...
         </div>
       ) : versioningTab === "artifacts" ? (
-        <VersioningArtifactsPanel
-          activeProductKey={activeProductKey}
-          selectedProductLabel={selectedProductLabel}
-        />
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-lg font-semibold text-[#2F1A55]">
+              <Activity size={15} />
+              Builds
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {orderedProducts.map((product) => {
+                const disabled = !product.initializedInDev;
+                return (
+                  <button
+                    key={`artifacts-${product.id}`}
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      setActiveProductKey(product.product_key);
+                    }}
+                    disabled={disabled}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      activeProductKey === product.product_key
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : disabled
+                          ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                          : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {normalizeProductLabel(product)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <VersioningArtifactsPanel
+            activeProductKey={activeProductKey}
+          />
+        </>
       ) : (
         <>
           <div className="space-y-3">

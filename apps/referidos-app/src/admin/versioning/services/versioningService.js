@@ -447,3 +447,15 @@ export async function requestLocalArtifactSync({
     metadata,
   });
 }
+
+export async function cancelLocalArtifactSyncRequest({
+  requestId,
+  errorDetail = "cancelled_by_user",
+  metadata = {},
+}) {
+  return invokeVersioningOps("cancel_local_artifact_sync", {
+    requestId,
+    errorDetail,
+    metadata,
+  });
+}

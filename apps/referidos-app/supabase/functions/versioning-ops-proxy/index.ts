@@ -1112,6 +1112,44 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       return result.payload;
     }
 
+    case "cancel_local_artifact_sync": {
+      const requestId = asString(payload.requestId || payload.request_id);
+      if (!requestId) {
+        throw new Error("requestId requerido para cancelar sync local.");
+      }
+      const result = await invokeOpsFunction("versioning-artifact-sync", {
+        operation: "cancel_local_sync",
+        payload: {
+          request_id: requestId,
+          error_detail: asString(payload.errorDetail || payload.error_detail) || "cancelled_by_user",
+          metadata:
+            payload.metadata && typeof payload.metadata === "object"
+              ? (payload.metadata as JsonObject)
+              : {},
+        },
+      });
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(
+            result.payload?.message,
+            asString(result.payload?.error, asString(result.detail, "No se pudo cancelar sync local."))
+          )
+        );
+        const cancelError = new Error(detail);
+        (cancelError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "cancel_local_artifact_sync_failed"
+        );
+        (cancelError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw cancelError;
+      }
+      if (result.payload && typeof result.payload === "object" && "data" in result.payload) {
+        return (result.payload as Record<string, unknown>).data;
+      }
+      return result.payload;
+    }
+
     default:
       throw new Error(`Accion no soportada: ${action}`);
   }

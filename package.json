@@ -40,7 +40,8 @@
     "build:prelaunch:release": "npm run build:prelaunch && node tooling/observability/upload-sourcemaps.mjs --app prelaunch",
     "preview:app": "npm run preview -w apps/referidos-app",
     "preview:prelaunch": "npm run preview -w apps/prelaunch",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint:mojibake": "node tooling/guardrails/check-mojibake.mjs",
+    "lint": "npm run lint:mojibake && npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },
   "dependencies": {
