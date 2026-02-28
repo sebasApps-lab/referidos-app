@@ -77,6 +77,9 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ inputs.runner_label }}
+    defaults:
+      run:
+        shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       OPS_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       VERSIONING_LOCAL_SYNC_TOKEN: ${{ secrets.VERSIONING_LOCAL_SYNC_TOKEN }}
@@ -94,7 +97,6 @@ jobs:
       ARTIFACT_DOWNLOAD_URL: ${{ inputs.artifact_download_url }}
     steps:
       - name: Mark request running
-        shell: powershell
         run: |
           node -e "(async()=>{const base=(process.env.OPS_SUPABASE_URL||'').replace(/\/+$/,'');const token=process.env.VERSIONING_LOCAL_SYNC_TOKEN||'';if(!base||!token){throw new Error('Missing OPS_SUPABASE_URL or VERSIONING_LOCAL_SYNC_TOKEN');}const payload={operation:'finalize_local_sync',payload:{request_id:process.env.REQUEST_ID,status:'running',workflow_run_id:Number(process.env.GITHUB_RUN_ID||0)||null,workflow_run_url:`https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,actor:process.env.ACTOR||'github-actions'}};const res=await fetch(`${base}/functions/v1/versioning-artifact-sync`,{method:'POST',headers:{'Content-Type':'application/json','x-versioning-local-sync-token':token},body:JSON.stringify(payload)});const text=await res.text();if(!res.ok){throw new Error(text||`HTTP ${res.status}`);}console.log(text||'OK');})().catch((err)=>{console.error(err.message||err);process.exit(1);});"
 
@@ -110,7 +112,6 @@ jobs:
 
       - name: Download release artifact (Supabase Storage)
         if: ${{ inputs.artifact_provider == 'supabase_storage' }}
-        shell: powershell
         run: |
           if ([string]::IsNullOrWhiteSpace($env:ARTIFACT_DOWNLOAD_URL)) {
             throw "Missing ARTIFACT_DOWNLOAD_URL for provider=supabase_storage"
@@ -127,13 +128,11 @@ jobs:
 
       - name: Validate artifact provider
         if: ${{ inputs.artifact_provider != '' && inputs.artifact_provider != 'github_actions' && inputs.artifact_provider != 'supabase_storage' }}
-        shell: powershell
         run: |
           throw "Unsupported artifact provider: ${{ inputs.artifact_provider }}"
 
       - name: Copy artifact to local storage
         id: copy_local
-        shell: powershell
         env:
           SOURCE_DIR: downloaded-artifact
         run: |
@@ -141,7 +140,6 @@ jobs:
 
       - name: Finalize local sync callback
         if: ${{ always() }}
-        shell: powershell
         env:
           FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
           LOCAL_PATH: ${{ steps.copy_local.outputs.local_path }}
