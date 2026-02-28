@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Activity,
   ArrowRightLeft,
+  ChevronDown,
   CheckCircle2,
   GitCompare,
   RefreshCw,
@@ -212,6 +213,30 @@ const DEV_BACKFILL_STEPS = [
   { key: "detect", label: "Detectar build registrada en bucket" },
   { key: "refresh", label: "Actualizar estado del panel" },
 ];
+
+const WORKFLOW_PACK_STEPS = [
+  { key: "sync", label: "Sincronizar workflow pack" },
+  { key: "staging", label: "Aplicar STAGING" },
+  { key: "production", label: "Aplicar PRODUCTION" },
+  { key: "refresh", label: "Actualizar estado del panel" },
+];
+
+function createWorkflowPackProgress({
+  status = "running",
+  headline = "Updating workflow pack",
+  detail = "",
+  stepStatus = {},
+}) {
+  return createProgressState({
+    status,
+    headline,
+    detail,
+    steps: WORKFLOW_PACK_STEPS.map((step) => ({
+      ...step,
+      status: stepStatus?.[step.key] || "pending",
+    })),
+  });
+}
 
 function createProgressState({
   status = "running",
@@ -425,12 +450,37 @@ function VersionCard({
   hasArtifact = false,
   buildDisplay = "-",
 }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const envKey = String(row?.env_key || "").toLowerCase();
   const isDevelopment = envKey === "dev";
   const isDeployTrackedEnv = envKey === "staging" || envKey === "prod";
   const statusLabel = normalizeReleaseStatus(row?.env_key, row?.status);
+  const statusDisplay =
+    statusLabel && statusLabel !== "-"
+      ? `${statusLabel.slice(0, 1).toUpperCase()}${statusLabel.slice(1)}`
+      : "-";
+  const commitSha = String(row?.source_commit_sha || "").trim();
+  const commitDisplay = commitSha ? `${commitSha.slice(0, 7)}...` : "-";
   const actionList = Array.isArray(actions) && actions.length ? actions : action ? [action] : [];
   const progress = progressState;
+  const hasExpandableContent = Boolean(
+    disabled ||
+      (!isDevelopment && isDeployTrackedEnv && mergeState?.error) ||
+      progress ||
+      message
+  );
+
+  useEffect(() => {
+    if (!hasExpandableContent) {
+      setDetailsExpanded(false);
+    }
+  }, [hasExpandableContent]);
+
+  useEffect(() => {
+    if ((progress || message) && hasExpandableContent) {
+      setDetailsExpanded(true);
+    }
+  }, [progress, message, hasExpandableContent]);
 
   const renderProgressIcon = (state) => {
     if (state === "success") {
@@ -454,7 +504,7 @@ function VersionCard({
 
   return (
     <div
-      className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm ${
+      className={`relative rounded-2xl border border-[#E9E2F7] bg-white p-4 pb-5 shadow-sm ${
         disabled ? "opacity-60 grayscale-[0.1]" : ""
       }`}
     >
@@ -485,7 +535,7 @@ function VersionCard({
         {row.channel || envKey ? `channel ${row.channel || envKey}` : "channel -"}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500">
-        <span>Estado: {statusLabel}</span>
+        <span>{statusDisplay}</span>
         <div className="flex items-center gap-1">
           {hasArtifact ? (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -508,56 +558,81 @@ function VersionCard({
           ) : null}
         </div>
       </div>
-      <div className="text-xs text-slate-500">Commit: {row.source_commit_sha || "-"}</div>
-      {disabled ? (
-        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
-          No inicializado
+      <div className="text-xs text-slate-500">
+        <div className="relative min-w-0">
+          <span className="group relative inline-block">
+            <span>{`Commit: ${commitDisplay}`}</span>
+            {commitSha ? (
+              <span className="pointer-events-none absolute left-0 top-0 z-20 hidden whitespace-nowrap rounded-md border border-[#E9E2F7] bg-white px-1.5 py-0.5 text-[11px] text-slate-700 shadow-sm group-hover:inline-block">
+                {`Commit: ${commitSha}`}
+              </span>
+            ) : null}
+          </span>
         </div>
-      ) : null}
-      {!isDevelopment && isDeployTrackedEnv && mergeState?.checking ? (
-        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
-          Verificando merge...
-        </div>
-      ) : null}
-      {!isDevelopment && isDeployTrackedEnv && !mergeState?.checking && mergeState?.error ? (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-          {mergeState.error}
-        </div>
-      ) : null}
-      {progress ? (
-        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-[11px]">
-          <div className={`flex items-center justify-between font-semibold ${progressHeadlineClass}`}>
-            <span>{progress.headline || "Releasing"}</span>
-            {renderProgressIcon(progress.status)}
-          </div>
-          {progress.detail ? (
-            <div className="mt-1 text-[10px] text-slate-600">{progress.detail}</div>
-          ) : null}
-          {Array.isArray(progress.steps) && progress.steps.length ? (
-            <div className="mt-2 space-y-1">
-              {progress.steps.map((step) => {
-                const stepClass =
-                  step.status === "success"
-                    ? "text-emerald-700"
-                    : step.status === "error"
-                      ? "text-red-700"
-                      : "text-slate-600";
-                return (
-                  <div key={step.key} className={`flex items-center justify-between ${stepClass}`}>
-                    <span>{step.label}</span>
-                    {renderProgressIcon(step.status)}
-                  </div>
-                );
-              })}
+      </div>
+      {detailsExpanded && hasExpandableContent ? (
+        <>
+          {disabled ? (
+            <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
+              No inicializado
             </div>
           ) : null}
-        </div>
+          {!isDevelopment && isDeployTrackedEnv && !mergeState?.checking && mergeState?.error ? (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+              {mergeState.error}
+            </div>
+          ) : null}
+          {progress ? (
+            <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-[11px]">
+              <div className={`flex items-center justify-between font-semibold ${progressHeadlineClass}`}>
+                <span>{progress.headline || "Releasing"}</span>
+                {renderProgressIcon(progress.status)}
+              </div>
+              {progress.detail ? (
+                <div className="mt-1 text-[10px] text-slate-600">{progress.detail}</div>
+              ) : null}
+              {Array.isArray(progress.steps) && progress.steps.length ? (
+                <div className="mt-2 space-y-1">
+                  {progress.steps.map((step) => {
+                    const stepClass =
+                      step.status === "success"
+                        ? "text-emerald-700"
+                        : step.status === "error"
+                          ? "text-red-700"
+                          : "text-slate-600";
+                    return (
+                      <div key={step.key} className={`flex items-center justify-between ${stepClass}`}>
+                        <span>{step.label}</span>
+                        {renderProgressIcon(step.status)}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {message ? (
+            <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
+              {message}
+            </div>
+          ) : null}
+        </>
       ) : null}
-      {message ? (
-        <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-1 text-[11px] text-slate-600">
-          {message}
-        </div>
-      ) : null}
+      {hasExpandableContent ? (
+        <button
+          type="button"
+          onClick={() => setDetailsExpanded((current) => !current)}
+          className="absolute bottom-0.5 right-2 inline-flex h-4 w-4 items-center justify-center text-slate-500"
+          title={detailsExpanded ? "Contraer" : "Expandir"}
+        >
+          <ChevronDown
+            size={14}
+            className={`transition-transform ${detailsExpanded ? "rotate-180" : ""}`}
+          />
+        </button>
+      ) : (
+        <span className="absolute bottom-0.5 right-2 inline-block h-4 w-4 opacity-0" aria-hidden="true" />
+      )}
     </div>
   );
 }
@@ -580,6 +655,8 @@ export default function VersioningOverviewPanel() {
   const [workflowPackStatus, setWorkflowPackStatus] = useState(null);
   const [workflowPackSyncing, setWorkflowPackSyncing] = useState(false);
   const [workflowPackMessage, setWorkflowPackMessage] = useState("");
+  const [workflowPackExpanded, setWorkflowPackExpanded] = useState(false);
+  const [workflowPackProgress, setWorkflowPackProgress] = useState(null);
 
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
@@ -661,6 +738,7 @@ export default function VersioningOverviewPanel() {
   const workflowPackStagingMatches = workflowPackStatus?.staging?.matches_source === true;
   const workflowPackProductionMatches = workflowPackStatus?.production?.matches_source === true;
   const workflowPackUpToDate = workflowPackStagingMatches && workflowPackProductionMatches;
+  const workflowPackHasExtra = Boolean(workflowPackMessage || workflowPackProgress);
   const promoteTargetEnv = useMemo(
     () => (promoteSourceEnv === "dev" ? "staging" : "prod"),
     [promoteSourceEnv]
@@ -778,6 +856,19 @@ export default function VersioningOverviewPanel() {
 
   const handleSyncWorkflowPack = useCallback(async () => {
     setWorkflowPackMessage("");
+    setWorkflowPackExpanded(true);
+    setWorkflowPackProgress(
+      createWorkflowPackProgress({
+        status: "running",
+        headline: "Updating workflow pack",
+        stepStatus: {
+          sync: "running",
+          staging: "pending",
+          production: "pending",
+          refresh: "pending",
+        },
+      })
+    );
     setWorkflowPackSyncing(true);
     try {
       const result = await syncWorkflowPack({
@@ -788,15 +879,64 @@ export default function VersioningOverviewPanel() {
 
       const stagingStatus = String(result?.targets?.staging?.status || "").trim() || "-";
       const productionStatus = String(result?.targets?.production?.status || "").trim() || "-";
+      const stagingOk = ["updated", "up_to_date"].includes(stagingStatus);
+      const productionOk = ["updated", "up_to_date"].includes(productionStatus);
+
+      setWorkflowPackProgress(
+        createWorkflowPackProgress({
+          status: stagingOk && productionOk ? "running" : "error",
+          headline: stagingOk && productionOk ? "Updating workflow pack" : "Update con error",
+          detail:
+            stagingOk && productionOk
+              ? ""
+              : `STAGING=${stagingStatus} | PRODUCTION=${productionStatus}`,
+          stepStatus: {
+            sync: stagingOk && productionOk ? "success" : "error",
+            staging: stagingOk ? "success" : "error",
+            production: productionOk ? "success" : "error",
+            refresh: "running",
+          },
+        })
+      );
 
       const fresh = await refreshWorkflowPack();
       const prodHash = shortHash(fresh?.production?.pack_hash, 8);
       const prodHead = shortHash(fresh?.production?.head_sha, 7);
 
+      setWorkflowPackProgress(
+        createWorkflowPackProgress({
+          status: stagingOk && productionOk ? "success" : "error",
+          headline: stagingOk && productionOk ? "Workflow pack actualizado" : "Update con error",
+          detail:
+            stagingOk && productionOk
+              ? `DEV ${shortHash(fresh?.source?.pack_hash, 8)} -> PROD ${prodHash} (${prodHead})`
+              : `STAGING=${stagingStatus} | PRODUCTION=${productionStatus}`,
+          stepStatus: {
+            sync: stagingOk && productionOk ? "success" : "error",
+            staging: stagingOk ? "success" : "error",
+            production: productionOk ? "success" : "error",
+            refresh: stagingOk && productionOk ? "success" : "error",
+          },
+        })
+      );
+
       setWorkflowPackMessage(
         `Workflow pack actualizado. STAGING=${stagingStatus}, PRODUCTION=${productionStatus}. PROD ${prodHash} (${prodHead}).`
       );
     } catch (err) {
+      setWorkflowPackProgress(
+        createWorkflowPackProgress({
+          status: "error",
+          headline: "Update con error",
+          detail: err?.message || "No se pudo actualizar workflow pack a staging/production.",
+          stepStatus: {
+            sync: "error",
+            staging: "pending",
+            production: "pending",
+            refresh: "error",
+          },
+        })
+      );
       setWorkflowPackMessage(
         err?.message || "No se pudo actualizar workflow pack a staging/production."
       );
@@ -1209,7 +1349,7 @@ export default function VersioningOverviewPanel() {
 
   const devPreviewSummaryMessage = useMemo(() => {
     if (!isActiveProductInitialized) return "";
-    if (devReleasePreviewLoading) return "Revisando cambios pendientes en DEVELOPMENT...";
+    if (devReleasePreviewLoading) return "";
     if (devReleasePreviewError) return devReleasePreviewError;
     if (!devReleasePreviewInfo) return "";
 
@@ -2670,9 +2810,16 @@ export default function VersioningOverviewPanel() {
     syncPipelineState?.pr?.mergeable === false ||
     String(syncPipelineState?.errorCode || "") === "pr_has_conflicts";
 
+  const renderWorkflowPackStepIcon = (state) => {
+    if (state === "success") return <CheckCircle2 size={12} className="text-emerald-600" />;
+    if (state === "error") return <XCircle size={12} className="text-red-600" />;
+    if (state === "running") return <RefreshCw size={12} className="text-[#5E30A5] animate-spin" />;
+    return <span className="inline-block h-[8px] w-[8px] rounded-full border border-slate-300" />;
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
             <button
@@ -2682,7 +2829,7 @@ export default function VersioningOverviewPanel() {
                 versioningTab === "pipeline" ? "bg-[#2F1A55] text-white" : "text-slate-500"
               }`}
             >
-              Flujo release
+              Updates
             </button>
             <button
               type="button"
@@ -2694,69 +2841,33 @@ export default function VersioningOverviewPanel() {
               Builds
             </button>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {orderedProducts.map((product) => {
-              const disabled = !product.initializedInDev;
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => {
-                    if (disabled) return;
-                    setActiveProductKey(product.product_key);
-                  }}
-                  disabled={disabled}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    activeProductKey === product.product_key
-                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                      : disabled
-                        ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                  }`}
-                >
-                  {normalizeProductLabel(product)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="min-w-[340px] flex-1 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0 truncate">
-              <span className="font-semibold text-[#2F1A55]">Workflow pack PROD:</span>{" "}
-              <span className="font-semibold text-[#2F1A55]">{workflowPackProductionHash}</span>
-              <span className="text-slate-500"> ({workflowPackProductionHead})</span>
-              <span className="mx-2 text-slate-300">|</span>
-              <span>
-                Fuente DEV:{" "}
-                <span className="font-semibold text-[#2F1A55]">{workflowPackSourceHash}</span>
-              </span>
-              <span className="mx-2 text-slate-300">|</span>
-              <span
-                className={
-                  workflowPackUpToDate
-                    ? "font-semibold text-emerald-700"
-                    : "font-semibold text-amber-700"
-                }
-              >
-                {workflowPackSyncing
-                  ? "Actualizando..."
-                  : workflowPackUpToDate
-                    ? "Actualizado"
-                    : "Desactualizado"}
-              </span>
+          {versioningTab === "artifacts" ? (
+            <div className="flex flex-wrap gap-2">
+              {orderedProducts.map((product) => {
+                const disabled = !product.initializedInDev;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      setActiveProductKey(product.product_key);
+                    }}
+                    disabled={disabled}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      activeProductKey === product.product_key
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : disabled
+                          ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                          : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {normalizeProductLabel(product)}
+                  </button>
+                );
+              })}
             </div>
-            <button
-              type="button"
-              onClick={handleSyncWorkflowPack}
-              disabled={workflowPackSyncing || loading || refreshing || workflowPackUpToDate}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
-              title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
-            >
-              <RefreshCw size={12} className={workflowPackSyncing ? "animate-spin" : ""} />
-              Update
-            </button>
-          </div>
+          ) : null}
         </div>
         <button
           type="button"
@@ -2767,6 +2878,94 @@ export default function VersioningOverviewPanel() {
         >
           <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
         </button>
+      </div>
+
+      <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+        <div className="mb-1 text-xs font-semibold text-[#2F1A55]">Workflow pack</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              <span className="font-semibold text-[#2F1A55]">DEV:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackSourceHash}</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span>
+              <span className="font-semibold text-[#2F1A55]">PROD:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackProductionHash}</span>
+              <span className="text-slate-500"> ({workflowPackProductionHead})</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span
+              className={
+                workflowPackUpToDate
+                  ? "font-semibold text-emerald-700"
+                  : "font-semibold text-amber-700"
+              }
+            >
+              {workflowPackSyncing
+                ? "Actualizando..."
+                : workflowPackUpToDate
+                  ? "Actualizado"
+                  : "Desactualizado"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleSyncWorkflowPack}
+              disabled={workflowPackSyncing || loading || refreshing || workflowPackUpToDate}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
+            >
+              <RefreshCw size={12} className={workflowPackSyncing ? "animate-spin" : ""} />
+              Update
+            </button>
+            <div className="inline-flex h-7 w-7 items-center justify-center">
+              {workflowPackHasExtra ? (
+                <button
+                  type="button"
+                  onClick={() => setWorkflowPackExpanded((current) => !current)}
+                  className="inline-flex h-5 w-5 items-center justify-center text-slate-500"
+                  title={workflowPackExpanded ? "Contraer" : "Expandir"}
+                >
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform ${workflowPackExpanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+              ) : (
+                <span className="inline-block h-5 w-5" />
+              )}
+            </div>
+          </div>
+        </div>
+        {workflowPackExpanded && workflowPackHasExtra ? (
+          <div className="mt-2 space-y-1 text-[11px]">
+            {workflowPackMessage ? (
+              <div className="text-slate-600">{workflowPackMessage}</div>
+            ) : null}
+            {workflowPackProgress && Array.isArray(workflowPackProgress.steps) ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {workflowPackProgress.steps.map((step) => {
+                  const stepClass =
+                    step.status === "success"
+                      ? "text-emerald-700"
+                      : step.status === "error"
+                        ? "text-red-700"
+                        : step.status === "running"
+                          ? "text-[#5E30A5]"
+                          : "text-slate-600";
+                  return (
+                    <div key={step.key} className={`inline-flex items-center gap-1.5 ${stepClass}`}>
+                      {renderWorkflowPackStepIcon(step.status)}
+                      <span>{step.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -2787,11 +2986,38 @@ export default function VersioningOverviewPanel() {
       ) : (
         <>
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-lg font-semibold text-[#2F1A55]">
-              <Activity size={15} />
-              Releases actuales
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-[#2F1A55]">
+                <Activity size={15} />
+                Releases actuales
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {orderedProducts.map((product) => {
+                  const disabled = !product.initializedInDev;
+                  return (
+                    <button
+                      key={`pipeline-${product.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (disabled) return;
+                        setActiveProductKey(product.product_key);
+                      }}
+                      disabled={disabled}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        activeProductKey === product.product_key
+                          ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                          : disabled
+                            ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
+                            : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                      }`}
+                    >
+                      {normalizeProductLabel(product)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid items-start gap-4 md:grid-cols-3">
               {envCards.map((row) => {
                 const envKey = String(row.env_key || "").toLowerCase();
                 const releaseId = String(row.id || "").trim();
