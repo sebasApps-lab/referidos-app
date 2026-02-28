@@ -720,6 +720,56 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       return result.payload;
     }
 
+    case "fetch_workflow_pack_status": {
+      const result = await invokeOpsFunction("versioning-release-sync", {
+        operation: "workflow_pack_status",
+        source_ref: asString(payload.sourceRef || payload.source_ref) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const statusError = new Error(detail || "No se pudo cargar estado de workflow pack.");
+        (statusError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "workflow_pack_status_failed"
+        );
+        (statusError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw statusError;
+      }
+
+      return result.payload;
+    }
+
+    case "sync_workflow_pack": {
+      const result = await invokeOpsFunction("versioning-release-sync", {
+        operation: "workflow_pack_sync",
+        source_ref: asString(payload.sourceRef || payload.source_ref) || null,
+        sync_staging: asBoolean(payload.syncStaging ?? payload.sync_staging, true),
+        sync_prod: asBoolean(payload.syncProd ?? payload.sync_prod, true),
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, result.detail)
+        );
+        const syncError = new Error(detail || "No se pudo sincronizar workflow pack.");
+        (syncError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "workflow_pack_sync_failed"
+        );
+        (syncError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw syncError;
+      }
+
+      return result.payload;
+    }
+
     case "create_dev_release": {
       const result = await invokeOpsFunction("versioning-dev-release-create", {
         operation: "dispatch",

@@ -699,6 +699,773 @@ async function commentOnPullRequest({
   };
 }
 
+const WORKFLOW_PACK_PATHS = [
+  ".github/workflows/ci-pr.yml",
+  ".github/workflows/versioning-apply-migrations.yml",
+  ".github/workflows/versioning-deploy-artifact.yml",
+  ".github/workflows/versioning-detect-dev.yml",
+  ".github/workflows/versioning-detect-pr.yml",
+  ".github/workflows/versioning-local-artifact-sync.yml",
+  ".github/workflows/versioning-promote.yml",
+  ".github/workflows/versioning-record-deployment.yml",
+  ".github/workflows/versioning-release-dev.yml",
+  "tooling/versioning/apply-changeset.mjs",
+  "tooling/versioning/detect-changes.mjs",
+  "tooling/versioning/promote-release.mjs",
+  "tooling/versioning/record-deployment.mjs",
+  "tooling/observability/upload-sourcemaps.mjs",
+];
+
+type WorkflowPackFile = {
+  path: string;
+  content: string;
+  sha: string;
+};
+
+type WorkflowPackSnapshot = {
+  ref: string;
+  head_sha: string;
+  pack_hash: string;
+  file_count: number;
+  missing_files: string[];
+};
+
+function encodeGithubPath(path: string) {
+  return path
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function normalizeBase64(value: string) {
+  return String(value || "").replace(/\s+/g, "");
+}
+
+async function sha256Hex(input: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input)
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function computeWorkflowPackHash(files: WorkflowPackFile[]) {
+  const seed = [...files]
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((file) => `${file.path}\n${normalizeBase64(file.content)}`)
+    .join("\n---\n");
+  return sha256Hex(seed);
+}
+
+async function fetchBranchHeadSha({
+  owner,
+  repo,
+  token,
+  branch,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  branch: string;
+}) {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-edge",
+      },
+    }
+  );
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  const object = parsed.object as Record<string, unknown> | undefined;
+  const sha = asString(object?.sha);
+  if (!response.ok || !sha) {
+    return {
+      ok: false,
+      status: response.status,
+      detail: asString(parsed.message, `No se pudo resolver HEAD para ${branch}.`),
+      payload: parsed,
+      sha: "",
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    detail: "branch_head_loaded",
+    payload: parsed,
+    sha,
+  };
+}
+
+async function fetchFileAtRef({
+  owner,
+  repo,
+  token,
+  ref,
+  filePath,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  ref: string;
+  filePath: string;
+}) {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodeGithubPath(
+      filePath
+    )}?ref=${encodeURIComponent(ref)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-edge",
+      },
+    }
+  );
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  if (response.status === 404) {
+    return {
+      ok: false,
+      missing: true,
+      status: response.status,
+      detail: `${filePath} no existe en ${ref}.`,
+      payload: parsed,
+      file: null as WorkflowPackFile | null,
+    };
+  }
+
+  const type = asString(parsed.type);
+  const content = asString(parsed.content);
+  const sha = asString(parsed.sha);
+  if (!response.ok || type !== "file" || !content || !sha) {
+    return {
+      ok: false,
+      missing: false,
+      status: response.status,
+      detail: asString(parsed.message, `No se pudo leer ${filePath} en ${ref}.`),
+      payload: parsed,
+      file: null as WorkflowPackFile | null,
+    };
+  }
+
+  return {
+    ok: true,
+    missing: false,
+    status: response.status,
+    detail: "file_loaded",
+    payload: parsed,
+    file: {
+      path: filePath,
+      content: normalizeBase64(content),
+      sha,
+    },
+  };
+}
+
+async function createBranchRef({
+  owner,
+  repo,
+  token,
+  branchName,
+  headSha,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  branchName: string;
+  headSha: string;
+}) {
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "referidos-versioning-edge",
+    },
+    body: JSON.stringify({
+      ref: `refs/heads/${branchName}`,
+      sha: headSha,
+    }),
+  });
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      detail: asString(parsed.message, "No se pudo crear rama temporal."),
+      payload: parsed,
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    detail: "branch_created",
+    payload: parsed,
+  };
+}
+
+async function deleteBranchRef({
+  owner,
+  repo,
+  token,
+  branchName,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  branchName: string;
+}) {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branchName)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-edge",
+      },
+    }
+  );
+
+  if (response.status === 404) {
+    return { ok: true, status: 404, detail: "branch_not_found" };
+  }
+  if (response.status === 204) {
+    return { ok: true, status: 204, detail: "branch_deleted" };
+  }
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  return {
+    ok: false,
+    status: response.status,
+    detail: asString(parsed.message, "No se pudo eliminar rama temporal."),
+    payload: parsed,
+  };
+}
+
+async function upsertFileContent({
+  owner,
+  repo,
+  token,
+  branchName,
+  path,
+  contentBase64,
+  previousSha,
+  commitMessage,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  branchName: string;
+  path: string;
+  contentBase64: string;
+  previousSha?: string;
+  commitMessage: string;
+}) {
+  const body: Record<string, unknown> = {
+    message: commitMessage,
+    branch: branchName,
+    content: normalizeBase64(contentBase64),
+  };
+  if (previousSha) {
+    body.sha = previousSha;
+  }
+
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodeGithubPath(path)}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "referidos-versioning-edge",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  const text = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch {
+    parsed = { raw: text };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      detail: asString(parsed.message, `No se pudo actualizar ${path}.`),
+      payload: parsed,
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    detail: "file_upserted",
+    payload: parsed,
+  };
+}
+
+async function loadWorkflowPackSnapshot({
+  owner,
+  repo,
+  token,
+  ref,
+  requireAll,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  ref: string;
+  requireAll: boolean;
+}) {
+  const head = await fetchBranchHeadSha({
+    owner,
+    repo,
+    token,
+    branch: ref,
+  });
+  if (!head.ok) {
+    return {
+      ok: false,
+      error: "workflow_pack_branch_head_failed",
+      detail: head.detail,
+      payload: head.payload,
+    };
+  }
+
+  const files = new Map<string, WorkflowPackFile>();
+  const missingFiles: string[] = [];
+
+  for (const filePath of WORKFLOW_PACK_PATHS) {
+    const loaded = await fetchFileAtRef({
+      owner,
+      repo,
+      token,
+      ref,
+      filePath,
+    });
+    if (loaded.ok && loaded.file) {
+      files.set(filePath, loaded.file);
+      continue;
+    }
+    if (loaded.missing) {
+      missingFiles.push(filePath);
+      continue;
+    }
+    return {
+      ok: false,
+      error: "workflow_pack_file_read_failed",
+      detail: loaded.detail,
+      payload: {
+        ref,
+        path: filePath,
+        github: loaded.payload,
+      },
+    };
+  }
+
+  if (requireAll && missingFiles.length > 0) {
+    return {
+      ok: false,
+      error: "workflow_pack_source_incomplete",
+      detail: `Faltan archivos workflow pack en ${ref}.`,
+      payload: {
+        ref,
+        missing_files: missingFiles,
+      },
+    };
+  }
+
+  const presentFiles = Array.from(files.values());
+  const packHash =
+    missingFiles.length > 0 || presentFiles.length === 0
+      ? ""
+      : await computeWorkflowPackHash(presentFiles);
+
+  return {
+    ok: true,
+    snapshot: {
+      ref,
+      head_sha: head.sha,
+      pack_hash: packHash,
+      file_count: presentFiles.length,
+      missing_files: missingFiles,
+    } as WorkflowPackSnapshot,
+    files,
+  };
+}
+
+async function computeWorkflowPackStatus({
+  owner,
+  repo,
+  token,
+  sourceRef,
+  stagingBranch,
+  productionBranch,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  sourceRef: string;
+  stagingBranch: string;
+  productionBranch: string;
+}) {
+  const source = await loadWorkflowPackSnapshot({
+    owner,
+    repo,
+    token,
+    ref: sourceRef,
+    requireAll: true,
+  });
+  if (!source.ok || !("snapshot" in source)) return source;
+
+  const staging = await loadWorkflowPackSnapshot({
+    owner,
+    repo,
+    token,
+    ref: stagingBranch,
+    requireAll: false,
+  });
+  if (!staging.ok || !("snapshot" in staging)) return staging;
+
+  const production = await loadWorkflowPackSnapshot({
+    owner,
+    repo,
+    token,
+    ref: productionBranch,
+    requireAll: false,
+  });
+  if (!production.ok || !("snapshot" in production)) return production;
+
+  const sourceHash = source.snapshot.pack_hash;
+  const stagingMatches =
+    Boolean(staging.snapshot.pack_hash) &&
+    staging.snapshot.missing_files.length === 0 &&
+    staging.snapshot.pack_hash === sourceHash;
+  const productionMatches =
+    Boolean(production.snapshot.pack_hash) &&
+    production.snapshot.missing_files.length === 0 &&
+    production.snapshot.pack_hash === sourceHash;
+
+  return {
+    ok: true,
+    data: {
+      source: {
+        ...source.snapshot,
+        matches_source: true,
+      },
+      staging: {
+        ...staging.snapshot,
+        matches_source: stagingMatches,
+      },
+      production: {
+        ...production.snapshot,
+        matches_source: productionMatches,
+      },
+      paths: WORKFLOW_PACK_PATHS,
+      source_ref: sourceRef,
+      staging_ref: stagingBranch,
+      production_ref: productionBranch,
+    },
+    sourceFiles: source.files,
+  };
+}
+
+async function syncWorkflowPackTarget({
+  owner,
+  repo,
+  token,
+  sourceRef,
+  sourceFiles,
+  targetBranch,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  sourceRef: string;
+  sourceFiles: Map<string, WorkflowPackFile>;
+  targetBranch: string;
+}) {
+  const targetSnapshot = await loadWorkflowPackSnapshot({
+    owner,
+    repo,
+    token,
+    ref: targetBranch,
+    requireAll: false,
+  });
+  if (!targetSnapshot.ok || !("snapshot" in targetSnapshot)) return targetSnapshot;
+
+  const changedFiles = WORKFLOW_PACK_PATHS.filter((path) => {
+    const sourceFile = sourceFiles.get(path);
+    const targetFile = targetSnapshot.files.get(path);
+    if (!sourceFile) return false;
+    if (!targetFile) return true;
+    return normalizeBase64(sourceFile.content) !== normalizeBase64(targetFile.content);
+  });
+
+  if (changedFiles.length === 0) {
+    return {
+      ok: true,
+      data: {
+        target_branch: targetBranch,
+        status: "up_to_date",
+        changed_files: [],
+        pr: null,
+        checks: null,
+      },
+    };
+  }
+
+  const head = await fetchBranchHeadSha({
+    owner,
+    repo,
+    token,
+    branch: targetBranch,
+  });
+  if (!head.ok) {
+    return {
+      ok: false,
+      error: "workflow_pack_branch_head_failed",
+      detail: head.detail,
+      payload: {
+        target_branch: targetBranch,
+        github: head.payload,
+      },
+    };
+  }
+
+  let tempBranch = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    tempBranch = `versioning-workflow-pack/${targetBranch}-${Date.now()}-${Math.floor(
+      Math.random() * 1_000_000
+    )}`;
+    const created = await createBranchRef({
+      owner,
+      repo,
+      token,
+      branchName: tempBranch,
+      headSha: head.sha,
+    });
+    if (created.ok) break;
+    if (created.status !== 422 || attempt === 3) {
+      return {
+        ok: false,
+        error: "workflow_pack_temp_branch_create_failed",
+        detail: created.detail,
+        payload: {
+          target_branch: targetBranch,
+          github: created.payload,
+        },
+      };
+    }
+  }
+
+  try {
+    for (const path of changedFiles) {
+      const sourceFile = sourceFiles.get(path);
+      const targetFile = targetSnapshot.files.get(path);
+      if (!sourceFile) continue;
+      const updated = await upsertFileContent({
+        owner,
+        repo,
+        token,
+        branchName: tempBranch,
+        path,
+        contentBase64: sourceFile.content,
+        previousSha: targetFile?.sha || undefined,
+        commitMessage: `[versioning-workflow-pack] sync ${path} from ${sourceRef}`,
+      });
+      if (!updated.ok) {
+        return {
+          ok: false,
+          error: "workflow_pack_file_upsert_failed",
+          detail: updated.detail,
+          payload: {
+            target_branch: targetBranch,
+            temp_branch: tempBranch,
+            path,
+            github: updated.payload,
+          },
+        };
+      }
+    }
+
+    const createdPr = await createPullRequest({
+      owner,
+      repo,
+      token,
+      title: `[workflow-pack] sync ${sourceRef} -> ${targetBranch}`,
+      body: [
+        `Source ref: ${sourceRef}`,
+        `Target branch: ${targetBranch}`,
+        "",
+        `Changed files (${changedFiles.length}):`,
+        ...changedFiles.map((filePath) => `- ${filePath}`),
+      ].join("\n"),
+      headBranch: tempBranch,
+      baseBranch: targetBranch,
+    });
+
+    if (!createdPr.ok || !createdPr.pr) {
+      return {
+        ok: false,
+        error: "workflow_pack_pr_create_failed",
+        detail: createdPr.detail,
+        payload: {
+          target_branch: targetBranch,
+          temp_branch: tempBranch,
+          github: createdPr.payload,
+        },
+      };
+    }
+
+    const prLoaded = await waitPullMergeable({
+      owner,
+      repo,
+      token,
+      pullNumber: createdPr.pr.number,
+    });
+    if (!prLoaded.ok || !prLoaded.pr) {
+      return {
+        ok: false,
+        error: "workflow_pack_pr_load_failed",
+        detail: prLoaded.detail,
+        payload: {
+          target_branch: targetBranch,
+          temp_branch: tempBranch,
+          pr: createdPr.pr,
+        },
+      };
+    }
+
+    const checks = await fetchChecksSummary({
+      owner,
+      repo,
+      token,
+      headSha: prLoaded.pr.head_sha,
+    });
+
+    if (prLoaded.pr.mergeable === false) {
+      return {
+        ok: false,
+        error: "workflow_pack_pr_conflicts",
+        detail: "El PR de workflow pack tiene conflictos.",
+        payload: {
+          target_branch: targetBranch,
+          temp_branch: tempBranch,
+          pr: prLoaded.pr,
+          checks,
+        },
+      };
+    }
+
+    if (!checks.required_green) {
+      return {
+        ok: false,
+        error: "workflow_pack_checks_not_green",
+        detail: "Checks obligatorios (lint/test/build) no estan en verde para workflow pack.",
+        payload: {
+          target_branch: targetBranch,
+          temp_branch: tempBranch,
+          pr: prLoaded.pr,
+          checks,
+        },
+      };
+    }
+
+    const merged = await mergePullRequest({
+      owner,
+      repo,
+      token,
+      pullNumber: prLoaded.pr.number,
+      expectedHeadSha: prLoaded.pr.head_sha,
+    });
+    if (!merged.ok) {
+      return {
+        ok: false,
+        error: "workflow_pack_pr_merge_failed",
+        detail: merged.detail,
+        payload: {
+          target_branch: targetBranch,
+          temp_branch: tempBranch,
+          pr: prLoaded.pr,
+          checks,
+          merge: merged.payload,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        target_branch: targetBranch,
+        status: "updated",
+        changed_files: changedFiles,
+        pr: prLoaded.pr,
+        checks,
+      },
+    };
+  } finally {
+    if (tempBranch) {
+      await deleteBranchRef({
+        owner,
+        repo,
+        token,
+        branchName: tempBranch,
+      });
+    }
+  }
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -742,6 +1509,12 @@ serve(async (req) => {
   const operation = asString(body.operation, "sync").toLowerCase();
   const pullNumber = asNumber(body.pull_number, 0);
   const commentBody = asString(body.comment_body);
+  const sourceRef = asString(
+    body.source_ref,
+    asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev")
+  );
+  const syncStaging = asBoolean(body.sync_staging, true);
+  const syncProduction = asBoolean(body.sync_prod, true);
   const hasCreatePrOverride =
     body && typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "create_pr");
 
@@ -767,12 +1540,23 @@ serve(async (req) => {
     if (!hasCreatePrOverride) createPr = false;
   }
 
-  if (!["sync", "refresh_pr", "merge_pr", "close_pr", "comment_pr"].includes(operation)) {
+  if (
+    ![
+      "sync",
+      "refresh_pr",
+      "merge_pr",
+      "close_pr",
+      "comment_pr",
+      "workflow_pack_status",
+      "workflow_pack_sync",
+    ].includes(operation)
+  ) {
     return jsonResponse(
       {
         ok: false,
         error: "invalid_operation",
-        detail: "operation permitido: sync|refresh_pr|merge_pr|close_pr|comment_pr",
+        detail:
+          "operation permitido: sync|refresh_pr|merge_pr|close_pr|comment_pr|workflow_pack_status|workflow_pack_sync",
       },
       400,
       cors
@@ -795,6 +1579,220 @@ serve(async (req) => {
   const githubRepo = githubAuth.data.repo;
   const githubToken = githubAuth.data.token;
   const githubAuthMode = githubAuth.data.authMode;
+
+  const stagingBranchRef = asString(Deno.env.get("DEPLOY_BRANCH_STAGING"), "staging");
+  const productionBranchRef = asString(Deno.env.get("DEPLOY_BRANCH_PROD"), "main");
+
+  if (operation === "workflow_pack_status") {
+    const status = await computeWorkflowPackStatus({
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+      sourceRef,
+      stagingBranch: stagingBranchRef,
+      productionBranch: productionBranchRef,
+    });
+
+    if (!status.ok || !("data" in status)) {
+      return jsonResponse(
+        {
+          ok: false,
+          error:
+            "error" in status && status.error
+              ? status.error
+              : "workflow_pack_status_failed",
+          detail:
+            "detail" in status && status.detail
+              ? status.detail
+              : "No se pudo cargar estado de workflow pack.",
+          payload: "payload" in status ? status.payload : null,
+          github_auth_mode: githubAuthMode,
+        },
+        502,
+        cors
+      );
+    }
+
+    return jsonResponse(
+      {
+        ok: true,
+        operation,
+        ...status.data,
+        github_auth_mode: githubAuthMode,
+      },
+      200,
+      cors
+    );
+  }
+
+  if (operation === "workflow_pack_sync") {
+    if (!syncStaging && !syncProduction) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "workflow_pack_no_targets",
+          detail: "Debes habilitar al menos un target (staging/prod).",
+        },
+        400,
+        cors
+      );
+    }
+
+    const baseStatus = await computeWorkflowPackStatus({
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+      sourceRef,
+      stagingBranch: stagingBranchRef,
+      productionBranch: productionBranchRef,
+    });
+
+    if (!baseStatus.ok || !("data" in baseStatus) || !("sourceFiles" in baseStatus)) {
+      return jsonResponse(
+        {
+          ok: false,
+          error:
+            "error" in baseStatus && baseStatus.error
+              ? baseStatus.error
+              : "workflow_pack_status_failed",
+          detail:
+            "detail" in baseStatus && baseStatus.detail
+              ? baseStatus.detail
+              : "No se pudo resolver estado base para sync de workflow pack.",
+          payload: "payload" in baseStatus ? baseStatus.payload : null,
+          github_auth_mode: githubAuthMode,
+        },
+        502,
+        cors
+      );
+    }
+
+    const targetResults: Record<string, unknown> = {};
+
+    if (syncStaging) {
+      const stagingResult = await syncWorkflowPackTarget({
+        owner: githubOwner,
+        repo: githubRepo,
+        token: githubToken,
+        sourceRef,
+        sourceFiles: baseStatus.sourceFiles,
+        targetBranch: stagingBranchRef,
+      });
+
+      if (!stagingResult.ok || !("data" in stagingResult)) {
+        return jsonResponse(
+          {
+            ok: false,
+            error:
+              "error" in stagingResult && stagingResult.error
+                ? stagingResult.error
+                : "workflow_pack_sync_staging_failed",
+            detail:
+              "detail" in stagingResult && stagingResult.detail
+                ? stagingResult.detail
+                : "No se pudo sincronizar workflow pack a staging.",
+            payload: {
+              targets: {
+                staging: "payload" in stagingResult ? stagingResult.payload : null,
+              },
+            },
+            github_auth_mode: githubAuthMode,
+          },
+          409,
+          cors
+        );
+      }
+
+      targetResults.staging = stagingResult.data;
+    }
+
+    if (syncProduction) {
+      const productionResult = await syncWorkflowPackTarget({
+        owner: githubOwner,
+        repo: githubRepo,
+        token: githubToken,
+        sourceRef,
+        sourceFiles: baseStatus.sourceFiles,
+        targetBranch: productionBranchRef,
+      });
+
+      if (!productionResult.ok || !("data" in productionResult)) {
+        return jsonResponse(
+          {
+            ok: false,
+            error:
+              "error" in productionResult && productionResult.error
+                ? productionResult.error
+                : "workflow_pack_sync_production_failed",
+            detail:
+              "detail" in productionResult && productionResult.detail
+                ? productionResult.detail
+                : "No se pudo sincronizar workflow pack a production.",
+            payload: {
+              targets: {
+                ...targetResults,
+                production:
+                  "payload" in productionResult ? productionResult.payload : null,
+              },
+            },
+            github_auth_mode: githubAuthMode,
+          },
+          409,
+          cors
+        );
+      }
+
+      targetResults.production = productionResult.data;
+    }
+
+    const finalStatus = await computeWorkflowPackStatus({
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+      sourceRef,
+      stagingBranch: stagingBranchRef,
+      productionBranch: productionBranchRef,
+    });
+
+    if (!finalStatus.ok || !("data" in finalStatus)) {
+      return jsonResponse(
+        {
+          ok: false,
+          error:
+            "error" in finalStatus && finalStatus.error
+              ? finalStatus.error
+              : "workflow_pack_status_failed",
+          detail:
+            "detail" in finalStatus && finalStatus.detail
+              ? finalStatus.detail
+              : "No se pudo verificar estado final de workflow pack.",
+          payload: {
+            targets: targetResults,
+            status:
+              "payload" in finalStatus
+                ? finalStatus.payload
+                : null,
+          },
+          github_auth_mode: githubAuthMode,
+        },
+        409,
+        cors
+      );
+    }
+
+    return jsonResponse(
+      {
+        ok: true,
+        operation,
+        source_ref: sourceRef,
+        targets: targetResults,
+        status: finalStatus.data,
+        github_auth_mode: githubAuthMode,
+      },
+      200,
+      cors
+    );
+  }
 
   if (operation === "close_pr" || operation === "comment_pr") {
     if (pullNumber < 1) {

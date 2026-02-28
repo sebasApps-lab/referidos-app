@@ -262,6 +262,26 @@ export async function syncReleaseBranch({
   });
 }
 
+export async function fetchWorkflowPackStatus({
+  sourceRef = "dev",
+} = {}) {
+  return invokeVersioningOps("fetch_workflow_pack_status", {
+    sourceRef,
+  });
+}
+
+export async function syncWorkflowPack({
+  sourceRef = "dev",
+  syncStaging = true,
+  syncProd = true,
+} = {}) {
+  return invokeVersioningOps("sync_workflow_pack", {
+    sourceRef,
+    syncStaging,
+    syncProd,
+  });
+}
+
 export async function previewDevRelease({
   productKey = "",
   ref = "dev",

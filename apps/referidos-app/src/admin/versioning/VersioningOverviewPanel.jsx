@@ -21,6 +21,7 @@ import {
   fetchDeployRequests,
   fetchDrift,
   fetchLatestReleases,
+  fetchWorkflowPackStatus,
   fetchPromotionHistory,
   fetchReleaseArtifacts,
   fetchReleasesByProductEnv,
@@ -29,6 +30,7 @@ import {
   promoteRelease,
   rejectDeployRequest,
   requestDeploy,
+  syncWorkflowPack,
   syncReleaseBranch,
   triggerDeployPipeline,
   validateEnvironmentContract,
@@ -78,6 +80,12 @@ function normalizeEnvLabel(envKey) {
   if (key === "staging") return "STAGING";
   if (key === "dev") return "DEVELOPMENT";
   return String(envKey || "-").toUpperCase();
+}
+
+function shortHash(value, len = 8) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "-";
+  return normalized.slice(0, len);
 }
 
 function normalizeProductMetadata(product) {
@@ -569,6 +577,9 @@ export default function VersioningOverviewPanel() {
   const [releaseArtifacts, setReleaseArtifacts] = useState([]);
   const [promotionHistory, setPromotionHistory] = useState([]);
   const [releaseOpsMode, setReleaseOpsMode] = useState("promote");
+  const [workflowPackStatus, setWorkflowPackStatus] = useState(null);
+  const [workflowPackSyncing, setWorkflowPackSyncing] = useState(false);
+  const [workflowPackMessage, setWorkflowPackMessage] = useState("");
 
   const [creatingDevRelease, setCreatingDevRelease] = useState(false);
   const [devReleaseMessage, setDevReleaseMessage] = useState("");
@@ -635,6 +646,21 @@ export default function VersioningOverviewPanel() {
     () => normalizeProductLabel(selectedProduct),
     [selectedProduct]
   );
+  const workflowPackSourceHash = useMemo(
+    () => shortHash(workflowPackStatus?.source?.pack_hash, 8),
+    [workflowPackStatus]
+  );
+  const workflowPackProductionHash = useMemo(
+    () => shortHash(workflowPackStatus?.production?.pack_hash, 8),
+    [workflowPackStatus]
+  );
+  const workflowPackProductionHead = useMemo(
+    () => shortHash(workflowPackStatus?.production?.head_sha, 7),
+    [workflowPackStatus]
+  );
+  const workflowPackStagingMatches = workflowPackStatus?.staging?.matches_source === true;
+  const workflowPackProductionMatches = workflowPackStatus?.production?.matches_source === true;
+  const workflowPackUpToDate = workflowPackStagingMatches && workflowPackProductionMatches;
   const promoteTargetEnv = useMemo(
     () => (promoteSourceEnv === "dev" ? "staging" : "prod"),
     [promoteSourceEnv]
@@ -646,7 +672,7 @@ export default function VersioningOverviewPanel() {
       else setLoading(true);
       setError("");
       try {
-        const [dataCatalog, dataLatest, requests, artifactRows] = await Promise.all([
+        const [dataCatalog, dataLatest, requests, artifactRows, workflowStatus] = await Promise.all([
           fetchVersioningCatalog(),
           fetchLatestReleases(),
           fetchDeployRequests(),
@@ -654,12 +680,16 @@ export default function VersioningOverviewPanel() {
             productKey: activeProductKey || "",
             limit: 400,
           }),
+          fetchWorkflowPackStatus({
+            sourceRef: "dev",
+          }).catch(() => null),
         ]);
 
         setCatalog(dataCatalog);
         setLatestReleases(dataLatest);
         setDeployRequests(requests);
         setReleaseArtifacts(Array.isArray(artifactRows) ? artifactRows : []);
+        setWorkflowPackStatus(workflowStatus || null);
 
         const initializedSet = new Set(
           (dataCatalog.products || [])
@@ -737,6 +767,43 @@ export default function VersioningOverviewPanel() {
     setReleaseArtifacts(rows);
     return rows;
   }, [activeProductKey]);
+
+  const refreshWorkflowPack = useCallback(async () => {
+    const status = await fetchWorkflowPackStatus({
+      sourceRef: "dev",
+    });
+    setWorkflowPackStatus(status || null);
+    return status || null;
+  }, []);
+
+  const handleSyncWorkflowPack = useCallback(async () => {
+    setWorkflowPackMessage("");
+    setWorkflowPackSyncing(true);
+    try {
+      const result = await syncWorkflowPack({
+        sourceRef: "dev",
+        syncStaging: true,
+        syncProd: true,
+      });
+
+      const stagingStatus = String(result?.targets?.staging?.status || "").trim() || "-";
+      const productionStatus = String(result?.targets?.production?.status || "").trim() || "-";
+
+      const fresh = await refreshWorkflowPack();
+      const prodHash = shortHash(fresh?.production?.pack_hash, 8);
+      const prodHead = shortHash(fresh?.production?.head_sha, 7);
+
+      setWorkflowPackMessage(
+        `Workflow pack actualizado. STAGING=${stagingStatus}, PRODUCTION=${productionStatus}. PROD ${prodHash} (${prodHead}).`
+      );
+    } catch (err) {
+      setWorkflowPackMessage(
+        err?.message || "No se pudo actualizar workflow pack a staging/production."
+      );
+    } finally {
+      setWorkflowPackSyncing(false);
+    }
+  }, [refreshWorkflowPack]);
   useEffect(() => {
     if (!devReleaseSyncing) return undefined;
     let cancelled = false;
@@ -2605,7 +2672,7 @@ export default function VersioningOverviewPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <div className="space-y-2">
           <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
             <button
@@ -2651,6 +2718,44 @@ export default function VersioningOverviewPanel() {
                 </button>
               );
             })}
+          </div>
+        </div>
+        <div className="min-w-[340px] flex-1 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0 truncate">
+              <span className="font-semibold text-[#2F1A55]">Workflow pack PROD:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackProductionHash}</span>
+              <span className="text-slate-500"> ({workflowPackProductionHead})</span>
+              <span className="mx-2 text-slate-300">|</span>
+              <span>
+                Fuente DEV:{" "}
+                <span className="font-semibold text-[#2F1A55]">{workflowPackSourceHash}</span>
+              </span>
+              <span className="mx-2 text-slate-300">|</span>
+              <span
+                className={
+                  workflowPackUpToDate
+                    ? "font-semibold text-emerald-700"
+                    : "font-semibold text-amber-700"
+                }
+              >
+                {workflowPackSyncing
+                  ? "Actualizando..."
+                  : workflowPackUpToDate
+                    ? "Actualizado"
+                    : "Desactualizado"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSyncWorkflowPack}
+              disabled={workflowPackSyncing || loading || refreshing}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
+            >
+              <RefreshCw size={12} className={workflowPackSyncing ? "animate-spin" : ""} />
+              Update
+            </button>
           </div>
         </div>
         <button
