@@ -23,6 +23,50 @@ const DEFAULT_APP_CHANNEL = "undetermined";
 const UA_PEPPER = Deno.env.get("PRELAUNCH_UA_PEPPER") || "prelaunch_ua_pepper_v1";
 const IP_RISK_PEPPER = Deno.env.get("PRELAUNCH_IP_RISK_PEPPER") || "prelaunch_ip_risk_pepper_v1";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickText(value: unknown, max = 160) {
+  if (typeof value !== "string") return null;
+  const trimmed = safeTrim(value, max);
+  return trimmed || null;
+}
+
+function pickBuildNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const num = Math.trunc(value);
+    return num >= 1 ? num : null;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value.trim())) {
+    const num = Number(value.trim());
+    return Number.isFinite(num) && num >= 1 ? Math.trunc(num) : null;
+  }
+  return null;
+}
+
+function normalizeBuildSnapshot(value: unknown) {
+  if (!isRecord(value)) return null;
+  const buildNumber = pickBuildNumber(value.build_number ?? value.buildNumber);
+  const snapshot: Record<string, unknown> = {
+    app_id: pickText(value.app_id ?? value.appId, 80),
+    app_env: pickText(value.app_env ?? value.appEnv ?? value.env, 40),
+    version_label: pickText(value.version_label ?? value.app_version ?? value.appVersion, 120),
+    build_id: pickText(value.build_id ?? value.buildId, 120),
+    release_id: pickText(value.release_id ?? value.releaseId, 120),
+    artifact_id: pickText(value.artifact_id ?? value.artifactId, 160),
+    release_channel: pickText(value.release_channel ?? value.releaseChannel ?? value.channel, 40),
+    source_commit_sha: pickText(
+      value.source_commit_sha ?? value.sourceCommitSha ?? value.commit_sha,
+      64
+    ),
+  };
+  if (buildNumber) snapshot.build_number = buildNumber;
+
+  const hasValue = Object.values(snapshot).some((entry) => entry !== null && entry !== undefined);
+  return hasValue ? snapshot : null;
+}
+
 function getClientIp(req: Request) {
   return (
     req.headers.get("cf-connecting-ip") ||
@@ -132,7 +176,6 @@ serve(async (req) => {
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
   const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
-  const sourceRoute = safeTrim(body.source_route, 140) || null;
   const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
   const appChannel = normalizeSupportAppChannel(
     safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL,
@@ -145,8 +188,20 @@ serve(async (req) => {
   const displayName = safeTrim(body.display_name, 80) || null;
   const errorOnActive = body.error_on_active === true;
   const replaceExisting = body.replace_existing === true;
-  const contextInput =
-    typeof body.context === "object" && body.context ? body.context : {};
+  const contextInput = isRecord(body.context) ? body.context : {};
+
+  const sourceRouteFromPayload = pickText(body.source_route, 140);
+  const sourceRouteFromContext = pickText(contextInput.source_route ?? contextInput.route, 140);
+  const sourceRoute = sourceRouteFromPayload || sourceRouteFromContext;
+  const locale = pickText(body.locale ?? contextInput.locale, 32);
+  const language = pickText(body.language ?? contextInput.language, 24);
+  const timezone = pickText(body.timezone ?? contextInput.timezone, 80);
+  const platform = pickText(body.platform ?? contextInput.platform ?? contextInput.device, 120);
+  const userAgent = pickText(body.user_agent ?? contextInput.user_agent ?? contextInput.browser, 300);
+
+  const payloadBuild = normalizeBuildSnapshot(body.build ?? body.build_snapshot);
+  const contextBuild = normalizeBuildSnapshot(contextInput.build);
+  const buildSnapshot = payloadBuild || contextBuild;
 
   if (!summary) {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
@@ -357,6 +412,21 @@ serve(async (req) => {
     CATEGORY_LABELS[category] ||
     categoryLabelForCode(category) ||
     "Soporte";
+  const runtimeContext: Record<string, unknown> = {
+    ...(isRecord(contextInput.runtime) ? contextInput.runtime : {}),
+    source_route: sourceRoute,
+    locale,
+    language,
+    timezone,
+    platform,
+    user_agent: userAgent,
+  };
+  Object.keys(runtimeContext).forEach((key) => {
+    if (runtimeContext[key] === null || runtimeContext[key] === undefined || runtimeContext[key] === "") {
+      delete runtimeContext[key];
+    }
+  });
+
   const context = {
     ...contextInput,
     source_route: sourceRoute,
@@ -369,6 +439,8 @@ serve(async (req) => {
     contact_hash: contactHash,
     anon_id: anonId,
     visit_session_id: visitSessionId,
+    ...(Object.keys(runtimeContext).length ? { runtime: runtimeContext } : {}),
+    ...(buildSnapshot ? { build: buildSnapshot } : {}),
   };
 
   const trackingToken = createTrackingToken();
@@ -451,6 +523,7 @@ serve(async (req) => {
       channel,
       requested_channel: requestedChannel,
       source_route: sourceRoute,
+      build: buildSnapshot,
     },
   });
 

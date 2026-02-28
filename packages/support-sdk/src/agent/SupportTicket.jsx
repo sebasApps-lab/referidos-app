@@ -57,6 +57,7 @@ export default function SupportTicket() {
   const navigate = useNavigate();
   const location = useLocation();
   const [thread, setThread] = useState(null);
+  const [obsContext, setObsContext] = useState(null);
   const [events, setEvents] = useState([]);
   const [notes, setNotes] = useState([]);
   const [noteDraft, setNoteDraft] = useState("");
@@ -76,6 +77,10 @@ export default function SupportTicket() {
     new Date(value).toLocaleString("es-EC", {
       timeZone: "America/Guayaquil",
     });
+  const formatCommit = (value) => {
+    if (!value || typeof value !== "string") return "-";
+    return value.length > 12 ? `${value.slice(0, 12)}...` : value;
+  };
 
   useEffect(() => {
     let active = true;
@@ -101,13 +106,14 @@ export default function SupportTicket() {
       if (!threadData?.id) {
         if (!active) return;
         setThread(null);
+        setObsContext(null);
         setEvents([]);
         setNotes([]);
         setLogs([]);
         return;
       }
 
-      const [{ data: eventData }, { data: noteData }] = await Promise.all([
+      const [{ data: eventData }, { data: noteData }, { data: obsContextData }] = await Promise.all([
         supabase
           .from("support_thread_events")
           .select("event_type, actor_role, actor_id, details, created_at")
@@ -118,6 +124,11 @@ export default function SupportTicket() {
           .select("id, body, created_at, author_id")
           .eq("thread_id", threadData.id)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("support_ticket_obs_context")
+          .select("*")
+          .eq("thread_id", threadData.id)
+          .maybeSingle(),
       ]);
 
       let logData = [];
@@ -158,6 +169,7 @@ export default function SupportTicket() {
 
       if (!active) return;
       setThread(normalizeThreadRow(threadData));
+      setObsContext(obsContextData || null);
       setEvents(eventData || []);
       setNotes(noteData || []);
       setLogs(logData);
@@ -489,6 +501,50 @@ export default function SupportTicket() {
             <pre className="whitespace-pre-wrap text-xs text-slate-600 bg-[#FAF8FF] rounded-2xl p-3 border border-[#E9E2F7]">
               {JSON.stringify(thread.context || {}, null, 2)}
             </pre>
+            <div className="rounded-2xl border border-[#E9E2F7] bg-[#FCFBFF] p-3 text-xs text-slate-600 space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2F1A55]">
+                Observabilidad y build
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2">
+                <div>
+                  <span className="font-semibold">Usuario:</span>{" "}
+                  {obsContext?.user_display_name || thread.user_public_id || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Email:</span>{" "}
+                  {obsContext?.user_email || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Release:</span>{" "}
+                  {obsContext?.release_version_label || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Build:</span>{" "}
+                  {obsContext?.release_build_number ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Canal:</span>{" "}
+                  {obsContext?.release_channel || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Commit:</span>{" "}
+                  {formatCommit(obsContext?.release_source_commit_sha)}
+                </div>
+                <div>
+                  <span className="font-semibold">Artifact ID:</span>{" "}
+                  {obsContext?.release_artifact_id || "-"}
+                </div>
+                <div>
+                  <span className="font-semibold">Ultimo evento OBS:</span>{" "}
+                  {obsContext?.obs_event_type || "-"}
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {obsContext?.obs_occurred_at
+                  ? `Ultimo evento: ${formatDateTime(obsContext.obs_occurred_at)}`
+                  : "Sin eventos observability correlacionados para este ticket."}
+              </div>
+            </div>
             {thread.request_origin === "anonymous" && thread.anon_profile ? (
               <div className="rounded-2xl border border-[#F5E1B5] bg-[#FFF9ED] p-3 text-xs text-[#8A5A00] space-y-1">
                 <div>

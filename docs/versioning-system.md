@@ -38,3 +38,39 @@ Notas:
 - `npm run versioning:bootstrap` se usa solo para inicializacion/backfill.
 - El panel de versionado en PWA esta aislado via `versioning-ops-proxy` hacia `referidos-ops` (single source of truth).
 - Para secrets, rollout por entorno y errores reales (`missing_ops_env`, `release_sync_required`), ver `docs/referidos-system/entornos-y-secrets.md`.
+
+## Observabilidad de builds y config por entorno
+
+Queda habilitado versionado operativo para build/deploy con dos capas:
+
+- **Timeline de build/deploy** (OPS): `public.version_build_events` + vista `public.version_build_timeline_labeled`.
+- **Versionado de archivo de config por entorno** (OPS): `public.version_env_config_versions` + vista `public.version_env_config_versions_labeled`.
+
+Flujo:
+
+1. `versioning-deploy-artifact.yml` genera `app-config.js` y calcula `runtime_config_sha256`.
+2. El callback de deploy en OPS (`versioning-deploy-callback`) registra:
+   - evento de build por hitos (`versioning_emit_build_event`),
+   - version de config por entorno (`versioning_register_env_config_version`).
+3. Runtime observability (`obs-release`, `obs-release-sync`, `obs-ingest`) persiste `build_number`, `release_id`, `artifact_id`, `channel`.
+4. Panel de versionado (`VersioningOverviewPanel`) muestra:
+   - card **Timeline de builds**,
+   - card **Versionado de configuracion por entorno**.
+
+Consultas rapidas:
+
+```sql
+select *
+from public.version_build_timeline_labeled
+where product_key = 'referidos_app'
+order by occurred_at desc
+limit 50;
+```
+
+```sql
+select env_key, version_label, config_key, config_hash_sha256, build_number, created_at
+from public.version_env_config_versions_labeled
+where product_key = 'referidos_app'
+order by created_at desc
+limit 50;
+```

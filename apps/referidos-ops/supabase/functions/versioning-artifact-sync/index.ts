@@ -168,6 +168,53 @@ async function fetchNodeByKey({ tenantId, nodeKey }: { tenantId: string; nodeKey
   return data as JsonObject;
 }
 
+async function emitBuildEvent({
+  tenantId,
+  releaseId = "",
+  localSyncRequestId = "",
+  artifactId = "",
+  eventKey,
+  eventType,
+  status = "info",
+  actor = "system",
+  detail = "",
+  metadata = {},
+}: {
+  tenantId: string;
+  releaseId?: string;
+  localSyncRequestId?: string;
+  artifactId?: string;
+  eventKey: string;
+  eventType: string;
+  status?: string;
+  actor?: string;
+  detail?: string;
+  metadata?: JsonObject;
+}) {
+  const payload = {
+    p_tenant_id: asString(tenantId) || null,
+    p_release_id: asString(releaseId) || null,
+    p_local_sync_request_id: asString(localSyncRequestId) || null,
+    p_artifact_id: asString(artifactId) || null,
+    p_event_key: eventKey,
+    p_event_type: eventType,
+    p_status: status,
+    p_actor: actor,
+    p_detail: detail || null,
+    p_workflow_name: "versioning-local-artifact-sync.yml",
+    p_workflow_job: "sync-local",
+    p_metadata: metadata,
+  };
+
+  const { error } = await supabaseAdmin.rpc("versioning_emit_build_event", payload);
+  if (error) {
+    console.error("versioning_emit_build_event_failed", {
+      event_key: eventKey,
+      detail: error.message,
+    });
+  }
+}
+
 async function createStorageSignedUrl({
   bucket,
   artifactPath,
@@ -488,6 +535,24 @@ async function handleOperation({
       const requestId = asString(requestIdRaw);
       if (!requestId) throw new Error("sync_request_not_created");
 
+      await emitBuildEvent({
+        tenantId,
+        releaseId,
+        localSyncRequestId: requestId,
+        artifactId: asString(artifact.id),
+        eventKey: `local-sync:${requestId}:requested`,
+        eventType: "local_sync.requested",
+        status: "running",
+        actor,
+        detail: `Sync local solicitado para nodo ${nodeKey}.`,
+        metadata: {
+          node_key: nodeKey,
+          product_key: asString(artifact.product_key),
+          env_key: asString(artifact.env_key),
+          semver: asString(artifact.version_label),
+        },
+      });
+
       const githubAuth = await getGithubAuthConfig();
       if (!githubAuth.ok) {
         await updateLocalSyncRequest({
@@ -590,6 +655,25 @@ async function handleOperation({
           artifact_storage_bucket: artifactBucket,
           artifact_storage_path: artifactPath || null,
           dispatch_status: dispatch.status,
+        },
+      });
+
+      await emitBuildEvent({
+        tenantId,
+        releaseId,
+        localSyncRequestId: requestId,
+        artifactId: asString(artifact.id),
+        eventKey: `local-sync:${requestId}:queued`,
+        eventType: "local_sync.queued",
+        status: "running",
+        actor,
+        detail: "Sync local encolado.",
+        metadata: {
+          node_key: nodeKey,
+          workflow_id: workflowId,
+          workflow_ref: workflowRef,
+          workflow_logs_url: workflowRunUrl,
+          artifact_provider: artifactProvider || "github_actions",
         },
       });
 
@@ -734,6 +818,19 @@ async function handleOperation({
         metadata: cancelMetadata,
       });
 
+      await emitBuildEvent({
+        tenantId: asString(currentRequest.tenant_id),
+        releaseId: asString(currentRequest.release_id),
+        localSyncRequestId: requestId,
+        artifactId: asString(currentRequest.artifact_id),
+        eventKey: `local-sync:${requestId}:cancelled`,
+        eventType: "local_sync.cancelled",
+        status: "cancelled",
+        actor: asString(payload.actor, actor),
+        detail: asString(payload.error_detail, "cancelled_by_user"),
+        metadata: cancelMetadata,
+      });
+
       return await fetchSyncRequestRow(requestId);
     }
 
@@ -763,6 +860,28 @@ async function handleOperation({
       });
 
       const requestRow = await fetchSyncRequestRow(requestId);
+      const normalizedStatus = ["success", "failed", "cancelled"].includes(incomingStatus)
+        ? incomingStatus
+        : "running";
+      await emitBuildEvent({
+        tenantId: asString(requestRow.tenant_id),
+        releaseId: asString(requestRow.release_id),
+        localSyncRequestId: requestId,
+        artifactId: asString(requestRow.artifact_id),
+        eventKey: `local-sync:${requestId}:${normalizedStatus}`,
+        eventType: `local_sync.${normalizedStatus}`,
+        status: normalizedStatus,
+        actor: asString(payload.actor, actor),
+        detail:
+          normalizedStatus === "success"
+            ? "Sync local completado."
+            : normalizedStatus === "failed"
+              ? asString(payload.error_detail, "local_sync_failed")
+              : normalizedStatus === "cancelled"
+                ? asString(payload.error_detail, "local_sync_cancelled")
+                : "Sync local en progreso.",
+        metadata: asObject(payload.metadata),
+      });
       return requestRow;
     }
 

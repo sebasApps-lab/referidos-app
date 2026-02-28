@@ -1112,6 +1112,58 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       return result.payload;
     }
 
+    case "fetch_build_timeline": {
+      const limit = normalizeLimit(payload.limit, 120, 1, 500);
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key).toLowerCase();
+      const semver = asString(payload.semver || payload.versionLabel || payload.version_label);
+      const releaseId = asString(payload.releaseId || payload.release_id);
+      const eventType = asString(payload.eventType || payload.event_type).toLowerCase();
+      const status = asString(payload.status).toLowerCase();
+
+      let query = opsAdmin
+        .from("version_build_timeline_labeled")
+        .select("*")
+        .order("occurred_at", { ascending: false })
+        .limit(limit);
+
+      if (productKey) query = query.eq("product_key", productKey);
+      if (envKey) query = query.eq("env_key", envKey);
+      if (semver) query = query.eq("version_label", semver);
+      if (releaseId) query = query.eq("release_id", releaseId);
+      if (eventType) query = query.eq("event_type", eventType);
+      if (status) query = query.eq("status", status);
+
+      const { data, error } = await query;
+      if (error) throw new Error(error.message || "No se pudo cargar timeline de builds.");
+      return data || [];
+    }
+
+    case "fetch_env_config_versions": {
+      const limit = normalizeLimit(payload.limit, 80, 1, 300);
+      const productKey = asString(payload.productKey || payload.product_key).toLowerCase();
+      const envKey = asString(payload.envKey || payload.env_key).toLowerCase();
+      const semver = asString(payload.semver || payload.versionLabel || payload.version_label);
+      const releaseId = asString(payload.releaseId || payload.release_id);
+      const configKey = asString(payload.configKey || payload.config_key).toLowerCase();
+
+      let query = opsAdmin
+        .from("version_env_config_versions_labeled")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (productKey) query = query.eq("product_key", productKey);
+      if (envKey) query = query.eq("env_key", envKey);
+      if (semver) query = query.eq("version_label", semver);
+      if (releaseId) query = query.eq("release_id", releaseId);
+      if (configKey) query = query.eq("config_key", configKey);
+
+      const { data, error } = await query;
+      if (error) throw new Error(error.message || "No se pudo cargar versionado de configuracion.");
+      return data || [];
+    }
+
     case "cancel_local_artifact_sync": {
       const requestId = asString(payload.requestId || payload.request_id);
       if (!requestId) {

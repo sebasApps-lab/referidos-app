@@ -60,6 +60,9 @@ const EVENT_DETAIL_SELECT = [
   "user_ref",
   "user_id",
   "auth_user_id",
+  "user_display_name",
+  "user_email",
+  "user_public_id_resolved",
   "ip_hash",
   "event_domain",
   "support_category",
@@ -395,9 +398,25 @@ function detectContactEmail(event) {
   const userRef = asObject(event?.user_ref);
   const context = asObject(event?.context);
   return firstString(
+    event?.user_email,
     userRef.email,
     context.email,
     context.user_email,
+  );
+}
+
+function detectUserDisplayName(event) {
+  const userRef = asObject(event?.user_ref);
+  const userMeta = asObject(userRef.user_metadata);
+  return firstString(
+    event?.user_display_name,
+    userRef.full_name,
+    userRef.name,
+    userMeta.full_name,
+    userMeta.name,
+    userRef.slug,
+    userRef.email,
+    event?.user_public_id_resolved,
   );
 }
 
@@ -665,9 +684,9 @@ export default function IssuesTable() {
     setLoadingIssues(true);
     setError(null);
     const { data, error: fetchError } = await supabase
-      .from("obs_issues")
+      .from("obs_issues_context")
       .select(
-        "id, title, level, status, count_total, count_24h, first_seen_at, last_seen_at, last_release",
+        "id, title, level, status, count_total, count_24h, first_seen_at, last_seen_at, last_release, last_user_display_name, last_user_email, last_user_public_id, last_release_build_number, last_release_channel",
       )
       .order("last_seen_at", { ascending: false })
       .limit(150);
@@ -690,7 +709,7 @@ export default function IssuesTable() {
     }
     setLoadingEvents(true);
     const { data, error: fetchError } = await supabase
-      .from("obs_events")
+      .from("obs_events_context")
       .select(EVENT_DETAIL_SELECT)
       .eq("issue_id", targetIssueId)
       .order("occurred_at", { ascending: false })
@@ -712,7 +731,7 @@ export default function IssuesTable() {
     }
     setLoadingEvents(true);
     const { data, error: fetchError } = await supabase
-      .from("obs_events")
+      .from("obs_events_context")
       .select(EVENT_DETAIL_SELECT)
       .eq("id", targetEventId)
       .eq("issue_id", targetIssueId)
@@ -862,7 +881,15 @@ export default function IssuesTable() {
       const title = String(issue.title || "").toLowerCase();
       const level = String(issue.level || "").toLowerCase();
       const release = String(issue.last_release || "").toLowerCase();
-      return title.includes(term) || level.includes(term) || release.includes(term);
+      const userName = String(issue.last_user_display_name || issue.last_user_public_id || "").toLowerCase();
+      const userEmail = String(issue.last_user_email || "").toLowerCase();
+      return (
+        title.includes(term) ||
+        level.includes(term) ||
+        release.includes(term) ||
+        userName.includes(term) ||
+        userEmail.includes(term)
+      );
     });
   }, [issues, query]);
 
@@ -901,6 +928,7 @@ export default function IssuesTable() {
         provider: { label: "-", iconUrl: null },
         os: { label: "-", iconUrl: null },
         deviceType: { label: "-", Icon: Monitor },
+        userName: "-",
         email: null,
       };
     }
@@ -908,8 +936,9 @@ export default function IssuesTable() {
     const provider = detectProvider(selectedEvent);
     const os = detectOs(selectedEvent);
     const deviceType = detectDeviceType(selectedEvent, os.key);
+    const userName = detectUserDisplayName(selectedEvent);
     const email = detectContactEmail(selectedEvent);
-    return { browser, provider, os, deviceType, email };
+    return { browser, provider, os, deviceType, userName, email };
   }, [selectedEvent]);
 
   const brandLegalNotes = useMemo(() => {
@@ -1029,7 +1058,14 @@ export default function IssuesTable() {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <IdentityCard
+            title="Usuario"
+            value={identityInfo.userName || "-"}
+            subtitle={identityInfo.email || null}
+            iconUrl={null}
+            FallbackIcon={UserRound}
+          />
           <IdentityCard
             title="Navegador"
             value={identityInfo.browser.label}
@@ -1039,7 +1075,7 @@ export default function IssuesTable() {
           <IdentityCard
             title="Proveedor"
             value={identityInfo.provider.label}
-            subtitle={identityInfo.email || null}
+            subtitle={identityInfo.email ? "Correo detectado" : null}
             iconUrl={identityInfo.provider.iconUrl}
             FallbackIcon={identityInfo.provider.key === "email" ? Mail : UserRound}
           />
@@ -1241,6 +1277,9 @@ export default function IssuesTable() {
             <div><span className="font-semibold">Session:</span> {selectedEvent.session_id || "-"}</div>
             <div><span className="font-semibold">Fingerprint:</span> {selectedEvent.fingerprint || "-"}</div>
             <div><span className="font-semibold">IP Hash:</span> {selectedEvent.ip_hash || "-"}</div>
+            <div><span className="font-semibold">Usuario:</span> {selectedEvent.user_display_name || "-"}</div>
+            <div><span className="font-semibold">Email:</span> {selectedEvent.user_email || "-"}</div>
+            <div><span className="font-semibold">User public ID:</span> {selectedEvent.user_public_id_resolved || "-"}</div>
           </div>
           <div className="rounded-xl border border-[#E8E2F5] bg-white p-3 text-xs text-slate-700">
             <div><span className="font-semibold">Release:</span> {selectedEvent.release_version_label || "-"}</div>
@@ -1435,6 +1474,10 @@ export default function IssuesTable() {
                 <span>rev: {event.resolved_component_revision_no ?? "-"}</span>
                 <span>res: {event.component_resolution_method || "unresolved"}</span>
               </div>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                <span>usuario: {event.user_display_name || event.user_public_id_resolved || "-"}</span>
+                <span>email: {event.user_email || "-"}</span>
+              </div>
             </button>
           ))}
           {!loadingEvents && events.length === 0 ? (
@@ -1483,6 +1526,7 @@ export default function IssuesTable() {
       <Table
         columns={[
           { key: "title", label: "Issue" },
+          { key: "user", label: "Usuario" },
           { key: "level", label: "Nivel" },
           { key: "status", label: "Estado" },
           { key: "count", label: "Eventos" },
@@ -1503,6 +1547,12 @@ export default function IssuesTable() {
               <div className="font-semibold text-slate-800">{issue.title}</div>
               <div className="text-xs text-slate-400">{issue.id}</div>
               <div className="text-[11px] text-[#5E30A5]">Click para ver eventos</div>
+            </td>
+            <td className="px-4 py-3 text-slate-600">
+              <div className="text-xs font-semibold text-slate-700">
+                {issue.last_user_display_name || issue.last_user_public_id || "-"}
+              </div>
+              <div className="text-[11px] text-slate-500">{issue.last_user_email || "-"}</div>
             </td>
             <td className="px-4 py-3">
               <Badge className={LEVEL_VARIANT[issue.level] || LEVEL_VARIANT.info}>

@@ -24,9 +24,21 @@ const buildId = asString(
   runtimeWindowConfig.buildId,
   asString(importEnv.VITE_BUILD_ID || importEnv.VITE_SOURCE_COMMIT_SHA || importEnv.VITE_COMMIT_SHA)
 );
+const buildNumber = asString(
+  runtimeWindowConfig.buildNumber,
+  asString(importEnv.VITE_BUILD_NUMBER || importEnv.VITE_BUILD_ID)
+);
 const releaseId = asString(
   runtimeWindowConfig.releaseId,
   asString(importEnv.VITE_VERSION_RELEASE_ID || importEnv.VITE_RELEASE_ID)
+);
+const artifactId = asString(
+  runtimeWindowConfig.artifactId,
+  asString(importEnv.VITE_VERSION_ARTIFACT_ID || importEnv.VITE_ARTIFACT_ID)
+);
+const releaseChannel = asString(
+  runtimeWindowConfig.releaseChannel,
+  asString(importEnv.VITE_RELEASE_CHANNEL || appEnv)
 );
 const sourceCommitSha = asString(
   runtimeWindowConfig.sourceCommitSha,
@@ -51,7 +63,10 @@ export const runtimeConfig = Object.freeze({
   appId,
   appVersion,
   buildId,
+  buildNumber,
   releaseId,
+  artifactId,
+  releaseChannel,
   sourceCommitSha,
   defaultTenantId,
   appChannel,

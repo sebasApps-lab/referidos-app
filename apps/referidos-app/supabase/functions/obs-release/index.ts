@@ -23,6 +23,14 @@ function safeObject(value: unknown): Record<string, unknown> {
   return {};
 }
 
+function safeInteger(value: unknown): number | null {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  const intVal = Math.trunc(num);
+  if (intVal < 1) return null;
+  return intVal;
+}
+
 function mergeMeta(
   base: Record<string, unknown>,
   next: Record<string, unknown>,
@@ -100,6 +108,17 @@ serve(async (req) => {
   const env = safeString(body.env) || "";
   const incomingMeta = scrubUnknown(body.meta || {});
   const safeIncomingMeta = safeObject(incomingMeta);
+  const buildNumber =
+    safeInteger(body.build_number) ??
+    safeInteger(safeObject(safeIncomingMeta.versioning).build_number);
+  const versionReleaseId =
+    safeString(body.version_release_id) ||
+    safeString(safeObject(safeIncomingMeta.versioning).release_id) ||
+    null;
+  const artifactId =
+    safeString(body.artifact_id) ||
+    safeString(safeObject(safeIncomingMeta.versioning).artifact_id) ||
+    null;
 
   const { data: existingRelease } = await supabaseAdmin
     .from("obs_releases")
@@ -125,6 +144,9 @@ serve(async (req) => {
         app_id: appId,
         app_version: appVersion,
         build_id: buildId,
+        build_number: buildNumber,
+        version_release_id: versionReleaseId,
+        artifact_id: artifactId,
         env,
         meta: mergedMeta,
       },
@@ -132,7 +154,9 @@ serve(async (req) => {
         onConflict: "tenant_id,app_id,app_version,build_id,env",
       },
     )
-    .select("id, tenant_id, app_id, app_version, build_id, env, created_at")
+    .select(
+      "id, tenant_id, app_id, app_version, build_id, build_number, version_release_id, artifact_id, env, created_at"
+    )
     .single();
 
   if (error) {

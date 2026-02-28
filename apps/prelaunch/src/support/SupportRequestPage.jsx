@@ -6,6 +6,7 @@ import {
   listAnonymousSupportCategories,
 } from "./supportApi";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
+import { runtimeConfig } from "../config/runtimeConfig";
 const SUMMARY_MAX = 240;
 const ECUADOR_PREFIX = "593";
 const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
@@ -272,6 +273,32 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
     setSubmitting(true);
     setError("");
+    const locale = navigator.language || null;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    const runtimeSnapshot = {
+      app_id: runtimeConfig.appId || "prelaunch",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      app_version: runtimeConfig.appVersion || null,
+      source_route: window.location.pathname,
+      locale,
+      language: locale,
+      timezone,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      online: typeof navigator.onLine === "boolean" ? navigator.onLine : null,
+    };
+    const buildSnapshot = {
+      app_id: runtimeConfig.appId || "prelaunch",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      version_label: runtimeConfig.appVersion || null,
+      build_id: runtimeConfig.buildId || null,
+      build_number: runtimeConfig.buildNumber || null,
+      release_id: runtimeConfig.releaseId || null,
+      artifact_id: runtimeConfig.artifactId || null,
+      release_channel: runtimeConfig.releaseChannel || runtimeConfig.appEnv || null,
+      source_commit_sha: runtimeConfig.sourceCommitSha || null,
+    };
 
     const payload = {
       channel: selectedChannel,
@@ -280,7 +307,14 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
       category,
       severity: "s2",
       origin_source: "prelaunch",
+      app_channel: runtimeConfig.appChannel || "prelaunch_web",
       source_route: window.location.pathname,
+      locale,
+      language: locale,
+      timezone,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      build: buildSnapshot,
       client_request_id: crypto.randomUUID(),
       error_on_active: true,
       context: {
@@ -289,6 +323,8 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         requested_channel: selectedChannel,
         waitlist_delete_requested: requiresDeleteTargetEmail,
         waitlist_delete_email: requiresDeleteTargetEmail ? normalizedDeleteTargetEmail : null,
+        runtime: runtimeSnapshot,
+        build: buildSnapshot,
       },
     };
 

@@ -448,6 +448,44 @@ export async function requestLocalArtifactSync({
   });
 }
 
+export async function fetchBuildTimeline({
+  productKey = "",
+  envKey = "",
+  semver = "",
+  releaseId = "",
+  eventType = "",
+  status = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_build_timeline", {
+    productKey,
+    envKey,
+    semver,
+    releaseId,
+    eventType,
+    status,
+    limit,
+  });
+}
+
+export async function fetchEnvConfigVersions({
+  productKey = "",
+  envKey = "",
+  semver = "",
+  releaseId = "",
+  configKey = "",
+  limit = 80,
+} = {}) {
+  return invokeVersioningOps("fetch_env_config_versions", {
+    productKey,
+    envKey,
+    semver,
+    releaseId,
+    configKey,
+    limit,
+  });
+}
+
 export async function cancelLocalArtifactSyncRequest({
   requestId,
   errorDetail = "cancelled_by_user",

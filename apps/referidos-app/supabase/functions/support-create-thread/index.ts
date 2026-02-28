@@ -12,6 +12,50 @@ import {
 
 const SUPPORT_PHONE = "593995705833";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickText(value: unknown, max = 160) {
+  if (typeof value !== "string") return null;
+  const trimmed = safeTrim(value, max);
+  return trimmed || null;
+}
+
+function pickBuildNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const num = Math.trunc(value);
+    return num >= 1 ? num : null;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value.trim())) {
+    const num = Number(value.trim());
+    return Number.isFinite(num) && num >= 1 ? Math.trunc(num) : null;
+  }
+  return null;
+}
+
+function normalizeBuildSnapshot(value: unknown) {
+  if (!isRecord(value)) return null;
+  const buildNumber = pickBuildNumber(value.build_number ?? value.buildNumber);
+  const snapshot: Record<string, unknown> = {
+    app_id: pickText(value.app_id ?? value.appId, 80),
+    app_env: pickText(value.app_env ?? value.appEnv ?? value.env, 40),
+    version_label: pickText(value.version_label ?? value.app_version ?? value.appVersion, 120),
+    build_id: pickText(value.build_id ?? value.buildId, 120),
+    release_id: pickText(value.release_id ?? value.releaseId, 120),
+    artifact_id: pickText(value.artifact_id ?? value.artifactId, 160),
+    release_channel: pickText(value.release_channel ?? value.releaseChannel ?? value.channel, 40),
+    source_commit_sha: pickText(
+      value.source_commit_sha ?? value.sourceCommitSha ?? value.commit_sha,
+      64
+    ),
+  };
+  if (buildNumber) snapshot.build_number = buildNumber;
+
+  const hasValue = Object.values(snapshot).some((entry) => entry !== null && entry !== undefined);
+  return hasValue ? snapshot : null;
+}
+
 function normalizeAppChannel(rawValue: unknown) {
   const normalized = safeTrim(typeof rawValue === "string" ? rawValue : "", 60).toLowerCase();
   if (!normalized) return "referidos_app";
@@ -55,9 +99,40 @@ serve(async (req) => {
   const summary = safeTrim(body.summary, 240);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
   const appChannel = normalizeAppChannel(body.app_channel);
-  const context = typeof body.context === "object" && body.context
-    ? body.context
-    : {};
+  const baseContext = isRecord(body.context) ? body.context : {};
+
+  const sourceRoute = pickText(body.source_route ?? baseContext.source_route ?? baseContext.route, 140);
+  const locale = pickText(body.locale ?? baseContext.locale, 32);
+  const language = pickText(body.language ?? baseContext.language, 24);
+  const timezone = pickText(body.timezone ?? baseContext.timezone, 80);
+  const platform = pickText(body.platform ?? baseContext.platform ?? baseContext.device, 120);
+  const userAgent = pickText(body.user_agent ?? baseContext.user_agent ?? baseContext.browser, 300);
+
+  const payloadBuild = normalizeBuildSnapshot(body.build ?? body.build_snapshot);
+  const contextBuild = normalizeBuildSnapshot(baseContext.build);
+  const buildSnapshot = payloadBuild || contextBuild;
+
+  const runtimeContext: Record<string, unknown> = {
+    ...(isRecord(baseContext.runtime) ? baseContext.runtime : {}),
+    source_route: sourceRoute,
+    locale,
+    language,
+    timezone,
+    platform,
+    user_agent: userAgent,
+  };
+  Object.keys(runtimeContext).forEach((key) => {
+    if (runtimeContext[key] === null || runtimeContext[key] === undefined || runtimeContext[key] === "") {
+      delete runtimeContext[key];
+    }
+  });
+
+  const context = {
+    ...baseContext,
+    app_channel: appChannel,
+    ...(Object.keys(runtimeContext).length ? { runtime: runtimeContext } : {}),
+    ...(buildSnapshot ? { build: buildSnapshot } : {}),
+  };
 
   if (!summary) {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
@@ -196,6 +271,7 @@ serve(async (req) => {
         app_channel: appChannel,
         wa_link: waLink,
         wa_message_text: messageText,
+        build: buildSnapshot,
       },
   });
 

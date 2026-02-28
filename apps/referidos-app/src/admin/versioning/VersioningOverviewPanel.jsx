@@ -18,9 +18,11 @@ import {
   approveDeployRequest,
   checkReleaseMigrations,
   createDevRelease,
+  fetchBuildTimeline,
   fetchDevReleaseStatus,
   fetchDeployRequests,
   fetchDrift,
+  fetchEnvConfigVersions,
   fetchLatestReleases,
   fetchWorkflowPackStatus,
   fetchPromotionHistory,
@@ -176,6 +178,16 @@ function deploymentStateLabel(state) {
   if (state === "failed") return "failed";
   if (state === "rejected") return "rejected";
   return "not deployed";
+}
+
+function buildEventStatusBadgeClass(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "success") return "bg-emerald-100 text-emerald-700";
+  if (normalized === "failed") return "bg-red-100 text-red-700";
+  if (normalized === "running") return "bg-amber-100 text-amber-700";
+  if (normalized === "warning") return "bg-orange-100 text-orange-700";
+  if (normalized === "cancelled") return "bg-slate-200 text-slate-700";
+  return "bg-slate-100 text-slate-600";
 }
 
 function normalizeCheckState(value) {
@@ -692,6 +704,8 @@ export default function VersioningOverviewPanel() {
   const [migrationApplyActionId, setMigrationApplyActionId] = useState("");
   const [envValidationState, setEnvValidationState] = useState(null);
   const [envValidationLoading, setEnvValidationLoading] = useState(false);
+  const [buildTimelineRows, setBuildTimelineRows] = useState([]);
+  const [envConfigRows, setEnvConfigRows] = useState([]);
 
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -801,7 +815,7 @@ export default function VersioningOverviewPanel() {
           null;
 
         if (selectedProductKey) {
-          const [drift, promotions] = await Promise.all([
+          const [drift, promotions, buildTimeline, envConfigVersions] = await Promise.all([
             fetchDrift(selectedProductKey, driftFrom, driftTo),
             selectedProductMeta?.id
               ? fetchPromotionHistory({
@@ -809,12 +823,24 @@ export default function VersioningOverviewPanel() {
                   limit: 80,
                 })
               : Promise.resolve([]),
+            fetchBuildTimeline({
+              productKey: selectedProductKey,
+              limit: 120,
+            }),
+            fetchEnvConfigVersions({
+              productKey: selectedProductKey,
+              limit: 120,
+            }),
           ]);
           setDriftRows(drift);
           setPromotionHistory(promotions);
+          setBuildTimelineRows(Array.isArray(buildTimeline) ? buildTimeline : []);
+          setEnvConfigRows(Array.isArray(envConfigVersions) ? envConfigVersions : []);
         } else {
           setDriftRows([]);
           setPromotionHistory([]);
+          setBuildTimelineRows([]);
+          setEnvConfigRows([]);
         }
       } catch (err) {
         setError(err?.message || "No se pudo cargar versionado.");
@@ -1195,6 +1221,8 @@ export default function VersioningOverviewPanel() {
     setDevReleaseProgress(null);
     setBackfillActionId("");
     setPromoteProgressByEnv({});
+    setBuildTimelineRows([]);
+    setEnvConfigRows([]);
   }, [activeProductKey]);
 
   useEffect(() => {
@@ -1244,6 +1272,14 @@ export default function VersioningOverviewPanel() {
     const differs = driftRows.filter((row) => row.differs).length;
     return { total, differs };
   }, [driftRows]);
+  const buildTimelinePreviewRows = useMemo(
+    () => (Array.isArray(buildTimelineRows) ? buildTimelineRows.slice(0, 10) : []),
+    [buildTimelineRows]
+  );
+  const envConfigPreviewRows = useMemo(
+    () => (Array.isArray(envConfigRows) ? envConfigRows.slice(0, 10) : []),
+    [envConfigRows]
+  );
 
   const selectedProductDeployRequests = useMemo(
     () => deployRequests.filter((row) => row.product_key === activeProductKey),
@@ -3218,6 +3254,118 @@ export default function VersioningOverviewPanel() {
                 Esta app aun no esta inicializada. Ejecuta bootstrap por producto para habilitar release/promote/deploy.
               </div>
             ) : null}
+          </div>
+
+          <div
+            className={`grid gap-4 md:grid-cols-2 ${
+              isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
+            }`}
+          >
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-[#2F1A55]">Timeline de builds</div>
+                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
+                  {buildTimelineRows.length} eventos
+                </span>
+              </div>
+              <div className="text-xs text-slate-500">
+                Registro técnico de release, promote, deploy, sync local y callbacks.
+              </div>
+              {buildTimelinePreviewRows.length ? (
+                <div className="space-y-2">
+                  {buildTimelinePreviewRows.map((row, index) => {
+                    const status = String(row?.status || "info").toLowerCase();
+                    const envLabel = normalizeEnvLabel(row?.env_key);
+                    const versionLabel = String(row?.version_label || "-");
+                    return (
+                      <div
+                        key={String(row?.id || row?.event_key || `timeline-${index}`)}
+                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-[11px] font-semibold text-slate-700">
+                            {envLabel} {versionLabel}
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${buildEventStatusBadgeClass(
+                              status
+                            )}`}
+                          >
+                            {status}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2F1A55]">
+                          {String(row?.event_type || "event")}
+                        </div>
+                        {row?.detail ? (
+                          <div className="mt-1 text-[11px] text-slate-500">{String(row.detail)}</div>
+                        ) : null}
+                        <div className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(row?.occurred_at || row?.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
+                  Sin eventos para esta app.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-[#2F1A55]">
+                  Versionado de configuracion por entorno
+                </div>
+                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
+                  {envConfigRows.length} versiones
+                </span>
+              </div>
+              <div className="text-xs text-slate-500">
+                Historial de archivos de configuracion runtime por release (app-config.js + hash).
+              </div>
+              {envConfigPreviewRows.length ? (
+                <div className="space-y-2">
+                  {envConfigPreviewRows.map((row, index) => {
+                    const envLabel = normalizeEnvLabel(row?.env_key);
+                    const versionLabel = String(row?.version_label || "-");
+                    const hashShort = shortHash(row?.config_hash_sha256, 10);
+                    const buildNumber =
+                      Number.isFinite(Number(row?.build_number)) && Number(row?.build_number) > 0
+                        ? String(row?.build_number)
+                        : "-";
+                    return (
+                      <div
+                        key={String(row?.id || `config-${index}`)}
+                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-[11px] font-semibold text-slate-700">
+                            {envLabel} {versionLabel}
+                          </div>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            build {buildNumber}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2F1A55]">
+                          {String(row?.config_key || "app-config.js")}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">sha256: {hashShort}</div>
+                        <div className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(row?.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
+                  Sin versiones de configuracion registradas.
+                </div>
+              )}
+            </div>
           </div>
 
           <div

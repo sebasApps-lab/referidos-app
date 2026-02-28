@@ -10,6 +10,13 @@ import { logCatalogBreadcrumb } from "../../../services/loggingClient";
 import { runtimeConfig } from "../../../config/runtimeConfig";
 
 // Lint purge (no-unused-vars): se purgo `usuario` no consumido (cabecera del bloque soporte).
+function resolveSupportAppChannel() {
+  const appId = String(runtimeConfig.appId || "").toLowerCase();
+  if (appId.includes("prelaunch")) return "prelaunch_web";
+  if (appId.includes("android")) return "android_app";
+  return "referidos_app";
+}
+
 export default function SupportChatHubBlock({ role, onShowTickets }) {
   const onboarding = useAppStore((s) => s.onboarding);
   const location = useLocation();
@@ -35,6 +42,36 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
 
   const context = useMemo(() => {
     if (!includeContext) return {};
+    const locale = navigator.language || null;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    const viewport =
+      typeof window !== "undefined"
+        ? `${window.innerWidth}x${window.innerHeight}`
+        : null;
+    const runtimeSnapshot = {
+      app_id: runtimeConfig.appId || "referidos-app",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      app_version: runtimeConfig.appVersion || null,
+      source_route: location.pathname,
+      locale,
+      language: locale,
+      timezone,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      viewport,
+      online: typeof navigator.onLine === "boolean" ? navigator.onLine : null,
+    };
+    const buildSnapshot = {
+      app_id: runtimeConfig.appId || "referidos-app",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      version_label: runtimeConfig.appVersion || null,
+      build_id: runtimeConfig.buildId || null,
+      build_number: runtimeConfig.buildNumber || null,
+      release_id: runtimeConfig.releaseId || null,
+      artifact_id: runtimeConfig.artifactId || null,
+      release_channel: runtimeConfig.releaseChannel || runtimeConfig.appEnv || null,
+      source_commit_sha: runtimeConfig.sourceCommitSha || null,
+    };
     return {
       route: location.pathname,
       role,
@@ -43,6 +80,8 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
       app_version: runtimeConfig.appVersion || "web",
       device: navigator.platform ?? "unknown",
       browser: navigator.userAgent ?? "unknown",
+      runtime: runtimeSnapshot,
+      build: buildSnapshot,
     };
   }, [includeContext, location.pathname, onboarding, role]);
 
@@ -60,6 +99,14 @@ export default function SupportChatHubBlock({ role, onShowTickets }) {
       category,
       summary: summary.trim(),
       context,
+      app_channel: resolveSupportAppChannel(),
+      source_route: location.pathname,
+      locale: navigator.language || null,
+      language: navigator.language || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      build: context?.build || null,
       client_request_id: crypto.randomUUID(),
     };
     const result = await createSupportChatThread(payload);
