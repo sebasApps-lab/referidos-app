@@ -2749,7 +2749,7 @@ export default function VersioningOverviewPanel() {
             <button
               type="button"
               onClick={handleSyncWorkflowPack}
-              disabled={workflowPackSyncing || loading || refreshing}
+              disabled={workflowPackSyncing || loading || refreshing || workflowPackUpToDate}
               className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
               title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
             >

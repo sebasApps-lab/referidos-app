@@ -538,6 +538,49 @@ async function fetchChecksSummary({
   return summary;
 }
 
+async function waitForRequiredChecksGreen({
+  owner,
+  repo,
+  token,
+  headSha,
+  retries = 20,
+  delayMs = 3000,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  headSha: string;
+  retries?: number;
+  delayMs?: number;
+}) {
+  let checks = await fetchChecksSummary({ owner, repo, token, headSha });
+  if (checks.required_green || checks.summary_state === "failed") {
+    return {
+      checks,
+      attempts: 1,
+      timed_out: false,
+    };
+  }
+
+  for (let attempt = 2; attempt <= retries; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    checks = await fetchChecksSummary({ owner, repo, token, headSha });
+    if (checks.required_green || checks.summary_state === "failed") {
+      return {
+        checks,
+        attempts: attempt,
+        timed_out: false,
+      };
+    }
+  }
+
+  return {
+    checks,
+    attempts: retries,
+    timed_out: !checks.required_green,
+  };
+}
+
 async function mergePullRequest({
   owner,
   repo,
@@ -1235,6 +1278,9 @@ async function syncWorkflowPackTarget({
   sourceFiles: Map<string, WorkflowPackFile>;
   targetBranch: string;
 }) {
+  const checksRetries = 30;
+  const checksDelayMs = 3000;
+
   const targetSnapshot = await loadWorkflowPackSnapshot({
     owner,
     repo,
@@ -1387,7 +1433,7 @@ async function syncWorkflowPackTarget({
       };
     }
 
-    const checks = await fetchChecksSummary({
+    const initialChecks = await fetchChecksSummary({
       owner,
       repo,
       token,
@@ -1403,21 +1449,38 @@ async function syncWorkflowPackTarget({
           target_branch: targetBranch,
           temp_branch: tempBranch,
           pr: prLoaded.pr,
-          checks,
+          checks: initialChecks,
         },
       };
     }
+
+    const checksWait = await waitForRequiredChecksGreen({
+      owner,
+      repo,
+      token,
+      headSha: prLoaded.pr.head_sha,
+      retries: checksRetries,
+      delayMs: checksDelayMs,
+    });
+    const checks = checksWait.checks;
 
     if (!checks.required_green) {
       return {
         ok: false,
         error: "workflow_pack_checks_not_green",
-        detail: "Checks obligatorios (lint/test/build) no estan en verde para workflow pack.",
+        detail: checksWait.timed_out
+          ? "Checks obligatorios (lint/test/build) no quedaron en verde antes del timeout para workflow pack."
+          : "Checks obligatorios (lint/test/build) no estan en verde para workflow pack.",
         payload: {
           target_branch: targetBranch,
           temp_branch: tempBranch,
           pr: prLoaded.pr,
           checks,
+          checks_wait: {
+            attempts: checksWait.attempts,
+            timed_out: checksWait.timed_out,
+            timeout_seconds: Math.floor((checksRetries * checksDelayMs) / 1000),
+          },
         },
       };
     }
