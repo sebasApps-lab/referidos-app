@@ -284,6 +284,12 @@ function buildPromoteProgress({
   const lint = checkStateToProgress(checks?.lint);
   const test = checkStateToProgress(checks?.test);
   const build = checkStateToProgress(checks?.build);
+  const prState =
+    prCreated || mergeAttempted || releaseSynced
+      ? "success"
+      : status === "error"
+        ? "error"
+        : "running";
   const mergeState = releaseSynced
     ? "success"
     : mergeAttempted
@@ -296,7 +302,7 @@ function buildPromoteProgress({
     detail,
     steps: [
       { key: "promote", label: "Promover release en OPS", status: "success" },
-      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prCreated ? "success" : "running" },
+      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prState },
       { key: "lint", label: "Check lint", status: lint },
       { key: "test", label: "Check test", status: test },
       { key: "build", label: "Check build", status: build },
@@ -317,6 +323,12 @@ function buildMergeProgress({
   const lint = checkStateToProgress(checks?.lint);
   const test = checkStateToProgress(checks?.test);
   const build = checkStateToProgress(checks?.build);
+  const prState =
+    prCreated || mergeAttempted || releaseSynced
+      ? "success"
+      : status === "error"
+        ? "error"
+        : "running";
   const mergeState = releaseSynced
     ? "success"
     : mergeAttempted
@@ -328,7 +340,7 @@ function buildMergeProgress({
     headline: "Merging",
     detail,
     steps: [
-      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prCreated ? "success" : "running" },
+      { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prState },
       { key: "lint", label: "Check lint", status: lint },
       { key: "test", label: "Check test", status: test },
       { key: "build", label: "Check build", status: build },
@@ -2518,10 +2530,11 @@ export default function VersioningOverviewPanel() {
 
   const handleConfirmAction = async () => {
     if (!confirmDialog?.action) return;
+    const action = confirmDialog.action;
     setConfirmLoading(true);
+    setConfirmDialog(null);
     try {
-      await runConfirmAction(confirmDialog.action);
-      setConfirmDialog(null);
+      await runConfirmAction(action);
     } finally {
       setConfirmLoading(false);
     }
@@ -2529,10 +2542,11 @@ export default function VersioningOverviewPanel() {
 
   const handleSecondaryConfirmAction = async () => {
     if (!confirmDialog?.secondaryAction) return;
+    const action = confirmDialog.secondaryAction;
     setConfirmLoading(true);
+    setConfirmDialog(null);
     try {
-      await runConfirmAction(confirmDialog.secondaryAction);
-      setConfirmDialog(null);
+      await runConfirmAction(action);
     } finally {
       setConfirmLoading(false);
     }

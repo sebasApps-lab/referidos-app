@@ -28,7 +28,25 @@ async function invokeVersioningOps(action, payload = {}) {
   });
 
   if (error) {
-    throw new Error(error.message || "No se pudo contactar versioning-ops-proxy.");
+    let errorData = data && typeof data === "object" ? data : null;
+    if (!errorData && error?.context) {
+      try {
+        if (typeof error.context.clone === "function" && typeof error.context.clone().json === "function") {
+          errorData = await error.context.clone().json();
+        } else if (typeof error.context.json === "function") {
+          errorData = await error.context.json();
+        }
+      } catch {
+        errorData = null;
+      }
+    }
+
+    const proxyError = new Error(
+      errorData?.detail || errorData?.error || error.message || "No se pudo contactar versioning-ops-proxy."
+    );
+    proxyError.code = errorData?.error || "versioning_proxy_failed";
+    proxyError.payload = errorData?.payload || errorData || null;
+    throw proxyError;
   }
   if (!data?.ok) {
     const proxyError = new Error(data?.detail || data?.error || "versioning-ops-proxy failed");
