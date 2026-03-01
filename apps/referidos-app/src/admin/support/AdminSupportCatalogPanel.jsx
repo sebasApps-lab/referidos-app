@@ -332,7 +332,7 @@ export default function AdminSupportCatalogPanel() {
           );
         } else {
           setCatalogHint(
-            "CatÃ¡logo OPS vacÃ­o (sin categorÃ­as ni macros). Crea categorÃ­as/macros con el botÃ³n + AÃ‘ADIR o ejecuta un seed inicial.",
+            "Catálogo OPS vacío (sin categorías ni macros). Crea categorías/macros con el botón + AÑADIR o ejecuta un seed inicial.",
           );
         }
       }
@@ -704,7 +704,7 @@ export default function AdminSupportCatalogPanel() {
     setError("");
     setOk("");
     if (!s(workspaceAddForm.title) || !s(workspaceAddForm.body)) {
-      setError("TÃ­tulo/body de macro invÃ¡lidos.");
+      setError("Título/body de macro inválidos.");
       return;
     }
     setSaving(true);
@@ -740,7 +740,7 @@ export default function AdminSupportCatalogPanel() {
     setError("");
     setOk("");
     if (!s(editForm.title) || !s(editForm.body)) {
-      setError("TÃ­tulo/body de macro invÃ¡lidos.");
+      setError("Título/body de macro inválidos.");
       return;
     }
     setSaving(true);
@@ -1154,7 +1154,7 @@ export default function AdminSupportCatalogPanel() {
   };
 
   const renderCatalog = () => {
-    const selectionLabel = groupBy === "categoria" ? "categorÃ­a" : groupBy === "estado" ? "estado" : "rol";
+    const selectionLabel = groupBy === "categoria" ? "categoría" : groupBy === "estado" ? "estado" : "rol";
     const selectionArticle = groupBy === "categoria" ? "una" : "un";
     const showMacroWorkspace = Boolean(macroId);
     const showRightWorkspace = Boolean(macroId) || Boolean(inlineAddContext);
@@ -1166,7 +1166,7 @@ export default function AdminSupportCatalogPanel() {
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 px-1 py-0.5">
           <div className="text-sm font-semibold text-[#2F1A55]">
-            AÃ±adir macro
+            Añadir macro
             {inlineAddContext?.title ? (
               <span className="ml-2 text-xs font-medium text-slate-500">{inlineAddContext.title}</span>
             ) : null}
@@ -1185,7 +1185,7 @@ export default function AdminSupportCatalogPanel() {
           <input
             value={workspaceAddForm.title}
             onChange={(e) => setWorkspaceAddForm((prev) => ({ ...prev, title: e.target.value }))}
-            placeholder="tÃ­tulo"
+            placeholder="título"
             className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-sm"
           />
           <textarea
@@ -1252,7 +1252,7 @@ export default function AdminSupportCatalogPanel() {
 
     return (
       <Card
-        title={<span className="text-lg font-extrabold tracking-wide text-[#2F1A55]">CATÃLOGO DE MACROS</span>}
+        title={<span className="text-lg font-extrabold tracking-wide text-[#2F1A55]">CATÁLOGO DE MACROS</span>}
         headerRight={(
           <div className="flex items-center gap-1">
             <label className="text-xs font-semibold text-slate-500">Periodo de tiempo</label>
@@ -1312,7 +1312,7 @@ export default function AdminSupportCatalogPanel() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="TÃ­tulo, body, code..."
+                placeholder="Título, body, code..."
                 className="w-full rounded-xl border border-[#E9E2F7] py-2 pl-9 pr-3 text-xs"
               />
             </div>
@@ -1463,7 +1463,7 @@ export default function AdminSupportCatalogPanel() {
                                     openInlineAddMacro(
                                       groupBy === "categoria"
                                         ? {
-                                            title: `${selectedGroup?.label || "categorÃ­a"} / ${macroGroup.label}`,
+                                            title: `${selectedGroup?.label || "categoría"} / ${macroGroup.label}`,
                                             category_id:
                                               s(selectedGroup?.category_id) && s(selectedGroup?.category_id) !== "general"
                                                 ? s(selectedGroup?.category_id)
@@ -1486,7 +1486,7 @@ export default function AdminSupportCatalogPanel() {
                                   className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[10px] font-semibold text-[#5E30A5] hover:bg-[#F9F7FF]"
                                 >
                                   <Plus size={12} />
-                                  AÃ‘ADIR
+                                  AÑADIR
                                 </button>
                               ) : null}
                             </div>
@@ -1627,7 +1627,7 @@ export default function AdminSupportCatalogPanel() {
     const heading = (
       <div className="flex items-center justify-between gap-3 px-1 py-0.5">
         <div className="text-sm font-semibold">
-          <span className="text-[#2F1A55]">Modo EdiciÃ³n</span>
+          <span className="text-[#2F1A55]">Modo Edición</span>
           <span className="ml-2 font-medium text-slate-500">{s(editing.code, "sin_code")}</span>
         </div>
         <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-1.5 text-xs font-semibold text-[#5E30A5]">
@@ -1681,7 +1681,7 @@ export default function AdminSupportCatalogPanel() {
 
     return (
       <Card
-        title={`Modo EdiciÃ³n ${s(editing.code, "sin_code")}`}
+        title={`Modo Edición ${s(editing.code, "sin_code")}`}
         headerRight={(
           <Link to="/admin/macros" className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]">
             <ArrowLeft size={14} />
@@ -1695,7 +1695,7 @@ export default function AdminSupportCatalogPanel() {
   };
 
   return (
-    <AdminLayout title="Macros" subtitle="CatÃ¡logo operativo y CRUD desde panel admin">
+    <AdminLayout title="Macros" subtitle="Catálogo operativo y CRUD desde panel admin">
       {hasPendingPriorityChanges || priorityFloatingMessage ? (
         <div className="fixed left-1/2 top-0 z-40 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 shadow-lg backdrop-blur">
