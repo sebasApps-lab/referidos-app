@@ -1,6 +1,27 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Copy, ClipboardCheck, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  Archive,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  ClipboardCheck,
+  Clock3,
+  Copy,
+  GitCommitHorizontal,
+  Globe2,
+  Hash,
+  Monitor,
+  Package,
+  RefreshCw,
+  Route,
+  ShieldCheck,
+  Smartphone,
+  Tag,
+  UserRound,
+  Wifi,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
@@ -21,7 +42,7 @@ function normalizeThreadRow(thread) {
   return {
     ...thread,
     request_origin: thread.request_origin || "registered",
-    origin_source: thread.origin_source || "app",
+    origin_source: thread.origin_source || "user",
     anon_profile: thread.anon_profile || null,
   };
 }
@@ -52,6 +73,91 @@ function splitMacroGroupAndTitle(rawTitle) {
   };
 }
 
+function asRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value;
+}
+
+function pickFirstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    } else if (typeof value === "number") {
+      return String(value);
+    }
+  }
+  return "";
+}
+
+function detectBrowserLabel(rawBrowser, userAgent) {
+  const raw = pickFirstString(rawBrowser, userAgent).toLowerCase();
+  if (!raw) return "";
+  if (raw.includes("edg")) return "Edge";
+  if (raw.includes("brave")) return "Brave";
+  if (raw.includes("firefox")) return "Firefox";
+  if (raw.includes("opr") || raw.includes("opera")) return "Opera";
+  if (raw.includes("chrome")) return "Chrome";
+  if (raw.includes("safari")) return "Safari";
+  return pickFirstString(rawBrowser, userAgent);
+}
+
+function detectOsLabel(rawOs, userAgent) {
+  const raw = pickFirstString(rawOs, userAgent).toLowerCase();
+  if (!raw) return "";
+  if (raw.includes("windows")) return "Windows";
+  if (raw.includes("android")) return "Android";
+  if (raw.includes("iphone") || raw.includes("ipad") || raw.includes("ios")) return "iOS";
+  if (raw.includes("mac os") || raw.includes("macintosh") || raw.includes("darwin")) return "macOS";
+  if (raw.includes("linux")) return "Linux";
+  return pickFirstString(rawOs, userAgent);
+}
+
+function SupportIdentityCard({
+  title,
+  value,
+  Icon,
+  tone = "violet",
+  compact = false,
+}) {
+  const cardStyle = compact ? { width: "10rem" } : { width: "12rem" };
+  const toneClassMap = {
+    violet: "border-[#E7DDFB] bg-[#F7F2FF] text-[#6A3EB1]",
+    blue: "border-[#D8E7FF] bg-[#EEF5FF] text-[#225EA8]",
+    green: "border-[#D6F2E3] bg-[#ECFBF3] text-[#2C7A4B]",
+    amber: "border-[#F8E7C5] bg-[#FFF8EA] text-[#A06400]",
+    slate: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+
+  const iconToneClass = toneClassMap[tone] || toneClassMap.violet;
+  const displayValue = pickFirstString(value) || "No especificado";
+
+  return (
+    <div
+      style={cardStyle}
+      className={`shrink-0 rounded-xl border border-[#E8E2F5] bg-white ${compact ? "px-2 py-1.5" : "px-3 py-2.5"}`}
+    >
+      <div className={`flex items-center ${compact ? "gap-4" : "gap-3"}`}>
+        <div
+          className={`relative flex shrink-0 items-center justify-center rounded-lg border ${iconToneClass} ${
+            compact ? "h-8 w-8" : "h-10 w-10"
+          }`}
+        >
+          {React.createElement(Icon, { size: compact ? 14 : 16 })}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            {title}
+          </div>
+          <div className={`${compact ? "text-xs" : "text-sm"} truncate font-semibold text-slate-800`}>
+            {displayValue}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SupportTicket() {
   const { threadId } = useParams();
   const navigate = useNavigate();
@@ -78,7 +184,7 @@ export default function SupportTicket() {
       timeZone: "America/Guayaquil",
     });
   const formatCommit = (value) => {
-    if (!value || typeof value !== "string") return "-";
+    if (!value || typeof value !== "string") return "";
     return value.length > 12 ? `${value.slice(0, 12)}...` : value;
   };
 
@@ -272,10 +378,147 @@ export default function SupportTicket() {
   const ticketAppKey = useMemo(() => {
     if (!thread) return "referidos_app";
     return normalizeSupportAppKey(
-      thread.app_channel || thread.origin_source || "",
-      "undetermined"
+      thread.app_channel || "",
+      "referidos_app"
     );
   }, [thread]);
+
+  const threadContext = useMemo(() => asRecord(thread?.context), [thread?.context]);
+  const runtimeContext = useMemo(() => asRecord(threadContext.runtime), [threadContext]);
+  const userAgent = pickFirstString(
+    runtimeContext.user_agent,
+    threadContext.user_agent,
+    runtimeContext.browser
+  );
+
+  const contextCards = useMemo(() => {
+    const roleLabel =
+      thread?.request_origin === "anonymous"
+        ? "anonimo"
+        : pickFirstString(threadContext.user_role, threadContext.role, thread?.origin_source, "user");
+    const deviceLabel = pickFirstString(
+      runtimeContext.platform,
+      runtimeContext.device,
+      threadContext.platform,
+      threadContext.device
+    );
+    const browserLabel = detectBrowserLabel(
+      pickFirstString(runtimeContext.browser, threadContext.browser, threadContext.user_agent_browser),
+      userAgent
+    );
+    const osLabel = detectOsLabel(
+      pickFirstString(runtimeContext.os, threadContext.os, runtimeContext.platform, threadContext.platform),
+      userAgent
+    );
+    const providerLabel = pickFirstString(
+      threadContext.provider,
+      threadContext.auth_provider,
+      runtimeContext.provider
+    );
+    const userLabel = pickFirstString(
+      obsContext?.user_display_name,
+      thread?.anon_profile?.display_name,
+      thread?.user_public_id
+    );
+    const routeLabel = pickFirstString(
+      runtimeContext.source_route,
+      threadContext.source_route,
+      threadContext.route
+    );
+    const businessId = pickFirstString(
+      threadContext.negocio_id,
+      threadContext.business_id,
+      runtimeContext.negocio_id,
+      runtimeContext.business_id
+    );
+    const promoId = pickFirstString(
+      threadContext.promo_id,
+      threadContext.promotion_id,
+      runtimeContext.promo_id,
+      runtimeContext.promotion_id
+    );
+
+    const cards = [
+      { key: "role", label: "Rol", value: roleLabel, Icon: ShieldCheck, tone: "violet" },
+      { key: "user", label: "Usuario", value: userLabel, Icon: UserRound, tone: "green" },
+      { key: "provider", label: "Proveedor", value: providerLabel, Icon: Wifi, tone: "blue" },
+      { key: "device", label: "Dispositivo", value: deviceLabel, Icon: Smartphone, tone: "amber" },
+      ...(browserLabel
+        ? [{ key: "browser", label: "Navegador", value: browserLabel, Icon: Globe2, tone: "blue" }]
+        : []),
+      { key: "os", label: "OS", value: osLabel, Icon: Monitor, tone: "slate" },
+      { key: "route", label: "Ruta", value: routeLabel, Icon: Route, tone: "violet" },
+      ...(businessId
+        ? [{ key: "business-id", label: "Negocio ID", value: businessId, Icon: Building2, tone: "green" }]
+        : []),
+      ...(promoId
+        ? [{ key: "promo-id", label: "Promo ID", value: promoId, Icon: Tag, tone: "amber" }]
+        : []),
+    ];
+    return cards;
+  }, [obsContext, runtimeContext, thread?.anon_profile?.display_name, thread?.origin_source, thread?.request_origin, thread?.user_public_id, threadContext, userAgent]);
+
+  const buildCards = useMemo(
+    () => [
+      {
+        key: "release-version",
+        label: "Version",
+        value: obsContext?.release_version_label,
+        Icon: Package,
+        tone: "violet",
+      },
+      {
+        key: "release-build-number",
+        label: "Build",
+        value:
+          obsContext?.release_build_number != null
+            ? `#${obsContext.release_build_number}`
+            : "",
+        Icon: Hash,
+        tone: "blue",
+      },
+      {
+        key: "release-channel",
+        label: "Canal",
+        value: obsContext?.release_channel,
+        Icon: Activity,
+        tone: "green",
+      },
+      {
+        key: "release-commit",
+        label: "Commit",
+        value: formatCommit(obsContext?.release_source_commit_sha),
+        Icon: GitCommitHorizontal,
+        tone: "slate",
+      },
+      {
+        key: "release-artifact-id",
+        label: "Artifact",
+        value: obsContext?.release_artifact_id,
+        Icon: Archive,
+        tone: "amber",
+      },
+      ...(pickFirstString(obsContext?.obs_event_type)
+        ? [
+            {
+              key: "obs-event-type",
+              label: "Evento OBS",
+              value: obsContext?.obs_event_type,
+              Icon: Activity,
+              tone: "violet",
+            },
+          ]
+        : []),
+      {
+        key: "obs-event-at",
+        label: "Ultimo evento",
+        value: obsContext?.obs_occurred_at ? formatDateTime(obsContext.obs_occurred_at) : "",
+        Icon: Clock3,
+        tone: "blue",
+      },
+    ],
+    [obsContext]
+  );
 
   const backPath = useMemo(() => {
     if (location.pathname.startsWith("/admin/")) return "/admin/soporte";
@@ -456,6 +699,38 @@ export default function SupportTicket() {
   return (
     <div className="space-y-6">
       {debugBanner}
+      <div className="fixed left-1/2 top-0 z-40 -translate-x-1/2">
+        <div className="flex items-center gap-2 rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 shadow-lg backdrop-blur">
+          <button
+            type="button"
+            onClick={() => handleStatus("in_progress")}
+            className="rounded-xl bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+          >
+            En progreso
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStatus("waiting_user")}
+            className="rounded-xl border border-[#5E30A5] bg-white px-3 py-1 text-xs font-semibold text-[#5E30A5]"
+          >
+            Esperando usuario
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStatus("queued")}
+            className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+          >
+            Liberar a cola
+          </button>
+          <button
+            type="button"
+            onClick={() => setClosing(true)}
+            className="rounded-xl border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-500"
+          >
+            Cerrar caso
+          </button>
+        </div>
+      </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs uppercase tracking-[0.25em] text-[#5E30A5]/70">
@@ -469,10 +744,7 @@ export default function SupportTicket() {
             Volver
           </button>
         </div>
-        <h1 className="text-2xl font-extrabold text-[#2F1A55]">
-          {thread.summary || "Detalle de ticket"}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
           <span>Estado actual: {thread.status}</span>
           <span
             className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
@@ -489,7 +761,7 @@ export default function SupportTicket() {
             </span>
           ) : null}
           <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#0D4F9A]">
-            app: {ticketAppKey}
+            {ticketAppKey}
           </span>
         </div>
       </div>
@@ -497,52 +769,49 @@ export default function SupportTicket() {
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-3">
-            <div className="text-sm font-semibold text-[#2F1A55]">Contexto</div>
-            <pre className="whitespace-pre-wrap text-xs text-slate-600 bg-[#FAF8FF] rounded-2xl p-3 border border-[#E9E2F7]">
-              {JSON.stringify(thread.context || {}, null, 2)}
-            </pre>
-            <div className="rounded-2xl border border-[#E9E2F7] bg-[#FCFBFF] p-3 text-xs text-slate-600 space-y-2">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2F1A55]">
-                Observabilidad y build
-              </div>
-              <div className="grid gap-1 sm:grid-cols-2">
-                <div>
-                  <span className="font-semibold">Usuario:</span>{" "}
-                  {obsContext?.user_display_name || thread.user_public_id || "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Email:</span>{" "}
-                  {obsContext?.user_email || "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Release:</span>{" "}
-                  {obsContext?.release_version_label || "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Build:</span>{" "}
-                  {obsContext?.release_build_number ?? "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Canal:</span>{" "}
-                  {obsContext?.release_channel || "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Commit:</span>{" "}
-                  {formatCommit(obsContext?.release_source_commit_sha)}
-                </div>
-                <div>
-                  <span className="font-semibold">Artifact ID:</span>{" "}
-                  {obsContext?.release_artifact_id || "-"}
-                </div>
-                <div>
-                  <span className="font-semibold">Ultimo evento OBS:</span>{" "}
-                  {obsContext?.obs_event_type || "-"}
+            <div
+              className="grid items-start gap-x-16"
+              style={{ gridTemplateColumns: "25.5rem minmax(0, 1fr)" }}
+            >
+              <div className="w-[25.5rem] flex-none space-y-3">
+                <div className="text-sm font-semibold text-[#2F1A55]">Contexto</div>
+                <div
+                  className="grid gap-3"
+                  style={{ gridTemplateColumns: "repeat(2, minmax(0, 12rem))" }}
+                >
+                  {contextCards.map((item) => (
+                    <SupportIdentityCard
+                      key={item.key}
+                      title={item.label}
+                      value={item.value}
+                      Icon={item.Icon}
+                      tone={item.tone}
+                    />
+                  ))}
                 </div>
               </div>
-              <div className="text-[11px] text-slate-500">
-                {obsContext?.obs_occurred_at
-                  ? `Ultimo evento: ${formatDateTime(obsContext.obs_occurred_at)}`
-                  : "Sin eventos observability correlacionados para este ticket."}
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="rounded-xl border border-[#E8E2F5] bg-[#FCFBFF] p-3">
+                  <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Descripcion</div>
+                  <div className="min-h-[88px] whitespace-pre-wrap rounded-lg border border-[#E8E2F5] bg-white px-3 py-2 text-sm text-slate-700">
+                    {pickFirstString(thread.summary) || "No especificado"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[#E8E2F5] bg-white p-3">
+                  <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Build</div>
+                  <div className="flex flex-wrap gap-2">
+                    {buildCards.map((item) => (
+                      <SupportIdentityCard
+                        key={item.key}
+                        title={item.label}
+                        value={item.value}
+                        Icon={item.Icon}
+                        tone={item.tone}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
             {thread.request_origin === "anonymous" && thread.anon_profile ? (
@@ -561,36 +830,6 @@ export default function SupportTicket() {
                 </div>
               </div>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => handleStatus("in_progress")}
-                className="rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-              >
-                En progreso
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatus("waiting_user")}
-                className="rounded-full border border-[#5E30A5] px-3 py-1 text-xs font-semibold text-[#5E30A5]"
-              >
-                Esperando usuario
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatus("queued")}
-                className="rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
-              >
-                Liberar a cola
-              </button>
-              <button
-                type="button"
-                onClick={() => setClosing(true)}
-                className="rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-500"
-              >
-                Cerrar caso
-              </button>
-            </div>
           </div>
 
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">

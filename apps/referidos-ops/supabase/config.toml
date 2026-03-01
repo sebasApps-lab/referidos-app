@@ -66,6 +66,9 @@ verify_jwt = false
 [functions.ops-support-macros-sync]
 verify_jwt = false
 
+[functions.ops-support-apps-admin]
+verify_jwt = false
+
 [functions.versioning-artifact-sync]
 verify_jwt = false
 

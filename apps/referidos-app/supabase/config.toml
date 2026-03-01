@@ -519,6 +519,9 @@ verify_jwt = false
 [functions.ops-support-macros-sync-dispatch]
 verify_jwt = false
 
+[functions.ops-support-apps-sync-dispatch]
+verify_jwt = false
+
 [functions.support-anon-categories]
 verify_jwt = false
 

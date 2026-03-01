@@ -236,8 +236,8 @@ export function filterSupportMacrosForThread({
   };
 
   const appKey = normalizeSupportAppKey(
-    thread.app_channel || thread.origin_source || "",
-    "undetermined"
+    thread.app_channel || "",
+    "referidos_app"
   );
   const normalizedEnv = normalizeSupportEnvKey(runtimeEnvKey, "dev");
   const threadAudienceRole = resolveThreadAudienceRole();

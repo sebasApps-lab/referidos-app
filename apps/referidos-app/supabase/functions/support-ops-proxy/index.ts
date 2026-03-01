@@ -18,6 +18,19 @@ const ALLOWED_ACTIONS = new Set([
   "update_macro",
   "set_macro_status",
   "delete_macro",
+  "list_support_apps",
+  "create_support_app",
+  "update_support_app",
+  "set_support_app_active",
+  "prune_support_apps",
+]);
+
+const APP_ACTIONS = new Set([
+  "list_support_apps",
+  "create_support_app",
+  "update_support_app",
+  "set_support_app_active",
+  "prune_support_apps",
 ]);
 
 function asString(value: unknown, fallback = "") {
@@ -139,7 +152,11 @@ serve(async (req) => {
   const actor = `admin:${asString(usuario.id, asString(user.id))}`;
   const tenantId = asString(usuario.tenant_id);
 
-  const opsResponse = await invokeOpsFunction("ops-support-macros-admin", {
+  const targetFunction = APP_ACTIONS.has(action)
+    ? "ops-support-apps-admin"
+    : "ops-support-macros-admin";
+
+  const opsResponse = await invokeOpsFunction(targetFunction, {
     action,
     payload: {
       ...payload,

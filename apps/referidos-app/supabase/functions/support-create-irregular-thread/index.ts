@@ -7,21 +7,7 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
-
-function normalizeAppChannel(rawValue: unknown) {
-  const normalized = safeTrim(typeof rawValue === "string" ? rawValue : "", 60).toLowerCase();
-  if (!normalized) return "referidos_app";
-  if (["referidos_app", "referidos-app", "referidos-pwa", "app", "pwa"].includes(normalized)) {
-    return "referidos_app";
-  }
-  if (["prelaunch_web", "prelaunch-web", "prelaunch", "landing"].includes(normalized)) {
-    return "prelaunch_web";
-  }
-  if (["android_app", "android-app", "android", "referidos-android"].includes(normalized)) {
-    return "android_app";
-  }
-  return "referidos_app";
-}
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -64,8 +50,9 @@ serve(async (req) => {
   const summary = safeTrim(body.summary, 240);
   const category = body.category ?? "sugerencia";
   const severity = body.severity ?? "s2";
-  const appChannel = normalizeAppChannel(body.app_channel);
-  const originSource = safeTrim(body.origin_source, 60) || "admin_support";
+  const appIdentity = await resolveSupportAppIdentity(body.app_channel, "referidos_app");
+  const appChannel = appIdentity.appKey;
+  const originSource = "admin_support";
   const context = typeof body.context === "object" && body.context
     ? body.context
     : {};

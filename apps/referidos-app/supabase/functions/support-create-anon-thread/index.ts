@@ -10,9 +10,9 @@ import {
 import {
   categoryLabelForCode,
   listAnonymousMacroCategoriesFromCache,
-  normalizeSupportAppChannel,
   normalizeSupportCategoryCode,
 } from "../_shared/supportMacroCatalog.ts";
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
@@ -176,11 +176,12 @@ serve(async (req) => {
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
   const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
-  const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
-  const appChannel = normalizeSupportAppChannel(
+  const appIdentity = await resolveSupportAppIdentity(
     safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL,
     DEFAULT_APP_CHANNEL,
   );
+  const appChannel = appIdentity.appKey;
+  const originSource = "user";
   const requestedCategory = normalizeSupportCategoryCode(body.category, "");
   const anonId = parseUuid(body.anon_id);
   const visitSessionId = parseUuid(body.visit_session_id);

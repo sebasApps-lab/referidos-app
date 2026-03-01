@@ -14,7 +14,7 @@ import {
   pingSupportSession,
 } from "../supportClient";
 
-export default function SupportGate({ children }) {
+export default function SupportGate({ children, showSessionActions = true }) {
   const usuario = useAppStore((s) => s.usuario);
   const liveUpdatesEnabled = isSupportLiveUpdatesEnabled();
   const [profile, setProfile] = useState(null);
@@ -333,27 +333,40 @@ export default function SupportGate({ children }) {
     );
   }
 
+  const handleEndSession = async () => {
+    setEndLoading(true);
+    const result = await endSupportSession({ reason: "manual_end" });
+    setEndLoading(false);
+    if (result.ok) {
+      setSessionActive(false);
+    }
+    return result;
+  };
+
   return (
     <div className="space-y-4">
-      <div className="rounded-3xl border border-[#E9E2F7] bg-white p-4 text-right">
-        <button
-          type="button"
-          onClick={async () => {
-            setEndLoading(true);
-            const result = await endSupportSession({ reason: "manual_end" });
-            setEndLoading(false);
-            if (result.ok) {
-              setSessionActive(false);
-            }
-          }}
-          className={`rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold ${
-            endLoading ? "text-slate-400" : "text-slate-600"
-          }`}
-        >
-          {endLoading ? "Cerrando..." : "Terminar jornada"}
-        </button>
-      </div>
-      {children}
+      {showSessionActions ? (
+        <div className="rounded-3xl border border-[#E9E2F7] bg-white p-4 text-right">
+          <button
+            type="button"
+            onClick={() => {
+              void handleEndSession();
+            }}
+            className={`rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold ${
+              endLoading ? "text-slate-400" : "text-slate-600"
+            }`}
+          >
+            {endLoading ? "Cerrando..." : "Terminar jornada"}
+          </button>
+        </div>
+      ) : null}
+      {typeof children === "function"
+        ? children({
+            sessionActive,
+            endLoading,
+            onEndSession: handleEndSession,
+          })
+        : children}
     </div>
   );
 }

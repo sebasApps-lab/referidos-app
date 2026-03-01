@@ -60,7 +60,7 @@ export default function SupportSidebar({
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen transform flex-col overflow-visible border-r border-[#E9E2F7] bg-white pb-6 pt-6 shadow-lg transition-[transform,width,padding] duration-300 lg:translate-x-0 ${
-          collapsed ? "w-20 px-2" : "w-64 px-4"
+          collapsed ? "w-20 px-2" : "w-60 px-4"
         } ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -83,7 +83,7 @@ export default function SupportSidebar({
               </div>
               {!collapsed ? (
                 <div className="truncate text-lg font-extrabold text-[#5E30A5]">
-                  Referidos Soporte
+                  Referidos
                 </div>
               ) : null}
             </div>
@@ -145,7 +145,7 @@ export default function SupportSidebar({
               <ShieldCheck size={18} />
             </div>
             {!collapsed ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start leading-tight">
                 <span>Cerrar sesion</span>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeTone("actual")}`}>
                   Seguro
@@ -173,4 +173,3 @@ export default function SupportSidebar({
     </>
   );
 }
-

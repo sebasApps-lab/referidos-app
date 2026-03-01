@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
@@ -18,7 +18,7 @@ function normalizeThreadRow(thread) {
   return {
     ...thread,
     request_origin: thread?.request_origin || "registered",
-    origin_source: thread?.origin_source || "app",
+    origin_source: thread?.origin_source || "user",
     app_channel: thread?.app_channel || "undetermined",
     contact_display: thread?.contact_display || null,
     anon_public_id: thread?.anon_public_id || null,
@@ -81,6 +81,20 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     new Date(value).toLocaleString("es-EC", {
       timeZone: "America/Guayaquil",
     });
+
+  const formatAppChannelBadge = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["referidos_app", "app", "pwa", "referidos-pwa", "referidos-app"].includes(normalized)) {
+      return "PWA";
+    }
+    if (["prelaunch_web", "prelaunch", "prelaunch-web", "landing"].includes(normalized)) {
+      return "waitlist";
+    }
+    if (["android_app", "android", "android-app", "referidos-android"].includes(normalized)) {
+      return "android";
+    }
+    return normalized || "undetermined";
+  };
 
   const refreshSessionState = useCallback(async () => {
     if (!isAdmin) {
@@ -320,7 +334,11 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     }
   }, [refreshSessionState]);
 
-  const content = (
+  const renderContent = ({
+    gateSessionActive = false,
+    gateEndLoading = false,
+    handleGateEndSession = null,
+  } = {}) => (
     <div className="space-y-6">
       {debugBanner}
       <div className="space-y-2">
@@ -333,21 +351,39 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
               Inbox de tickets
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              void handleRefresh();
-            }}
-            disabled={loading || sessionLoading}
-            className="rounded-full border border-[#E9E2F7] p-2 text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
-            title="Refrescar tickets"
-            aria-label="Refrescar tickets"
-          >
-            <RefreshCw
-              size={16}
-              className={loading || sessionLoading ? "animate-spin" : ""}
-            />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isAdmin && gateSessionActive && typeof handleGateEndSession === "function" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void handleGateEndSession();
+                }}
+                disabled={gateEndLoading}
+                className={`rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold ${
+                  gateEndLoading ? "text-slate-400" : "text-slate-600"
+                }`}
+                title="Terminar jornada"
+                aria-label="Terminar jornada"
+              >
+                {gateEndLoading ? "Cerrando..." : "Terminar jornada"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                void handleRefresh();
+              }}
+              disabled={loading || sessionLoading}
+              className="rounded-full border border-[#E9E2F7] p-2 text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Refrescar tickets"
+              aria-label="Refrescar tickets"
+            >
+              <RefreshCw
+                size={16}
+                className={loading || sessionLoading ? "animate-spin" : ""}
+              />
+            </button>
+          </div>
         </div>
         <p className="text-sm text-slate-500">
           Gestiona tickets segun su estado, origen y prioridad.
@@ -390,10 +426,14 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
               }`}
             >
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{thread.category}</span>
+                <span className="inline-flex items-center gap-1">
+                  <span>{thread.public_id}</span>
+                  <span>|</span>
+                  <span>{thread.category}</span>
+                </span>
                 <span>{thread.severity}</span>
               </div>
-              <div className="text-sm font-semibold text-[#2F1A55]">
+              <div className="text-sm font-light text-slate-500">
                 {thread.summary || `Ticket ${thread.public_id}`}
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
@@ -406,14 +446,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                 >
                   {thread.request_origin === "anonymous" ? "Anonimo" : "Registrado"}
                 </span>
-                {thread.origin_source ? (
-                  <span className="rounded-full bg-[#F0EBFF] px-2 py-1 text-[#5E30A5]">
-                    {thread.origin_source}
-                  </span>
-                ) : null}
                 {thread.app_channel ? (
                   <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[#0D4F9A]">
-                    {thread.app_channel}
+                    {formatAppChannelBadge(thread.app_channel)}
                   </span>
                 ) : null}
               </div>
@@ -462,6 +497,16 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     </div>
   );
 
-  if (isAdmin) return content;
-  return <SupportGate>{content}</SupportGate>;
+  if (isAdmin) return renderContent();
+  return (
+    <SupportGate showSessionActions={false}>
+      {({ sessionActive: gateSessionActive, endLoading: gateEndLoading, onEndSession }) =>
+        renderContent({
+          gateSessionActive,
+          gateEndLoading,
+          handleGateEndSession: onEndSession,
+        })}
+    </SupportGate>
+  );
 }
+

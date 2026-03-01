@@ -36,6 +36,8 @@ export default function SoporteIrregularScreen() {
       summary: safeSummary,
       category,
       severity: "s2",
+      app_channel: "android-app",
+      origin_source: "admin_support",
       context: {
         route: "/soporte/irregulares",
         role: "soporte",

@@ -46,6 +46,10 @@ const releaseChannel = asString(
   runtimeWindowConfig.releaseChannel,
   asString(importEnv.VITE_RELEASE_CHANNEL || appEnv)
 );
+const appChannel = asString(
+  runtimeWindowConfig.appChannel,
+  asString(importEnv.VITE_APP_CHANNEL, "referidos-pwa")
+);
 const sourceCommitSha = asString(
   runtimeWindowConfig.sourceCommitSha,
   asString(importEnv.VITE_SOURCE_COMMIT_SHA || importEnv.VITE_COMMIT_SHA)
@@ -83,6 +87,7 @@ export const runtimeConfig = Object.freeze({
   releaseId,
   artifactId,
   releaseChannel,
+  appChannel,
   sourceCommitSha,
   defaultTenantId,
   supabaseUrl,

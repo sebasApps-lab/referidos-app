@@ -9,6 +9,7 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 
 const SUPPORT_PHONE = "593995705833";
 
@@ -56,21 +57,6 @@ function normalizeBuildSnapshot(value: unknown) {
   return hasValue ? snapshot : null;
 }
 
-function normalizeAppChannel(rawValue: unknown) {
-  const normalized = safeTrim(typeof rawValue === "string" ? rawValue : "", 60).toLowerCase();
-  if (!normalized) return "referidos_app";
-  if (["referidos_app", "referidos-app", "referidos-pwa", "app", "pwa"].includes(normalized)) {
-    return "referidos_app";
-  }
-  if (["prelaunch_web", "prelaunch-web", "prelaunch", "landing"].includes(normalized)) {
-    return "prelaunch_web";
-  }
-  if (["android_app", "android-app", "android", "referidos-android"].includes(normalized)) {
-    return "android_app";
-  }
-  return "referidos_app";
-}
-
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsHeaders(origin);
@@ -98,7 +84,9 @@ serve(async (req) => {
   const severity = body.severity ?? "s2";
   const summary = safeTrim(body.summary, 240);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
-  const appChannel = normalizeAppChannel(body.app_channel);
+  const appIdentity = await resolveSupportAppIdentity(body.app_channel, "referidos_app");
+  const appChannel = appIdentity.appKey;
+  const requestedOriginSource = safeTrim(body.origin_source, 60).toLowerCase();
   const baseContext = isRecord(body.context) ? body.context : {};
 
   const sourceRoute = pickText(body.source_route ?? baseContext.source_route ?? baseContext.route, 140);
@@ -142,6 +130,12 @@ serve(async (req) => {
   if (profileErr || !usuario) {
     return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
   }
+  const originSource = (
+    ["admin", "soporte"].includes(String(usuario.role || "").toLowerCase()) &&
+    requestedOriginSource === "admin_support"
+  )
+    ? "admin_support"
+    : "user";
 
   const activeQuery = await supabaseAdmin
     .from("support_threads")
@@ -223,7 +217,7 @@ serve(async (req) => {
       suggested_contact_name: usuario.public_id,
       suggested_tags: [category, severity, "new", appChannel],
       app_channel: appChannel,
-      origin_source: "app",
+      origin_source: originSource,
     })
     .select(
       "id, public_id, user_id, user_public_id, category, severity, status"
@@ -269,6 +263,7 @@ serve(async (req) => {
         category,
         severity,
         app_channel: appChannel,
+        origin_source: originSource,
         wa_link: waLink,
         wa_message_text: messageText,
         build: buildSnapshot,

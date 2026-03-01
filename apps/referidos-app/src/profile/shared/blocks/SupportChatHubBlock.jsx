@@ -11,10 +11,12 @@ import { runtimeConfig } from "../../../config/runtimeConfig";
 
 // Lint purge (no-unused-vars): se purgo `usuario` no consumido (cabecera del bloque soporte).
 function resolveSupportAppChannel() {
+  const explicitChannel = String(runtimeConfig.appChannel || "").trim().toLowerCase();
+  if (explicitChannel) return explicitChannel;
   const appId = String(runtimeConfig.appId || "").toLowerCase();
-  if (appId.includes("prelaunch")) return "prelaunch_web";
-  if (appId.includes("android")) return "android_app";
-  return "referidos_app";
+  if (appId.includes("prelaunch")) return "prelaunch";
+  if (appId.includes("android")) return "android-app";
+  return "referidos-pwa";
 }
 
 export default function SupportChatHubBlock({ role, onShowTickets }) {

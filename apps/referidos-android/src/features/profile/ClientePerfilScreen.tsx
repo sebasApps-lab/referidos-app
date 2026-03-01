@@ -116,6 +116,8 @@ export default function ClientePerfilScreen() {
     const payload = {
       category,
       summary: summary.trim(),
+      app_channel: "android-app",
+      origin_source: "user",
       context: {
         route: "/cliente/perfil",
         role: "cliente",

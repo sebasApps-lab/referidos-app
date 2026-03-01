@@ -139,6 +139,8 @@ export default function NegocioPerfilScreen() {
     const payload = {
       category,
       summary: summary.trim(),
+      app_channel: "android-app",
+      origin_source: "user",
       context: {
         route: "/negocio/perfil",
         role: "negocio",

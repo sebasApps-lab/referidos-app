@@ -2,8 +2,8 @@ import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { corsHeaders, jsonResponse, safeTrim, supabaseAdmin } from "../_shared/support.ts";
 import {
   listAnonymousMacroCategoriesFromCache,
-  normalizeSupportAppChannel,
 } from "../_shared/supportMacroCatalog.ts";
+import { resolveSupportAppChannel } from "../_shared/supportAppIdentity.ts";
 
 const DEFAULT_APP_CHANNEL = "prelaunch_web";
 
@@ -71,9 +71,9 @@ serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const appChannel = normalizeSupportAppChannel(
+  const appChannel = await resolveSupportAppChannel(
     safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL,
-    DEFAULT_APP_CHANNEL,
+    "prelaunch_web",
   );
 
   // Siempre sincroniza antes de listar: garantiza que nuevas categorias/macros de OPS

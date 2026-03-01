@@ -24,7 +24,7 @@ function normalizeInboxRow(row: any) {
   return {
     ...row,
     request_origin: row?.request_origin || "registered",
-    origin_source: row?.origin_source || "app",
+    origin_source: row?.origin_source || "user",
     contact_display: row?.contact_display || null,
     anon_public_id: row?.anon_public_id || null,
   };

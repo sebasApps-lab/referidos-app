@@ -3,6 +3,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AlertTriangle,
+  AppWindow,
   Activity,
   BarChart3,
   BookOpen,
@@ -30,6 +31,7 @@ const NAV_GROUPS = [
     items: [
       { label: "Usuarios", to: "/admin/usuarios", Icon: Users },
       { label: "Negocios", to: "/admin/negocios", Icon: Store },
+      { label: "Apps", to: "/admin/apps", Icon: AppWindow },
       { label: "Promos", to: "/admin/promos", Icon: Tag },
     ],
   },
