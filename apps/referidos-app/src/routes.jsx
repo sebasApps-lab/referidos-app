@@ -16,9 +16,13 @@ import NegocioEscanerView from "./negocio/views/NegocioEscanerView";
 import NegocioGestionarView from "./negocio/views/NegocioGestionarView";
 import NegocioPerfilView from "./negocio/views/NegocioPerfilView";
 import SupportLayout from "@referidos/support-sdk/agent/SupportLayout";
+import SupportInicio from "@referidos/support-sdk/agent/SupportInicio";
 import SupportInbox from "@referidos/support-sdk/agent/SupportInbox";
 import SupportTicket from "@referidos/support-sdk/agent/SupportTicket";
 import SupportIrregular from "@referidos/support-sdk/agent/SupportIrregular";
+import SupportJornadas from "@referidos/support-sdk/agent/SupportJornadas";
+import SupportIssues from "@referidos/support-sdk/agent/SupportIssues";
+import SupportErrorCatalog from "@referidos/support-sdk/agent/SupportErrorCatalog";
 import AdminSupportDesk from "./admin/support/AdminSupportDesk";
 import AdminSupportAgents from "./admin/support/AdminSupportAgents";
 import AdminSupportTicket from "./admin/support/AdminSupportTicket";
@@ -407,8 +411,13 @@ export default function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="inbox" replace />} />
+        <Route index element={<Navigate to="inicio" replace />} />
+        <Route path="inicio" element={<SupportInicio />} />
         <Route path="inbox" element={<SupportInbox />} />
+        <Route path="jornadas" element={<SupportJornadas />} />
+        <Route path="issues" element={<SupportIssues />} />
+        <Route path="catalogo-errores" element={<SupportErrorCatalog />} />
+        <Route path="error-catalog" element={<Navigate to="/soporte/catalogo-errores" replace />} />
         <Route path="ticket/:threadId" element={<SupportTicket />} />
         <Route path="irregulares" element={<SupportIrregular />} />
       </Route>
