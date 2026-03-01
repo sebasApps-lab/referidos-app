@@ -37,6 +37,48 @@ import {
 } from "../data/supportCatalog";
 import SupportDevDebugBanner from "./SupportDevDebugBanner";
 
+const THREAD_STATUS_VALUES = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "in_progress", "closed"];
+const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "in_progress", "closed"];
+const TIMELINE_RELEASE_EVENT_TYPES = new Set(["agent_timeout_release", "agent_manual_release"]);
+const TERMINAL_TIMELINE_STATUSES = new Set(["closed", "cancelled", "released"]);
+const TIMELINE_BLOCK_LABELS = {
+  new: "Creado",
+  assigned: "Asignado",
+  in_progress: "Resolviendo",
+  waiting_user: "Esperando usuario",
+  queued: "En cola",
+  postponed: "Pospuesto",
+  released: "Liberado",
+  closed: "Cerrado",
+  cancelled: "Cancelado",
+};
+const EVENT_TYPE_LABELS = {
+  created: "created",
+  assigned: "assigned",
+  status_changed: "status_changed",
+  waiting_user: "waiting_user",
+  resumed: "resumed",
+  queued: "queued",
+  closed: "closed",
+  note_added: "note_added",
+  agent_timeout_release: "agent_timeout_release",
+  agent_manual_release: "agent_manual_release",
+  cancelled: "cancelled",
+  linked_to_user: "linked_to_user",
+};
+const TIMELINE_BLOCK_REACHED_CLASSES = {
+  new: "bg-[#1D4ED8] text-white",
+  assigned: "bg-[#7C3AED] text-white",
+  in_progress: "bg-[#0891B2] text-white",
+  waiting_user: "bg-[#EA580C] text-white",
+  queued: "bg-[#4F46E5] text-white",
+  postponed: "bg-[#BE185D] text-white",
+  released: "bg-[#4B5563] text-white",
+  closed: "bg-[#15803D] text-white",
+  cancelled: "bg-[#B91C1C] text-white",
+};
+
 function normalizeThreadRow(thread) {
   if (!thread) return null;
   return {
@@ -113,6 +155,124 @@ function detectOsLabel(rawOs, userAgent) {
   return pickFirstString(rawOs, userAgent);
 }
 
+function normalizeThreadStatusCandidate(value) {
+  if (typeof value !== "string") return null;
+  const raw = value.trim().toLowerCase();
+  const compact = raw.replace(/[\s-]+/g, "_");
+  const aliases = {
+    inprogress: "in_progress",
+    en_progreso: "in_progress",
+    resolviendo: "in_progress",
+    waitinguser: "waiting_user",
+    esperando_usuario: "waiting_user",
+    en_espera: "waiting_user",
+    en_cola: "queued",
+    cola: "queued",
+    cerrado: "closed",
+    cancelado: "cancelled",
+    asignado: "assigned",
+    nuevo: "new",
+  };
+  const normalized = aliases[compact] || compact;
+  return THREAD_STATUS_VALUES.includes(normalized) ? normalized : null;
+}
+
+function deriveNextThreadStatusFromEvent(event) {
+  if (!event || typeof event !== "object") return null;
+  const type = typeof event.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+  if (!type) return null;
+  if (type === "created") return "new";
+  if (type === "resumed") return "in_progress";
+  if (type === "agent_timeout_release" || type === "agent_manual_release") return "queued";
+  const statusFromType = normalizeThreadStatusCandidate(type);
+  if (statusFromType) return statusFromType;
+  if (type !== "status_changed") return null;
+  const details = event.details && typeof event.details === "object" ? event.details : {};
+  return (
+    normalizeThreadStatusCandidate(details.to) ||
+    normalizeThreadStatusCandidate(details.next_status) ||
+    normalizeThreadStatusCandidate(details.to_status) ||
+    normalizeThreadStatusCandidate(details.status)
+  );
+}
+
+function getEventDetails(event) {
+  return event && typeof event.details === "object" && !Array.isArray(event.details) ? event.details : {};
+}
+
+function normalizeQueueKind(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized) return null;
+  if (["personal", "mine", "propia", "private", "postponed", "pospuesto"].includes(normalized)) return "personal";
+  if (["general", "shared", "public", "global"].includes(normalized)) return "general";
+  return null;
+}
+
+function deriveQueueKindFromEvent(event, thread) {
+  const details = getEventDetails(event);
+  if (typeof details.personal_queue === "boolean") {
+    return details.personal_queue ? "personal" : "general";
+  }
+  const queueKind =
+    normalizeQueueKind(details.queue_kind) ||
+    normalizeQueueKind(details.queue_scope) ||
+    normalizeQueueKind(details.scope) ||
+    normalizeQueueKind(details.queue);
+  if (queueKind) return queueKind;
+  const eventType = typeof event?.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+  if (eventType === "queued" && thread?.status === "queued") {
+    if (thread.personal_queue === true || Boolean(thread.assigned_agent_id)) return "personal";
+  }
+  return "general";
+}
+
+function statusToTimelineStatus(status, queueKind = "general") {
+  if (status !== "queued") return status;
+  return queueKind === "personal" ? "postponed" : "queued";
+}
+
+function buildCollapsedResolvingLane(segments) {
+  const resolvingIndexes = [];
+  segments.forEach((segment, index) => {
+    if (segment.status === "in_progress") resolvingIndexes.push(index);
+  });
+  if (resolvingIndexes.length <= 1) {
+    return {
+      hasCollapsedResolving: false,
+      collapsedSegments: segments,
+      collapsedSegmentId: "",
+    };
+  }
+  const firstIndex = resolvingIndexes[0];
+  const lastIndex = resolvingIndexes[resolvingIndexes.length - 1];
+  if (lastIndex <= firstIndex) {
+    return {
+      hasCollapsedResolving: false,
+      collapsedSegments: segments,
+      collapsedSegmentId: "",
+    };
+  }
+  const groupedSegments = segments.slice(firstIndex, lastIndex + 1);
+  const collapsedId = `${segments[firstIndex].id}:collapsed_resolving:${segments[lastIndex].id}`;
+  const collapsedResolvingSegment = {
+    ...segments[firstIndex],
+    id: collapsedId,
+    endedAt: segments[lastIndex].endedAt || segments[firstIndex].endedAt || null,
+    events: groupedSegments.flatMap((segment) => segment.events || []),
+    isCollapsedResolving: true,
+  };
+  return {
+    hasCollapsedResolving: true,
+    collapsedSegments: [
+      ...segments.slice(0, firstIndex),
+      collapsedResolvingSegment,
+      ...segments.slice(lastIndex + 1),
+    ],
+    collapsedSegmentId: collapsedId,
+  };
+}
+
 function SupportIdentityCard({
   title,
   value,
@@ -177,7 +337,10 @@ export default function SupportTicket() {
   const [catalogLoadError, setCatalogLoadError] = useState("");
   const [refreshingMacros, setRefreshingMacros] = useState(false);
   const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
+  const [expandedTimelineSegmentId, setExpandedTimelineSegmentId] = useState("");
+  const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
   const shownTrackerRef = useRef(new Set());
+  const collapseResolvingTimersRef = useRef({});
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -186,6 +349,12 @@ export default function SupportTicket() {
   const formatCommit = (value) => {
     if (!value || typeof value !== "string") return "";
     return value.length > 12 ? `${value.slice(0, 12)}...` : value;
+  };
+  const formatTimelineDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("es-EC", { timeZone: "America/Guayaquil" });
   };
 
   useEffect(() => {
@@ -285,6 +454,15 @@ export default function SupportTicket() {
       active = false;
     };
   }, [threadId]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
+        if (timerId) clearTimeout(timerId);
+      });
+      collapseResolvingTimersRef.current = {};
+    };
+  }, []);
 
   const fetchCatalog = useCallback(async ({ forceSync = false } = {}) => {
     let result = await loadSupportCatalogFromCache({ publishedOnly: true });
@@ -583,6 +761,214 @@ export default function SupportTicket() {
 
   const hasCatalogData = catalog.categories.length > 0 || catalog.macros.length > 0;
 
+  const timelineLanes = useMemo(() => {
+    if (!thread) return [];
+    const orderedEvents = [...(events || [])].sort(
+      (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+    );
+
+    const createSegment = (status, startedAt, isReached = true, queueKind = "general") => ({
+      id: "",
+      status,
+      label: TIMELINE_BLOCK_LABELS[status] || status,
+      startedAt: startedAt || null,
+      endedAt: null,
+      events: [],
+      isReached,
+      queueKind,
+    });
+    const lanes = [];
+    const createLane = (firstStatus, startedAt, queueKind = "general") => {
+      const lane = {
+        initialStatus: firstStatus,
+        queueKind,
+        segments: [createSegment(firstStatus, startedAt, true, queueKind)],
+      };
+      lanes.push(lane);
+      return lane;
+    };
+
+    let currentLane = createLane(
+      "new",
+      thread.created_at || thread.updated_at || new Date().toISOString(),
+      "general"
+    );
+    const getCurrentSegment = () => currentLane.segments[currentLane.segments.length - 1] || null;
+    const splitLaneToQueue = (transitionAt, queueKind = "general", eventForRelease = null) => {
+      const current = getCurrentSegment();
+      if (current) current.endedAt = current.endedAt || transitionAt;
+      const releaseSegment = createSegment("released", transitionAt, true, queueKind);
+      if (eventForRelease) releaseSegment.events.push(eventForRelease);
+      releaseSegment.endedAt = transitionAt;
+      currentLane.segments.push(releaseSegment);
+      currentLane = createLane(statusToTimelineStatus("queued", queueKind), transitionAt, queueKind);
+    };
+
+    orderedEvents.forEach((event) => {
+      const eventType = typeof event.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+      const transitionAt = event.created_at || thread.updated_at || thread.created_at || new Date().toISOString();
+      let current = getCurrentSegment();
+      if (!current) {
+        currentLane = createLane("new", thread.created_at || transitionAt, "general");
+        current = getCurrentSegment();
+      }
+
+      if (TIMELINE_RELEASE_EVENT_TYPES.has(eventType)) {
+        splitLaneToQueue(transitionAt, "general", event);
+        return;
+      }
+
+      current.events.push(event);
+
+      const nextStatus = deriveNextThreadStatusFromEvent(event);
+      if (!nextStatus) return;
+
+      const queueKind = nextStatus === "queued" ? deriveQueueKindFromEvent(event, thread) : currentLane.queueKind;
+      const nextTimelineStatus = statusToTimelineStatus(nextStatus, queueKind);
+      if (!nextTimelineStatus || nextTimelineStatus === current.status) return;
+
+      if (nextStatus === "queued") {
+        splitLaneToQueue(transitionAt, queueKind, null);
+        return;
+      }
+
+      current.endedAt = current.endedAt || transitionAt;
+      currentLane.segments.push(createSegment(nextTimelineStatus, transitionAt, true, queueKind));
+    });
+
+    const currentThreadStatus = normalizeThreadStatusCandidate(thread.status);
+    if (currentThreadStatus) {
+      const currentQueueKind =
+        thread.personal_queue === true || Boolean(thread.assigned_agent_id) ? "personal" : "general";
+      const currentTimelineStatus = statusToTimelineStatus(currentThreadStatus, currentQueueKind);
+      const current = getCurrentSegment();
+      if (!current || currentTimelineStatus !== current.status) {
+        const transitionAt = thread.updated_at || thread.created_at || new Date().toISOString();
+        if (currentThreadStatus === "queued") {
+          splitLaneToQueue(transitionAt, currentQueueKind, null);
+        } else {
+          if (current) current.endedAt = current.endedAt || transitionAt;
+          currentLane.segments.push(createSegment(currentTimelineStatus, transitionAt, true, currentQueueKind));
+        }
+      }
+    }
+
+    return lanes.map((lane, laneIndex) => {
+      lane.segments.forEach((segment, index) => {
+        const next = lane.segments[index + 1];
+        if (!segment.endedAt && next?.startedAt) {
+          segment.endedAt = next.startedAt;
+          return;
+        }
+        if (!segment.endedAt && segment.status === "closed") {
+          segment.endedAt = thread.closed_at || thread.updated_at || segment.startedAt;
+          return;
+        }
+        if (!segment.endedAt && segment.status === "cancelled") {
+          segment.endedAt = thread.cancelled_at || thread.updated_at || segment.startedAt;
+          return;
+        }
+        if (!segment.endedAt && segment.status === "released") {
+          segment.endedAt = segment.startedAt || thread.updated_at || thread.created_at;
+        }
+      });
+
+      const reachedSegments = lane.segments.length
+        ? [...lane.segments]
+        : [createSegment("new", thread.created_at || thread.updated_at || new Date().toISOString(), true, "general")];
+      const firstTerminalIndex = reachedSegments.findIndex((segment) =>
+        TERMINAL_TIMELINE_STATUSES.has(segment.status)
+      );
+      const trimmedReachedSegments =
+        firstTerminalIndex >= 0 ? reachedSegments.slice(0, firstTerminalIndex + 1) : reachedSegments;
+      const displaySegments = trimmedReachedSegments.length
+        ? [...trimmedReachedSegments]
+        : [createSegment("new", thread.created_at || thread.updated_at || new Date().toISOString(), true, "general")];
+
+      const hasTerminal = displaySegments.some((segment) => TERMINAL_TIMELINE_STATUSES.has(segment.status));
+      if (!hasTerminal) {
+        const defaultSequence =
+          lane.initialStatus === "queued" || lane.initialStatus === "postponed"
+            ? TIMELINE_RECOVERY_SEQUENCE
+            : TIMELINE_DEFAULT_SEQUENCE;
+        const orderStatus = (status) => (status === "postponed" ? "queued" : status);
+        const reachedDefaultIndexes = displaySegments
+          .map((segment) => defaultSequence.indexOf(orderStatus(segment.status)))
+          .filter((idx) => idx >= 0);
+        const lastDefaultIndex = reachedDefaultIndexes.length ? Math.max(...reachedDefaultIndexes) : -1;
+        defaultSequence.slice(lastDefaultIndex + 1).forEach((status) => {
+          displaySegments.push(
+            createSegment(statusToTimelineStatus(status, lane.queueKind || "general"), null, false, lane.queueKind || "general")
+          );
+        });
+      }
+
+      return displaySegments.map((segment, segmentIndex) => ({
+        ...segment,
+        id: `${thread.id}:${laneIndex}:${segmentIndex}:${segment.status}:${segment.startedAt || "pending"}`,
+      }));
+    });
+  }, [events, thread]);
+
+  const timelineCollapsedSegments = useMemo(
+    () => timelineLanes.flatMap((laneSegments) => buildCollapsedResolvingLane(laneSegments).collapsedSegments),
+    [timelineLanes]
+  );
+
+  const expandedTimelineSegment = useMemo(
+    () =>
+      timelineLanes.flat().find((segment) => segment.id === expandedTimelineSegmentId) ||
+      timelineCollapsedSegments.find((segment) => segment.id === expandedTimelineSegmentId) ||
+      null,
+    [expandedTimelineSegmentId, timelineCollapsedSegments, timelineLanes]
+  );
+
+  const clearAllLaneCollapseTimers = useCallback(() => {
+    Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
+      if (timerId) clearTimeout(timerId);
+    });
+    collapseResolvingTimersRef.current = {};
+  }, []);
+
+  const setLaneExpanded = useCallback((laneKey, value) => {
+    setExpandedResolvingByLane((prev) => {
+      if (value) {
+        const currentExpandedLane = Object.keys(prev).find((key) => !!prev[key]);
+        if (currentExpandedLane === laneKey) return prev;
+        return { [laneKey]: true };
+      }
+      if (!prev[laneKey]) return prev;
+      const next = { ...prev };
+      delete next[laneKey];
+      return next;
+    });
+  }, []);
+
+  const clearLaneCollapseTimer = useCallback((laneKey) => {
+    const timerId = collapseResolvingTimersRef.current[laneKey];
+    if (timerId) {
+      clearTimeout(timerId);
+      delete collapseResolvingTimersRef.current[laneKey];
+    }
+  }, []);
+
+  const scheduleLaneCollapse = useCallback(
+    (laneKey) => {
+      clearLaneCollapseTimer(laneKey);
+      collapseResolvingTimersRef.current[laneKey] = setTimeout(() => {
+        setLaneExpanded(laneKey, false);
+        delete collapseResolvingTimersRef.current[laneKey];
+      }, 1000);
+    },
+    [clearLaneCollapseTimer, setLaneExpanded]
+  );
+
+  useEffect(() => {
+    setExpandedTimelineSegmentId("");
+    setExpandedResolvingByLane({});
+    clearAllLaneCollapseTimers();
+  }, [thread?.id, clearAllLaneCollapseTimers]);
+
   useEffect(() => {
     shownTrackerRef.current.clear();
   }, [thread?.public_id]);
@@ -833,22 +1219,157 @@ export default function SupportTicket() {
           </div>
 
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="text-sm font-semibold text-[#2F1A55]">
-              Timeline
-            </div>
-            <div className="space-y-3 text-xs text-slate-500">
-              {events.map((event, index) => (
-                <div
-                  key={`${event.event_type}-${index}`}
-                  className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
-                >
-                  <div className="text-[#2F1A55] font-semibold">
-                    {event.event_type}
+            <div className="text-sm font-semibold text-[#2F1A55]">Flujo de ticket</div>
+            {timelineLanes.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-4 text-center text-sm text-slate-500">
+                Sin eventos para mostrar.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {timelineLanes.map((laneSegments, laneIndex) => (
+                  <div key={`${thread.id}-lane-${laneIndex}`} className="overflow-x-auto pb-1">
+                    {(() => {
+                      const laneKey = `${thread.id}:${laneIndex}`;
+                      const compression = buildCollapsedResolvingLane(laneSegments);
+                      const isResolvingExpanded = !!expandedResolvingByLane[laneKey];
+                      const renderSegments =
+                        compression.hasCollapsedResolving && !isResolvingExpanded
+                          ? compression.collapsedSegments
+                          : laneSegments;
+                      return (
+                        <div
+                          className="flex min-w-max items-center"
+                          onMouseEnter={() => {
+                            if (isResolvingExpanded) clearLaneCollapseTimer(laneKey);
+                          }}
+                          onMouseLeave={() => {
+                            if (compression.hasCollapsedResolving && isResolvingExpanded) {
+                              scheduleLaneCollapse(laneKey);
+                            }
+                          }}
+                        >
+                          {renderSegments.map((segment, segmentIndex) => {
+                            const isFirstSegmentInLane = segmentIndex === 0;
+                            const isExpanded = expandedTimelineSegmentId === segment.id;
+                            const blockClipPath =
+                              "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)";
+                            const reachedClass =
+                              TIMELINE_BLOCK_REACHED_CLASSES[segment.status] || "bg-[#1E293B] text-white";
+                            const colorClass = segment.isReached ? reachedClass : "bg-[#64748B] text-white";
+                            const isCollapsedResolving = Boolean(segment.isCollapsedResolving);
+                            return (
+                              <div
+                                key={segment.id}
+                                className={isFirstSegmentInLane ? "overflow-hidden" : ""}
+                                style={{
+                                  marginLeft: isFirstSegmentInLane ? 0 : -18,
+                                  zIndex: renderSegments.length - segmentIndex,
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onMouseEnter={() => {
+                                    if (isCollapsedResolving) {
+                                      clearAllLaneCollapseTimers();
+                                      setLaneExpanded(laneKey, true);
+                                    }
+                                  }}
+                                  onClick={() =>
+                                    setExpandedTimelineSegmentId((prev) => (prev === segment.id ? "" : segment.id))
+                                  }
+                                  className={`relative h-12 min-w-[150px] overflow-hidden px-3 text-[12px] font-semibold transition ${colorClass} ${
+                                    isExpanded ? "ring-2 ring-[#5E30A5] ring-offset-1" : "hover:brightness-[0.98]"
+                                  }`}
+                                  style={{
+                                    clipPath: blockClipPath,
+                                  }}
+                                >
+                                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
+                                    {segment.label}
+                                  </span>
+                                  {isCollapsedResolving ? (
+                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                                      <svg
+                                        width="10"
+                                        height="20"
+                                        viewBox="0 0 10 20"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        aria-hidden="true"
+                                      >
+                                        <path
+                                          d="M0.8 2.4L4.2 10L0.8 17.6"
+                                          stroke="white"
+                                          strokeWidth="1.3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                        <path
+                                          d="M4.8 2.4L8.2 10L4.8 17.6"
+                                          stroke="white"
+                                          strokeWidth="1.3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                      </svg>
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div>{formatDateTime(event.created_at)}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+
+                {expandedTimelineSegment ? (
+                  <div className="rounded-xl border border-[#E9E2F7] bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[11px] text-slate-500">
+                        Inicio: {formatTimelineDate(expandedTimelineSegment.startedAt)} | Fin:{" "}
+                        {expandedTimelineSegment.endedAt ? formatTimelineDate(expandedTimelineSegment.endedAt) : "-"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTimelineSegmentId("")}
+                        className="h-6 w-6 rounded-md border border-[#E9E2F7] text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                        aria-label="Cerrar detalle de etapa"
+                      >
+                        x
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {expandedTimelineSegment.events.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-500">
+                          Sin eventos registrados en esta etapa.
+                        </div>
+                      ) : (
+                        expandedTimelineSegment.events.map((event, eventIndex) => (
+                          <div
+                            key={`${event.id || expandedTimelineSegment.id}-event-${eventIndex}`}
+                            className="rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-600"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="font-semibold text-[#2F1A55]">
+                                {EVENT_TYPE_LABELS[event.event_type] || event.event_type}
+                              </div>
+                              <div className="text-[11px] text-slate-400">{formatTimelineDate(event.created_at)}</div>
+                            </div>
+                            <div className="mt-1 text-[11px] text-slate-500">
+                              Actor: {pickFirstString(event.actor_role, event.actor_id) || "No especificado"}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
