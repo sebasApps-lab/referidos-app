@@ -4,6 +4,7 @@ import {
   Activity,
   Archive,
   Building2,
+  Check,
   ChevronDown,
   ChevronRight,
   ClipboardCheck,
@@ -339,8 +340,16 @@ export default function SupportTicket() {
   const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
   const [expandedTimelineSegmentId, setExpandedTimelineSegmentId] = useState("");
   const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
+  const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const shownTrackerRef = useRef(new Set());
-  const collapseResolvingTimersRef = useRef({});
+  const timelineScrollRef = useRef(null);
+  const timelineDragStateRef = useRef({
+    active: false,
+    startX: 0,
+    startScrollLeft: 0,
+    moved: false,
+  });
+  const timelineSuppressClickUntilRef = useRef(0);
 
   const formatDateTime = (value) =>
     new Date(value).toLocaleString("es-EC", {
@@ -454,15 +463,6 @@ export default function SupportTicket() {
       active = false;
     };
   }, [threadId]);
-
-  useEffect(() => {
-    return () => {
-      Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
-        if (timerId) clearTimeout(timerId);
-      });
-      collapseResolvingTimersRef.current = {};
-    };
-  }, []);
 
   const fetchCatalog = useCallback(async ({ forceSync = false } = {}) => {
     let result = await loadSupportCatalogFromCache({ publishedOnly: true });
@@ -705,6 +705,7 @@ export default function SupportTicket() {
   const debugBanner = import.meta.env.DEV ? (
     <SupportDevDebugBanner
       scope={location.pathname.startsWith("/admin/") ? "admin-ticket" : "support-ticket"}
+      position="top-right"
     />
   ) : null;
 
@@ -923,51 +924,66 @@ export default function SupportTicket() {
     [expandedTimelineSegmentId, timelineCollapsedSegments, timelineLanes]
   );
 
-  const clearAllLaneCollapseTimers = useCallback(() => {
-    Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
-      if (timerId) clearTimeout(timerId);
-    });
-    collapseResolvingTimersRef.current = {};
+  const toggleLaneExpanded = useCallback((laneKey) => {
+    setExpandedResolvingByLane((prev) => (prev[laneKey] ? {} : { [laneKey]: true }));
   }, []);
-
-  const setLaneExpanded = useCallback((laneKey, value) => {
-    setExpandedResolvingByLane((prev) => {
-      if (value) {
-        const currentExpandedLane = Object.keys(prev).find((key) => !!prev[key]);
-        if (currentExpandedLane === laneKey) return prev;
-        return { [laneKey]: true };
-      }
-      if (!prev[laneKey]) return prev;
-      const next = { ...prev };
-      delete next[laneKey];
-      return next;
-    });
-  }, []);
-
-  const clearLaneCollapseTimer = useCallback((laneKey) => {
-    const timerId = collapseResolvingTimersRef.current[laneKey];
-    if (timerId) {
-      clearTimeout(timerId);
-      delete collapseResolvingTimersRef.current[laneKey];
-    }
-  }, []);
-
-  const scheduleLaneCollapse = useCallback(
-    (laneKey) => {
-      clearLaneCollapseTimer(laneKey);
-      collapseResolvingTimersRef.current[laneKey] = setTimeout(() => {
-        setLaneExpanded(laneKey, false);
-        delete collapseResolvingTimersRef.current[laneKey];
-      }, 1000);
-    },
-    [clearLaneCollapseTimer, setLaneExpanded]
-  );
 
   useEffect(() => {
     setExpandedTimelineSegmentId("");
     setExpandedResolvingByLane({});
-    clearAllLaneCollapseTimers();
-  }, [thread?.id, clearAllLaneCollapseTimers]);
+  }, [thread?.id]);
+
+  const handleTimelineDragStart = useCallback((event) => {
+    if (event.button !== 0) return;
+    const container = timelineScrollRef.current;
+    if (!container) return;
+    event.preventDefault();
+    timelineDragStateRef.current = {
+      active: true,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+      moved: false,
+    };
+    setIsTimelineDragging(true);
+  }, []);
+
+  const handleTimelineDragMove = useCallback((event) => {
+    const container = timelineScrollRef.current;
+    const state = timelineDragStateRef.current;
+    if (!container || !state.active) return;
+    event.preventDefault();
+    const delta = event.clientX - state.startX;
+    if (Math.abs(delta) > 3) {
+      state.moved = true;
+    }
+    container.scrollLeft = state.startScrollLeft - delta;
+  }, []);
+
+  const handleTimelineDragEnd = useCallback(() => {
+    const state = timelineDragStateRef.current;
+    if (!state.active) return;
+    state.active = false;
+    setIsTimelineDragging(false);
+    if (state.moved) {
+      timelineSuppressClickUntilRef.current = Date.now() + 180;
+      state.moved = false;
+    }
+  }, []);
+
+  const shouldIgnoreTimelineClick = useCallback(() => {
+    return Date.now() < timelineSuppressClickUntilRef.current;
+  }, []);
+
+  useEffect(() => {
+    const onMove = (event) => handleTimelineDragMove(event);
+    const onUp = () => handleTimelineDragEnd();
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [handleTimelineDragEnd, handleTimelineDragMove]);
 
   useEffect(() => {
     shownTrackerRef.current.clear();
@@ -1085,36 +1101,45 @@ export default function SupportTicket() {
   return (
     <div className="space-y-6">
       {debugBanner}
-      <div className="fixed left-1/2 top-0 z-40 -translate-x-1/2">
+      <div className="fixed left-1/2 top-0 z-[200] -translate-x-1/2">
         <div className="flex items-center gap-2 rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 shadow-lg backdrop-blur">
-          <button
-            type="button"
-            onClick={() => handleStatus("in_progress")}
-            className="rounded-xl bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-          >
-            En progreso
-          </button>
-          <button
-            type="button"
-            onClick={() => handleStatus("waiting_user")}
-            className="rounded-xl border border-[#5E30A5] bg-white px-3 py-1 text-xs font-semibold text-[#5E30A5]"
-          >
-            Esperando usuario
-          </button>
-          <button
-            type="button"
-            onClick={() => handleStatus("queued")}
-            className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-1 text-xs font-semibold text-slate-600"
-          >
-            Liberar a cola
-          </button>
-          <button
-            type="button"
-            onClick={() => setClosing(true)}
-            className="rounded-xl border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-500"
-          >
-            Cerrar caso
-          </button>
+          {thread.status === "closed" ? (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-[#1B7F4B]/45 px-3 py-1 text-xs font-semibold text-[#1B7F4B]">
+              <span>Estado: Resuelto</span>
+              <Check size={14} />
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => handleStatus("in_progress")}
+                className="rounded-xl bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
+              >
+                En progreso
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatus("waiting_user")}
+                className="rounded-xl border border-[#5E30A5] bg-white px-3 py-1 text-xs font-semibold text-[#5E30A5]"
+              >
+                Esperando usuario
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStatus("queued")}
+                className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+              >
+                Liberar a cola
+              </button>
+              <button
+                type="button"
+                onClick={() => setClosing(true)}
+                className="rounded-xl border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-500"
+              >
+                Cerrar caso
+              </button>
+            </>
+          )}
         </div>
       </div>
       <div className="space-y-2">
@@ -1131,7 +1156,6 @@ export default function SupportTicket() {
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-          <span>Estado actual: {thread.status}</span>
           <span
             className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
               thread.request_origin === "anonymous"
@@ -1152,11 +1176,11 @@ export default function SupportTicket() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-3">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="order-2 rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-3">
             <div
-              className="grid items-start gap-x-16"
+              className="grid items-stretch gap-x-6"
               style={{ gridTemplateColumns: "25.5rem minmax(0, 1fr)" }}
             >
               <div className="w-[25.5rem] flex-none space-y-3">
@@ -1177,13 +1201,13 @@ export default function SupportTicket() {
                 </div>
               </div>
               <div className="min-w-0 flex-1 space-y-3">
-                <div className="rounded-xl border border-[#E8E2F5] bg-[#FCFBFF] p-3">
+                <div className="space-y-2">
                   <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Descripcion</div>
                   <div className="min-h-[88px] whitespace-pre-wrap rounded-lg border border-[#E8E2F5] bg-white px-3 py-2 text-sm text-slate-700">
                     {pickFirstString(thread.summary) || "No especificado"}
                   </div>
                 </div>
-                <div className="rounded-xl border border-[#E8E2F5] bg-white p-3">
+                <div className="space-y-2">
                   <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Build</div>
                   <div className="flex flex-wrap gap-2">
                     {buildCards.map((item) => (
@@ -1218,17 +1242,24 @@ export default function SupportTicket() {
             ) : null}
           </div>
 
-          <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="text-sm font-semibold text-[#2F1A55]">Flujo de ticket</div>
+          <div className="order-1 relative z-0 isolate min-w-0 rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
+            <div className="text-sm font-semibold text-[#2F1A55]">Timeline</div>
             {timelineLanes.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-4 text-center text-sm text-slate-500">
                 Sin eventos para mostrar.
               </div>
             ) : (
               <div className="space-y-3">
-                {timelineLanes.map((laneSegments, laneIndex) => (
-                  <div key={`${thread.id}-lane-${laneIndex}`} className="overflow-x-auto pb-1">
-                    {(() => {
+                <div
+                  ref={timelineScrollRef}
+                  className={`relative z-0 w-full max-w-full select-none overflow-x-auto overflow-y-hidden pb-1 [&::-webkit-scrollbar]:hidden ${
+                    isTimelineDragging ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                  onMouseDown={handleTimelineDragStart}
+                >
+                  <div className="inline-flex min-w-max items-center">
+                    {timelineLanes.map((laneSegments, laneIndex) => {
                       const laneKey = `${thread.id}:${laneIndex}`;
                       const compression = buildCollapsedResolvingLane(laneSegments);
                       const isResolvingExpanded = !!expandedResolvingByLane[laneKey];
@@ -1236,20 +1267,16 @@ export default function SupportTicket() {
                         compression.hasCollapsedResolving && !isResolvingExpanded
                           ? compression.collapsedSegments
                           : laneSegments;
+                      const firstResolvingExpandedIndex = isResolvingExpanded
+                        ? renderSegments.findIndex((segment) => segment.status === "in_progress")
+                        : -1;
                       return (
                         <div
-                          className="flex min-w-max items-center"
-                          onMouseEnter={() => {
-                            if (isResolvingExpanded) clearLaneCollapseTimer(laneKey);
-                          }}
-                          onMouseLeave={() => {
-                            if (compression.hasCollapsedResolving && isResolvingExpanded) {
-                              scheduleLaneCollapse(laneKey);
-                            }
-                          }}
+                          key={`${thread.id}-lane-${laneIndex}`}
+                          className="flex items-center"
                         >
                           {renderSegments.map((segment, segmentIndex) => {
-                            const isFirstSegmentInLane = segmentIndex === 0;
+                            const isFirstVisibleSegment = laneIndex === 0 && segmentIndex === 0;
                             const isExpanded = expandedTimelineSegmentId === segment.id;
                             const blockClipPath =
                               "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)";
@@ -1257,38 +1284,71 @@ export default function SupportTicket() {
                               TIMELINE_BLOCK_REACHED_CLASSES[segment.status] || "bg-[#1E293B] text-white";
                             const colorClass = segment.isReached ? reachedClass : "bg-[#64748B] text-white";
                             const isCollapsedResolving = Boolean(segment.isCollapsedResolving);
+                            const canShowExpandToggle =
+                              compression.hasCollapsedResolving &&
+                              !isResolvingExpanded &&
+                              isCollapsedResolving;
+                            const canShowCollapseToggle =
+                              compression.hasCollapsedResolving &&
+                              isResolvingExpanded &&
+                              segmentIndex === firstResolvingExpandedIndex;
+                            const canToggleResolvingFromBlock =
+                              canShowExpandToggle && isCollapsedResolving;
                             return (
                               <div
                                 key={segment.id}
-                                className={isFirstSegmentInLane ? "overflow-hidden" : ""}
+                                className={isFirstVisibleSegment ? "overflow-hidden" : ""}
                                 style={{
-                                  marginLeft: isFirstSegmentInLane ? 0 : -18,
-                                  zIndex: renderSegments.length - segmentIndex,
+                                  marginLeft: isFirstVisibleSegment ? 0 : -18,
+                                  zIndex:
+                                    (timelineLanes.length - laneIndex) * 20 +
+                                    (renderSegments.length - segmentIndex),
                                 }}
                               >
                                 <button
                                   type="button"
-                                  onMouseEnter={() => {
-                                    if (isCollapsedResolving) {
-                                      clearAllLaneCollapseTimers();
-                                      setLaneExpanded(laneKey, true);
+                                  onClick={() => {
+                                    if (shouldIgnoreTimelineClick()) return;
+                                    if (canToggleResolvingFromBlock) {
+                                      toggleLaneExpanded(laneKey);
+                                      setExpandedTimelineSegmentId("");
+                                      return;
                                     }
+                                    if (isExpanded) {
+                                      setExpandedTimelineSegmentId("");
+                                      return;
+                                    }
+                                    setExpandedTimelineSegmentId(segment.id);
                                   }}
-                                  onClick={() =>
-                                    setExpandedTimelineSegmentId((prev) => (prev === segment.id ? "" : segment.id))
-                                  }
-                                  className={`relative h-12 min-w-[150px] overflow-hidden px-3 text-[12px] font-semibold transition ${colorClass} ${
+                                  className={`relative h-12 shrink-0 overflow-hidden px-3 text-[11px] font-semibold transition ${colorClass} ${
                                     isExpanded ? "ring-2 ring-[#5E30A5] ring-offset-1" : "hover:brightness-[0.98]"
                                   }`}
                                   style={{
                                     clipPath: blockClipPath,
+                                    width: "115px",
+                                    minWidth: "115px",
                                   }}
                                 >
-                                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
-                                    {segment.label}
+                                  <span
+                                    className={`pointer-events-none absolute inset-0 flex items-center justify-center text-center ${
+                                      segment.status === "waiting_user" ? "leading-[1.05]" : "whitespace-nowrap"
+                                    }`}
+                                  >
+                                    {segment.status === "waiting_user" ? (
+                                      <>
+                                        Esperando
+                                        <br />
+                                        usuario
+                                      </>
+                                    ) : (
+                                      segment.label
+                                    )}
                                   </span>
-                                  {isCollapsedResolving ? (
-                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                                  {canShowExpandToggle ? (
+                                    <span
+                                      className="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-sm px-1 py-0.5 text-white/90"
+                                      aria-hidden="true"
+                                    >
                                       <svg
                                         width="10"
                                         height="20"
@@ -1316,15 +1376,54 @@ export default function SupportTicket() {
                                       </svg>
                                     </span>
                                   ) : null}
+                                  {canShowCollapseToggle ? (
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (shouldIgnoreTimelineClick()) return;
+                                        toggleLaneExpanded(laneKey);
+                                        setExpandedTimelineSegmentId("");
+                                      }}
+                                      className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-sm px-1 py-0.5 text-white/90 hover:bg-black/10"
+                                      aria-label="Cerrar resolviendo"
+                                    >
+                                      <svg
+                                        width="10"
+                                        height="20"
+                                        viewBox="0 0 10 20"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        aria-hidden="true"
+                                      >
+                                        <path
+                                          d="M9.2 2.4L5.8 10L9.2 17.6"
+                                          stroke="white"
+                                          strokeWidth="1.3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                        <path
+                                          d="M5.2 2.4L1.8 10L5.2 17.6"
+                                          stroke="white"
+                                          strokeWidth="1.3"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                      </svg>
+                                    </button>
+                                  ) : null}
                                 </button>
                               </div>
                             );
                           })}
                         </div>
                       );
-                    })()}
+                    })}
                   </div>
-                ))}
+                </div>
 
                 {expandedTimelineSegment ? (
                   <div className="rounded-xl border border-[#E9E2F7] bg-white p-3">
@@ -1335,7 +1434,10 @@ export default function SupportTicket() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setExpandedTimelineSegmentId("")}
+                        onClick={() => {
+                          if (shouldIgnoreTimelineClick()) return;
+                          setExpandedTimelineSegmentId("");
+                        }}
                         className="h-6 w-6 rounded-md border border-[#E9E2F7] text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                         aria-label="Cerrar detalle de etapa"
                       >
@@ -1368,36 +1470,46 @@ export default function SupportTicket() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="border-t border-[#E9E2F7] pt-4 space-y-4">
+                  <div className="text-sm font-semibold text-[#2F1A55]">Notas</div>
+                  {thread.status !== "closed" ? (
+                    <>
+                      <textarea
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                        placeholder="Escribe una nota interna"
+                        className="w-full rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                        rows={3}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddNote}
+                        className="rounded-2xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white"
+                      >
+                        Guardar nota
+                      </button>
+                    </>
+                  ) : null}
+                  <div className="space-y-2">
+                    {notes.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
+                        Sin notas registradas.
+                      </div>
+                    ) : (
+                      notes.map((note) => (
+                        <div
+                          key={note.id}
+                          className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600"
+                        >
+                          {note.body}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-
-          <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="text-sm font-semibold text-[#2F1A55]">Notas internas</div>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Escribe una nota interna"
-              className="w-full rounded-2xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-              rows={3}
-            />
-            <button
-              type="button"
-              onClick={handleAddNote}
-              className="rounded-2xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white"
-            >
-              Guardar nota
-            </button>
-            <div className="space-y-2">
-              {notes.map((note) => (
-                <div
-                  key={note.id}
-                  className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600"
-                >
-                  {note.body}
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">

@@ -279,7 +279,8 @@ export function filterSupportMacrosForThread({
     const threadStatus = normalizeThreadStatus(
       macro.thread_status || macro.status_thread || metadataThreadStatus || ""
     );
-    if (threadStatus && threadStatus !== currentThreadStatus) return false;
+    if (!threadStatus) return false;
+    if (threadStatus !== currentThreadStatus) return false;
 
     const categoryCode = normalizeCategoryCode(
       macro.category_code ||
