@@ -705,7 +705,7 @@ export default function SupportTicket() {
   const debugBanner = import.meta.env.DEV ? (
     <SupportDevDebugBanner
       scope={location.pathname.startsWith("/admin/") ? "admin-ticket" : "support-ticket"}
-      position="top-right"
+      zIndexClass="z-[200]"
     />
   ) : null;
 

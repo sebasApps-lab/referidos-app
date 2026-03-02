@@ -9,7 +9,11 @@ function formatNow() {
   });
 }
 
-export default function SupportDevDebugBanner({ scope = "support", position = "bottom-right" }) {
+export default function SupportDevDebugBanner({
+  scope = "support",
+  position = "bottom-right",
+  zIndexClass = "z-[9999]",
+}) {
   const enabled = Boolean(import.meta.env.DEV);
   const [items, setItems] = useState(() => {
     if (!enabled) return [];
@@ -141,7 +145,7 @@ export default function SupportDevDebugBanner({ scope = "support", position = "b
 
   return (
     <div
-      className={`fixed ${placementClass} z-[9999] w-[360px] rounded-xl border border-[#d9d2ea] bg-white/95 p-3 text-[10px] text-slate-700 shadow-lg backdrop-blur`}
+      className={`fixed ${placementClass} ${zIndexClass} w-[360px] rounded-xl border border-[#d9d2ea] bg-white/95 p-3 text-[10px] text-slate-700 shadow-lg backdrop-blur`}
     >
       <div className="mb-2 flex items-center justify-between">
         <div className="font-semibold text-[#5E30A5]">Debug {scope}</div>

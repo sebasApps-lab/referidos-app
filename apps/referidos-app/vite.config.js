@@ -75,6 +75,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [
         'indissolubly-preluxurious-harmony.ngrok-free.dev',
         'shiftiest-corinne-spookily.ngrok-free.dev',
+        'process-cheap-complex-develop.trycloudflare.com',
       ],
     },
   };
