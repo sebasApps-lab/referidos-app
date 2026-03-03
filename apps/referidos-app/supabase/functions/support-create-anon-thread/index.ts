@@ -13,11 +13,12 @@ import {
   normalizeSupportCategoryCode,
 } from "../_shared/supportMacroCatalog.ts";
 import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
-const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
+const ACTIVE_STATUSES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
 const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
 const DEFAULT_APP_CHANNEL = "undetermined";
 const UA_PEPPER = Deno.env.get("PRELAUNCH_UA_PEPPER") || "prelaunch_ua_pepper_v1";
@@ -131,7 +132,7 @@ async function issueTrackingToken(threadId: string) {
   return token;
 }
 
-async function cancelAnonymousThread(threadId: string, reason: string) {
+async function cancelAnonymousThread(threadId: string, reason: string, tenantId: string | null = null) {
   const nowIso = new Date().toISOString();
 
   await supabaseAdmin
@@ -151,6 +152,13 @@ async function cancelAnonymousThread(threadId: string, reason: string) {
     actor_role: "anonymous",
     actor_id: null,
     details: { reason },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_cancelled_anonymous_replace",
+    tenantId,
+    actorId: null,
+    actorRole: "anonymous",
   });
 }
 
@@ -181,6 +189,8 @@ serve(async (req) => {
     DEFAULT_APP_CHANNEL,
   );
   const appChannel = appIdentity.appKey;
+  const { data: defaultTenantIdRaw } = await supabaseAdmin.rpc("resolve_default_tenant_id");
+  const defaultTenantId = typeof defaultTenantIdRaw === "string" ? defaultTenantIdRaw : null;
   const originSource = "user";
   const requestedCategory = normalizeSupportCategoryCode(body.category, "");
   const anonId = parseUuid(body.anon_id);
@@ -362,7 +372,7 @@ serve(async (req) => {
     }
 
     if (replaceExisting) {
-      await cancelAnonymousThread(activeThread.id, "replace_with_new");
+      await cancelAnonymousThread(activeThread.id, "replace_with_new", defaultTenantId);
     } else {
       const trackingToken = await issueTrackingToken(activeThread.id);
       return jsonResponse(
@@ -382,7 +392,7 @@ serve(async (req) => {
     }
   }
 
-  const { data: activeAfterReplace } = await supabaseAdmin
+    const { data: activeAfterReplace } = await supabaseAdmin
     .from("support_threads")
     .select("id, public_id, status")
     .eq("request_origin", "anonymous")
@@ -450,6 +460,7 @@ serve(async (req) => {
   const { data: insertedThread, error: insertErr } = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: defaultTenantId,
       user_id: null,
       user_public_id: anonProfile.public_id,
       category,
@@ -482,7 +493,7 @@ serve(async (req) => {
       is_anonymous: true,
       anon_tracking_token_hash: trackingTokenHash,
     })
-    .select("id, public_id, status")
+    .select("id, tenant_id, public_id, status")
     .single();
 
   if (insertErr || !insertedThread) {
@@ -526,6 +537,13 @@ serve(async (req) => {
       source_route: sourceRoute,
       build: buildSnapshot,
     },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_anonymous",
+    tenantId: insertedThread.tenant_id || defaultTenantId,
+    actorId: null,
+    actorRole: "anonymous",
   });
 
   return jsonResponse(

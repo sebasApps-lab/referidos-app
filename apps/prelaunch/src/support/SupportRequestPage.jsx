@@ -3,7 +3,9 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   cancelAnonymousSupportThread,
   createAnonymousSupportThread,
+  getAnonymousSupportThreadStatus,
   listAnonymousSupportCategories,
+  requestAnonymousSupportThreadRetake,
 } from "./supportApi";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
 import { runtimeConfig } from "../config/runtimeConfig";
@@ -113,6 +115,8 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   const [saveTicketModalOpen, setSaveTicketModalOpen] = useState(false);
   const [replacePrompt, setReplacePrompt] = useState(null);
   const [replaceLoading, setReplaceLoading] = useState(false);
+  const [retakeLoading, setRetakeLoading] = useState(false);
+  const [retakeFeedback, setRetakeFeedback] = useState("");
   const summaryRef = useRef(null);
 
   const isChatTab = activeTab === "chat";
@@ -337,10 +341,21 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         response.data?.thread_public_id &&
         response.data?.tracking_token
       ) {
-        setReplacePrompt({
+        let canRetake = false;
+        const statusResult = await getAnonymousSupportThreadStatus({
           thread_public_id: response.data.thread_public_id,
           tracking_token: response.data.tracking_token,
         });
+        if (statusResult.ok && statusResult.data?.ok) {
+          const statusThread = statusResult.data.thread || {};
+          canRetake = statusThread.status === "queued" && statusThread.personal_queue === false;
+        }
+        setReplacePrompt({
+          thread_public_id: response.data.thread_public_id,
+          tracking_token: response.data.tracking_token,
+          can_retake: canRetake,
+        });
+        setRetakeFeedback("");
         return;
       }
       setError(response.error || response.data?.error || "No se pudo iniciar la conversacion.");
@@ -387,6 +402,24 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     setReplacePrompt(null);
     setReplaceLoading(false);
     await submitConversation();
+  }
+
+  async function handleRetakeTicket() {
+    if (!replacePrompt?.thread_public_id || !replacePrompt?.tracking_token) return;
+    setRetakeLoading(true);
+    setRetakeFeedback("");
+    const result = await requestAnonymousSupportThreadRetake({
+      thread_public_id: replacePrompt.thread_public_id,
+      tracking_token: replacePrompt.tracking_token,
+    });
+    setRetakeLoading(false);
+    if (!result.ok || !result.data?.ok) {
+      setRetakeFeedback(result.error || result.data?.error || "No se pudo solicitar retomar ticket.");
+      return;
+    }
+    const estimated = Number(result.data.estimated_delay_seconds || 0);
+    const estimateLabel = estimated > 0 ? `${Math.max(1, Math.ceil(estimated / 60))} min` : "5-10 min";
+    setRetakeFeedback(`Solicitud enviada. Tiempo aproximado de reasignacion: ${estimateLabel}.`);
   }
 
   return (
@@ -661,7 +694,29 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         confirmDisabled={replaceLoading}
         onConfirm={() => void handleReplaceTicket()}
         onCancel={() => setReplacePrompt(null)}
-      />
+      >
+        {replacePrompt?.can_retake ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => void handleRetakeTicket()}
+              disabled={retakeLoading}
+              className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
+            >
+              {retakeLoading ? "Solicitando retomar..." : "Retomar ticket actual"}
+            </button>
+            {retakeFeedback ? (
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                {retakeFeedback}
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500">
+                Si deseas continuar con tu ticket actual, pulsa Retomar ticket.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </SupportModal>
     </div>
   );
 }

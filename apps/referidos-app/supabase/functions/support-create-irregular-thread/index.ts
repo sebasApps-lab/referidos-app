@@ -8,6 +8,7 @@ import {
   supabaseAdmin,
 } from "../_shared/support.ts";
 import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -75,16 +76,17 @@ serve(async (req) => {
     .from("support_threads")
     .select("id")
     .eq("assigned_agent_id", usuario.id)
-    .in("status", ["assigned", "in_progress", "waiting_user"])
+    .in("status", ["starting", "assigned", "in_progress", "waiting_user"])
     .limit(1);
 
   const initialStatus = activeAssigned && activeAssigned.length > 0
     ? "queued"
-    : "assigned";
+    : "starting";
 
   const insertResponse = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: usuario.tenant_id || null,
       user_id: targetUser.id,
       user_public_id: targetUser.public_id,
       category,
@@ -95,14 +97,18 @@ serve(async (req) => {
       created_by_agent_id: usuario.id,
       assigned_agent_id: usuario.id,
       assigned_agent_phone: agentProfile?.support_phone ?? null,
+      assigned_at: new Date().toISOString(),
+      starting_at: initialStatus === "starting" ? new Date().toISOString() : null,
+      personal_queue_entered_at: initialStatus === "queued" ? new Date().toISOString() : null,
       irregular: true,
-      personal_queue: true,
+      personal_queue: initialStatus === "queued",
+      assignment_source: "irregular",
       suggested_contact_name: targetUser.public_id,
       suggested_tags: [category, severity, "irregular", appChannel],
       app_channel: appChannel,
       origin_source: originSource,
     })
-    .select("id, public_id, status")
+    .select("id, tenant_id, public_id, status")
     .single();
 
   if (insertResponse.error) {
@@ -115,6 +121,13 @@ serve(async (req) => {
     actor_role: usuario.role,
     actor_id: usuario.id,
     details: { irregular: true, status: initialStatus, app_channel: appChannel },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_irregular",
+    tenantId: insertResponse.data?.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
   });
 
   return jsonResponse(

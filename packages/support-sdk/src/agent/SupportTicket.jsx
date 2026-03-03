@@ -27,6 +27,7 @@ import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
   closeSupportThread,
+  markSupportOpeningMessage,
   trackSupportMacroEvents,
   updateSupportStatus,
 } from "../supportClient";
@@ -38,13 +39,14 @@ import {
 } from "../data/supportCatalog";
 import SupportDevDebugBanner from "./SupportDevDebugBanner";
 
-const THREAD_STATUS_VALUES = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
-const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "in_progress", "closed"];
-const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "in_progress", "closed"];
+const THREAD_STATUS_VALUES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "starting", "in_progress", "closed"];
+const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "starting", "in_progress", "closed"];
 const TIMELINE_RELEASE_EVENT_TYPES = new Set(["agent_timeout_release", "agent_manual_release"]);
 const TERMINAL_TIMELINE_STATUSES = new Set(["closed", "cancelled", "released"]);
 const TIMELINE_BLOCK_LABELS = {
   new: "Creado",
+  starting: "Retomando",
   assigned: "Asignado",
   in_progress: "Resolviendo",
   waiting_user: "Esperando usuario",
@@ -57,6 +59,7 @@ const TIMELINE_BLOCK_LABELS = {
 const EVENT_TYPE_LABELS = {
   created: "created",
   assigned: "assigned",
+  starting: "starting",
   status_changed: "status_changed",
   waiting_user: "waiting_user",
   resumed: "resumed",
@@ -65,11 +68,13 @@ const EVENT_TYPE_LABELS = {
   note_added: "note_added",
   agent_timeout_release: "agent_timeout_release",
   agent_manual_release: "agent_manual_release",
+  retake_requested: "retake_requested",
   cancelled: "cancelled",
   linked_to_user: "linked_to_user",
 };
 const TIMELINE_BLOCK_REACHED_CLASSES = {
   new: "bg-[#1D4ED8] text-white",
+  starting: "bg-[#7C3AED] text-white",
   assigned: "bg-[#7C3AED] text-white",
   in_progress: "bg-[#0891B2] text-white",
   waiting_user: "bg-[#EA580C] text-white",
@@ -161,6 +166,9 @@ function normalizeThreadStatusCandidate(value) {
   const raw = value.trim().toLowerCase();
   const compact = raw.replace(/[\s-]+/g, "_");
   const aliases = {
+    starting: "starting",
+    retomando: "starting",
+    en_inicio: "starting",
     inprogress: "in_progress",
     en_progreso: "in_progress",
     resolviendo: "in_progress",
@@ -338,6 +346,14 @@ export default function SupportTicket() {
   const [catalogLoadError, setCatalogLoadError] = useState("");
   const [refreshingMacros, setRefreshingMacros] = useState(false);
   const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
+  const [openingMessageSent, setOpeningMessageSent] = useState(false);
+  const [openingSaving, setOpeningSaving] = useState(false);
+  const [startingGuideOpen, setStartingGuideOpen] = useState(false);
+  const [copyConfirmMacro, setCopyConfirmMacro] = useState(null);
+  const [macroFlowState, setMacroFlowState] = useState({
+    open: false,
+    mode: "continue",
+  });
   const [expandedTimelineSegmentId, setExpandedTimelineSegmentId] = useState("");
   const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
@@ -452,7 +468,9 @@ export default function SupportTicket() {
       }
 
       if (!active) return;
-      setThread(normalizeThreadRow(threadData));
+      const normalizedThread = normalizeThreadRow(threadData);
+      setThread(normalizedThread);
+      setOpeningMessageSent(Boolean(normalizedThread?.opening_message_sent_at));
       setObsContext(obsContextData || null);
       setEvents(eventData || []);
       setNotes(noteData || []);
@@ -990,6 +1008,37 @@ export default function SupportTicket() {
   }, [thread?.public_id]);
 
   useEffect(() => {
+    if (!thread?.public_id) return;
+    try {
+      const raw = window.localStorage.getItem(`support:macroflow:${thread.public_id}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.open) {
+        setMacroFlowState({
+          open: true,
+          mode: parsed.mode === "closing" ? "closing" : "continue",
+        });
+      }
+    } catch {
+      // no-op
+    }
+  }, [thread?.public_id]);
+
+  useEffect(() => {
+    if (!thread?.public_id) return;
+    try {
+      const key = `support:macroflow:${thread.public_id}`;
+      if (macroFlowState.open) {
+        window.localStorage.setItem(key, JSON.stringify(macroFlowState));
+      } else {
+        window.localStorage.removeItem(key);
+      }
+    } catch {
+      // no-op
+    }
+  }, [macroFlowState, thread?.public_id]);
+
+  useEffect(() => {
     if (!thread?.public_id || !macros.length) return;
     const events = [];
 
@@ -1020,7 +1069,7 @@ export default function SupportTicket() {
     trackSupportMacroEvents({ events }).catch(() => {});
   }, [macros, runtimeEnvKey, thread?.public_id, ticketAppKey]);
 
-  const handleCopy = async (macro) => {
+  const executeMacroCopy = async (macro) => {
     const macroBody = typeof macro?.body === "string" ? macro.body : "";
     const macroId = typeof macro?.id === "string" ? macro.id : "";
     const macroCode = typeof macro?.code === "string" ? macro.code : "";
@@ -1050,6 +1099,24 @@ export default function SupportTicket() {
         },
       ],
     }).catch(() => {});
+
+    if (thread?.status !== "closed" && thread?.status !== "queued") {
+      setMacroFlowState({
+        open: true,
+        mode: "continue",
+      });
+    }
+  };
+
+  const handleCopy = (macro) => {
+    setCopyConfirmMacro(macro);
+  };
+
+  const handleConfirmMacroCopy = async () => {
+    if (!copyConfirmMacro) return;
+    const macro = copyConfirmMacro;
+    setCopyConfirmMacro(null);
+    await executeMacroCopy(macro);
   };
 
   const handleAddNote = async () => {
@@ -1070,9 +1137,16 @@ export default function SupportTicket() {
       status,
     });
     if (result.ok) {
-      setThread((prev) => ({ ...prev, status }));
+      const responseThread = result?.data?.thread || null;
+      setThread((prev) => ({
+        ...prev,
+        ...(responseThread || {}),
+        status: responseThread?.status || status,
+      }));
       await refreshCatalog({ forceSync: true });
+      return true;
     }
+    return false;
   };
 
   const handleClose = async () => {
@@ -1094,9 +1168,53 @@ export default function SupportTicket() {
     }
   };
 
+  const handleOpeningMessageSent = async () => {
+    if (!thread?.public_id || openingSaving) return;
+    setOpeningSaving(true);
+    const result = await markSupportOpeningMessage({
+      thread_public_id: thread.public_id,
+    });
+    setOpeningSaving(false);
+    if (!result.ok) return;
+    setOpeningMessageSent(true);
+    setThread((prev) =>
+      prev
+        ? {
+            ...prev,
+            opening_message_sent_at:
+              result?.data?.opening_message_sent_at || new Date().toISOString(),
+          }
+        : prev,
+    );
+  };
+
+  const handleStartingContinue = async () => {
+    if (!thread?.public_id) return;
+    const ok = await handleStatus("in_progress");
+    if (ok) {
+      setStartingGuideOpen(false);
+    }
+  };
+
+  const handleMacroFlowUserResponded = async () => {
+    if (!thread?.public_id) return;
+    if (thread.status === "waiting_user" || thread.status === "queued") {
+      const ok = await handleStatus("in_progress");
+      if (!ok) return;
+    }
+    setMacroFlowState({ open: false, mode: "continue" });
+  };
+
   if (!thread) {
     return <div className="text-sm text-slate-500">Cargando ticket...</div>;
   }
+
+  const isStartingStage = thread.status === "starting";
+  const openingTargetLabel =
+    thread.request_origin === "anonymous"
+      ? thread.anon_profile?.public_id || thread.user_public_id || "No especificado"
+      : thread.user_public_id || "No especificado";
+  const canStartFlow = openingMessageSent;
 
   return (
     <div className="space-y-6">
@@ -1175,6 +1293,99 @@ export default function SupportTicket() {
           </span>
         </div>
       </div>
+
+      {isStartingStage ? (
+        <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div className="text-lg font-semibold text-[#2F1A55]">
+                Se te asigno el ticket {thread.public_id}
+              </div>
+              <div className="text-sm text-slate-600">
+                Envia mensaje de apertura a usuario {openingTargetLabel}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(openingTargetLabel);
+                    } catch {
+                      // no-op
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
+                >
+                  <Copy size={12} />
+                  Copiar ID usuario
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleOpeningMessageSent();
+                  }}
+                  disabled={openingSaving}
+                  className="rounded-full border border-[#5E30A5] px-3 py-1 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
+                >
+                  {openingMessageSent ? "Ya envié mensaje de apertura" : "Marcar mensaje de apertura"}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStartingGuideOpen(true)}
+                disabled={!canStartFlow}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                  canStartFlow ? "bg-[#5E30A5]" : "bg-[#C9B6E8]"
+                }`}
+              >
+                Empezar
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-[#2F1A55]">Macros sugeridas</div>
+              {macros.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
+                  No hay macros publicadas para este estado/app.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                  {macroGroups.map((group) => (
+                    <div
+                      key={`starting-${group.key}`}
+                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
+                    >
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
+                        {group.label}
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {group.items.map((macro) => (
+                          <div
+                            key={`starting-macro-${macro.id}`}
+                            className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600"
+                          >
+                            <div className="font-semibold text-[#2F1A55]">
+                              {macro.displayTitle || macro.title}
+                            </div>
+                            <div className="mt-1 max-h-16 overflow-hidden">{macro.body}</div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(macro)}
+                              className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                            >
+                              {copiedId === macro.id ? <ClipboardCheck size={14} /> : <Copy size={14} />}
+                              {copiedId === macro.id ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -1547,6 +1758,7 @@ export default function SupportTicket() {
         </div>
 
         <div className="space-y-6">
+          {!isStartingStage ? (
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-semibold text-[#2F1A55]">
@@ -1631,6 +1843,7 @@ export default function SupportTicket() {
               )}
             </div>
           </div>
+          ) : null}
         </div>
       </div>
 
@@ -1667,6 +1880,163 @@ export default function SupportTicket() {
             >
               Cancelar
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {startingGuideOpen ? (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-3xl rounded-3xl border border-[#E9E2F7] bg-white p-6 shadow-2xl">
+            <div className="text-lg font-semibold text-[#2F1A55]">
+              Cambia nombre de cliente en WhatsApp
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+              <span>{openingTargetLabel}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(openingTargetLabel);
+                  } catch {
+                    // no-op
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2 py-1 text-xs font-semibold text-[#5E30A5]"
+              >
+                <Copy size={12} />
+                Copiar
+              </button>
+            </div>
+            <div className="mt-5 grid gap-4">
+              {[
+                "Paso 1: abre el chat del cliente y verifica que el ticket corresponde al usuario.",
+                "Paso 2: actualiza el nombre del contacto con el display id del usuario para trazabilidad.",
+                "Paso 3: valida que el nombre quedo guardado y vuelve al ticket para continuar.",
+              ].map((item, index) => (
+                <div
+                  key={item}
+                  className="grid grid-cols-[40px_1fr] items-start gap-3 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-3"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5E30A5] text-xs font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <div className="text-sm text-slate-600">{item}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleStartingContinue();
+                }}
+                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+              >
+                Ya cambie el nombre, continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {copyConfirmMacro ? (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+            <div className="text-sm font-semibold text-[#2F1A55]">Confirmar copia de macro</div>
+            <div className="mt-2 text-xs text-slate-600">
+              ¿Deseas copiar el macro{" "}
+              <span className="font-semibold text-[#2F1A55]">
+                {copyConfirmMacro?.displayTitle || copyConfirmMacro?.title || "seleccionado"}
+              </span>
+              ?
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCopyConfirmMacro(null)}
+                className="flex-1 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleConfirmMacroCopy();
+                }}
+                className="flex-1 rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white"
+              >
+                Copiar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {macroFlowState.open ? (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+            {macroFlowState.mode === "closing" ? (
+              <>
+                <div className="text-sm font-semibold text-[#2F1A55]">Cerrar ticket</div>
+                <div className="mt-2 text-xs text-slate-600">
+                  Puedes continuar el ticket o confirmar cierre con los macros de cerrado.
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMacroFlowState({ open: true, mode: "continue" })}
+                    className="flex-1 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+                  >
+                    Continuar ticket
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClosing(true)}
+                    className="flex-1 rounded-xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white"
+                  >
+                    Confirmar cierre
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-sm font-semibold text-[#2F1A55]">
+                  {thread.status === "waiting_user"
+                    ? "Esperando respuesta de usuario"
+                    : "Flujo de seguimiento activo"}
+                </div>
+                <div className="mt-2 text-xs text-slate-600">
+                  {thread.status === "queued"
+                    ? "Ticket en cola personal. Usa macro de cola y marca cuando lo envíes."
+                    : "Mantén este flujo abierto hasta registrar respuesta del usuario."}
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMacroFlowState({ open: false, mode: "continue" })}
+                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+                  >
+                    Cambiar/editar macro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleMacroFlowUserResponded();
+                    }}
+                    className="rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white"
+                  >
+                    Usuario respondio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMacroFlowState({ open: true, mode: "closing" })}
+                    className="col-span-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600"
+                  >
+                    Cerrar ticket
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -12,6 +12,7 @@
   "dependencies": {
     "@referidos/observability": "*",
     "@referidos/legal-content": "*",
+    "@referidos/notifications-sdk": "*",
     "@referidos/support-sdk": "*"
   }
 }

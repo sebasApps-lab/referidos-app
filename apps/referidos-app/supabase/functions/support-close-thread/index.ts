@@ -7,6 +7,7 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -49,7 +50,7 @@ serve(async (req) => {
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, public_id, assigned_agent_id, status, closed_at, resolution, root_cause")
+    .select("id, tenant_id, public_id, assigned_agent_id, status, closed_at, resolution, root_cause")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
@@ -116,6 +117,13 @@ serve(async (req) => {
     actor_role: usuario.role,
     actor_id: usuario.id,
     details: { resolution, root_cause: rootCause },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_closed",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
   });
 
   return jsonResponse({ ok: true, thread: updateResponse.data }, 200, cors);

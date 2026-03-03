@@ -31,6 +31,9 @@ const ENV_ALIASES = new Map([
 const THREAD_STATUS_ALIASES = new Map([
   ["new", "new"],
   ["nuevo", "new"],
+  ["starting", "starting"],
+  ["retomando", "starting"],
+  ["en_inicio", "starting"],
   ["assigned", "assigned"],
   ["asignado", "assigned"],
   ["in_progress", "in_progress"],
@@ -252,6 +255,12 @@ export function filterSupportMacrosForThread({
   );
 
   const currentThreadStatus = normalizeThreadStatus(thread.status);
+  const allowedThreadStatuses = (() => {
+    if (currentThreadStatus === "starting") {
+      return new Set(["starting", "assigned", "in_progress"]);
+    }
+    return new Set([currentThreadStatus]);
+  })();
   const threadCategoryCode = normalizeCategoryCode(thread.category);
   const categoryCodeById = new Map(
     (categories || [])
@@ -280,7 +289,7 @@ export function filterSupportMacrosForThread({
       macro.thread_status || macro.status_thread || metadataThreadStatus || ""
     );
     if (!threadStatus) return false;
-    if (threadStatus !== currentThreadStatus) return false;
+    if (!allowedThreadStatuses.has(threadStatus)) return false;
 
     const categoryCode = normalizeCategoryCode(
       macro.category_code ||

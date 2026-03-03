@@ -131,6 +131,8 @@ export function createPrelaunchClient({
         invokePublic("support-create-anon-thread", withSharedPayload(payload)),
       cancelAnonymousThread: async (payload = {}) =>
         invokePublic("support-anon-cancel-thread", payload),
+      requestThreadRetake: async (payload = {}) =>
+        invokePublic("support-retake-thread", payload),
       getAnonymousThreadStatus: async (payload = {}) =>
         invokePublic("support-anon-thread-status", payload),
     },

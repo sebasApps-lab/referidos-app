@@ -45,7 +45,7 @@ serve(async (req) => {
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
     .select(
-      "id, public_id, request_origin, status, category, severity, summary, resolution, created_at, updated_at, closed_at, wa_link, wa_message_text, origin_source, anon_tracking_token_hash, anon_profile:anon_support_profiles(public_id, display_name, contact_channel, contact_value)",
+      "id, public_id, request_origin, status, category, severity, summary, resolution, created_at, updated_at, closed_at, wa_link, wa_message_text, origin_source, personal_queue, app_channel, retake_requested_at, released_to_general_at, general_queue_entered_at, anon_tracking_token_hash, anon_profile:anon_support_profiles(public_id, display_name, contact_channel, contact_value)",
     )
     .eq("public_id", threadPublicId)
     .eq("request_origin", "anonymous")
@@ -77,6 +77,11 @@ serve(async (req) => {
         wa_link: thread.wa_link,
         wa_message_text: thread.wa_message_text,
         origin_source: thread.origin_source,
+        app_channel: thread.app_channel,
+        personal_queue: thread.personal_queue,
+        retake_requested_at: thread.retake_requested_at,
+        released_to_general_at: thread.released_to_general_at,
+        general_queue_entered_at: thread.general_queue_entered_at,
         anon_profile: thread.anon_profile
           ? {
               public_id: thread.anon_profile.public_id,

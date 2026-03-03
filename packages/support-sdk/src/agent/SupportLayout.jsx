@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import SupportSidebar from "./SupportSidebar";
 import SupportTopbar from "./SupportTopbar";
+import SupportWorkQueueDock from "./SupportWorkQueueDock";
 
 const SUPPORT_SIDEBAR_COLLAPSED_KEY = "support.sidebar.collapsed";
 
@@ -88,6 +89,7 @@ export default function SupportLayout() {
             <Outlet />
           </div>
         </main>
+        {!location.pathname.startsWith("/soporte/ticket/") ? <SupportWorkQueueDock /> : null}
       </div>
     </div>
   );

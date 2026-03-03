@@ -23,3 +23,9 @@ export function getAnonymousSupportThreadStatus(payload = {}) {
   if (!prelaunchClient) return Promise.resolve({ ok: false, error: "missing_env" });
   return prelaunchClient.support.getAnonymousThreadStatus(payload);
 }
+
+export function requestAnonymousSupportThreadRetake(payload = {}) {
+  const prelaunchClient = getPrelaunchClient();
+  if (!prelaunchClient) return Promise.resolve({ ok: false, error: "missing_env" });
+  return prelaunchClient.support.requestThreadRetake(payload);
+}

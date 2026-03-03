@@ -7,6 +7,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -65,6 +66,12 @@ serve(async (req) => {
     .maybeSingle();
 
   if (openSession?.id) {
+    await runSupportAutoAssignCycle({
+      reason: "support_session_resume",
+      tenantId: usuario.tenant_id || null,
+      actorId: usuario.id,
+      actorRole: usuario.role || "soporte",
+    });
     return jsonResponse({ ok: true, session_id: openSession.id }, 200, cors);
   }
 
@@ -154,6 +161,13 @@ serve(async (req) => {
         return jsonResponse({ ok: false, error: "session_start_failed" }, 500, cors);
       }
 
+      await runSupportAutoAssignCycle({
+        reason: "support_session_race",
+        tenantId: usuario.tenant_id || null,
+        actorId: usuario.id,
+        actorRole: usuario.role || "soporte",
+      });
+
       return jsonResponse({ ok: true, session_id: raceSession.id }, 200, cors);
     }
 
@@ -171,6 +185,13 @@ serve(async (req) => {
         session_request_at: null,
       })
       .eq("user_id", usuario.id);
+
+    await runSupportAutoAssignCycle({
+      reason: "support_session_started",
+      tenantId: usuario.tenant_id || null,
+      actorId: usuario.id,
+      actorRole: usuario.role || "soporte",
+    });
 
     return jsonResponse({ ok: true, session_id: session.id }, 200, cors);
   }

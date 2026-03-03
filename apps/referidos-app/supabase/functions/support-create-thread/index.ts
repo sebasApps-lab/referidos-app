@@ -9,6 +9,7 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 
 const SUPPORT_PHONE = "593995705833";
@@ -141,7 +142,7 @@ serve(async (req) => {
     .from("support_threads")
     .select("id, public_id, wa_link, wa_message_text, status")
     .eq("user_id", usuario.id)
-    .in("status", ["new", "assigned", "in_progress", "waiting_user", "queued"])
+    .in("status", ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"])
     .order("created_at", { ascending: false })
     .limit(1);
 
@@ -205,6 +206,7 @@ serve(async (req) => {
   const insertResponse = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: usuario.tenant_id || null,
       user_id: usuario.id,
       user_public_id: usuario.public_id,
       category,
@@ -220,7 +222,7 @@ serve(async (req) => {
       origin_source: originSource,
     })
     .select(
-      "id, public_id, user_id, user_public_id, category, severity, status"
+      "id, tenant_id, public_id, user_id, user_public_id, category, severity, status"
     )
     .single();
 
@@ -268,6 +270,13 @@ serve(async (req) => {
         wa_message_text: messageText,
         build: buildSnapshot,
       },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_registered",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "user",
   });
 
   return jsonResponse(

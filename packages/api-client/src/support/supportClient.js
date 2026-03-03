@@ -82,6 +82,18 @@ export async function getAnonymousSupportThreadStatus(supabase, payload = {}) {
   return invokeSupportPublic(supabase, "support-anon-thread-status", payload);
 }
 
+export async function requestSupportThreadRetake(supabase, payload = {}) {
+  return invokeSupportPublic(supabase, "support-retake-thread", payload);
+}
+
+export async function markSupportOpeningMessageSent(supabase, payload = {}) {
+  return invokeSupport(supabase, "support-opening-message-sent", payload);
+}
+
+export async function setSupportAutoAssignMode(supabase, payload = {}) {
+  return invokeSupport(supabase, "support-set-auto-assign-mode", payload);
+}
+
 export async function linkAnonymousThreadToUser(supabase, payload = {}) {
   return invokeSupport(supabase, "support-link-anon-to-user", payload);
 }

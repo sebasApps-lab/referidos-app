@@ -39,6 +39,19 @@ export async function getAnonymousSupportThreadStatus(payload) {
   return { ok: true, data };
 }
 
+export async function requestSupportThreadRetake(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-retake-thread",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
 export async function assignSupportThread(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-assign-thread",
@@ -55,6 +68,32 @@ export async function assignSupportThread(payload) {
 export async function updateSupportStatus(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-update-status",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function markSupportOpeningMessage(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-opening-message-sent",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function setSupportAutoAssignMode(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-set-auto-assign-mode",
     {
       body: payload,
     }

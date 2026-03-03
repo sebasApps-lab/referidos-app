@@ -6,6 +6,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -72,7 +73,7 @@ serve(async (req) => {
     .from("support_threads")
     .select("id, status")
     .eq("assigned_agent_id", usuario.id)
-    .in("status", ["assigned", "in_progress", "waiting_user", "queued"]);
+    .in("status", ["starting", "assigned", "in_progress", "waiting_user", "queued"]);
 
   if (activeThreads && activeThreads.length > 0) {
     for (const thread of activeThreads) {
@@ -82,6 +83,8 @@ serve(async (req) => {
           status: "queued",
           assigned_agent_id: null,
           personal_queue: false,
+          released_to_general_at: new Date().toISOString(),
+          general_queue_entered_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", thread.id);
@@ -95,6 +98,13 @@ serve(async (req) => {
       });
     }
   }
+
+  await runSupportAutoAssignCycle({
+    reason: "agent_session_end",
+    tenantId: usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
+  });
 
   await supabaseAdmin.from("support_agent_events").insert({
     agent_id: usuario.id,

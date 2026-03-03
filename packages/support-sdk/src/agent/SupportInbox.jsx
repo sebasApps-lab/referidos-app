@@ -5,7 +5,11 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import SupportGate from "./SupportGate";
 import SupportDevDebugBanner from "./SupportDevDebugBanner";
-import { assignSupportThread, startAdminSupportSession } from "../supportClient";
+import {
+  assignSupportThread,
+  setSupportAutoAssignMode,
+  startAdminSupportSession,
+} from "../supportClient";
 import { isSupportLiveUpdatesEnabled } from "../runtime/systemFeatureFlags";
 
 const INBOX_GROUPS = [
@@ -22,20 +26,44 @@ function normalizeThreadRow(thread) {
     app_channel: thread?.app_channel || "undetermined",
     contact_display: thread?.contact_display || null,
     anon_public_id: thread?.anon_public_id || null,
+    personal_queue: Boolean(thread?.personal_queue),
+    assigned_at: thread?.assigned_at || null,
+    released_to_general_at: thread?.released_to_general_at || null,
+    retake_requested_at: thread?.retake_requested_at || null,
+    updated_at: thread?.updated_at || null,
   };
+}
+
+function computeTicketTimer(thread, nowMs) {
+  const createdAtMs = Date.parse(thread?.created_at || "");
+  if (!Number.isFinite(createdAtMs)) {
+    return { expired: false, paused: false, progress: 0, color: "#16A34A" };
+  }
+  const elapsedMs = Math.max(0, nowMs - createdAtMs);
+  const totalMs = 30 * 60 * 1000;
+  const progress = Math.min(1, elapsedMs / totalMs);
+  const status = String(thread?.status || "").trim().toLowerCase();
+  const paused = status === "waiting_user" || status === "queued";
+  const expired = elapsedMs >= totalMs;
+
+  let color = "#16A34A";
+  if (elapsedMs >= 25 * 60 * 1000) color = "#DC2626";
+  else if (elapsedMs >= 15 * 60 * 1000) color = "#EA580C";
+
+  return { expired, paused, progress, color };
 }
 
 async function loadInboxRows({ isAdmin, usuarioId }) {
   let inboxQuery = supabase
     .from("support_threads_inbox")
     .select(
-      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id"
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id, personal_queue, released_to_general_at, retake_requested_at"
     )
     .order("created_at", { ascending: false });
 
   if (!isAdmin) {
     inboxQuery = inboxQuery.or(
-      `and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
+      `and(status.eq.starting,assigned_agent_id.eq.${usuarioId}),and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
     );
   }
 
@@ -47,13 +75,13 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   let legacyQuery = supabase
     .from("support_threads")
     .select(
-      "public_id, category, severity, status, summary, created_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel"
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, personal_queue, released_to_general_at, retake_requested_at"
     )
     .order("created_at", { ascending: false });
 
   if (!isAdmin) {
     legacyQuery = legacyQuery.or(
-      `and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
+      `and(status.eq.starting,assigned_agent_id.eq.${usuarioId}),and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
     );
   }
 
@@ -72,6 +100,13 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   const [sessionError, setSessionError] = useState("");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [adminAssignModeResolved, setAdminAssignModeResolved] = useState(false);
+  const [adminAssignModeSaving, setAdminAssignModeSaving] = useState(false);
+  const [assignModePrompt, setAssignModePrompt] = useState({
+    open: false,
+    threadPublicId: "",
+  });
   const syncInFlightRef = useRef(false);
   const debugBanner = import.meta.env.DEV ? (
     <SupportDevDebugBanner scope={isAdmin ? "admin-inbox" : "support-inbox"} />
@@ -92,6 +127,9 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     }
     if (["android_app", "android", "android-app", "referidos-android"].includes(normalized)) {
       return "android";
+    }
+    if (["admin_support", "support", "soporte"].includes(normalized)) {
+      return "soporte";
     }
     return normalized || "undetermined";
   };
@@ -153,6 +191,36 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       setSessionLoading(false);
     };
     loadSession();
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, usuario?.id]);
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => {
+      globalThis.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadAutoAssignModeState = async () => {
+      if (!isAdmin || !usuario?.id) {
+        setAdminAssignModeResolved(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("support_agent_profiles")
+        .select("auto_assign_mode")
+        .eq("user_id", usuario.id)
+        .maybeSingle();
+      if (!active) return;
+      setAdminAssignModeResolved(Boolean(data?.auto_assign_mode));
+    };
+    void loadAutoAssignModeState();
     return () => {
       active = false;
     };
@@ -263,7 +331,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
         }
 
         if (activeGroup === "assigned") {
-          if (["assigned", "in_progress", "waiting_user"].includes(thread.status)) {
+          if (["starting", "assigned", "in_progress", "waiting_user"].includes(thread.status)) {
             return isAdmin ? true : isMine(thread);
           }
           if (thread.status === "queued" && !isUnassigned(thread)) {
@@ -287,7 +355,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     return threads.some(
       (thread) =>
         thread.assigned_agent_id === usuario.id &&
-        ["assigned", "in_progress", "waiting_user", "queued"].includes(thread.status)
+        ["starting", "assigned", "in_progress", "waiting_user", "queued"].includes(thread.status)
     );
   }, [threads, usuario]);
 
@@ -307,7 +375,7 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     return true;
   };
 
-  const handleAssign = async (publicId) => {
+  const assignThreadNow = async (publicId) => {
     const ok = await ensureSession();
     if (!ok) return;
     const result = await assignSupportThread({ thread_public_id: publicId });
@@ -315,13 +383,54 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
       setSessionError("No se pudo asignar el ticket.");
       return;
     }
+
+    const nextStatus = result?.data?.thread?.status || "starting";
+    const assignedAgentId = result?.data?.thread?.assigned_agent_id || usuario?.id || null;
+    const personalQueue =
+      typeof result?.data?.thread?.personal_queue === "boolean"
+        ? result.data.thread.personal_queue
+        : nextStatus === "queued";
+
     setThreads((prev) =>
       prev.map((item) =>
         item.public_id === publicId
-          ? { ...item, status: "assigned", assigned_agent_id: usuario?.id || null }
+          ? {
+              ...item,
+              status: nextStatus,
+              assigned_agent_id: assignedAgentId,
+              personal_queue: personalQueue,
+            }
           : item
       )
     );
+    setRefreshNonce((prev) => prev + 1);
+  };
+
+  const handleAssign = async (publicId) => {
+    if (isAdmin && !hasActive && !adminAssignModeResolved) {
+      setAssignModePrompt({
+        open: true,
+        threadPublicId: publicId,
+      });
+      return;
+    }
+    await assignThreadNow(publicId);
+  };
+
+  const handleSelectAdminAssignMode = async (mode) => {
+    if (!assignModePrompt.threadPublicId) return;
+    setAdminAssignModeSaving(true);
+    setSessionError("");
+    const result = await setSupportAutoAssignMode({ mode });
+    setAdminAssignModeSaving(false);
+    if (!result.ok) {
+      setSessionError("No se pudo guardar modo de autoasignacion.");
+      return;
+    }
+    setAdminAssignModeResolved(true);
+    const threadPublicId = assignModePrompt.threadPublicId;
+    setAssignModePrompt({ open: false, threadPublicId: "" });
+    await assignThreadNow(threadPublicId);
   };
 
   const handleRefresh = useCallback(async () => {
@@ -418,82 +527,156 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
             No hay tickets en este estado.
           </div>
         ) : (
-          filtered.map((thread) => (
-            <div
-              key={thread.public_id}
-              className={`rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-3 space-y-2 ${
-                !sessionActive ? "opacity-60" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1">
-                  <span>{thread.public_id}</span>
-                  <span>|</span>
-                  <span>{thread.category}</span>
-                </span>
-                <span>{thread.severity}</span>
-              </div>
-              <div className="text-sm font-light text-slate-500">
-                {thread.summary || `Ticket ${thread.public_id}`}
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
-                <span
-                  className={`rounded-full px-2 py-1 ${
-                    thread.request_origin === "anonymous"
-                      ? "bg-[#FFF7E6] text-[#B46B00]"
-                      : "bg-[#EAF7F0] text-[#1B7F4B]"
-                  }`}
-                >
-                  {thread.request_origin === "anonymous" ? "Anonimo" : "Registrado"}
-                </span>
-                {thread.app_channel ? (
-                  <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[#0D4F9A]">
-                    {formatAppChannelBadge(thread.app_channel)}
+          filtered.map((thread) => {
+            const timer = computeTicketTimer(thread, nowMs);
+            const showAdminTimer =
+              isAdmin &&
+              (!thread.assigned_agent_id ||
+                thread.status === "new" ||
+                (thread.status === "queued" && !thread.personal_queue));
+
+            const statusLabel = String(thread.status || "")
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (ch) => ch.toUpperCase());
+
+            return (
+              <div
+                key={thread.public_id}
+                className={`rounded-2xl border px-4 py-3 space-y-2 ${
+                  timer.expired && showAdminTimer
+                    ? "border-red-300 bg-red-50"
+                    : "border-[#E9E2F7] bg-[#FAF8FF]"
+                } ${!sessionActive ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1">
+                    <span>{thread.public_id}</span>
+                    <span>|</span>
+                    <span>{thread.category}</span>
                   </span>
-                ) : null}
-              </div>
-              <div className="text-[11px] text-slate-400">
-                {thread.request_origin === "anonymous"
-                  ? thread.anon_public_id || thread.user_public_id
-                  : thread.user_public_id}
-                {" - "}
-                {formatDateTime(thread.created_at)}
-              </div>
-              {thread.request_origin === "anonymous" && thread.contact_display ? (
-                <div className="text-[11px] text-slate-500">
-                  Contacto: {thread.contact_display}
+                  <div className="inline-flex items-center gap-2">
+                    {showAdminTimer && !timer.expired ? (
+                      <span
+                        className="relative inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-200 bg-white"
+                        title={timer.paused ? "Temporizador en pausa" : "Tiempo operativo"}
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full"
+                          style={{
+                            background: timer.paused
+                              ? "#94A3B8"
+                              : `conic-gradient(${timer.color} ${Math.round(
+                                  timer.progress * 360
+                                )}deg, #E2E8F0 ${Math.round(timer.progress * 360)}deg 360deg)`,
+                          }}
+                        />
+                      </span>
+                    ) : null}
+                    <span>{thread.severity}</span>
+                  </div>
                 </div>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`${basePath}/ticket/${thread.public_id}`)
-                  }
-                  className="rounded-full border border-[#5E30A5] px-3 py-1 text-xs font-semibold text-[#5E30A5]"
-                >
-                  Ver ticket
-                </button>
-                {(thread.status === "new" || thread.status === "queued") &&
-                !thread.assigned_agent_id ? (
-                  <button
-                    type="button"
-                    onClick={() => handleAssign(thread.public_id)}
-                    disabled={!sessionActive || hasActive}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      !sessionActive || hasActive
-                        ? "bg-[#C9B6E8] text-white"
-                        : "bg-[#5E30A5] text-white"
+                <div className="text-sm font-light text-slate-500">
+                  {thread.summary || `Ticket ${thread.public_id}`}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em]">
+                  <span
+                    className={`rounded-full px-2 py-1 ${
+                      thread.request_origin === "anonymous"
+                        ? "bg-[#FFF7E6] text-[#B46B00]"
+                        : "bg-[#EAF7F0] text-[#1B7F4B]"
                     }`}
                   >
-                    Tomar ticket
-                  </button>
+                    {thread.request_origin === "anonymous" ? "Anonimo" : "Registrado"}
+                  </span>
+                  {thread.app_channel ? (
+                    <span className="rounded-full bg-[#EAF4FF] px-2 py-1 text-[#0D4F9A]">
+                      {formatAppChannelBadge(thread.app_channel)}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-white px-2 py-1 text-slate-500">
+                    {statusLabel}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {thread.request_origin === "anonymous"
+                    ? thread.anon_public_id || thread.user_public_id
+                    : thread.user_public_id}
+                  {" - "}
+                  {formatDateTime(thread.created_at)}
+                </div>
+                {thread.request_origin === "anonymous" && thread.contact_display ? (
+                  <div className="text-[11px] text-slate-500">
+                    Contacto: {thread.contact_display}
+                  </div>
                 ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`${basePath}/ticket/${thread.public_id}`)
+                    }
+                    className="rounded-full border border-[#5E30A5] px-3 py-1 text-xs font-semibold text-[#5E30A5]"
+                  >
+                    Ver ticket
+                  </button>
+                  {(thread.status === "new" || thread.status === "queued") &&
+                  !thread.assigned_agent_id ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleAssign(thread.public_id);
+                      }}
+                      disabled={!sessionActive || adminAssignModeSaving}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        !sessionActive || adminAssignModeSaving
+                          ? "bg-[#C9B6E8] text-white"
+                          : "bg-[#5E30A5] text-white"
+                      }`}
+                    >
+                      Tomar ticket
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {assignModePrompt.open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+            <div className="text-base font-semibold text-[#2F1A55]">
+              Asignacion automatica de siguientes tickets
+            </div>
+            <div className="mt-2 text-sm text-slate-600">
+              Elige como deseas recibir los siguientes tickets en esta jornada.
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSelectAdminAssignMode("manual");
+                }}
+                disabled={adminAssignModeSaving}
+                className="rounded-xl border border-[#E9E2F7] px-4 py-2 text-sm font-semibold text-[#5E30A5]"
+              >
+                Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSelectAdminAssignMode("auto");
+                }}
+                disabled={adminAssignModeSaving}
+                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+              >
+                Automatico
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
