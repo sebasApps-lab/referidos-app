@@ -42,9 +42,10 @@ const ROLE_OPTIONS = [
   { id: "anonimo", label: "anonimo" },
 ];
 
-const THREAD_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
+const THREAD_STATUS_ORDER = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
 const THREAD_STATUS_LABEL = {
   new: "Nuevo",
+  starting: "Starting",
   assigned: "Asignado",
   in_progress: "En progreso",
   waiting_user: "Esperando usuario",

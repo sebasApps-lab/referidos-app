@@ -13,6 +13,8 @@ const SUMMARY_MAX = 240;
 const ECUADOR_PREFIX = "593";
 const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
 const DELETE_WAITLIST_CATEGORY_CODES = new Set(["borrar_correo_waitlist"]);
+const OTHER_REASON_CATEGORY_CODES = new Set(["otra", "otro", "otra_razon", "other", "indefinida"]);
+const DEFAULT_SUPPORT_CATEGORY_CODE = "indefinida";
 
 function normalizeWhatsappLocal(value) {
   let digits = (value || "").replace(/\D/g, "");
@@ -147,6 +149,12 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     () => categoryOptions.some((item) => item.id === category),
     [category, categoryOptions],
   );
+  const submitCategoryCode = useMemo(() => {
+    const normalized = String(category || "").trim().toLowerCase();
+    if (!normalized) return DEFAULT_SUPPORT_CATEGORY_CODE;
+    if (OTHER_REASON_CATEGORY_CODES.has(normalized)) return DEFAULT_SUPPORT_CATEGORY_CODE;
+    return normalized;
+  }, [category]);
 
   const canSubmit = useMemo(
     () => (
@@ -308,7 +316,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
       channel: selectedChannel,
       contact: normalizedContact,
       summary: summary.trim() || "Sin descripcion adicional.",
-      category,
+      category: submitCategoryCode,
       severity: "s2",
       origin_source: "user",
       app_channel: runtimeConfig.appChannel || "prelaunch",

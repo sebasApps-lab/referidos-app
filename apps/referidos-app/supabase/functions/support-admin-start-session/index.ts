@@ -54,7 +54,7 @@ serve(async (req) => {
     .upsert(
       {
         user_id: agentId,
-        ...(targetRole === "admin" ? { auto_assign_mode: "manual" } : {}),
+        auto_assign_mode: targetRole === "admin" ? "manual" : "auto",
       },
       { onConflict: "user_id" },
     );

@@ -218,7 +218,6 @@ async function getEligibleAgents({
     .from("support_agent_sessions")
     .select("agent_id, start_at")
     .is("end_at", null);
-  sessionsQuery = applyTenantFilter(sessionsQuery, tenantId);
   const { data: sessions } = await sessionsQuery;
   const agentIds = Array.from(new Set((sessions || []).map((session) => session.agent_id).filter(Boolean)));
   if (agentIds.length === 0) return [];
@@ -227,7 +226,6 @@ async function getEligibleAgents({
     .from("support_agent_profiles")
     .select("user_id, blocked, authorized_for_work, auto_assign_mode, support_phone")
     .in("user_id", agentIds);
-  profilesQuery = applyTenantFilter(profilesQuery, tenantId);
   const { data: profiles } = await profilesQuery;
 
   let usersQuery = supabaseAdmin
@@ -246,19 +244,31 @@ async function getEligibleAgents({
     const profile = profileByAgent.get(agentId);
     const user = userByAgent.get(agentId);
     if (!profile || !user) continue;
-    if (!["admin", "soporte"].includes(String(user.role || "").toLowerCase())) continue;
+    const normalizedRole = String(user.role || "").toLowerCase();
+    if (!["admin", "soporte"].includes(normalizedRole)) continue;
     if (profile.blocked) continue;
     if (config.require_jornada_authorization && !profile.authorized_for_work) continue;
-    if (String(profile.auto_assign_mode || "auto").toLowerCase() !== "auto") continue;
+    // Regla: modo manual solo aplica para admin.
+    if (
+      normalizedRole === "admin" &&
+      String(profile.auto_assign_mode || "auto").toLowerCase() !== "auto"
+    ) {
+      continue;
+    }
 
     candidates.push({
       id: agentId,
-      role: user.role,
+      role: normalizedRole,
       tenant_id: user.tenant_id || null,
       session_start_at: sessionByAgent.get(agentId)?.start_at || null,
       authorized_for_work: Boolean(profile.authorized_for_work),
       blocked: Boolean(profile.blocked),
-      auto_assign_mode: "auto",
+      auto_assign_mode:
+        normalizedRole === "admin"
+          ? (String(profile.auto_assign_mode || "auto").toLowerCase() === "manual"
+            ? "manual"
+            : "auto")
+          : "auto",
       support_phone: profile.support_phone || null,
     });
   }
@@ -992,4 +1002,44 @@ export async function markSupportOpeningMessageSent({
   });
 
   return { ok: true, opening_message_sent_at: nowIso };
+}
+
+export async function markSupportWhatsAppNameChanged({
+  threadId,
+  actorId,
+  actorRole = "soporte",
+  targetLabel = null,
+}: {
+  threadId: string;
+  actorId: string;
+  actorRole?: "soporte" | "admin";
+  targetLabel?: string | null;
+}) {
+  const nowIso = asIsoNow();
+  const { data: updated } = await supabaseAdmin
+    .from("support_threads")
+    .update({
+      updated_at: nowIso,
+    })
+    .eq("id", threadId)
+    .select("id")
+    .maybeSingle();
+
+  if (!updated?.id) {
+    return { ok: false, error: "thread_not_found" };
+  }
+
+  await insertThreadEvent({
+    threadId,
+    eventType: "status_changed",
+    actorRole,
+    actorId,
+    details: {
+      action: "whatsapp_name_changed",
+      whatsapp_name_changed_at: nowIso,
+      target_label: typeof targetLabel === "string" ? targetLabel.trim().slice(0, 120) || null : null,
+    },
+  });
+
+  return { ok: true, whatsapp_name_changed_at: nowIso };
 }

@@ -18,6 +18,7 @@ export const DEFAULT_SUPPORT_RUNTIME_FLAGS = Object.freeze({
 });
 
 let cachedFlags = { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+let hasFetchedFlags = false;
 
 function hasWindow() {
   return typeof window !== "undefined";
@@ -124,7 +125,7 @@ export function getCachedSupportRuntimeFlags() {
 }
 
 export async function fetchSupportRuntimeFlags({ force = false } = {}) {
-  if (!force && cachedFlags) {
+  if (!force && hasFetchedFlags) {
     return { ...cachedFlags };
   }
 
@@ -139,13 +140,16 @@ export async function fetchSupportRuntimeFlags({ force = false } = {}) {
 
     if (error || !data) {
       cachedFlags = { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+      hasFetchedFlags = true;
       return { ...cachedFlags };
     }
 
     cachedFlags = normalizeSupportRuntimeFlags(data);
+    hasFetchedFlags = true;
     return { ...cachedFlags };
   } catch {
     cachedFlags = { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+    hasFetchedFlags = true;
     return { ...cachedFlags };
   }
 }
@@ -183,6 +187,7 @@ export async function updateSupportRuntimeFlags(
   }
 
   cachedFlags = normalizeSupportRuntimeFlags(data || nextPayload);
+  hasFetchedFlags = true;
   emitFlagsChange(cachedFlags);
   return { ok: true, flags: { ...cachedFlags } };
 }

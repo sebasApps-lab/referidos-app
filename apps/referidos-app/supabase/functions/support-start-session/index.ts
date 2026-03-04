@@ -41,7 +41,14 @@ serve(async (req) => {
 
   await supabaseAdmin
     .from("support_agent_profiles")
-    .upsert({ user_id: usuario.id }, { onConflict: "user_id" });
+    .upsert(
+      {
+        user_id: usuario.id,
+        // Regla operativa: soporte siempre trabaja en modo automatico.
+        auto_assign_mode: "auto",
+      },
+      { onConflict: "user_id" },
+    );
 
   const { data: agentProfile, error: agentErr } = await supabaseAdmin
     .from("support_agent_profiles")

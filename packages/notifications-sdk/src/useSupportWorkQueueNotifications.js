@@ -17,14 +17,26 @@ function formatSupportNotice(row) {
   const threadCode =
     String(payload.thread_public_id || payload.public_id || payload.thread_code || "").trim();
   if (eventType === "support.ticket.assigned") {
-    return threadCode ? `Ticket asignado: ${threadCode}` : row.body || row.title || "Ticket asignado";
+    return {
+      eventType,
+      threadCode: threadCode || null,
+      message: threadCode ? `Ticket asignado: ${threadCode}` : row.body || row.title || "Ticket asignado",
+    };
   }
   if (eventType === "support.ticket.personal_queue_timeout") {
-    return threadCode
-      ? `Ticket ${threadCode} paso a cola personal`
-      : row.body || row.title || "Ticket paso a cola personal";
+    return {
+      eventType,
+      threadCode: threadCode || null,
+      message: threadCode
+        ? `Ticket ${threadCode} paso a cola personal`
+        : row.body || row.title || "Ticket paso a cola personal",
+    };
   }
-  return row.body || row.title || "Notificacion de soporte";
+  return {
+    eventType,
+    threadCode: threadCode || null,
+    message: row.body || row.title || "Notificacion de soporte",
+  };
 }
 
 export function useSupportWorkQueueNotifications({
@@ -144,8 +156,8 @@ export function useSupportWorkQueueNotifications({
 
     nextRows.forEach((row) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const message = formatSupportNotice(row);
-      setNotices((prev) => [...prev, { id, message }]);
+      const noticePayload = formatSupportNotice(row);
+      setNotices((prev) => [...prev, { id, ...noticePayload }]);
       const timer = globalThis.setTimeout(() => {
         dismissNotice(id);
       }, 2000);

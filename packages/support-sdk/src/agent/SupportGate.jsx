@@ -84,7 +84,7 @@ export default function SupportGate({ children, showSessionActions = true }) {
   useEffect(() => {
     let active = true;
     const loadFlags = async () => {
-      const nextFlags = await fetchSupportRuntimeFlags();
+      const nextFlags = await fetchSupportRuntimeFlags({ force: true });
       if (!active) return;
       setRuntimeFlags(nextFlags);
     };

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
@@ -22,12 +23,14 @@ import {
   Tag,
   UserRound,
   Wifi,
+  X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
   addSupportNote,
   closeSupportThread,
   markSupportOpeningMessage,
+  markSupportWhatsAppNameChanged,
   trackSupportMacroEvents,
   updateSupportStatus,
 } from "../supportClient";
@@ -136,6 +139,31 @@ function pickFirstString(...values) {
     }
   }
   return "";
+}
+
+function formatSupportCategoryLabel(value) {
+  const normalized = pickFirstString(value);
+  if (!normalized) return "No especificado";
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatElapsedClock(ms) {
+  const safeMs = Math.max(0, Number.isFinite(ms) ? ms : 0);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(
+      seconds,
+    ).padStart(2, "0")}`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function detectBrowserLabel(rawBrowser, userAgent) {
@@ -348,6 +376,9 @@ export default function SupportTicket() {
   const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
   const [openingMessageSent, setOpeningMessageSent] = useState(false);
   const [openingSaving, setOpeningSaving] = useState(false);
+  const [whatsAppNameMarked, setWhatsAppNameMarked] = useState(false);
+  const [whatsAppNameSaving, setWhatsAppNameSaving] = useState(false);
+  const [startingGuideError, setStartingGuideError] = useState("");
   const [startingGuideOpen, setStartingGuideOpen] = useState(false);
   const [copyConfirmMacro, setCopyConfirmMacro] = useState(null);
   const [macroFlowState, setMacroFlowState] = useState({
@@ -357,6 +388,7 @@ export default function SupportTicket() {
   const [expandedTimelineSegmentId, setExpandedTimelineSegmentId] = useState("");
   const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+  const [activeNowMs, setActiveNowMs] = useState(() => Date.now());
   const shownTrackerRef = useRef(new Set());
   const timelineScrollRef = useRef(null);
   const timelineDragStateRef = useRef({
@@ -381,6 +413,15 @@ export default function SupportTicket() {
     if (Number.isNaN(date.getTime())) return "-";
     return date.toLocaleString("es-EC", { timeZone: "America/Guayaquil" });
   };
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(() => {
+      setActiveNowMs(Date.now());
+    }, 1000);
+    return () => {
+      globalThis.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -467,12 +508,21 @@ export default function SupportTicket() {
         logData = deduped.slice(0, 50);
       }
 
+      const loadedEvents = eventData || [];
+      const hasWhatsAppNameMarked = loadedEvents.some((event) => {
+        if (!event || event.event_type !== "status_changed") return false;
+        const details = asRecord(event.details);
+        return String(details.action || "").toLowerCase() === "whatsapp_name_changed";
+      });
+
       if (!active) return;
       const normalizedThread = normalizeThreadRow(threadData);
       setThread(normalizedThread);
       setOpeningMessageSent(Boolean(normalizedThread?.opening_message_sent_at));
+      setWhatsAppNameMarked(hasWhatsAppNameMarked);
+      setStartingGuideError("");
       setObsContext(obsContextData || null);
-      setEvents(eventData || []);
+      setEvents(loadedEvents);
       setNotes(noteData || []);
       setLogs(logData);
     };
@@ -1169,13 +1219,13 @@ export default function SupportTicket() {
   };
 
   const handleOpeningMessageSent = async () => {
-    if (!thread?.public_id || openingSaving) return;
+    if (!thread?.public_id || openingSaving) return false;
     setOpeningSaving(true);
     const result = await markSupportOpeningMessage({
       thread_public_id: thread.public_id,
     });
     setOpeningSaving(false);
-    if (!result.ok) return;
+    if (!result.ok) return false;
     setOpeningMessageSent(true);
     setThread((prev) =>
       prev
@@ -1186,14 +1236,28 @@ export default function SupportTicket() {
           }
         : prev,
     );
+    return true;
   };
 
   const handleStartingContinue = async () => {
     if (!thread?.public_id) return;
-    const ok = await handleStatus("in_progress");
-    if (ok) {
+    if (whatsAppNameMarked) {
       setStartingGuideOpen(false);
+      return;
     }
+    setStartingGuideError("");
+    setWhatsAppNameSaving(true);
+    const result = await markSupportWhatsAppNameChanged({
+      thread_public_id: thread.public_id,
+      target_label: openingTargetLabel,
+    });
+    setWhatsAppNameSaving(false);
+    if (!result.ok) {
+      setStartingGuideError("No se pudo guardar la confirmacion de WhatsApp. Intenta nuevamente.");
+      return;
+    }
+    setWhatsAppNameMarked(true);
+    setStartingGuideOpen(false);
   };
 
   const handleMacroFlowUserResponded = async () => {
@@ -1210,11 +1274,21 @@ export default function SupportTicket() {
   }
 
   const isStartingStage = thread.status === "starting";
+  const showStartingIntro = isStartingStage && !whatsAppNameMarked;
   const openingTargetLabel =
     thread.request_origin === "anonymous"
       ? thread.anon_profile?.public_id || thread.user_public_id || "No especificado"
       : thread.user_public_id || "No especificado";
-  const canStartFlow = openingMessageSent;
+  const ticketDescription = pickFirstString(thread.summary) || "Sin descripcion adicional.";
+  const ticketCategoryLabel = formatSupportCategoryLabel(thread.category);
+  const ticketActiveSinceMs = new Date(
+    thread.created_at || thread.updated_at || new Date().toISOString(),
+  ).getTime();
+  const ticketActiveLabel = formatElapsedClock(activeNowMs - ticketActiveSinceMs);
+  const renderModalLayer = (node) => {
+    if (typeof document === "undefined" || !document.body) return null;
+    return createPortal(node, document.body);
+  };
 
   return (
     <div className="space-y-6">
@@ -1230,31 +1304,10 @@ export default function SupportTicket() {
             <>
               <button
                 type="button"
-                onClick={() => handleStatus("in_progress")}
-                className="rounded-xl bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-              >
-                En progreso
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStatus("waiting_user")}
-                className="rounded-xl border border-[#5E30A5] bg-white px-3 py-1 text-xs font-semibold text-[#5E30A5]"
-              >
-                Esperando usuario
-              </button>
-              <button
-                type="button"
                 onClick={() => handleStatus("queued")}
                 className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-1 text-xs font-semibold text-slate-600"
               >
                 Liberar a cola
-              </button>
-              <button
-                type="button"
-                onClick={() => setClosing(true)}
-                className="rounded-xl border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-500"
-              >
-                Cerrar caso
               </button>
             </>
           )}
@@ -1294,95 +1347,34 @@ export default function SupportTicket() {
         </div>
       </div>
 
-      {isStartingStage ? (
+      {showStartingIntro ? (
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-3">
+          <div className="flex min-h-[18rem] flex-col items-center justify-center gap-5 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-6 text-center">
+            <div className="space-y-2">
               <div className="text-lg font-semibold text-[#2F1A55]">
                 Se te asigno el ticket {thread.public_id}
               </div>
-              <div className="text-sm text-slate-600">
-                Envia mensaje de apertura a usuario {openingTargetLabel}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(openingTargetLabel);
-                    } catch {
-                      // no-op
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#E9E2F7] px-3 py-1 text-xs font-semibold text-slate-600"
-                >
-                  <Copy size={12} />
-                  Copiar ID usuario
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleOpeningMessageSent();
-                  }}
-                  disabled={openingSaving}
-                  className="rounded-full border border-[#5E30A5] px-3 py-1 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
-                >
-                  {openingMessageSent ? "Ya envié mensaje de apertura" : "Marcar mensaje de apertura"}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStartingGuideOpen(true)}
-                disabled={!canStartFlow}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
-                  canStartFlow ? "bg-[#5E30A5]" : "bg-[#C9B6E8]"
-                }`}
-              >
-                Empezar
-              </button>
+              <div className="text-sm font-medium text-slate-700">{ticketDescription}</div>
+              <div className="text-sm font-medium text-slate-700">Categoria: {ticketCategoryLabel}</div>
+              <div className="text-sm font-medium text-slate-700">Tiempo activo: {ticketActiveLabel}</div>
             </div>
-            <div className="space-y-2">
-              <div className="text-sm font-semibold text-[#2F1A55]">Macros sugeridas</div>
-              {macros.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
-                  No hay macros publicadas para este estado/app.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-72 overflow-auto pr-1">
-                  {macroGroups.map((group) => (
-                    <div
-                      key={`starting-${group.key}`}
-                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
-                    >
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
-                        {group.label}
-                      </div>
-                      <div className="mt-2 space-y-2">
-                        {group.items.map((macro) => (
-                          <div
-                            key={`starting-macro-${macro.id}`}
-                            className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600"
-                          >
-                            <div className="font-semibold text-[#2F1A55]">
-                              {macro.displayTitle || macro.title}
-                            </div>
-                            <div className="mt-1 max-h-16 overflow-hidden">{macro.body}</div>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(macro)}
-                              className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
-                            >
-                              {copiedId === macro.id ? <ClipboardCheck size={14} /> : <Copy size={14} />}
-                              {copiedId === macro.id ? "Copiado" : "Copiar"}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const openingOk = openingMessageSent
+                  ? true
+                  : await handleOpeningMessageSent();
+                if (!openingOk) return;
+                setStartingGuideError("");
+                setStartingGuideOpen(true);
+              }}
+              disabled={openingSaving}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                openingSaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+              }`}
+            >
+              {openingSaving ? "Preparando..." : "Empezar"}
+            </button>
           </div>
         </div>
       ) : null}
@@ -1412,12 +1404,6 @@ export default function SupportTicket() {
                 </div>
               </div>
               <div className="min-w-0 flex-1 space-y-3">
-                <div className="space-y-2">
-                  <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Descripcion</div>
-                  <div className="min-h-[88px] whitespace-pre-wrap rounded-lg border border-[#E8E2F5] bg-white px-3 py-2 text-sm text-slate-700">
-                    {pickFirstString(thread.summary) || "No especificado"}
-                  </div>
-                </div>
                 <div className="space-y-2">
                   <div className="mb-2 text-sm font-semibold text-[#2F1A55]">Build</div>
                   <div className="flex flex-wrap gap-2">
@@ -1758,7 +1744,7 @@ export default function SupportTicket() {
         </div>
 
         <div className="space-y-6">
-          {!isStartingStage ? (
+          {!showStartingIntro ? (
           <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-semibold text-[#2F1A55]">
@@ -1884,14 +1870,25 @@ export default function SupportTicket() {
         </div>
       ) : null}
 
-      {startingGuideOpen ? (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 px-4">
+      {startingGuideOpen
+        ? renderModalLayer(
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-3xl rounded-3xl border border-[#E9E2F7] bg-white p-6 shadow-2xl">
-            <div className="text-lg font-semibold text-[#2F1A55]">
-              Cambia nombre de cliente en WhatsApp
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-lg font-semibold text-[#2F1A55]">
+                Cambia nombre de cliente en WhatsApp
+              </div>
+              <button
+                type="button"
+                onClick={() => setStartingGuideOpen(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#E9E2F7] text-slate-500 hover:bg-[#F7F4FF]"
+                aria-label="Cerrar guia"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
-              <span>{openingTargetLabel}</span>
+            <div className="mt-4 flex items-center justify-center gap-2 text-center">
+              <span className="text-2xl font-bold tracking-[0.08em] text-[#2F1A55]">{openingTargetLabel}</span>
               <button
                 type="button"
                 onClick={async () => {
@@ -1901,46 +1898,103 @@ export default function SupportTicket() {
                     // no-op
                   }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2 py-1 text-xs font-semibold text-[#5E30A5]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] text-[#5E30A5]"
+                aria-label="Copiar usuario"
               >
                 <Copy size={12} />
-                Copiar
               </button>
             </div>
             <div className="mt-5 grid gap-4">
               {[
-                "Paso 1: abre el chat del cliente y verifica que el ticket corresponde al usuario.",
-                "Paso 2: actualiza el nombre del contacto con el display id del usuario para trazabilidad.",
-                "Paso 3: valida que el nombre quedo guardado y vuelve al ticket para continuar.",
-              ].map((item, index) => (
-                <div
-                  key={item}
-                  className="grid grid-cols-[40px_1fr] items-start gap-3 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-3"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5E30A5] text-xs font-semibold text-white">
-                    {index + 1}
+                {
+                  key: "open-chat",
+                  text: "Abre el chat del cliente y verifica que el ticket corresponde al usuario.",
+                  mediaRight: false,
+                },
+                {
+                  key: "rename-contact",
+                  text: "Actualiza el nombre del contacto con el display id del usuario para trazabilidad.",
+                  mediaRight: true,
+                },
+                {
+                  key: "confirm-name",
+                  text: "Valida que el nombre quedo guardado y vuelve al ticket para continuar.",
+                  mediaRight: false,
+                },
+              ].map((step, index) => {
+                const mediaBlock = (
+                  <div
+                    className="shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
+                    style={{ width: "11.5rem", height: "7.25rem", flex: "0 0 11.5rem" }}
+                  >
+                    <div className="flex h-full w-full items-center justify-center">
+                      Mockup GIF / Imagen
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-600">{item}</div>
-                </div>
-              ))}
+                );
+                const stepIcon = (
+                  <div
+                    className="flex shrink-0 items-center justify-center rounded-xl border border-[#DCCEF2] bg-white shadow-[0_2px_8px_rgba(94,48,165,0.12)]"
+                    style={{ width: "3.1rem", height: "3.1rem", flex: "0 0 3.1rem" }}
+                  >
+                    <span
+                      className="text-[2.15rem] font-extrabold leading-none text-transparent"
+                      style={{ WebkitTextStroke: "2px #6A43C4" }}
+                    >
+                      {index + 1}
+                    </span>
+                  </div>
+                );
+                const stepText = (
+                  <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-600">{step.text}</div>
+                );
+                return (
+                  <div
+                    key={step.key}
+                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-3"
+                  >
+                    {step.mediaRight ? (
+                      <div className="flex min-h-[8.3rem] flex-nowrap items-center gap-3">
+                        {stepIcon}
+                        {stepText}
+                        {mediaBlock}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[8.3rem] flex-nowrap items-center gap-3">
+                        {mediaBlock}
+                        {stepIcon}
+                        {stepText}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {startingGuideError ? (
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {startingGuideError}
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={() => {
                   void handleStartingContinue();
                 }}
+                disabled={whatsAppNameSaving}
                 className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
               >
-                Ya cambie el nombre, continuar
+                {whatsAppNameSaving ? "Guardando..." : "Ya cambie el nombre, continuar"}
               </button>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+          )
+        : null}
 
-      {copyConfirmMacro ? (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/35 px-4">
+      {copyConfirmMacro
+        ? renderModalLayer(
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/35 px-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
             <div className="text-sm font-semibold text-[#2F1A55]">Confirmar copia de macro</div>
             <div className="mt-2 text-xs text-slate-600">
@@ -1969,11 +2023,13 @@ export default function SupportTicket() {
               </button>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+          )
+        : null}
 
-      {macroFlowState.open ? (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/35 px-4">
+      {macroFlowState.open
+        ? renderModalLayer(
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/35 px-4">
           <div className="w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
             {macroFlowState.mode === "closing" ? (
               <>
@@ -2038,8 +2094,9 @@ export default function SupportTicket() {
               </>
             )}
           </div>
-        </div>
-      ) : null}
+        </div>,
+          )
+        : null}
     </div>
   );
 }

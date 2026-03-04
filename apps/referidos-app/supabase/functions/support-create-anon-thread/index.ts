@@ -1,9 +1,11 @@
 ﻿import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
   CATEGORY_LABELS,
+  SUPPORT_FALLBACK_CATEGORY,
   buildSupportMessage,
   corsHeaders,
   jsonResponse,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
@@ -241,17 +243,21 @@ serve(async (req) => {
   const anonymousCategoryMap = new Map(
     anonymousCategoryCatalog.map((category) => [category.code, category]),
   );
+  const requestedCategoryResolution = resolveSupportThreadCategory(
+    requestedCategory,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
   const category = (() => {
-    if (requestedCategory && anonymousCategoryMap.has(requestedCategory)) {
-      return requestedCategory;
-    }
-    if (requestedCategory && Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, requestedCategory)) {
-      return requestedCategory;
+    if (requestedCategoryResolution.requestedCategory) {
+      return requestedCategoryResolution.category;
     }
     if (anonymousCategoryCatalog.length > 0) {
-      return anonymousCategoryCatalog[0].code;
+      return resolveSupportThreadCategory(
+        anonymousCategoryCatalog[0]?.code,
+        SUPPORT_FALLBACK_CATEGORY,
+      ).category;
     }
-    return requestedCategory || "sugerencia";
+    return SUPPORT_FALLBACK_CATEGORY;
   })();
 
   const contactValue = channel === "email"
@@ -440,6 +446,10 @@ serve(async (req) => {
 
   const context = {
     ...contextInput,
+    requested_category: requestedCategoryResolution.requestedCategory,
+    requested_category_unsupported: requestedCategoryResolution.usedFallback,
+    requested_category_mapped_other_reason:
+      requestedCategoryResolution.mappedExplicitOtherReason,
     source_route: sourceRoute,
     origin_source: originSource,
     app_channel: appChannel,
@@ -497,7 +507,15 @@ serve(async (req) => {
     .single();
 
   if (insertErr || !insertedThread) {
-    return jsonResponse({ ok: false, error: "thread_create_failed" }, 500, cors);
+    return jsonResponse(
+      {
+        ok: false,
+        error: "thread_create_failed",
+        detail: insertErr?.message || null,
+      },
+      500,
+      cors,
+    );
   }
 
   const finalizedMessage = buildSupportMessage({

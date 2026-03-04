@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, X } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -27,7 +26,6 @@ export default function SupportWorkQueueDock() {
     currentTicket,
     queueCount,
     notices,
-    dismissNotice,
   } = useSupportWorkQueueNotifications({
     supabase,
     user: usuario,
@@ -38,53 +36,30 @@ export default function SupportWorkQueueDock() {
   if (!currentTicket && queueCount === 0 && notices.length === 0) {
     return null;
   }
+  const assignedNotice = notices.find(
+    (notice) => String(notice?.eventType || "").toLowerCase() === "support.ticket.assigned",
+  );
+  const ticketCode = assignedNotice?.threadCode || currentTicket?.public_id || null;
+  const headline = ticketCode
+    ? `Se te asigno el ticket ${ticketCode}`
+    : "Operacion actual";
 
   return (
-    <div className="fixed bottom-5 right-5 z-[45] space-y-2">
-      {notices.map((notice) => (
-        <div
-          key={notice.id}
-          className="flex max-w-sm items-start gap-2 rounded-xl border border-[#E8DDF8] bg-white px-3 py-2 text-xs text-[#2F1A55] shadow-md"
-        >
-          <div className="flex-1">{notice.message}</div>
+    <div className="fixed left-1/2 top-0 z-[200] -translate-x-1/2">
+      <div className="flex max-w-[92vw] items-center gap-2 whitespace-nowrap rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 text-sm font-semibold text-[#2F1A55] shadow-lg backdrop-blur">
+        <span className="truncate">{headline}</span>
+        <span className="mx-2 text-slate-400">|</span>
+        <span className="text-slate-600">En cola: {queueCount}</span>
+        {ticketCode ? (
           <button
             type="button"
-            onClick={() => dismissNotice(notice.id)}
-            className="text-slate-400 hover:text-slate-600"
-            aria-label="Cerrar aviso"
+            onClick={() => navigate(`/soporte/ticket/${ticketCode}`)}
+            className="ml-3 rounded-xl bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
           >
-            <X size={14} />
+            Ir -&gt;
           </button>
-        </div>
-      ))}
-
-      {currentTicket || queueCount > 0 ? (
-        <div className="flex min-w-[280px] items-center gap-3 rounded-2xl border border-[#E2D7F5] bg-white px-3 py-2 shadow-lg">
-          <div className="flex-1">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-[#6A43A7]/70">
-              Operacion actual
-            </div>
-            <div className="text-sm font-semibold text-[#2F1A55]">
-              {currentTicket
-                ? `Ticket ${currentTicket.public_id}: ${
-                    currentTicket.status === "starting" ? "Starting" : "En progreso"
-                  }`
-                : "Sin ticket en curso"}
-            </div>
-            <div className="text-xs text-slate-500">En cola: {queueCount}</div>
-          </div>
-          {currentTicket ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/soporte/ticket/${currentTicket.public_id}`)}
-              className="inline-flex items-center gap-1 rounded-full bg-[#5E30A5] px-3 py-1 text-xs font-semibold text-white"
-            >
-              Ir
-              <ArrowRight size={12} />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

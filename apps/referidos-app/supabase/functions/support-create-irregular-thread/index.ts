@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
+  SUPPORT_FALLBACK_CATEGORY,
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
@@ -49,7 +51,11 @@ serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const userPublicId = safeTrim(body.user_public_id, 32);
   const summary = safeTrim(body.summary, 240);
-  const category = body.category ?? "sugerencia";
+  const categoryResolution = resolveSupportThreadCategory(
+    body.category,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
+  const category = categoryResolution.category;
   const severity = body.severity ?? "s2";
   const appIdentity = await resolveSupportAppIdentity(body.app_channel, "referidos_app");
   const appChannel = appIdentity.appKey;
@@ -57,6 +63,10 @@ serve(async (req) => {
   const context = typeof body.context === "object" && body.context
     ? body.context
     : {};
+  context.requested_category = categoryResolution.requestedCategory;
+  context.requested_category_unsupported = categoryResolution.usedFallback;
+  context.requested_category_mapped_other_reason =
+    categoryResolution.mappedExplicitOtherReason;
 
   if (!userPublicId || !summary) {
     return jsonResponse({ ok: false, error: "missing_params" }, 400, cors);

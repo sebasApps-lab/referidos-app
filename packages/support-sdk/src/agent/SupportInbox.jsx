@@ -7,6 +7,8 @@ import SupportGate from "./SupportGate";
 import SupportDevDebugBanner from "./SupportDevDebugBanner";
 import {
   assignSupportThread,
+  pingAdminSupportSession,
+  pingSupportSession,
   setSupportAutoAssignMode,
   startAdminSupportSession,
 } from "../supportClient";
@@ -438,10 +440,15 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
     setSessionLoading(true);
     try {
       await refreshSessionState();
+      if (isAdmin) {
+        await pingAdminSupportSession();
+      } else {
+        await pingSupportSession();
+      }
     } finally {
       setSessionLoading(false);
     }
-  }, [refreshSessionState]);
+  }, [isAdmin, refreshSessionState]);
 
   const renderContent = ({
     gateSessionActive = false,

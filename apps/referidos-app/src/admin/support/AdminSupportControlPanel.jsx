@@ -28,10 +28,11 @@ import {
   updateSupportMacroCategory,
 } from "./services/supportMacrosOpsService";
 
-const ACTIVE = ["new", "assigned", "in_progress", "waiting_user", "queued"];
-const FLOW = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed"];
+const ACTIVE = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
+const FLOW = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed"];
 const STATUS_LABEL = {
   new: "Nuevo",
+  starting: "Starting",
   assigned: "Asignado",
   in_progress: "En progreso",
   waiting_user: "Esperando usuario",
@@ -39,7 +40,7 @@ const STATUS_LABEL = {
   closed: "Cerrado",
   cancelled: "Cancelado",
 };
-const MACRO_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
+const MACRO_STATUS_ORDER = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
 const MACRO_STATUS_LABEL = {
   ...STATUS_LABEL,
   sin_estado: "Sin estado",
@@ -70,7 +71,7 @@ const roleRank = (role) => {
   const idx = base.indexOf(role);
   return idx === -1 ? base.length + 1 : idx;
 };
-const THREAD_STATUS_VALUES = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const THREAD_STATUS_VALUES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
 const TERMINAL_THREAD_STATUSES = new Set(["closed", "cancelled"]);
 const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "in_progress", "closed"];
 const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "in_progress", "closed"];
@@ -78,6 +79,7 @@ const TIMELINE_RELEASE_EVENT_TYPES = new Set(["agent_timeout_release", "agent_ma
 const TERMINAL_TIMELINE_STATUSES = new Set(["closed", "cancelled", "released"]);
 const TIMELINE_BLOCK_LABELS = {
   new: "Creado",
+  starting: "Starting",
   assigned: "Asignado",
   in_progress: "Resolviendo",
   waiting_user: "Esperando usuario",
@@ -103,6 +105,7 @@ const EVENT_TYPE_LABELS = {
 };
 const TIMELINE_BLOCK_REACHED_CLASSES = {
   new: "bg-[#1D4ED8] text-white",
+  starting: "bg-[#0E7490] text-white",
   assigned: "bg-[#7C3AED] text-white",
   in_progress: "bg-[#0891B2] text-white",
   waiting_user: "bg-[#EA580C] text-white",
@@ -129,6 +132,9 @@ const normalizeThreadStatusCandidate = (value) => {
     cancelado: "cancelled",
     asignado: "assigned",
     nuevo: "new",
+    starting: "starting",
+    en_inicio: "starting",
+    inicio: "starting",
   };
   const normalized = aliases[compact] || compact;
   return THREAD_STATUS_VALUES.includes(normalized) ? normalized : null;

@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
   CATEGORY_LABELS,
+  SUPPORT_FALLBACK_CATEGORY,
   buildSupportMessage,
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
@@ -81,7 +83,11 @@ serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const category = body.category ?? "sugerencia";
+  const categoryResolution = resolveSupportThreadCategory(
+    body.category,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
+  const category = categoryResolution.category;
   const severity = body.severity ?? "s2";
   const summary = safeTrim(body.summary, 240);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
@@ -118,6 +124,9 @@ serve(async (req) => {
 
   const context = {
     ...baseContext,
+    requested_category: categoryResolution.requestedCategory,
+    requested_category_unsupported: categoryResolution.usedFallback,
+    requested_category_mapped_other_reason: categoryResolution.mappedExplicitOtherReason,
     app_channel: appChannel,
     ...(Object.keys(runtimeContext).length ? { runtime: runtimeContext } : {}),
     ...(buildSnapshot ? { build: buildSnapshot } : {}),

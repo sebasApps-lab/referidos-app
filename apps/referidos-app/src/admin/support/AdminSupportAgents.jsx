@@ -8,6 +8,7 @@ import {
   createSupportAdminUser,
   denyAdminSupportSession,
   endAdminSupportSession,
+  pingAdminSupportSession,
   startAdminSupportSession,
 } from "@referidos/support-sdk/supportClient";
 
@@ -529,6 +530,13 @@ export default function AdminSupportAgents() {
       ...prev,
       [userId]: data.authorized_from ? formatTime(data.authorized_from) : "08:00",
     }));
+
+    // Si admin autoriza jornada, dispara ciclo de autoasignacion inmediatamente
+    // sin forzar inicio de sesion (jornada y sesion siguen siendo distintas).
+    if (patch?.authorized_for_work === true && patch?.blocked !== true) {
+      await pingAdminSupportSession();
+    }
+
     return true;
   };
 

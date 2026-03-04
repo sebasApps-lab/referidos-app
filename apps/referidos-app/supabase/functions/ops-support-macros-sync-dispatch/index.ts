@@ -57,6 +57,7 @@ const ALLOWED_ENV_TARGETS = new Set(["all", "dev", "staging", "prod"]);
 const ALLOWED_AUDIENCE_ROLES = new Set(["cliente", "negocio", "anonimo"]);
 const ALLOWED_THREAD_STATUSES = new Set([
   "new",
+  "starting",
   "assigned",
   "in_progress",
   "waiting_user",
@@ -129,6 +130,10 @@ function normalizeMacroStatus(value: unknown) {
 function normalizeThreadStatus(value: unknown) {
   const raw = asString(value, "new").toLowerCase();
   const aliases: Record<string, string> = {
+    start: "starting",
+    starting: "starting",
+    en_inicio: "starting",
+    inicio: "starting",
     inprogress: "in_progress",
     "in-progress": "in_progress",
     waiting: "waiting_user",

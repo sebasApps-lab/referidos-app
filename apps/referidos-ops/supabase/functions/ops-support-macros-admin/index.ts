@@ -13,6 +13,7 @@ const CATEGORY_STATUSES = new Set(["active", "inactive"]);
 const MACRO_STATUSES = new Set(["draft", "published", "archived"]);
 const THREAD_STATUSES = new Set([
   "new",
+  "starting",
   "assigned",
   "in_progress",
   "waiting_user",

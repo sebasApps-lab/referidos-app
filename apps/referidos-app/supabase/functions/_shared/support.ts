@@ -147,4 +147,58 @@ export const CATEGORY_LABELS: Record<string, string> = {
   sugerencia: "Sugerencia",
   borrar_correo_waitlist: "Borrar correo de lista de espera",
   tier_beneficios: "Tier / beneficios",
+  indefinida: "Indefinida / Otra razon",
 };
+
+export const SUPPORT_FALLBACK_CATEGORY = "indefinida";
+
+function normalizeCategoryToken(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export type SupportCategoryResolution = {
+  category: string;
+  requestedCategory: string | null;
+  usedFallback: boolean;
+  mappedExplicitOtherReason: boolean;
+};
+
+export function resolveSupportThreadCategory(
+  inputCategory: unknown,
+  fallbackCategory = SUPPORT_FALLBACK_CATEGORY,
+): SupportCategoryResolution {
+  const requestedCategory = normalizeCategoryToken(inputCategory);
+  const explicitOtherReason = requestedCategory === SUPPORT_FALLBACK_CATEGORY;
+
+  if (!requestedCategory) {
+    return {
+      category: fallbackCategory,
+      requestedCategory: null,
+      usedFallback: true,
+      mappedExplicitOtherReason: false,
+    };
+  }
+
+  if (Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, requestedCategory)) {
+    return {
+      category: requestedCategory,
+      requestedCategory,
+      usedFallback: false,
+      mappedExplicitOtherReason: explicitOtherReason,
+    };
+  }
+
+  return {
+    category: fallbackCategory,
+    requestedCategory,
+    usedFallback: true,
+    mappedExplicitOtherReason: false,
+  };
+}

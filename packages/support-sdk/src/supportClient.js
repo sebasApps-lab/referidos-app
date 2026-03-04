@@ -91,6 +91,19 @@ export async function markSupportOpeningMessage(payload) {
   return { ok: true, data };
 }
 
+export async function markSupportWhatsAppNameChanged(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-whatsapp-name-updated",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
 export async function setSupportAutoAssignMode(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-set-auto-assign-mode",

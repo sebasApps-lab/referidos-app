@@ -33,7 +33,7 @@ serve(async (req) => {
   if (profileErr || !usuario) {
     return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
   }
-  if (!["soporte", "admin"].includes(String(usuario.role || "").toLowerCase())) {
+  if (String(usuario.role || "").toLowerCase() !== "admin") {
     return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);
   }
 
