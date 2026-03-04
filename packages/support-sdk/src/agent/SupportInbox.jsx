@@ -32,6 +32,10 @@ function normalizeThreadRow(thread) {
     assigned_at: thread?.assigned_at || null,
     released_to_general_at: thread?.released_to_general_at || null,
     retake_requested_at: thread?.retake_requested_at || null,
+    handoff_required: Boolean(thread?.handoff_required),
+    handoff_reason: thread?.handoff_reason || null,
+    handoff_at: thread?.handoff_at || null,
+    handoff_message_confirmed_at: thread?.handoff_message_confirmed_at || null,
     updated_at: thread?.updated_at || null,
   };
 }
@@ -59,7 +63,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   let inboxQuery = supabase
     .from("support_threads_inbox")
     .select(
-      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id, personal_queue, released_to_general_at, retake_requested_at"
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id, personal_queue, released_to_general_at, retake_requested_at, handoff_required, handoff_reason, handoff_at, handoff_message_confirmed_at"
     )
     .order("created_at", { ascending: false });
 
@@ -77,7 +81,7 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   let legacyQuery = supabase
     .from("support_threads")
     .select(
-      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, personal_queue, released_to_general_at, retake_requested_at"
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, personal_queue, released_to_general_at, retake_requested_at, handoff_required, handoff_reason, handoff_at, handoff_message_confirmed_at"
     )
     .order("created_at", { ascending: false });
 
@@ -88,7 +92,25 @@ async function loadInboxRows({ isAdmin, usuarioId }) {
   }
 
   const legacyResult = await legacyQuery;
-  return (legacyResult.data || []).map(normalizeThreadRow);
+  if (!legacyResult.error) {
+    return (legacyResult.data || []).map(normalizeThreadRow);
+  }
+
+  let legacyCompatQuery = supabase
+    .from("support_threads")
+    .select(
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, personal_queue, released_to_general_at, retake_requested_at"
+    )
+    .order("created_at", { ascending: false });
+
+  if (!isAdmin) {
+    legacyCompatQuery = legacyCompatQuery.or(
+      `and(status.eq.starting,assigned_agent_id.eq.${usuarioId}),and(status.eq.assigned,assigned_agent_id.eq.${usuarioId}),and(status.eq.in_progress,assigned_agent_id.eq.${usuarioId}),and(status.eq.waiting_user,assigned_agent_id.eq.${usuarioId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${usuarioId}),status.eq.closed`
+    );
+  }
+
+  const legacyCompatResult = await legacyCompatQuery;
+  return (legacyCompatResult.data || []).map(normalizeThreadRow);
 }
 
 export default function SupportInbox({ isAdmin = false, basePath = "/soporte" }) {
@@ -603,6 +625,11 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                   <span className="rounded-full bg-white px-2 py-1 text-slate-500">
                     {statusLabel}
                   </span>
+                  {thread.handoff_required ? (
+                    <span className="rounded-full bg-[#FFF7E6] px-2 py-1 text-[#B46B00]">
+                      Abandonado
+                    </span>
+                  ) : null}
                 </div>
                 <div className="text-[11px] text-slate-400">
                   {thread.request_origin === "anonymous"
@@ -614,6 +641,11 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
                 {thread.request_origin === "anonymous" && thread.contact_display ? (
                   <div className="text-[11px] text-slate-500">
                     Contacto: {thread.contact_display}
+                  </div>
+                ) : null}
+                {thread.handoff_required ? (
+                  <div className="text-[11px] text-[#B46B00]">
+                    Ticket liberado por abandono del asesor anterior.
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">

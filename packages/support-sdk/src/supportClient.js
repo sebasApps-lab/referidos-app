@@ -104,6 +104,19 @@ export async function markSupportWhatsAppNameChanged(payload) {
   return { ok: true, data };
 }
 
+export async function sendSupportWorkflowAction(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-thread-workflow-action",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
 export async function setSupportAutoAssignMode(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-set-auto-assign-mode",
@@ -172,7 +185,14 @@ export async function endSupportSession(payload = {}) {
     }
   );
   if (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: error.message, data: data || null };
+  }
+  if (data?.ok === false) {
+    return {
+      ok: false,
+      error: data.error || "session_end_failed",
+      data,
+    };
   }
   return { ok: true, data };
 }

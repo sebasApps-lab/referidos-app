@@ -55,6 +55,7 @@ type CandidateThread = {
   app_channel: string | null;
   assignment_source: ThreadAssignmentSource;
   retake_requested_at: string | null;
+  general_queue_entered_at: string | null;
   tenant_id: string | null;
 };
 
@@ -374,7 +375,7 @@ async function applyTimeoutTransitions({
 
   let waitingQuery = supabaseAdmin
     .from("support_threads")
-    .select("id, public_id, assigned_agent_id, status")
+    .select("id, public_id, assigned_agent_id, status, request_origin")
     .eq("status", "waiting_user")
     .not("assigned_agent_id", "is", null)
     .lte("updated_at", waitingCutoff)
@@ -385,6 +386,35 @@ async function applyTimeoutTransitions({
 
   let timedOutToPersonal = 0;
   for (const thread of waitingRows || []) {
+    const isAnonymousOrigin = String(thread.request_origin || "").toLowerCase() === "anonymous";
+    if (isAnonymousOrigin) {
+      const { data: closed } = await supabaseAdmin
+        .from("support_threads")
+        .update({
+          status: "closed",
+          personal_queue: false,
+          closed_at: nowIso,
+          resolution: "auto_closed_anonymous_no_response",
+          updated_at: nowIso,
+        })
+        .eq("id", thread.id)
+        .eq("status", "waiting_user")
+        .select("id")
+        .maybeSingle();
+      if (!closed?.id) continue;
+      await insertThreadEvent({
+        threadId: thread.id,
+        eventType: "closed",
+        details: {
+          from: "waiting_user",
+          to: "closed",
+          reason: "anonymous_waiting_user_timeout",
+          auto: true,
+        },
+      });
+      continue;
+    }
+
     const { data: updated } = await supabaseAdmin
       .from("support_threads")
       .update({
@@ -445,6 +475,8 @@ async function applyTimeoutTransitions({
       .update({
         personal_queue: false,
         assigned_agent_id: null,
+        assignment_source: "general_retake",
+        retake_requested_at: null,
         released_to_general_at: nowIso,
         general_queue_entered_at: nowIso,
         updated_at: nowIso,
@@ -561,7 +593,7 @@ async function listAssignableThreads({
   let newQuery = supabaseAdmin
     .from("support_threads")
     .select(
-      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, tenant_id",
+      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, general_queue_entered_at, tenant_id",
     )
     .eq("status", "new")
     .is("assigned_agent_id", null)
@@ -569,22 +601,42 @@ async function listAssignableThreads({
     .limit(200);
   newQuery = applyTenantFilter(newQuery, tenantId);
 
-  let retakeQuery = supabaseAdmin
+  let releasedQuery = supabaseAdmin
     .from("support_threads")
     .select(
-      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, tenant_id",
+      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, general_queue_entered_at, tenant_id",
     )
     .eq("status", "queued")
     .eq("personal_queue", false)
     .is("assigned_agent_id", null)
+    .neq("assignment_source", "general_retake")
+    .order("general_queue_entered_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true })
+    .limit(200);
+  releasedQuery = applyTenantFilter(releasedQuery, tenantId);
+
+  let retakeQuery = supabaseAdmin
+    .from("support_threads")
+    .select(
+      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, general_queue_entered_at, tenant_id",
+    )
+    .eq("status", "queued")
+    .eq("personal_queue", false)
+    .is("assigned_agent_id", null)
+    .eq("assignment_source", "general_retake")
     .not("retake_requested_at", "is", null)
     .order("retake_requested_at", { ascending: true })
     .limit(200);
   retakeQuery = applyTenantFilter(retakeQuery, tenantId);
 
-  const [{ data: newRows }, { data: retakeRows }] = await Promise.all([newQuery, retakeQuery]);
+  const [{ data: newRows }, { data: releasedRows }, { data: retakeRows }] = await Promise.all([
+    newQuery,
+    releasedQuery,
+    retakeQuery,
+  ]);
   return {
     newRows: (newRows || []) as CandidateThread[],
+    releasedRows: (releasedRows || []) as CandidateThread[],
     retakeRows: (retakeRows || []) as CandidateThread[],
   };
 }
@@ -701,7 +753,7 @@ async function assignUnassignedThreads({
   actorRole?: string;
 }) {
   const delayCache = new Map<string, number>();
-  const { newRows, retakeRows } = await listAssignableThreads({ tenantId });
+  const { newRows, releasedRows, retakeRows } = await listAssignableThreads({ tenantId });
   const nowMs = Date.now();
 
   const eligibleRetakeRows: CandidateThread[] = [];
@@ -718,7 +770,8 @@ async function assignUnassignedThreads({
     }
   }
 
-  const queue: CandidateThread[] = [...newRows, ...eligibleRetakeRows];
+  // Prioridad: liberados a cola general (operativos) -> nuevos -> retake elegible.
+  const queue: CandidateThread[] = [...releasedRows, ...newRows, ...eligibleRetakeRows];
   let assignedStarting = 0;
   let assignedPersonalQueue = 0;
 
@@ -734,8 +787,9 @@ async function assignUnassignedThreads({
       agentState.processingCount < config.max_processing_tickets
         ? "starting"
         : "personal_queue";
-    const source: ThreadAssignmentSource =
-      thread.status === "new" ? "new_auto" : "general_retake";
+    const source: ThreadAssignmentSource = thread.status === "new"
+      ? "new_auto"
+      : normalizeAssignmentSource(thread.assignment_source, "system");
 
     const ok = await assignThreadToAgent({
       thread,
@@ -856,7 +910,7 @@ export async function manualAssignThread({
   let query = supabaseAdmin
     .from("support_threads")
     .select(
-      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, tenant_id",
+      "id, public_id, status, personal_queue, assigned_agent_id, assigned_at, created_at, updated_at, app_channel, assignment_source, retake_requested_at, general_queue_entered_at, tenant_id",
     )
     .eq("id", threadId)
     .maybeSingle();
@@ -919,6 +973,7 @@ export async function markSupportRetakeRequested({
   let query = supabaseAdmin
     .from("support_threads")
     .update({
+      assignment_source: "general_retake",
       retake_requested_at: nowIso,
       updated_at: nowIso,
     })

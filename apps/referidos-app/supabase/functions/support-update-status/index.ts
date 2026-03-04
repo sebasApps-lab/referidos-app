@@ -11,11 +11,12 @@ import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   new: ["starting", "assigned", "queued", "cancelled"],
-  starting: ["in_progress", "queued", "closed", "cancelled"],
-  assigned: ["starting", "in_progress", "queued", "closed", "cancelled"],
-  in_progress: ["waiting_user", "queued", "closed", "cancelled"],
-  waiting_user: ["in_progress", "queued", "closed", "cancelled"],
-  queued: ["starting", "assigned", "in_progress", "closed", "cancelled"],
+  starting: ["in_progress", "queued", "closing", "closed", "cancelled"],
+  assigned: ["starting", "in_progress", "queued", "closing", "closed", "cancelled"],
+  in_progress: ["waiting_user", "queued", "closing", "closed", "cancelled"],
+  waiting_user: ["in_progress", "queued", "closing", "closed", "cancelled"],
+  queued: ["starting", "assigned", "in_progress", "closing", "closed", "cancelled"],
+  closing: ["in_progress", "queued", "closed", "cancelled"],
   closed: [],
   cancelled: [],
 };
@@ -119,6 +120,8 @@ serve(async (req) => {
   } else if (nextStatus === "in_progress") {
     updatePayload.personal_queue = false;
     updatePayload.in_progress_at = nowIso;
+  } else if (nextStatus === "closing") {
+    updatePayload.personal_queue = false;
   } else if (nextStatus === "waiting_user") {
     updatePayload.waiting_user_at = nowIso;
   } else if (nextStatus === "queued") {
@@ -128,6 +131,8 @@ serve(async (req) => {
     } else {
       updatePayload.personal_queue = false;
       updatePayload.assigned_agent_id = null;
+      updatePayload.assignment_source = "manual";
+      updatePayload.retake_requested_at = null;
       updatePayload.released_to_general_at = nowIso;
       updatePayload.general_queue_entered_at = nowIso;
     }

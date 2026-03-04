@@ -495,6 +495,9 @@ verify_jwt = false
 [functions.support-link-anon-to-user]
 verify_jwt = false
 
+[functions.support-thread-workflow-action]
+verify_jwt = false
+
 [functions.admin-update-negocio]
 verify_jwt = false
 

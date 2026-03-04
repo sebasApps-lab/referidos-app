@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ShieldAlert, ShieldCheck, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAppStore } from "../../store/appStore";
 import { isSupportLiveUpdatesEnabled } from "../runtime/systemFeatureFlags";
@@ -24,6 +24,10 @@ export default function SupportGate({ children, showSessionActions = true }) {
   const [startLoading, setStartLoading] = useState(false);
   const [endLoading, setEndLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [sessionEndError, setSessionEndError] = useState("");
+  const [abandonmentFlowStep, setAbandonmentFlowStep] = useState("none");
+  const [abandonmentThreads, setAbandonmentThreads] = useState([]);
+  const [abandonmentSubmitting, setAbandonmentSubmitting] = useState(false);
   const [runtimeFlags, setRuntimeFlags] = useState(() =>
     getCachedSupportRuntimeFlags()
   );
@@ -126,6 +130,181 @@ export default function SupportGate({ children, showSessionActions = true }) {
     return () => clearInterval(interval);
   }, [profile, sessionActive]);
 
+  const resetAbandonmentFlow = useCallback(() => {
+    setAbandonmentFlowStep("none");
+    setAbandonmentThreads([]);
+    setAbandonmentSubmitting(false);
+  }, []);
+
+  const requestEndSession = useCallback(
+    async (payload = {}) => {
+      setSessionEndError("");
+      const result = await endSupportSession({
+        reason: "manual_end",
+        ...payload,
+      });
+
+      if (result.ok) {
+        setSessionActive(false);
+        resetAbandonmentFlow();
+        return result;
+      }
+
+      if (result.error === "abandonment_confirmation_required") {
+        const threads = Array.isArray(result?.data?.threads)
+          ? result.data.threads
+          : [];
+        setAbandonmentThreads(threads);
+        setAbandonmentFlowStep("confirm");
+        return result;
+      }
+
+      setSessionEndError("No se pudo terminar la jornada.");
+      return result;
+    },
+    [resetAbandonmentFlow]
+  );
+
+  const handleEndSession = useCallback(async () => {
+    setEndLoading(true);
+    const result = await requestEndSession();
+    setEndLoading(false);
+    return result;
+  }, [requestEndSession]);
+
+  const handleConfirmAbandonment = () => {
+    setSessionEndError("");
+    setAbandonmentFlowStep("message");
+  };
+
+  const handleSendAbandonmentMessage = async () => {
+    setAbandonmentSubmitting(true);
+    const result = await requestEndSession({
+      abandonment_confirmed: true,
+      abandonment_message_sent: true,
+    });
+    setAbandonmentSubmitting(false);
+    if (!result.ok && result.error !== "abandonment_confirmation_required") {
+      setSessionEndError("No se pudo confirmar el abandono del ticket.");
+    }
+  };
+
+  const closeAbandonmentFlow = () => {
+    resetAbandonmentFlow();
+    setSessionEndError("");
+  };
+
+  const renderAbandonmentModals = () => {
+    if (abandonmentFlowStep === "none") return null;
+
+    if (abandonmentFlowStep === "confirm") {
+      return (
+        <div className="fixed inset-0 z-[21000] flex items-center justify-center bg-slate-900/45 px-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                <AlertTriangle size={16} />
+              </div>
+              <div className="space-y-2">
+                <div className="text-base font-semibold text-[#2F1A55]">
+                  Vas a abandonar ticket(s) en atencion
+                </div>
+                <div className="text-sm text-slate-600">
+                  Antes de cerrar jornada debes confirmar el abandono. Los tickets
+                  se liberaran a cola general para reasignacion inmediata.
+                </div>
+              </div>
+            </div>
+            {abandonmentThreads.length > 0 ? (
+              <div className="mt-4 max-h-40 space-y-2 overflow-y-auto rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] p-3">
+                {abandonmentThreads.map((thread) => (
+                  <div
+                    key={`${thread.public_id || "thread"}-${thread.status || "status"}`}
+                    className="rounded-lg border border-[#E9E2F7] bg-white px-2.5 py-2 text-xs text-slate-600"
+                  >
+                    <div className="font-semibold text-[#2F1A55]">
+                      {thread.public_id || "Ticket"}
+                    </div>
+                    <div className="mt-0.5">
+                      Estado: {String(thread.status || "sin estado")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {sessionEndError ? (
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {sessionEndError}
+              </div>
+            ) : null}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeAbandonmentFlow}
+                className="rounded-xl border border-[#E9E2F7] px-4 py-2 text-sm font-semibold text-slate-600"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAbandonment}
+                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+              >
+                Abandonar
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-[21000] flex items-center justify-center bg-slate-900/45 px-4">
+        <div className="w-full max-w-lg rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+          <div className="text-base font-semibold text-[#2F1A55]">
+            Mensaje de abandono
+          </div>
+          <div className="mt-2 text-sm text-slate-600">
+            Envia el macro de abandono al usuario antes de cerrar jornada.
+          </div>
+          <div className="mt-4 rounded-xl border border-dashed border-[#BFA8E7] bg-[#FAF8FF] px-3 py-4 text-xs text-[#5E30A5]">
+            Placeholder temporal de macros de abandono. El siguiente paso del flujo
+            mostrara el catalogo real de macros de abandono.
+          </div>
+          {sessionEndError ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {sessionEndError}
+            </div>
+          ) : null}
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeAbandonmentFlow}
+              disabled={abandonmentSubmitting}
+              className="rounded-xl border border-[#E9E2F7] px-4 py-2 text-sm font-semibold text-slate-600 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void handleSendAbandonmentMessage();
+              }}
+              disabled={abandonmentSubmitting}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                abandonmentSubmitting ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+              }`}
+            >
+              {abandonmentSubmitting
+                ? "Cerrando jornada..."
+                : "Envié mensaje de abandono"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (!liveUpdatesEnabled) return undefined;
     if (!usuario?.id) return undefined;
@@ -174,6 +353,7 @@ export default function SupportGate({ children, showSessionActions = true }) {
     return (
       <>
         <div className="text-sm text-slate-500">Cargando...</div>
+        {renderAbandonmentModals()}
       </>
     );
   }
@@ -204,6 +384,7 @@ export default function SupportGate({ children, showSessionActions = true }) {
             Recargar
           </button>
         </div>
+        {renderAbandonmentModals()}
       </>
     );
   }
@@ -265,6 +446,7 @@ export default function SupportGate({ children, showSessionActions = true }) {
             Recargar
           </button>
         </div>
+        {renderAbandonmentModals()}
       </>
     );
   }
@@ -329,19 +511,10 @@ export default function SupportGate({ children, showSessionActions = true }) {
             </button>
           )}
         </div>
+        {renderAbandonmentModals()}
       </>
     );
   }
-
-  const handleEndSession = async () => {
-    setEndLoading(true);
-    const result = await endSupportSession({ reason: "manual_end" });
-    setEndLoading(false);
-    if (result.ok) {
-      setSessionActive(false);
-    }
-    return result;
-  };
 
   return (
     <div className="space-y-4">
@@ -360,6 +533,11 @@ export default function SupportGate({ children, showSessionActions = true }) {
           </button>
         </div>
       ) : null}
+      {sessionEndError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {sessionEndError}
+        </div>
+      ) : null}
       {typeof children === "function"
         ? children({
             sessionActive,
@@ -367,6 +545,7 @@ export default function SupportGate({ children, showSessionActions = true }) {
             onEndSession: handleEndSession,
           })
         : children}
+      {renderAbandonmentModals()}
     </div>
   );
 }

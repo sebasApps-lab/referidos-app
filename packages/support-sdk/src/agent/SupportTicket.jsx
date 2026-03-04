@@ -23,7 +23,6 @@ import {
   Tag,
   UserRound,
   Wifi,
-  X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -31,6 +30,7 @@ import {
   closeSupportThread,
   markSupportOpeningMessage,
   markSupportWhatsAppNameChanged,
+  sendSupportWorkflowAction,
   trackSupportMacroEvents,
   updateSupportStatus,
 } from "../supportClient";
@@ -42,18 +42,19 @@ import {
 } from "../data/supportCatalog";
 import SupportDevDebugBanner from "./SupportDevDebugBanner";
 
-const THREAD_STATUS_VALUES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const THREAD_STATUS_VALUES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closing", "closed", "cancelled"];
 const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "starting", "in_progress", "closed"];
 const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "starting", "in_progress", "closed"];
 const TIMELINE_RELEASE_EVENT_TYPES = new Set(["agent_timeout_release", "agent_manual_release"]);
 const TERMINAL_TIMELINE_STATUSES = new Set(["closed", "cancelled", "released"]);
 const TIMELINE_BLOCK_LABELS = {
   new: "Creado",
-  starting: "Retomando",
+  starting: "Empezando",
   assigned: "Asignado",
   in_progress: "Resolviendo",
   waiting_user: "Esperando usuario",
   queued: "En cola",
+  closing: "Cerrando",
   postponed: "Pospuesto",
   released: "Liberado",
   closed: "Cerrado",
@@ -82,11 +83,28 @@ const TIMELINE_BLOCK_REACHED_CLASSES = {
   in_progress: "bg-[#0891B2] text-white",
   waiting_user: "bg-[#EA580C] text-white",
   queued: "bg-[#4F46E5] text-white",
+  closing: "bg-[#B45309] text-white",
   postponed: "bg-[#BE185D] text-white",
   released: "bg-[#4B5563] text-white",
   closed: "bg-[#15803D] text-white",
   cancelled: "bg-[#B91C1C] text-white",
 };
+
+const FLOW_SCREENS = {
+  STARTING_INTRO: "screen_1_starting_intro",
+  WHATSAPP_GUIDE: "screen_2_whatsapp_guide",
+  OPENING_MESSAGE: "screen_3_opening_message",
+  OPENING_FOLLOWUP: "screen_4_opening_followup",
+  RESOLUTION_ACTIVE: "screen_5_resolution_active",
+  RESOLUTION_FOLLOWUP: "screen_6_resolution_followup",
+  CLOSING_PREP: "screen_7_closing_prepare",
+  CLOSING_WAIT: "screen_8_closing_wait",
+  CLOSING_CONFIRM: "screen_9_closing_confirm",
+  NEW_ISSUE_DECISION: "screen_10_new_issue_decision",
+  NEW_ISSUE_INFO: "screen_11_new_issue_info",
+};
+
+const CLOSING_CONFIRM_WAIT_SECONDS = 10 * 60;
 
 function normalizeThreadRow(thread) {
   if (!thread) return null;
@@ -151,6 +169,15 @@ function formatSupportCategoryLabel(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatSupportThreadStatusLabel(status) {
+  const normalized = pickFirstString(status).toLowerCase();
+  if (!normalized) return "No especificado";
+  const mapped = TIMELINE_BLOCK_LABELS[normalized] || normalized.replace(/[_-]+/g, " ");
+  return mapped
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function formatElapsedClock(ms) {
   const safeMs = Math.max(0, Number.isFinite(ms) ? ms : 0);
   const totalSeconds = Math.floor(safeMs / 1000);
@@ -205,6 +232,8 @@ function normalizeThreadStatusCandidate(value) {
     en_espera: "waiting_user",
     en_cola: "queued",
     cola: "queued",
+    cerrando: "closing",
+    en_cierre: "closing",
     cerrado: "closed",
     cancelado: "cancelled",
     asignado: "assigned",
@@ -235,6 +264,15 @@ function deriveNextThreadStatusFromEvent(event) {
 
 function getEventDetails(event) {
   return event && typeof event.details === "object" && !Array.isArray(event.details) ? event.details : {};
+}
+
+function findLatestActionEvent(events, action) {
+  if (!Array.isArray(events) || !action) return null;
+  const target = String(action).trim().toLowerCase();
+  return events.find((event) => {
+    const details = getEventDetails(event);
+    return String(details.action || "").trim().toLowerCase() === target;
+  }) || null;
 }
 
 function normalizeQueueKind(value) {
@@ -365,31 +403,34 @@ export default function SupportTicket() {
   const [notes, setNotes] = useState([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [copiedId, setCopiedId] = useState(null);
-  const [closing, setClosing] = useState(false);
   const [closingRequest, setClosingRequest] = useState(false);
-  const [resolution, setResolution] = useState("");
-  const [rootCause, setRootCause] = useState("");
   const [logs, setLogs] = useState([]);
   const [catalog, setCatalog] = useState({ categories: [], macros: [] });
   const [catalogLoadError, setCatalogLoadError] = useState("");
   const [refreshingMacros, setRefreshingMacros] = useState(false);
   const [expandedMacroGroups, setExpandedMacroGroups] = useState({});
-  const [openingMessageSent, setOpeningMessageSent] = useState(false);
   const [openingSaving, setOpeningSaving] = useState(false);
+  const [openingStepError, setOpeningStepError] = useState("");
   const [whatsAppNameMarked, setWhatsAppNameMarked] = useState(false);
   const [whatsAppNameSaving, setWhatsAppNameSaving] = useState(false);
   const [startingGuideError, setStartingGuideError] = useState("");
-  const [startingGuideOpen, setStartingGuideOpen] = useState(false);
-  const [copyConfirmMacro, setCopyConfirmMacro] = useState(null);
-  const [macroFlowState, setMacroFlowState] = useState({
-    open: false,
-    mode: "continue",
-  });
+  const [flowScreen, setFlowScreen] = useState(FLOW_SCREENS.STARTING_INTRO);
+  const [personalQueueThreads, setPersonalQueueThreads] = useState([]);
+  const [openingFocusedMacro, setOpeningFocusedMacro] = useState(null);
+  const [resolutionFocusedMacro, setResolutionFocusedMacro] = useState(null);
+  const [resolutionSendReminderOpen, setResolutionSendReminderOpen] = useState(false);
+  const [resolutionReminderMacro, setResolutionReminderMacro] = useState(null);
+  const [closingMessageSentAt, setClosingMessageSentAt] = useState("");
+  const [closingCommentDraft, setClosingCommentDraft] = useState("");
+  const [newIssueReasonDraft, setNewIssueReasonDraft] = useState("");
+  const [newIssueCategoryDraft, setNewIssueCategoryDraft] = useState("");
+  const [workflowSaving, setWorkflowSaving] = useState(false);
   const [expandedTimelineSegmentId, setExpandedTimelineSegmentId] = useState("");
   const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const [activeNowMs, setActiveNowMs] = useState(() => Date.now());
   const shownTrackerRef = useRef(new Set());
+  const resolutionSendReminderTimerRef = useRef(0);
   const timelineScrollRef = useRef(null);
   const timelineDragStateRef = useRef({
     active: false,
@@ -424,6 +465,41 @@ export default function SupportTicket() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (resolutionSendReminderTimerRef.current) {
+        globalThis.clearTimeout(resolutionSendReminderTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (flowScreen === FLOW_SCREENS.RESOLUTION_ACTIVE) return;
+    if (resolutionSendReminderTimerRef.current) {
+      globalThis.clearTimeout(resolutionSendReminderTimerRef.current);
+      resolutionSendReminderTimerRef.current = 0;
+    }
+    setResolutionSendReminderOpen(false);
+  }, [flowScreen]);
+
+  const hasBlockingModalOpen = Boolean(resolutionSendReminderOpen);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const body = document.body;
+    if (!body) return undefined;
+
+    if (hasBlockingModalOpen) {
+      body.setAttribute("data-support-modal-open", "1");
+    } else {
+      body.removeAttribute("data-support-modal-open");
+    }
+
+    return () => {
+      body.removeAttribute("data-support-modal-open");
+    };
+  }, [hasBlockingModalOpen]);
+
+  useEffect(() => {
     let active = true;
     const load = async () => {
       const enrichedResult = await supabase
@@ -454,7 +530,7 @@ export default function SupportTicket() {
         return;
       }
 
-      const [{ data: eventData }, { data: noteData }, { data: obsContextData }] = await Promise.all([
+      const [{ data: eventData }, { data: noteData }, { data: obsContextData }, { data: personalQueueData }] = await Promise.all([
         supabase
           .from("support_thread_events")
           .select("event_type, actor_role, actor_id, details, created_at")
@@ -470,6 +546,16 @@ export default function SupportTicket() {
           .select("*")
           .eq("thread_id", threadData.id)
           .maybeSingle(),
+        threadData.assigned_agent_id
+          ? supabase
+            .from("support_threads")
+            .select("public_id, category, summary, user_public_id, assigned_agent_id, status, personal_queue, created_at")
+            .eq("assigned_agent_id", threadData.assigned_agent_id)
+            .eq("status", "queued")
+            .eq("personal_queue", true)
+            .neq("id", threadData.id)
+            .order("created_at", { ascending: true })
+          : Promise.resolve({ data: [] }),
       ]);
 
       let logData = [];
@@ -514,17 +600,54 @@ export default function SupportTicket() {
         const details = asRecord(event.details);
         return String(details.action || "").toLowerCase() === "whatsapp_name_changed";
       });
+      const latestClosingMessageSentEvent = findLatestActionEvent(loadedEvents, "closing_message_sent");
+      const latestOpeningResetEvent = findLatestActionEvent(loadedEvents, "opening_message_reset");
+      const normalizedThread = normalizeThreadRow(threadData);
+      const openingSentAt = pickFirstString(normalizedThread?.opening_message_sent_at);
+      const hasOpeningMarkedByColumn = Boolean(openingSentAt);
+      const openingResetAt = pickFirstString(latestOpeningResetEvent?.created_at);
+      const openingResetIsNewer =
+        openingResetAt &&
+        openingSentAt &&
+        new Date(openingResetAt).getTime() > new Date(openingSentAt).getTime();
+      const hasOpeningMessageSent = hasOpeningMarkedByColumn && !openingResetIsNewer;
+
+      let initialFlowScreen = FLOW_SCREENS.STARTING_INTRO;
+      if (normalizedThread.status === "closed" || normalizedThread.status === "cancelled") {
+        initialFlowScreen = FLOW_SCREENS.RESOLUTION_ACTIVE;
+      } else if (!hasWhatsAppNameMarked) {
+        initialFlowScreen = FLOW_SCREENS.STARTING_INTRO;
+      } else if (!hasOpeningMessageSent) {
+        initialFlowScreen = FLOW_SCREENS.OPENING_MESSAGE;
+      } else if (normalizedThread.status === "closing") {
+        initialFlowScreen = latestClosingMessageSentEvent
+          ? FLOW_SCREENS.CLOSING_WAIT
+          : FLOW_SCREENS.CLOSING_PREP;
+      } else if (normalizedThread.status === "waiting_user" || normalizedThread.status === "queued") {
+        initialFlowScreen = FLOW_SCREENS.RESOLUTION_FOLLOWUP;
+      } else {
+        initialFlowScreen = FLOW_SCREENS.RESOLUTION_ACTIVE;
+      }
 
       if (!active) return;
-      const normalizedThread = normalizeThreadRow(threadData);
       setThread(normalizedThread);
-      setOpeningMessageSent(Boolean(normalizedThread?.opening_message_sent_at));
+      setFlowScreen(initialFlowScreen);
+      setOpeningStepError("");
+      setOpeningFocusedMacro(null);
+      setResolutionFocusedMacro(null);
+      setResolutionSendReminderOpen(false);
+      setResolutionReminderMacro(null);
       setWhatsAppNameMarked(hasWhatsAppNameMarked);
       setStartingGuideError("");
+      setClosingMessageSentAt(pickFirstString(latestClosingMessageSentEvent?.created_at));
+      setClosingCommentDraft("");
+      setNewIssueReasonDraft("");
+      setNewIssueCategoryDraft(pickFirstString(normalizedThread?.category));
       setObsContext(obsContextData || null);
       setEvents(loadedEvents);
       setNotes(noteData || []);
       setLogs(logData);
+      setPersonalQueueThreads(Array.isArray(personalQueueData) ? personalQueueData : []);
     };
     load();
     return () => {
@@ -777,14 +900,45 @@ export default function SupportTicket() {
     />
   ) : null;
 
+  const macroStatusByScreen = useMemo(() => {
+    if (!thread) return "new";
+    if (flowScreen === FLOW_SCREENS.OPENING_MESSAGE || flowScreen === FLOW_SCREENS.OPENING_FOLLOWUP) {
+      return "starting";
+    }
+    if (flowScreen === FLOW_SCREENS.CLOSING_PREP || flowScreen === FLOW_SCREENS.CLOSING_WAIT || flowScreen === FLOW_SCREENS.CLOSING_CONFIRM) {
+      return "closing";
+    }
+    if (flowScreen === FLOW_SCREENS.RESOLUTION_FOLLOWUP) {
+      if (thread.status === "waiting_user" || thread.status === "queued") return thread.status;
+      return "in_progress";
+    }
+    if (flowScreen === FLOW_SCREENS.RESOLUTION_ACTIVE || flowScreen === FLOW_SCREENS.NEW_ISSUE_DECISION || flowScreen === FLOW_SCREENS.NEW_ISSUE_INFO) {
+      return "in_progress";
+    }
+    return thread.status || "new";
+  }, [flowScreen, thread]);
+
+  const macroThread = useMemo(() => {
+    if (!thread) return null;
+    const categoryOverride =
+      flowScreen === FLOW_SCREENS.NEW_ISSUE_DECISION || flowScreen === FLOW_SCREENS.NEW_ISSUE_INFO
+        ? pickFirstString(newIssueCategoryDraft, thread.category)
+        : thread.category;
+    return {
+      ...thread,
+      status: macroStatusByScreen,
+      category: categoryOverride,
+    };
+  }, [flowScreen, macroStatusByScreen, newIssueCategoryDraft, thread]);
+
   const macros = useMemo(() => {
     return filterSupportMacrosForThread({
-      thread,
+      thread: macroThread,
       macros: catalog.macros,
       categories: catalog.categories,
       runtimeEnvKey,
     });
-  }, [catalog.categories, catalog.macros, runtimeEnvKey, thread]);
+  }, [catalog.categories, catalog.macros, macroThread, runtimeEnvKey]);
 
   const macroGroups = useMemo(() => {
     const grouped = new Map();
@@ -1058,37 +1212,6 @@ export default function SupportTicket() {
   }, [thread?.public_id]);
 
   useEffect(() => {
-    if (!thread?.public_id) return;
-    try {
-      const raw = window.localStorage.getItem(`support:macroflow:${thread.public_id}`);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed?.open) {
-        setMacroFlowState({
-          open: true,
-          mode: parsed.mode === "closing" ? "closing" : "continue",
-        });
-      }
-    } catch {
-      // no-op
-    }
-  }, [thread?.public_id]);
-
-  useEffect(() => {
-    if (!thread?.public_id) return;
-    try {
-      const key = `support:macroflow:${thread.public_id}`;
-      if (macroFlowState.open) {
-        window.localStorage.setItem(key, JSON.stringify(macroFlowState));
-      } else {
-        window.localStorage.removeItem(key);
-      }
-    } catch {
-      // no-op
-    }
-  }, [macroFlowState, thread?.public_id]);
-
-  useEffect(() => {
     if (!thread?.public_id || !macros.length) return;
     const events = [];
 
@@ -1123,14 +1246,14 @@ export default function SupportTicket() {
     const macroBody = typeof macro?.body === "string" ? macro.body : "";
     const macroId = typeof macro?.id === "string" ? macro.id : "";
     const macroCode = typeof macro?.code === "string" ? macro.code : "";
-    if (!macroBody || !macroId || !macroCode) return;
+    if (!macroBody || !macroId || !macroCode) return false;
 
     try {
       await navigator.clipboard.writeText(macroBody);
       setCopiedId(macroId);
       setTimeout(() => setCopiedId(null), 1500);
     } catch {
-      return;
+      return false;
     }
 
     trackSupportMacroEvents({
@@ -1145,28 +1268,37 @@ export default function SupportTicket() {
           env_key: runtimeEnvKey,
           metadata: {
             source: "support_ticket",
+            flow_screen: flowScreen,
           },
         },
       ],
     }).catch(() => {});
 
-    if (thread?.status !== "closed" && thread?.status !== "queued") {
-      setMacroFlowState({
-        open: true,
-        mode: "continue",
-      });
-    }
+    return true;
   };
 
   const handleCopy = (macro) => {
-    setCopyConfirmMacro(macro);
-  };
+    if (!macro) return;
+    void executeMacroCopy(macro).then((ok) => {
+      if (!ok) return;
 
-  const handleConfirmMacroCopy = async () => {
-    if (!copyConfirmMacro) return;
-    const macro = copyConfirmMacro;
-    setCopyConfirmMacro(null);
-    await executeMacroCopy(macro);
+      if (flowScreen === FLOW_SCREENS.OPENING_MESSAGE || flowScreen === FLOW_SCREENS.OPENING_FOLLOWUP) {
+        setOpeningFocusedMacro(macro);
+        return;
+      }
+
+      if (flowScreen === FLOW_SCREENS.RESOLUTION_ACTIVE) {
+        setResolutionFocusedMacro(macro);
+        setResolutionReminderMacro(macro);
+        setResolutionSendReminderOpen(false);
+        if (resolutionSendReminderTimerRef.current) {
+          globalThis.clearTimeout(resolutionSendReminderTimerRef.current);
+        }
+        resolutionSendReminderTimerRef.current = globalThis.setTimeout(() => {
+          setResolutionSendReminderOpen(true);
+        }, 15000);
+      }
+    });
   };
 
   const handleAddNote = async () => {
@@ -1202,23 +1334,37 @@ export default function SupportTicket() {
   const handleClose = async () => {
     if (closingRequest) return;
     setClosingRequest(true);
+    setOpeningStepError("");
     try {
+      const finalResolution = pickFirstString(closingCommentDraft, "Ticket resuelto por soporte");
       const result = await closeSupportThread({
         thread_public_id: thread.public_id,
-        resolution,
-        root_cause: rootCause,
+        resolution: finalResolution,
+        root_cause: "",
       });
       if (result.ok) {
-        setThread((prev) => ({ ...prev, status: "closed", resolution, root_cause: rootCause }));
-        setClosing(false);
+        const responseThread = result?.data?.thread || null;
+        setThread((prev) => ({
+          ...prev,
+          ...(responseThread || {}),
+          status: responseThread?.status || "closed",
+            resolution: responseThread?.resolution || finalResolution,
+            root_cause: responseThread?.root_cause || "",
+        }));
+        setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
+        setResolutionSendReminderOpen(false);
+        setResolutionFocusedMacro(null);
+        setOpeningFocusedMacro(null);
         await refreshCatalog({ forceSync: true });
+      } else {
+        setOpeningStepError("No se pudo cerrar el ticket. Intenta nuevamente.");
       }
     } finally {
       setClosingRequest(false);
     }
   };
 
-  const handleOpeningMessageSent = async () => {
+  const handleOpeningMessageSent = async ({ moveToInProgress = false } = {}) => {
     if (!thread?.public_id || openingSaving) return false;
     setOpeningSaving(true);
     const result = await markSupportOpeningMessage({
@@ -1226,7 +1372,6 @@ export default function SupportTicket() {
     });
     setOpeningSaving(false);
     if (!result.ok) return false;
-    setOpeningMessageSent(true);
     setThread((prev) =>
       prev
         ? {
@@ -1236,13 +1381,17 @@ export default function SupportTicket() {
           }
         : prev,
     );
+    if (moveToInProgress) {
+      const statusOk = await handleStatus("in_progress");
+      if (!statusOk) return false;
+    }
     return true;
   };
 
   const handleStartingContinue = async () => {
     if (!thread?.public_id) return;
     if (whatsAppNameMarked) {
-      setStartingGuideOpen(false);
+      setFlowScreen(FLOW_SCREENS.OPENING_MESSAGE);
       return;
     }
     setStartingGuideError("");
@@ -1257,7 +1406,7 @@ export default function SupportTicket() {
       return;
     }
     setWhatsAppNameMarked(true);
-    setStartingGuideOpen(false);
+    setFlowScreen(FLOW_SCREENS.OPENING_MESSAGE);
   };
 
   const handleMacroFlowUserResponded = async () => {
@@ -1266,34 +1415,429 @@ export default function SupportTicket() {
       const ok = await handleStatus("in_progress");
       if (!ok) return;
     }
-    setMacroFlowState({ open: false, mode: "continue" });
+    setResolutionSendReminderOpen(false);
+    if (resolutionSendReminderTimerRef.current) {
+      globalThis.clearTimeout(resolutionSendReminderTimerRef.current);
+    }
+    setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
+  };
+
+  const persistWorkflowAction = async (action, payload = {}) => {
+    const response = await sendSupportWorkflowAction({
+      thread_public_id: thread.public_id,
+      action,
+      payload: {
+        ...payload,
+        flow_screen: flowScreen,
+      },
+    });
+    if (!response.ok || response?.data?.ok === false) {
+      return { ok: false };
+    }
+    const nextThread = response?.data?.thread || null;
+    if (nextThread) {
+      setThread((prev) => ({ ...prev, ...nextThread }));
+    }
+    return { ok: true, data: response.data };
+  };
+
+  const handleStartWhatsappGuide = () => {
+    setStartingGuideError("");
+    setFlowScreen(FLOW_SCREENS.WHATSAPP_GUIDE);
+  };
+
+  const handleOpeningStepSubmit = async () => {
+    setOpeningStepError("");
+    const ok = await handleOpeningMessageSent({ moveToInProgress: true });
+    if (!ok) {
+      setOpeningStepError("No se pudo confirmar el mensaje de apertura. Intenta nuevamente.");
+      return;
+    }
+    setFlowScreen(FLOW_SCREENS.OPENING_FOLLOWUP);
+  };
+
+  const handleOpeningResetForRecopy = async () => {
+    if (!thread?.public_id || workflowSaving) return;
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("opening_message_reset");
+    setWorkflowSaving(false);
+    if (!response.ok) {
+      setOpeningStepError("No se pudo reabrir el mensaje de apertura. Intenta nuevamente.");
+      return;
+    }
+    setThread((prev) =>
+      prev
+        ? {
+            ...prev,
+            opening_message_sent_at: null,
+            opening_message_actor_id: null,
+          }
+        : prev,
+    );
+    setFlowScreen(FLOW_SCREENS.OPENING_MESSAGE);
+  };
+
+  const handleResolutionMessageSent = async () => {
+    if (!thread?.public_id || workflowSaving) return;
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("resolution_message_sent");
+    setWorkflowSaving(false);
+    if (!response.ok) {
+      setOpeningStepError("No se pudo guardar el envio de mensaje. Intenta nuevamente.");
+      return;
+    }
+    if (resolutionSendReminderTimerRef.current) {
+      globalThis.clearTimeout(resolutionSendReminderTimerRef.current);
+    }
+    setResolutionSendReminderOpen(false);
+    setFlowScreen(FLOW_SCREENS.RESOLUTION_FOLLOWUP);
+  };
+
+  const handleStartClosingFlow = async () => {
+    setOpeningStepError("");
+    const ok = await handleStatus("closing");
+    if (!ok) {
+      setOpeningStepError("No se pudo iniciar el flujo de cierre. Intenta nuevamente.");
+      return;
+    }
+    setFlowScreen(FLOW_SCREENS.CLOSING_PREP);
+  };
+
+  const handleClosingMessageSent = async () => {
+    if (!thread?.public_id || workflowSaving) return;
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("closing_message_sent");
+    setWorkflowSaving(false);
+    if (!response.ok) {
+      setOpeningStepError("No se pudo registrar el mensaje de cierre. Intenta nuevamente.");
+      return;
+    }
+    const eventAt = pickFirstString(response?.data?.event_at, new Date().toISOString());
+    setClosingMessageSentAt(eventAt);
+    setFlowScreen(FLOW_SCREENS.CLOSING_WAIT);
+  };
+
+  const handleBackToIssueDecision = async () => {
+    setOpeningStepError("");
+    const ok = await handleStatus("in_progress");
+    if (!ok) {
+      setOpeningStepError("No se pudo continuar la resolucion. Intenta nuevamente.");
+      return;
+    }
+    setFlowScreen(FLOW_SCREENS.NEW_ISSUE_DECISION);
+  };
+
+  const handleCloseOutcome = async (outcome) => {
+    const closingComment = closingCommentDraft.trim();
+    if (!closingComment) {
+      setOpeningStepError("Debes ingresar un comentario de cierre antes de continuar.");
+      return;
+    }
+    if (!thread?.public_id || workflowSaving) return;
+
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("close_outcome", {
+      outcome,
+      comment: closingComment,
+    });
+    if (!response.ok) {
+      setWorkflowSaving(false);
+      setOpeningStepError("No se pudo registrar el resultado de cierre. Intenta nuevamente.");
+      return;
+    }
+
+    const closeResult = await closeSupportThread({
+      thread_public_id: thread.public_id,
+      resolution: closingComment,
+      root_cause: outcome === "inactive_close" ? "inactive_close" : "user_confirmed",
+    });
+    setWorkflowSaving(false);
+    if (!closeResult.ok) {
+      setOpeningStepError("No se pudo cerrar el ticket. Intenta nuevamente.");
+      return;
+    }
+
+    const responseThread = closeResult?.data?.thread || null;
+    setThread((prev) => ({
+      ...prev,
+      ...(responseThread || {}),
+      status: responseThread?.status || "closed",
+      resolution: responseThread?.resolution || closingComment,
+      root_cause: responseThread?.root_cause || (outcome === "inactive_close" ? "inactive_close" : "user_confirmed"),
+    }));
+    setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
+    setResolutionFocusedMacro(null);
+    setOpeningFocusedMacro(null);
+    await refreshCatalog({ forceSync: true });
+  };
+
+  const handleIssueContextSet = async (mode) => {
+    if (!thread?.public_id || workflowSaving) return;
+    if (!newIssueReasonDraft.trim()) {
+      setOpeningStepError("Debes registrar la razon para continuar.");
+      return;
+    }
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("issue_context_set", {
+      mode,
+      reason: newIssueReasonDraft.trim(),
+      category: newIssueCategoryDraft || thread.category || null,
+    });
+    setWorkflowSaving(false);
+    if (!response.ok) {
+      setOpeningStepError("No se pudo guardar el contexto de la inquietud. Intenta nuevamente.");
+      return;
+    }
+    setFlowScreen(FLOW_SCREENS.NEW_ISSUE_INFO);
+  };
+
+  const handleInfoMessageSent = async () => {
+    if (!thread?.public_id || workflowSaving) return;
+    setWorkflowSaving(true);
+    setOpeningStepError("");
+    const response = await persistWorkflowAction("info_message_sent", {
+      reason: newIssueReasonDraft.trim(),
+      category: newIssueCategoryDraft || thread.category || null,
+    });
+    setWorkflowSaving(false);
+    if (!response.ok) {
+      setOpeningStepError("No se pudo registrar el mensaje de informacion. Intenta nuevamente.");
+      return;
+    }
+    setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
   };
 
   if (!thread) {
     return <div className="text-sm text-slate-500">Cargando ticket...</div>;
   }
 
-  const isStartingStage = thread.status === "starting";
-  const showStartingIntro = isStartingStage && !whatsAppNameMarked;
+  const isTerminalStage = thread.status === "closed" || thread.status === "cancelled";
+  const hasHandoffMark = Boolean(thread.handoff_required) && !isTerminalStage;
+  const showStartingIntro = flowScreen === FLOW_SCREENS.STARTING_INTRO;
+  const showWhatsappGuideScreen = flowScreen === FLOW_SCREENS.WHATSAPP_GUIDE;
+  const showOpeningMessageStep = flowScreen === FLOW_SCREENS.OPENING_MESSAGE;
+  const showOpeningFollowupStep = flowScreen === FLOW_SCREENS.OPENING_FOLLOWUP;
+  const showResolutionActiveStep = flowScreen === FLOW_SCREENS.RESOLUTION_ACTIVE;
+  const showResolutionFollowupStep = flowScreen === FLOW_SCREENS.RESOLUTION_FOLLOWUP;
+  const showClosingPrepStep = flowScreen === FLOW_SCREENS.CLOSING_PREP;
+  const showClosingWaitStep = flowScreen === FLOW_SCREENS.CLOSING_WAIT;
+  const showClosingConfirmStep = flowScreen === FLOW_SCREENS.CLOSING_CONFIRM;
+  const showNewIssueDecisionStep = flowScreen === FLOW_SCREENS.NEW_ISSUE_DECISION;
+  const showNewIssueInfoStep = flowScreen === FLOW_SCREENS.NEW_ISSUE_INFO;
+  const leftColumnScreenNumber = (() => {
+    const map = {
+      [FLOW_SCREENS.STARTING_INTRO]: "Screen 1",
+      [FLOW_SCREENS.WHATSAPP_GUIDE]: "Screen 2",
+      [FLOW_SCREENS.OPENING_MESSAGE]: "Screen 3",
+      [FLOW_SCREENS.OPENING_FOLLOWUP]: "Screen 4",
+      [FLOW_SCREENS.RESOLUTION_ACTIVE]: "Screen 5",
+      [FLOW_SCREENS.RESOLUTION_FOLLOWUP]: "Screen 6",
+      [FLOW_SCREENS.CLOSING_PREP]: "Screen 7",
+      [FLOW_SCREENS.CLOSING_WAIT]: "Screen 8",
+      [FLOW_SCREENS.CLOSING_CONFIRM]: "Screen 9",
+      [FLOW_SCREENS.NEW_ISSUE_DECISION]: "Screen 10",
+      [FLOW_SCREENS.NEW_ISSUE_INFO]: "Screen 11",
+    };
+    return map[flowScreen] || "Screen";
+  })();
   const openingTargetLabel =
     thread.request_origin === "anonymous"
       ? thread.anon_profile?.public_id || thread.user_public_id || "No especificado"
       : thread.user_public_id || "No especificado";
+  const floatingStatusLabel = formatSupportThreadStatusLabel(thread.status);
   const ticketDescription = pickFirstString(thread.summary) || "Sin descripcion adicional.";
   const ticketCategoryLabel = formatSupportCategoryLabel(thread.category);
   const ticketActiveSinceMs = new Date(
     thread.created_at || thread.updated_at || new Date().toISOString(),
   ).getTime();
   const ticketActiveLabel = formatElapsedClock(activeNowMs - ticketActiveSinceMs);
+  const closingWaitTotalMs = CLOSING_CONFIRM_WAIT_SECONDS * 1000;
+  const closingElapsedMs = closingMessageSentAt
+    ? Math.max(0, activeNowMs - new Date(closingMessageSentAt).getTime())
+    : 0;
+  const closingRemainingMs = Math.max(0, closingWaitTotalMs - closingElapsedMs);
+  const closingWaitReady = closingRemainingMs === 0;
+  const closingRemainingLabel = formatElapsedClock(closingRemainingMs);
+  const canSaveIssueContext = newIssueReasonDraft.trim().length > 0;
+  const availableCategories = (catalog.categories || [])
+    .filter((item) => {
+      const status = String(item?.status || "published").toLowerCase();
+      return status === "published" || status === "active";
+    })
+    .map((item) => ({
+      code: pickFirstString(item?.code, item?.id),
+      label: pickFirstString(item?.label, item?.code, item?.id),
+    }))
+    .filter((item) => item.code);
+  const hasPersonalQueue = personalQueueThreads.length > 0;
+  const followupModeLabel =
+    thread.status === "waiting_user"
+      ? "Esperando respuesta de usuario"
+      : thread.status === "queued" && thread.personal_queue
+        ? "En cola personal"
+        : thread.status === "queued"
+          ? "En cola general"
+          : "Flujo de seguimiento activo";
   const renderModalLayer = (node) => {
     if (typeof document === "undefined" || !document.body) return null;
     return createPortal(node, document.body);
   };
+  const renderMacroSuggestionsContent = ({
+    focusedMacro = null,
+    onBack = null,
+    overlay = null,
+  } = {}) => (
+    <div className="relative">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold text-[#2F1A55]">
+          Macros sugeridas
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void refreshCatalog({ forceSync: true });
+          }}
+          disabled={refreshingMacros}
+          className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2.5 py-1 text-[11px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw size={12} className={refreshingMacros ? "animate-spin" : ""} />
+          Refresh
+        </button>
+      </div>
+      <div className={`mt-3 space-y-3 ${overlay ? "pointer-events-none opacity-35" : ""}`}>
+        {focusedMacro ? (
+          <div className="space-y-2">
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-3 text-xs text-slate-600 space-y-2">
+              <div className="font-semibold text-[#2F1A55]">
+                {focusedMacro.displayTitle || focusedMacro.title}
+              </div>
+              <div>{focusedMacro.body}</div>
+              <button
+                type="button"
+                onClick={() => handleCopy(focusedMacro)}
+                className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+              >
+                {copiedId === focusedMacro.id ? (
+                  <>
+                    <ClipboardCheck size={14} /> Copiado
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} /> Copiar
+                  </>
+                )}
+              </button>
+            </div>
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+              >
+                <ChevronRight size={13} className="rotate-180" />
+                Volver
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="space-y-3">
+        {catalogLoadError && !hasCatalogData ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {catalogLoadError}
+          </div>
+        ) : macros.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
+            No hay macros publicadas para este estado/app.
+          </div>
+        ) : (
+          macroGroups.map((group) => {
+            const isOpen = Boolean(expandedMacroGroups[group.key]);
+            return (
+              <div
+                key={group.key}
+                className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleMacroGroup(group.key)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
+                    {group.label}
+                  </div>
+                  <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+                    <span>{group.items.length}</span>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </div>
+                </button>
+
+                {isOpen ? (
+                  <div className="mt-2 space-y-2">
+                    {group.items.map((macro) => (
+                      <div
+                        key={macro.id}
+                        className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 space-y-2"
+                      >
+                        <div className="font-semibold text-[#2F1A55]">
+                          {macro.displayTitle || macro.title}
+                        </div>
+                        <div>{macro.body}</div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(macro)}
+                          className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
+                        >
+                          {copiedId === macro.id ? (
+                            <>
+                              <ClipboardCheck size={14} /> Copiado
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={14} /> Copiar
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
+          </div>
+        )}
+      </div>
+      {overlay ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <div className="w-[92%] rounded-2xl border border-[#D9CCF0] bg-white/95 px-4 py-4 text-center shadow-md backdrop-blur-sm">
+            <div className="text-base font-semibold text-[#2F1A55]">
+              {overlay.message}
+            </div>
+            {overlay.onClick && overlay.label ? (
+              <button
+                type="button"
+                onClick={overlay.onClick}
+                className="mt-3 rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-[#5E30A5]"
+              >
+                {overlay.label}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       {debugBanner}
-      <div className="fixed left-1/2 top-0 z-[200] -translate-x-1/2">
+      <div className="support-ticket-floating-actions fixed left-1/2 top-0 z-[200] -translate-x-1/2">
         <div className="flex items-center gap-2 rounded-b-2xl border-x border-b border-t-0 border-[#BCC5D1] bg-slate-100/92 px-3 py-2 shadow-lg backdrop-blur">
           {thread.status === "closed" ? (
             <div className="inline-flex items-center gap-2 rounded-xl border border-[#1B7F4B]/45 px-3 py-1 text-xs font-semibold text-[#1B7F4B]">
@@ -1302,6 +1846,9 @@ export default function SupportTicket() {
             </div>
           ) : (
             <>
+              <span className="mr-6 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">
+                {floatingStatusLabel}
+              </span>
               <button
                 type="button"
                 onClick={() => handleStatus("queued")}
@@ -1347,38 +1894,534 @@ export default function SupportTicket() {
         </div>
       </div>
 
-      {showStartingIntro ? (
-        <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
-          <div className="flex min-h-[18rem] flex-col items-center justify-center gap-5 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-6 text-center">
-            <div className="space-y-2">
-              <div className="text-lg font-semibold text-[#2F1A55]">
-                Se te asigno el ticket {thread.public_id}
-              </div>
-              <div className="text-sm font-medium text-slate-700">{ticketDescription}</div>
-              <div className="text-sm font-medium text-slate-700">Categoria: {ticketCategoryLabel}</div>
-              <div className="text-sm font-medium text-slate-700">Tiempo activo: {ticketActiveLabel}</div>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                const openingOk = openingMessageSent
-                  ? true
-                  : await handleOpeningMessageSent();
-                if (!openingOk) return;
-                setStartingGuideError("");
-                setStartingGuideOpen(true);
-              }}
-              disabled={openingSaving}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
-                openingSaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
-              }`}
-            >
-              {openingSaving ? "Preparando..." : "Empezar"}
-            </button>
+      {hasHandoffMark ? (
+        <div className="rounded-2xl border border-[#F5E1B5] bg-[#FFF9ED] px-4 py-3 text-xs text-[#8A5A00]">
+          <div className="font-semibold text-[#8A5A00]">
+            Ticket liberado por abandono del asesor anterior
+          </div>
+          <div className="mt-1">
+            Continua con mensaje de apertura antes de retomar la atencion.
+            {thread.handoff_at ? ` Marca registrada: ${formatDateTime(thread.handoff_at)}.` : ""}
           </div>
         </div>
       ) : null}
 
+      {!isTerminalStage ? (
+        <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
+          {showStartingIntro ? (
+            hasPersonalQueue ? (
+              <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <div
+                  className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                  style={{ height: "78vh", scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                  <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
+                    {leftColumnScreenNumber}
+                  </div>
+                  <div className="mt-3 text-sm font-semibold text-[#2F1A55]">Cola personal</div>
+                  <div className="mt-3 space-y-2">
+                    {personalQueueThreads.map((queueThread) => (
+                      <div
+                        key={queueThread.public_id}
+                        className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-3 text-xs text-slate-600"
+                      >
+                        <div className="font-semibold text-[#2F1A55]">
+                          {queueThread.public_id} | {formatSupportCategoryLabel(queueThread.category)}
+                        </div>
+                        <div className="mt-1">{pickFirstString(queueThread.summary) || "Sin descripcion"}</div>
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          {pickFirstString(queueThread.user_public_id) || "No especificado"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div
+                  className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                  style={{ height: "78vh", scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                  <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
+                    <div className="space-y-2">
+                      <div className="text-lg font-semibold text-[#2F1A55]">
+                        Se te asigno el ticket {thread.public_id}
+                      </div>
+                      <div className="text-sm font-medium text-slate-700">{ticketDescription}</div>
+                      <div className="text-sm font-medium text-slate-700">Categoria: {ticketCategoryLabel}</div>
+                      <div className="text-sm font-medium text-slate-700">Tiempo activo: {ticketActiveLabel}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleStartWhatsappGuide}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Empezar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-h-[78vh] flex-col items-center justify-center gap-5 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-6 text-center">
+                <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
+                  {leftColumnScreenNumber}
+                </div>
+                <div className="space-y-2">
+                  <div className="text-lg font-semibold text-[#2F1A55]">
+                    Se te asigno el ticket {thread.public_id}
+                  </div>
+                  <div className="text-sm font-medium text-slate-700">{ticketDescription}</div>
+                  <div className="text-sm font-medium text-slate-700">Categoria: {ticketCategoryLabel}</div>
+                  <div className="text-sm font-medium text-slate-700">Tiempo activo: {ticketActiveLabel}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStartWhatsappGuide}
+                  className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Empezar
+                </button>
+              </div>
+            )
+          ) : null}
+
+          {showWhatsappGuideScreen ? (
+            <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ height: "78vh" }}>
+              <div
+                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
+                  {leftColumnScreenNumber}
+                </div>
+                <div className="mt-6 rounded-2xl border border-[#E9E2F7] bg-white px-4 py-5 text-center">
+                  <div className="text-2xl font-bold tracking-[0.08em] text-[#2F1A55]">{openingTargetLabel}</div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(openingTargetLabel);
+                      } catch {
+                        // no-op
+                      }
+                    }}
+                    className="mt-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] text-[#5E30A5]"
+                    aria-label="Copiar usuario"
+                  >
+                    <Copy size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleStartingContinue();
+                    }}
+                    disabled={whatsAppNameSaving}
+                    className="mt-4 w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {whatsAppNameSaving ? "Guardando..." : "Ya cambie el nombre, continuar"}
+                  </button>
+                </div>
+              </div>
+              <div
+                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-white px-4 py-4"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                <div className="grid gap-0">
+                  {[
+                    {
+                      key: "open-chat",
+                      text: "Abre el chat del cliente y verifica que el ticket corresponde al usuario.",
+                      mediaRight: false,
+                    },
+                    {
+                      key: "rename-contact",
+                      text: "Actualiza el nombre del contacto con el display id del usuario para trazabilidad.",
+                      mediaRight: true,
+                    },
+                    {
+                      key: "confirm-name",
+                      text: "Valida que el nombre quedo guardado y vuelve al ticket para continuar.",
+                      mediaRight: false,
+                    },
+                  ].map((step, index) => {
+                    const mediaBlock = (
+                      <div
+                        className="shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
+                        style={{ width: "11.5rem", height: "7.25rem", flex: "0 0 11.5rem" }}
+                      >
+                        <div className="flex h-full w-full items-center justify-center">
+                          Mockup GIF / Imagen
+                        </div>
+                      </div>
+                    );
+                    const stepIcon = (
+                      <div
+                        className="flex shrink-0 items-center justify-center rounded-xl border border-[#DCCEF2] bg-white shadow-[0_2px_8px_rgba(94,48,165,0.12)]"
+                        style={{ width: "3.8rem", height: "3.8rem", flex: "0 0 3.8rem" }}
+                      >
+                        <span
+                          className="text-[2.65rem] font-extrabold leading-none text-transparent"
+                          style={{ WebkitTextStroke: "2.4px #6A43C4" }}
+                        >
+                          {index + 1}
+                        </span>
+                      </div>
+                    );
+                    const stepText = (
+                      <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-600">{step.text}</div>
+                    );
+                    return (
+                      <div
+                        key={step.key}
+                        className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3"
+                        style={{ height: "7.25rem" }}
+                      >
+                        {step.mediaRight ? (
+                          <div className="flex h-full flex-nowrap items-center gap-3">
+                            {stepIcon}
+                            {stepText}
+                            {mediaBlock}
+                          </div>
+                        ) : (
+                          <div className="flex h-full flex-nowrap items-center gap-3">
+                            {mediaBlock}
+                            {stepIcon}
+                            {stepText}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {!showStartingIntro && !showWhatsappGuideScreen ? (
+            <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ height: "78vh" }}>
+              <div
+                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
+                  {leftColumnScreenNumber}
+                </div>
+                {showOpeningMessageStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">Mensaje de apertura</div>
+                    <div className="text-sm text-slate-700">
+                      Envia el mensaje de apertura y confirma para continuar.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleOpeningStepSubmit();
+                      }}
+                      disabled={openingSaving}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {openingSaving ? "Guardando..." : "Ya envie mensaje de apertura"}
+                    </button>
+                  </div>
+                ) : null}
+                {showOpeningFollowupStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
+                    <div className="text-sm text-slate-700">
+                      Espera la respuesta del usuario para retomar la atencion.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleMacroFlowUserResponded();
+                      }}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Usuario respondio
+                    </button>
+                  </div>
+                ) : null}
+                {showResolutionActiveStep ? (
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Resolucion en progreso</div>
+                      <div className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-700">
+                        Ticket activo: <span className="font-semibold text-[#2F1A55]">{thread.public_id}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleResolutionMessageSent();
+                        }}
+                        disabled={workflowSaving}
+                        className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {workflowSaving ? "Guardando..." : "Mensaje enviado"}
+                      </button>
+                    </div>
+                    <div className="mt-auto pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleStartClosingFlow();
+                        }}
+                        className="w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        Marcar como resuelto
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {showResolutionFollowupStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
+                    <div className="text-sm text-slate-700">
+                      Mantente en seguimiento y retoma el flujo cuando el usuario responda.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleMacroFlowUserResponded();
+                      }}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Usuario respondio
+                    </button>
+                  </div>
+                ) : null}
+                {showClosingPrepStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">Confirmacion de cierre</div>
+                    <div className="text-sm text-slate-700">
+                      Envia mensaje de confirmacion de cierre antes de continuar.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleClosingMessageSent();
+                      }}
+                      disabled={workflowSaving}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {workflowSaving ? "Guardando..." : "Mensaje de cierre enviado"}
+                    </button>
+                  </div>
+                ) : null}
+                {showClosingWaitStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">Esperando confirmacion de cierre</div>
+                    <div className="text-sm text-slate-700">
+                      Tiempo restante para habilitar confirmacion: {closingRemainingLabel}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleBackToIssueDecision();
+                        }}
+                        className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+                      >
+                        Continuar resolucion
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFlowScreen(FLOW_SCREENS.CLOSING_CONFIRM)}
+                        disabled={!closingWaitReady}
+                        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Confirmar cierre
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {showClosingConfirmStep ? (
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Confirmar cierre final</div>
+                      <textarea
+                        value={closingCommentDraft}
+                        onChange={(event) => setClosingCommentDraft(event.target.value)}
+                        placeholder="Comentario de cierre (obligatorio)"
+                        rows={4}
+                        className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleCloseOutcome("user_confirmed");
+                          }}
+                          disabled={workflowSaving}
+                          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Usuario confirma cierre
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleCloseOutcome("inactive_close");
+                          }}
+                          disabled={workflowSaving}
+                          className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Cierre por inactividad
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleBackToIssueDecision();
+                        }}
+                        className="w-full rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+                      >
+                        Continuar resolucion
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {showNewIssueDecisionStep ? (
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">Nueva inquietud</div>
+                    <div className="text-sm text-slate-700">Define el problema antes de continuar.</div>
+                    <textarea
+                      value={newIssueReasonDraft}
+                      onChange={(event) => setNewIssueReasonDraft(event.target.value)}
+                      placeholder="Razon (obligatorio)"
+                      rows={3}
+                      className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                    />
+                    <select
+                      value={newIssueCategoryDraft || thread.category || ""}
+                      onChange={(event) => setNewIssueCategoryDraft(event.target.value)}
+                      className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5]"
+                    >
+                      {(availableCategories.length > 0
+                        ? availableCategories
+                        : [{ code: thread.category, label: ticketCategoryLabel }]).map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleIssueContextSet("new");
+                        }}
+                        disabled={!canSaveIssueContext || workflowSaving}
+                        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Nueva inquietud
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleIssueContextSet("same");
+                        }}
+                        disabled={!canSaveIssueContext || workflowSaving}
+                        className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Misma inquietud
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {showNewIssueInfoStep ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-lg font-semibold text-[#2F1A55]">Recoleccion de informacion</div>
+                    <div className="text-sm text-slate-700">
+                      Envia mensaje de informacion y regresa al flujo de resolucion.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleInfoMessageSent();
+                      }}
+                      disabled={workflowSaving}
+                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {workflowSaving ? "Guardando..." : "Mensaje de info enviado"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <div
+                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-white p-4"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {showOpeningMessageStep
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: openingFocusedMacro,
+                    onBack: openingFocusedMacro ? () => setOpeningFocusedMacro(null) : null,
+                  })
+                  : null}
+                {showOpeningFollowupStep
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: openingFocusedMacro,
+                    onBack: openingFocusedMacro ? () => setOpeningFocusedMacro(null) : null,
+                    overlay: {
+                      message: "Esperando respuesta de usuario",
+                      label: "Copiar macro de nuevo",
+                      onClick: () => {
+                        void handleOpeningResetForRecopy();
+                      },
+                    },
+                  })
+                  : null}
+                {showResolutionActiveStep
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: resolutionFocusedMacro,
+                    onBack: resolutionFocusedMacro ? () => setResolutionFocusedMacro(null) : null,
+                  })
+                  : null}
+                {showResolutionFollowupStep
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: resolutionFocusedMacro,
+                    onBack: resolutionFocusedMacro ? () => setResolutionFocusedMacro(null) : null,
+                    overlay: {
+                      message: followupModeLabel,
+                      label: "Copiar macro de nuevo",
+                      onClick: () => {
+                        setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
+                        setResolutionSendReminderOpen(false);
+                      },
+                    },
+                  })
+                  : null}
+                {showClosingPrepStep
+                  ? renderMacroSuggestionsContent()
+                  : null}
+                {showClosingWaitStep || showClosingConfirmStep
+                  ? renderMacroSuggestionsContent({
+                    overlay: {
+                      message: "Esperando confirmacion de usuario sobre resolucion.",
+                    },
+                  })
+                  : null}
+                {showNewIssueDecisionStep
+                  ? renderMacroSuggestionsContent({
+                    overlay: {
+                      message: "Define el problema antes de continuar.",
+                    },
+                  })
+                  : null}
+                {showNewIssueInfoStep ? renderMacroSuggestionsContent() : null}
+              </div>
+            </div>
+          ) : null}
+          {startingGuideError ? (
+            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {startingGuideError}
+            </div>
+          ) : null}
+          {openingStepError ? (
+            <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {openingStepError}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="flex min-w-0 flex-col gap-6">
           <div className="order-2 rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-3">
@@ -1743,358 +2786,51 @@ export default function SupportTicket() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          {!showStartingIntro ? (
-          <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-sm font-semibold text-[#2F1A55]">
-                Macros sugeridas
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void refreshCatalog({ forceSync: true });
-                }}
-                disabled={refreshingMacros}
-                className="inline-flex items-center gap-1 rounded-full border border-[#E9E2F7] px-2.5 py-1 text-[11px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <RefreshCw size={12} className={refreshingMacros ? "animate-spin" : ""} />
-                Refresh
-              </button>
-            </div>
-            <div className="space-y-3">
-              {catalogLoadError && !hasCatalogData ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {catalogLoadError}
-                </div>
-              ) : macros.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-500">
-                  No hay macros publicadas para este estado/app.
-                </div>
-              ) : (
-                macroGroups.map((group) => {
-                  const isOpen = Boolean(expandedMacroGroups[group.key]);
-                  return (
-                    <div
-                      key={group.key}
-                      className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleMacroGroup(group.key)}
-                        className="flex w-full items-center justify-between gap-2 text-left"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#2F1A55]">
-                          {group.label}
-                        </div>
-                        <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-500">
-                          <span>{group.items.length}</span>
-                          {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </div>
-                      </button>
-
-                      {isOpen ? (
-                        <div className="mt-2 space-y-2">
-                          {group.items.map((macro) => (
-                            <div
-                              key={macro.id}
-                              className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 space-y-2"
-                            >
-                              <div className="font-semibold text-[#2F1A55]">
-                                {macro.displayTitle || macro.title}
-                              </div>
-                              <div>{macro.body}</div>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(macro)}
-                                className="inline-flex items-center gap-2 text-xs font-semibold text-[#5E30A5]"
-                              >
-                                {copiedId === macro.id ? (
-                                  <>
-                                    <ClipboardCheck size={14} /> Copiado
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={14} /> Copiar
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-          ) : null}
-        </div>
+        <div className="space-y-6" />
       </div>
 
-      {closing ? (
-        <div className="rounded-3xl border border-[#F9C9C9] bg-[#FFF5F5] p-5 space-y-3">
-          <div className="text-sm font-semibold text-[#B42318]">
-            Cerrar ticket
-          </div>
-          <input
-            value={resolution}
-            onChange={(e) => setResolution(e.target.value)}
-            placeholder="Resolucion"
-            className="w-full rounded-2xl border border-[#F9C9C9] bg-white px-3 py-2 text-xs text-slate-600 outline-none"
-          />
-          <input
-            value={rootCause}
-            onChange={(e) => setRootCause(e.target.value)}
-            placeholder="Causa raiz (opcional)"
-            className="w-full rounded-2xl border border-[#F9C9C9] bg-white px-3 py-2 text-xs text-slate-600 outline-none"
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={closingRequest}
-              className="rounded-2xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+      {resolutionSendReminderOpen
+        ? renderModalLayer(
+            <div
+              className="fixed inset-0 flex items-center justify-center px-4"
+              style={{ position: "fixed", inset: 0, zIndex: 20000, backgroundColor: "rgba(2, 6, 23, 0.35)" }}
             >
-              Confirmar cierre
-            </button>
-            <button
-              type="button"
-              onClick={() => setClosing(false)}
-              className="rounded-2xl border border-[#F9C9C9] px-3 py-2 text-xs font-semibold text-[#B42318]"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {startingGuideOpen
-        ? renderModalLayer(
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-[#E9E2F7] bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-lg font-semibold text-[#2F1A55]">
-                Cambia nombre de cliente en WhatsApp
-              </div>
-              <button
-                type="button"
-                onClick={() => setStartingGuideOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#E9E2F7] text-slate-500 hover:bg-[#F7F4FF]"
-                aria-label="Cerrar guia"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <div className="mt-4 flex items-center justify-center gap-2 text-center">
-              <span className="text-2xl font-bold tracking-[0.08em] text-[#2F1A55]">{openingTargetLabel}</span>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(openingTargetLabel);
-                  } catch {
-                    // no-op
-                  }
-                }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] text-[#5E30A5]"
-                aria-label="Copiar usuario"
-              >
-                <Copy size={12} />
-              </button>
-            </div>
-            <div className="mt-5 grid gap-4">
-              {[
-                {
-                  key: "open-chat",
-                  text: "Abre el chat del cliente y verifica que el ticket corresponde al usuario.",
-                  mediaRight: false,
-                },
-                {
-                  key: "rename-contact",
-                  text: "Actualiza el nombre del contacto con el display id del usuario para trazabilidad.",
-                  mediaRight: true,
-                },
-                {
-                  key: "confirm-name",
-                  text: "Valida que el nombre quedo guardado y vuelve al ticket para continuar.",
-                  mediaRight: false,
-                },
-              ].map((step, index) => {
-                const mediaBlock = (
-                  <div
-                    className="shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
-                    style={{ width: "11.5rem", height: "7.25rem", flex: "0 0 11.5rem" }}
-                  >
-                    <div className="flex h-full w-full items-center justify-center">
-                      Mockup GIF / Imagen
-                    </div>
-                  </div>
-                );
-                const stepIcon = (
-                  <div
-                    className="flex shrink-0 items-center justify-center rounded-xl border border-[#DCCEF2] bg-white shadow-[0_2px_8px_rgba(94,48,165,0.12)]"
-                    style={{ width: "3.1rem", height: "3.1rem", flex: "0 0 3.1rem" }}
-                  >
-                    <span
-                      className="text-[2.15rem] font-extrabold leading-none text-transparent"
-                      style={{ WebkitTextStroke: "2px #6A43C4" }}
-                    >
-                      {index + 1}
-                    </span>
-                  </div>
-                );
-                const stepText = (
-                  <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-600">{step.text}</div>
-                );
-                return (
-                  <div
-                    key={step.key}
-                    className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-3"
-                  >
-                    {step.mediaRight ? (
-                      <div className="flex min-h-[8.3rem] flex-nowrap items-center gap-3">
-                        {stepIcon}
-                        {stepText}
-                        {mediaBlock}
-                      </div>
-                    ) : (
-                      <div className="flex min-h-[8.3rem] flex-nowrap items-center gap-3">
-                        {mediaBlock}
-                        {stepIcon}
-                        {stepText}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {startingGuideError ? (
-              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {startingGuideError}
-              </div>
-            ) : null}
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  void handleStartingContinue();
-                }}
-                disabled={whatsAppNameSaving}
-                className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
-              >
-                {whatsAppNameSaving ? "Guardando..." : "Ya cambie el nombre, continuar"}
-              </button>
-            </div>
-          </div>
-        </div>,
-          )
-        : null}
-
-      {copyConfirmMacro
-        ? renderModalLayer(
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/35 px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
-            <div className="text-sm font-semibold text-[#2F1A55]">Confirmar copia de macro</div>
-            <div className="mt-2 text-xs text-slate-600">
-              ¿Deseas copiar el macro{" "}
-              <span className="font-semibold text-[#2F1A55]">
-                {copyConfirmMacro?.displayTitle || copyConfirmMacro?.title || "seleccionado"}
-              </span>
-              ?
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setCopyConfirmMacro(null)}
-                className="flex-1 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleConfirmMacroCopy();
-                }}
-                className="flex-1 rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white"
-              >
-                Copiar
-              </button>
-            </div>
-          </div>
-        </div>,
-          )
-        : null}
-
-      {macroFlowState.open
-        ? renderModalLayer(
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/35 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
-            {macroFlowState.mode === "closing" ? (
-              <>
-                <div className="text-sm font-semibold text-[#2F1A55]">Cerrar ticket</div>
+              <div className="w-full max-w-sm rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-2xl">
+                <div className="text-sm font-semibold text-[#2F1A55]">Copy</div>
                 <div className="mt-2 text-xs text-slate-600">
-                  Puedes continuar el ticket o confirmar cierre con los macros de cerrado.
+                  Registra el envio del mensaje para continuar el flujo de seguimiento.
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setMacroFlowState({ open: true, mode: "continue" })}
-                    className="flex-1 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
+                    onClick={() => {
+                      if (resolutionReminderMacro) {
+                        void executeMacroCopy(resolutionReminderMacro);
+                      }
+                    }}
+                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-700"
                   >
-                    Continuar ticket
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setClosing(true)}
-                    className="flex-1 rounded-xl bg-[#B42318] px-3 py-2 text-xs font-semibold text-white"
-                  >
-                    Confirmar cierre
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-sm font-semibold text-[#2F1A55]">
-                  {thread.status === "waiting_user"
-                    ? "Esperando respuesta de usuario"
-                    : "Flujo de seguimiento activo"}
-                </div>
-                <div className="mt-2 text-xs text-slate-600">
-                  {thread.status === "queued"
-                    ? "Ticket en cola personal. Usa macro de cola y marca cuando lo envíes."
-                    : "Mantén este flujo abierto hasta registrar respuesta del usuario."}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMacroFlowState({ open: false, mode: "continue" })}
-                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
-                  >
-                    Cambiar/editar macro
+                    Copy
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      void handleMacroFlowUserResponded();
+                      void handleResolutionMessageSent();
                     }}
                     className="rounded-xl bg-[#5E30A5] px-3 py-2 text-xs font-semibold text-white"
                   >
-                    Usuario respondio
+                    Mensaje enviado
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMacroFlowState({ open: true, mode: "closing" })}
-                    className="col-span-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600"
+                    onClick={() => setResolutionSendReminderOpen(false)}
+                    className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-slate-600"
                   >
-                    Cerrar ticket
+                    Cerrar
                   </button>
                 </div>
-              </>
-            )}
-          </div>
-        </div>,
+              </div>
+            </div>,
           )
         : null}
     </div>

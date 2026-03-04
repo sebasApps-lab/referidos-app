@@ -49,6 +49,9 @@ const THREAD_STATUS_ALIASES = new Map([
   ["queued", "queued"],
   ["en_cola", "queued"],
   ["en cola", "queued"],
+  ["closing", "closing"],
+  ["cierre", "closing"],
+  ["en_cierre", "closing"],
   ["closed", "closed"],
   ["cerrado", "closed"],
   ["cancelled", "cancelled"],
@@ -258,6 +261,9 @@ export function filterSupportMacrosForThread({
   const allowedThreadStatuses = (() => {
     if (currentThreadStatus === "starting") {
       return new Set(["starting", "assigned", "in_progress"]);
+    }
+    if (currentThreadStatus === "closing") {
+      return new Set(["closing", "closed"]);
     }
     return new Set([currentThreadStatus]);
   })();
