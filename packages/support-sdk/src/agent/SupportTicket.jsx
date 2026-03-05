@@ -418,6 +418,7 @@ export default function SupportTicket() {
   const [personalQueueThreads, setPersonalQueueThreads] = useState([]);
   const [openingFocusedMacro, setOpeningFocusedMacro] = useState(null);
   const [resolutionFocusedMacro, setResolutionFocusedMacro] = useState(null);
+  const [closingFocusedMacro, setClosingFocusedMacro] = useState(null);
   const [resolutionSendReminderOpen, setResolutionSendReminderOpen] = useState(false);
   const [resolutionReminderMacro, setResolutionReminderMacro] = useState(null);
   const [closingMessageSentAt, setClosingMessageSentAt] = useState("");
@@ -635,6 +636,7 @@ export default function SupportTicket() {
       setOpeningStepError("");
       setOpeningFocusedMacro(null);
       setResolutionFocusedMacro(null);
+      setClosingFocusedMacro(null);
       setResolutionSendReminderOpen(false);
       setResolutionReminderMacro(null);
       setWhatsAppNameMarked(hasWhatsAppNameMarked);
@@ -971,6 +973,9 @@ export default function SupportTicket() {
       Object.entries(previous).forEach(([key, isOpen]) => {
         if (validKeys.has(key)) next[key] = isOpen;
       });
+      if (macroGroups.length === 1) {
+        next[macroGroups[0].key] = true;
+      }
       return next;
     });
   }, [macroGroups]);
@@ -1297,6 +1302,11 @@ export default function SupportTicket() {
         resolutionSendReminderTimerRef.current = globalThis.setTimeout(() => {
           setResolutionSendReminderOpen(true);
         }, 15000);
+        return;
+      }
+
+      if (flowScreen === FLOW_SCREENS.CLOSING_PREP) {
+        setClosingFocusedMacro(macro);
       }
     });
   };
@@ -1502,7 +1512,19 @@ export default function SupportTicket() {
       setOpeningStepError("No se pudo iniciar el flujo de cierre. Intenta nuevamente.");
       return;
     }
+    setClosingFocusedMacro(null);
     setFlowScreen(FLOW_SCREENS.CLOSING_PREP);
+  };
+
+  const handleBackToResolutionFollowup = async () => {
+    setOpeningStepError("");
+    const ok = await handleStatus("in_progress");
+    if (!ok) {
+      setOpeningStepError("No se pudo volver al seguimiento activo. Intenta nuevamente.");
+      return;
+    }
+    setClosingFocusedMacro(null);
+    setFlowScreen(FLOW_SCREENS.RESOLUTION_FOLLOWUP);
   };
 
   const handleClosingMessageSent = async () => {
@@ -1517,6 +1539,7 @@ export default function SupportTicket() {
     }
     const eventAt = pickFirstString(response?.data?.event_at, new Date().toISOString());
     setClosingMessageSentAt(eventAt);
+    setClosingFocusedMacro(null);
     setFlowScreen(FLOW_SCREENS.CLOSING_WAIT);
   };
 
@@ -1527,6 +1550,7 @@ export default function SupportTicket() {
       setOpeningStepError("No se pudo continuar la resolucion. Intenta nuevamente.");
       return;
     }
+    setClosingFocusedMacro(null);
     setFlowScreen(FLOW_SCREENS.NEW_ISSUE_DECISION);
   };
 
@@ -1572,6 +1596,7 @@ export default function SupportTicket() {
     setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
     setResolutionFocusedMacro(null);
     setOpeningFocusedMacro(null);
+    setClosingFocusedMacro(null);
     await refreshCatalog({ forceSync: true });
   };
 
@@ -1611,6 +1636,43 @@ export default function SupportTicket() {
     }
     setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
   };
+
+  const availableCategories = useMemo(
+    () =>
+      (catalog.categories || [])
+        .filter((item) => {
+          const status = String(item?.status || "published").toLowerCase();
+          return status === "published" || status === "active";
+        })
+        .map((item) => ({
+          code: pickFirstString(item?.code, item?.id),
+          label: pickFirstString(item?.label, item?.code, item?.id),
+        }))
+        .filter((item) => item.code),
+    [catalog.categories],
+  );
+  const categoryOptions = useMemo(() => {
+    const byCode = new Map();
+    availableCategories.forEach((item) => {
+      if (!item?.code) return;
+      byCode.set(item.code, item);
+    });
+    const currentCode = pickFirstString(thread?.category);
+    if (currentCode && !byCode.has(currentCode)) {
+      byCode.set(currentCode, {
+        code: currentCode,
+        label: formatSupportCategoryLabel(currentCode),
+      });
+    }
+    return Array.from(byCode.values());
+  }, [availableCategories, thread?.category]);
+  useEffect(() => {
+    if (flowScreen !== FLOW_SCREENS.NEW_ISSUE_DECISION) return;
+    if (newIssueCategoryDraft) return;
+    const fallbackCategory = pickFirstString(thread?.category, categoryOptions[0]?.code);
+    if (!fallbackCategory) return;
+    setNewIssueCategoryDraft(fallbackCategory);
+  }, [categoryOptions, flowScreen, newIssueCategoryDraft, thread?.category]);
 
   if (!thread) {
     return <div className="text-sm text-slate-500">Cargando ticket...</div>;
@@ -1664,16 +1726,6 @@ export default function SupportTicket() {
   const closingWaitReady = closingRemainingMs === 0;
   const closingRemainingLabel = formatElapsedClock(closingRemainingMs);
   const canSaveIssueContext = newIssueReasonDraft.trim().length > 0;
-  const availableCategories = (catalog.categories || [])
-    .filter((item) => {
-      const status = String(item?.status || "published").toLowerCase();
-      return status === "published" || status === "active";
-    })
-    .map((item) => ({
-      code: pickFirstString(item?.code, item?.id),
-      label: pickFirstString(item?.label, item?.code, item?.id),
-    }))
-    .filter((item) => item.code);
   const hasPersonalQueue = personalQueueThreads.length > 0;
   const followupModeLabel =
     thread.status === "waiting_user"
@@ -1692,7 +1744,7 @@ export default function SupportTicket() {
     onBack = null,
     overlay = null,
   } = {}) => (
-    <div className="relative">
+    <div className="relative flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-semibold text-[#2F1A55]">
           Macros sugeridas
@@ -1709,7 +1761,10 @@ export default function SupportTicket() {
           Refresh
         </button>
       </div>
-      <div className={`mt-3 space-y-3 ${overlay ? "pointer-events-none opacity-35" : ""}`}>
+      <div
+        className={`no-scrollbar mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto ${overlay ? "pointer-events-none opacity-45" : ""}`}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
         {focusedMacro ? (
           <div className="space-y-2">
             <div className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-3 text-xs text-slate-600 space-y-2">
@@ -1814,16 +1869,16 @@ export default function SupportTicket() {
         )}
       </div>
       {overlay ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <div className="w-[92%] rounded-2xl border border-[#D9CCF0] bg-white/95 px-4 py-4 text-center shadow-md backdrop-blur-sm">
-            <div className="text-base font-semibold text-[#2F1A55]">
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/72 backdrop-blur-[1px]">
+          <div className="flex h-[75%] w-[90%] flex-col items-center justify-center rounded-2xl bg-[#F7F3FF] px-6 py-6 text-center shadow-xl">
+            <div className="text-xl font-semibold leading-snug text-[#2F1A55]">
               {overlay.message}
             </div>
             {overlay.onClick && overlay.label ? (
               <button
                 type="button"
                 onClick={overlay.onClick}
-                className="mt-3 rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-[#5E30A5]"
+                className="mt-5 rounded-xl border border-[#E9E2F7] bg-white px-5 py-2 text-sm font-semibold text-[#5E30A5]"
               >
                 {overlay.label}
               </button>
@@ -1910,7 +1965,10 @@ export default function SupportTicket() {
         <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5">
           {showStartingIntro ? (
             hasPersonalQueue ? (
-              <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+              <div
+                className="grid min-w-0 gap-4"
+                style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)" }}
+              >
                 <div
                   className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
                   style={{ height: "78vh", scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -1984,47 +2042,56 @@ export default function SupportTicket() {
           ) : null}
 
           {showWhatsappGuideScreen ? (
-            <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ height: "78vh" }}>
+            <div
+              className="grid min-w-0 gap-4"
+              style={{ height: "78vh", gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)" }}
+            >
               <div
-                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                className="no-scrollbar h-full overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
-                <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
-                  {leftColumnScreenNumber}
-                </div>
-                <div className="mt-6 rounded-2xl border border-[#E9E2F7] bg-white px-4 py-5 text-center">
-                  <div className="text-2xl font-bold tracking-[0.08em] text-[#2F1A55]">{openingTargetLabel}</div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(openingTargetLabel);
-                      } catch {
-                        // no-op
-                      }
-                    }}
-                    className="mt-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] text-[#5E30A5]"
-                    aria-label="Copiar usuario"
-                  >
-                    <Copy size={12} />
-                  </button>
+                <div className="flex h-full flex-col">
+                  <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
+                    {leftColumnScreenNumber}
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-[#E9E2F7] bg-white px-4 py-5 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="max-w-[calc(100%-2.5rem)] truncate text-2xl font-bold tracking-[0.08em] text-[#2F1A55]">
+                        {openingTargetLabel}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(openingTargetLabel);
+                          } catch {
+                            // no-op
+                          }
+                        }}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E9E2F7] text-[#5E30A5]"
+                        aria-label="Copiar usuario"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       void handleStartingContinue();
                     }}
                     disabled={whatsAppNameSaving}
-                    className="mt-4 w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {whatsAppNameSaving ? "Guardando..." : "Ya cambie el nombre, continuar"}
                   </button>
                 </div>
               </div>
               <div
-                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-white px-4 py-4"
+                className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-4 h-full overflow-hidden"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
-                <div className="grid gap-0">
+                <div className="grid h-full grid-rows-3 gap-0">
                   {[
                     {
                       key: "open-chat",
@@ -2045,7 +2112,7 @@ export default function SupportTicket() {
                     const mediaBlock = (
                       <div
                         className="shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
-                        style={{ width: "11.5rem", height: "7.25rem", flex: "0 0 11.5rem" }}
+                        style={{ width: "12.5rem", height: "100%", flex: "0 0 12.5rem" }}
                       >
                         <div className="flex h-full w-full items-center justify-center">
                           Mockup GIF / Imagen
@@ -2071,8 +2138,7 @@ export default function SupportTicket() {
                     return (
                       <div
                         key={step.key}
-                        className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3"
-                        style={{ height: "7.25rem" }}
+                        className="h-full min-h-0 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
                       >
                         {step.mediaRight ? (
                           <div className="flex h-full flex-nowrap items-center gap-3">
@@ -2096,7 +2162,10 @@ export default function SupportTicket() {
           ) : null}
 
           {!showStartingIntro && !showWhatsappGuideScreen ? (
-            <div className="grid min-w-0 gap-4 grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ height: "78vh" }}>
+            <div
+              className="grid min-w-0 gap-4"
+              style={{ height: "78vh", gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)" }}
+            >
               <div
                 className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -2105,10 +2174,12 @@ export default function SupportTicket() {
                   {leftColumnScreenNumber}
                 </div>
                 {showOpeningMessageStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">Mensaje de apertura</div>
-                    <div className="text-sm text-slate-700">
-                      Envia el mensaje de apertura y confirma para continuar.
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Mensaje de apertura</div>
+                      <div className="text-sm text-slate-700">
+                        Envia el mensaje de apertura y confirma para continuar.
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -2116,24 +2187,26 @@ export default function SupportTicket() {
                         void handleOpeningStepSubmit();
                       }}
                       disabled={openingSaving}
-                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {openingSaving ? "Guardando..." : "Ya envie mensaje de apertura"}
                     </button>
                   </div>
                 ) : null}
                 {showOpeningFollowupStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
-                    <div className="text-sm text-slate-700">
-                      Espera la respuesta del usuario para retomar la atencion.
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
+                      <div className="text-sm text-slate-700">
+                        Espera la respuesta del usuario para retomar la atencion.
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
                         void handleMacroFlowUserResponded();
                       }}
-                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                      className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
                     >
                       Usuario respondio
                     </button>
@@ -2152,7 +2225,7 @@ export default function SupportTicket() {
                           void handleResolutionMessageSent();
                         }}
                         disabled={workflowSaving}
-                        className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-6 w-full rounded-xl border-2 border-[#CAB6EA] bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {workflowSaving ? "Guardando..." : "Mensaje enviado"}
                       </button>
@@ -2171,17 +2244,19 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showResolutionFollowupStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
-                    <div className="text-sm text-slate-700">
-                      Mantente en seguimiento y retoma el flujo cuando el usuario responda.
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
+                      <div className="text-sm text-slate-700">
+                        Mantente en seguimiento y retoma el flujo cuando el usuario responda.
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
                         void handleMacroFlowUserResponded();
                       }}
-                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
+                      className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white"
                     >
                       Usuario respondio
                     </button>
@@ -2189,7 +2264,19 @@ export default function SupportTicket() {
                 ) : null}
                 {showClosingPrepStep ? (
                   <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">Confirmacion de cierre</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Confirmacion de cierre</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleBackToResolutionFollowup();
+                        }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] bg-white text-slate-700"
+                        aria-label="Volver a screen 6"
+                      >
+                        <ChevronRight size={14} className="rotate-180" />
+                      </button>
+                    </div>
                     <div className="text-sm text-slate-700">
                       Envia mensaje de confirmacion de cierre antes de continuar.
                     </div>
@@ -2206,12 +2293,15 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showClosingWaitStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">Esperando confirmacion de cierre</div>
-                    <div className="text-sm text-slate-700">
-                      Tiempo restante para habilitar confirmacion: {closingRemainingLabel}
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Esperando confirmacion de cierre</div>
+                      <div className="text-sm text-slate-700">Tiempo restante para habilitar confirmacion:</div>
+                      <div className="text-center text-3xl font-extrabold tracking-[0.05em] text-[#2F1A55]">
+                        {closingRemainingLabel}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
                       <button
                         type="button"
                         onClick={() => {
@@ -2243,30 +2333,6 @@ export default function SupportTicket() {
                         rows={4}
                         className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
                       />
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleCloseOutcome("user_confirmed");
-                          }}
-                          disabled={workflowSaving}
-                          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Usuario confirma cierre
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleCloseOutcome("inactive_close");
-                          }}
-                          disabled={workflowSaving}
-                          className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Cierre por inactividad
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-auto pt-4">
                       <button
                         type="button"
                         onClick={() => {
@@ -2277,33 +2343,57 @@ export default function SupportTicket() {
                         Continuar resolucion
                       </button>
                     </div>
+                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleCloseOutcome("user_confirmed");
+                          }}
+                          disabled={workflowSaving}
+                          className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Confirmado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleCloseOutcome("inactive_close");
+                          }}
+                          disabled={workflowSaving}
+                          className="rounded-xl border border-[#E9E2F7] bg-white px-4 py-2 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Inactivo
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
                 {showNewIssueDecisionStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">Nueva inquietud</div>
-                    <div className="text-sm text-slate-700">Define el problema antes de continuar.</div>
-                    <textarea
-                      value={newIssueReasonDraft}
-                      onChange={(event) => setNewIssueReasonDraft(event.target.value)}
-                      placeholder="Razon (obligatorio)"
-                      rows={3}
-                      className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
-                    />
-                    <select
-                      value={newIssueCategoryDraft || thread.category || ""}
-                      onChange={(event) => setNewIssueCategoryDraft(event.target.value)}
-                      className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5]"
-                    >
-                      {(availableCategories.length > 0
-                        ? availableCategories
-                        : [{ code: thread.category, label: ticketCategoryLabel }]).map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold text-[#2F1A55]">Nueva inquietud</div>
+                      <div className="text-sm text-slate-700">Define el problema antes de continuar.</div>
+                      <textarea
+                        value={newIssueReasonDraft}
+                        onChange={(event) => setNewIssueReasonDraft(event.target.value)}
+                        placeholder="Razon (obligatorio)"
+                        rows={3}
+                        className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#5E30A5]"
+                      />
+                      <select
+                        value={newIssueCategoryDraft}
+                        onChange={(event) => setNewIssueCategoryDraft(event.target.value)}
+                        className="w-full rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-[#5E30A5]"
+                      >
+                        {categoryOptions.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
                       <button
                         type="button"
                         onClick={() => {
@@ -2328,10 +2418,22 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showNewIssueInfoStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="text-lg font-semibold text-[#2F1A55]">Recoleccion de informacion</div>
-                    <div className="text-sm text-slate-700">
-                      Envia mensaje de informacion y regresa al flujo de resolucion.
+                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-lg font-semibold text-[#2F1A55]">Recoleccion de informacion</div>
+                        <button
+                          type="button"
+                          onClick={() => setFlowScreen(FLOW_SCREENS.NEW_ISSUE_DECISION)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] bg-white text-slate-700"
+                          aria-label="Volver a screen 10"
+                        >
+                          <ChevronRight size={14} className="rotate-180" />
+                        </button>
+                      </div>
+                      <div className="text-sm text-slate-700">
+                        Envia mensaje de informacion y regresa al flujo de resolucion.
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -2339,7 +2441,7 @@ export default function SupportTicket() {
                         void handleInfoMessageSent();
                       }}
                       disabled={workflowSaving}
-                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {workflowSaving ? "Guardando..." : "Mensaje de info enviado"}
                     </button>
@@ -2347,7 +2449,7 @@ export default function SupportTicket() {
                 ) : null}
               </div>
               <div
-                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-white p-4"
+                className="no-scrollbar h-full overflow-hidden rounded-2xl border border-[#E9E2F7] bg-white p-4"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
                 {showOpeningMessageStep
@@ -2390,7 +2492,10 @@ export default function SupportTicket() {
                   })
                   : null}
                 {showClosingPrepStep
-                  ? renderMacroSuggestionsContent()
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: closingFocusedMacro,
+                    onBack: closingFocusedMacro ? () => setClosingFocusedMacro(null) : null,
+                  })
                   : null}
                 {showClosingWaitStep || showClosingConfirmStep
                   ? renderMacroSuggestionsContent({

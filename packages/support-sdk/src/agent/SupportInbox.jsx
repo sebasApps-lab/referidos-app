@@ -276,6 +276,17 @@ export default function SupportInbox({ isAdmin = false, basePath = "/soporte" })
   }, [isAdmin, liveUpdatesEnabled, refreshSessionState, usuario?.id]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleTicketAssigned = () => {
+      setRefreshNonce((prev) => prev + 1);
+    };
+    window.addEventListener("support:ticket-assigned", handleTicketAssigned);
+    return () => {
+      window.removeEventListener("support:ticket-assigned", handleTicketAssigned);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!liveUpdatesEnabled) return undefined;
     if (!usuario?.id) return undefined;
     if (!["admin", "soporte"].includes(usuario?.role || "")) return undefined;

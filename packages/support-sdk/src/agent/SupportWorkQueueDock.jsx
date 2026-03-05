@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../../store/appStore";
 import { supabase } from "../../lib/supabaseClient";
@@ -12,6 +12,7 @@ export default function SupportWorkQueueDock() {
   const usuario = useAppStore((s) => s.usuario);
   const navigate = useNavigate();
   const liveUpdatesEnabled = isSupportLiveUpdatesEnabled();
+  const lastAssignedNoticeIdRef = useRef("");
   const notificationPolicy = useMemo(
     () =>
       createNotificationPolicy(usuario?.role || "soporte", {
@@ -32,13 +33,41 @@ export default function SupportWorkQueueDock() {
     policy: notificationPolicy,
     enabled: true,
   });
+  const assignedNotice = notices.find(
+    (notice) => String(notice?.eventType || "").toLowerCase() === "support.ticket.assigned",
+  );
+
+  useEffect(() => {
+    const noticeId = String(assignedNotice?.id || "");
+    if (!noticeId) return;
+    if (lastAssignedNoticeIdRef.current === noticeId) return;
+    lastAssignedNoticeIdRef.current = noticeId;
+    if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+    try {
+      if (typeof CustomEvent === "function") {
+        window.dispatchEvent(
+          new CustomEvent("support:ticket-assigned", {
+            detail: {
+              threadCode: assignedNotice?.threadCode || null,
+              at: Date.now(),
+            },
+          }),
+        );
+        return;
+      }
+      if (typeof document !== "undefined" && typeof document.createEvent === "function") {
+        const fallbackEvent = document.createEvent("Event");
+        fallbackEvent.initEvent("support:ticket-assigned", false, false);
+        window.dispatchEvent(fallbackEvent);
+      }
+    } catch {
+      // no-op
+    }
+  }, [assignedNotice?.id, assignedNotice?.threadCode]);
 
   if (!currentTicket && queueCount === 0 && notices.length === 0) {
     return null;
   }
-  const assignedNotice = notices.find(
-    (notice) => String(notice?.eventType || "").toLowerCase() === "support.ticket.assigned",
-  );
   const ticketCode = assignedNotice?.threadCode || currentTicket?.public_id || null;
   const headline = ticketCode
     ? `Se te asigno el ticket ${ticketCode}`
