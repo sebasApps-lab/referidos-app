@@ -419,6 +419,7 @@ export default function SupportTicket() {
   const [openingFocusedMacro, setOpeningFocusedMacro] = useState(null);
   const [resolutionFocusedMacro, setResolutionFocusedMacro] = useState(null);
   const [closingFocusedMacro, setClosingFocusedMacro] = useState(null);
+  const [newIssueInfoFocusedMacro, setNewIssueInfoFocusedMacro] = useState(null);
   const [resolutionSendReminderOpen, setResolutionSendReminderOpen] = useState(false);
   const [resolutionReminderMacro, setResolutionReminderMacro] = useState(null);
   const [closingMessageSentAt, setClosingMessageSentAt] = useState("");
@@ -637,6 +638,7 @@ export default function SupportTicket() {
       setOpeningFocusedMacro(null);
       setResolutionFocusedMacro(null);
       setClosingFocusedMacro(null);
+      setNewIssueInfoFocusedMacro(null);
       setResolutionSendReminderOpen(false);
       setResolutionReminderMacro(null);
       setWhatsAppNameMarked(hasWhatsAppNameMarked);
@@ -1307,6 +1309,11 @@ export default function SupportTicket() {
 
       if (flowScreen === FLOW_SCREENS.CLOSING_PREP) {
         setClosingFocusedMacro(macro);
+        return;
+      }
+
+      if (flowScreen === FLOW_SCREENS.NEW_ISSUE_INFO) {
+        setNewIssueInfoFocusedMacro(macro);
       }
     });
   };
@@ -1673,6 +1680,10 @@ export default function SupportTicket() {
     if (!fallbackCategory) return;
     setNewIssueCategoryDraft(fallbackCategory);
   }, [categoryOptions, flowScreen, newIssueCategoryDraft, thread?.category]);
+  useEffect(() => {
+    if (flowScreen === FLOW_SCREENS.NEW_ISSUE_INFO) return;
+    setNewIssueInfoFocusedMacro(null);
+  }, [flowScreen]);
 
   if (!thread) {
     return <div className="text-sm text-slate-500">Cargando ticket...</div>;
@@ -1869,8 +1880,11 @@ export default function SupportTicket() {
         )}
       </div>
       {overlay ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/72 backdrop-blur-[1px]">
-          <div className="flex h-[75%] w-[90%] flex-col items-center justify-center rounded-2xl bg-[#F7F3FF] px-6 py-6 text-center shadow-xl">
+        <div className="absolute inset-0 z-10 rounded-2xl bg-slate-200/40 backdrop-blur-[1px]">
+          <div
+            className="absolute flex flex-col items-center justify-center rounded-2xl border border-slate-300/70 bg-[#F7F3FF] px-6 py-6 text-center shadow-xl"
+            style={{ top: "12.5%", bottom: "12.5%", left: "5%", right: "5%" }}
+          >
             <div className="text-xl font-semibold leading-snug text-[#2F1A55]">
               {overlay.message}
             </div>
@@ -1878,7 +1892,7 @@ export default function SupportTicket() {
               <button
                 type="button"
                 onClick={overlay.onClick}
-                className="mt-5 rounded-xl border border-[#E9E2F7] bg-white px-5 py-2 text-sm font-semibold text-[#5E30A5]"
+                className="mt-5 rounded-xl border-2 border-[#BFC8D8] bg-white px-5 py-2 text-sm font-semibold text-[#5E30A5]"
               >
                 {overlay.label}
               </button>
@@ -2111,7 +2125,7 @@ export default function SupportTicket() {
                   ].map((step, index) => {
                     const mediaBlock = (
                       <div
-                        className="shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
+                        className="h-full self-stretch shrink-0 rounded-xl border border-dashed border-[#BFA8E7] bg-white/85 px-2 py-0 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D4EA8]"
                         style={{ width: "12.5rem", height: "100%", flex: "0 0 12.5rem" }}
                       >
                         <div className="flex h-full w-full items-center justify-center">
@@ -2121,7 +2135,7 @@ export default function SupportTicket() {
                     );
                     const stepIcon = (
                       <div
-                        className="flex shrink-0 items-center justify-center rounded-xl border border-[#DCCEF2] bg-white shadow-[0_2px_8px_rgba(94,48,165,0.12)]"
+                        className="flex shrink-0 self-center items-center justify-center rounded-xl border border-[#DCCEF2] bg-white shadow-[0_2px_8px_rgba(94,48,165,0.12)]"
                         style={{ width: "3.8rem", height: "3.8rem", flex: "0 0 3.8rem" }}
                       >
                         <span
@@ -2133,21 +2147,21 @@ export default function SupportTicket() {
                       </div>
                     );
                     const stepText = (
-                      <div className="min-w-0 flex-1 text-sm leading-relaxed text-slate-600">{step.text}</div>
+                      <div className="min-w-0 flex-1 self-center text-sm leading-relaxed text-slate-600">{step.text}</div>
                     );
                     return (
                       <div
                         key={step.key}
-                        className="h-full min-h-0 rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2"
+                        className="h-full min-h-0 overflow-hidden rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-0"
                       >
                         {step.mediaRight ? (
-                          <div className="flex h-full flex-nowrap items-center gap-3">
+                          <div className="flex h-full flex-nowrap items-stretch gap-3">
                             {stepIcon}
                             {stepText}
                             {mediaBlock}
                           </div>
                         ) : (
-                          <div className="flex h-full flex-nowrap items-center gap-3">
+                          <div className="flex h-full flex-nowrap items-stretch gap-3">
                             {mediaBlock}
                             {stepIcon}
                             {stepText}
@@ -2167,14 +2181,14 @@ export default function SupportTicket() {
               style={{ height: "78vh", gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr)" }}
             >
               <div
-                className="no-scrollbar overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4"
+                className="no-scrollbar h-full overflow-y-auto rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] px-4 py-4 flex flex-col"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
                 <div className="inline-flex rounded-full border border-[#D9CCF0] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5E30A5]">
                   {leftColumnScreenNumber}
                 </div>
                 {showOpeningMessageStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">Mensaje de apertura</div>
                       <div className="text-sm text-slate-700">
@@ -2194,7 +2208,7 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showOpeningFollowupStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
                       <div className="text-sm text-slate-700">
@@ -2213,24 +2227,24 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showResolutionActiveStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">Resolucion en progreso</div>
                       <div className="rounded-2xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-700">
                         Ticket activo: <span className="font-semibold text-[#2F1A55]">{thread.public_id}</span>
                       </div>
+                    </div>
+                    <div className="mt-auto flex flex-col gap-3 pt-4">
                       <button
                         type="button"
                         onClick={() => {
                           void handleResolutionMessageSent();
                         }}
                         disabled={workflowSaving}
-                        className="mt-6 w-full rounded-xl border-2 border-[#CAB6EA] bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="w-full rounded-xl border-2 border-[#CAB6EA] bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {workflowSaving ? "Guardando..." : "Mensaje enviado"}
                       </button>
-                    </div>
-                    <div className="mt-auto pt-4">
                       <button
                         type="button"
                         onClick={() => {
@@ -2244,7 +2258,7 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showResolutionFollowupStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">{followupModeLabel}</div>
                       <div className="text-sm text-slate-700">
@@ -2263,22 +2277,24 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showClosingPrepStep ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-lg font-semibold text-[#2F1A55]">Confirmacion de cierre</div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleBackToResolutionFollowup();
-                        }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] bg-white text-slate-700"
-                        aria-label="Volver a screen 6"
-                      >
-                        <ChevronRight size={14} className="rotate-180" />
-                      </button>
-                    </div>
-                    <div className="text-sm text-slate-700">
-                      Envia mensaje de confirmacion de cierre antes de continuar.
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-lg font-semibold text-[#2F1A55]">Confirmacion de cierre</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleBackToResolutionFollowup();
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#E9E2F7] bg-white text-slate-700"
+                          aria-label="Volver a screen 6"
+                        >
+                          <ChevronRight size={14} className="rotate-180" />
+                        </button>
+                      </div>
+                      <div className="text-sm text-slate-700">
+                        Envia mensaje de confirmacion de cierre antes de continuar.
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -2286,14 +2302,14 @@ export default function SupportTicket() {
                         void handleClosingMessageSent();
                       }}
                       disabled={workflowSaving}
-                      className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="mt-auto w-full rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {workflowSaving ? "Guardando..." : "Mensaje de cierre enviado"}
                     </button>
                   </div>
                 ) : null}
                 {showClosingWaitStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">Esperando confirmacion de cierre</div>
                       <div className="text-sm text-slate-700">Tiempo restante para habilitar confirmacion:</div>
@@ -2314,8 +2330,7 @@ export default function SupportTicket() {
                       <button
                         type="button"
                         onClick={() => setFlowScreen(FLOW_SCREENS.CLOSING_CONFIRM)}
-                        disabled={!closingWaitReady}
-                        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-xl bg-[#5E30A5] px-4 py-2 text-xs font-semibold text-white"
                       >
                         Confirmar cierre
                       </button>
@@ -2323,7 +2338,7 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showClosingConfirmStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">Confirmar cierre final</div>
                       <textarea
@@ -2343,8 +2358,8 @@ export default function SupportTicket() {
                         Continuar resolucion
                       </button>
                     </div>
-                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                      <div className="flex flex-wrap gap-2">
+                    <div className="mt-auto flex justify-center pt-4">
+                      <div className="flex flex-wrap justify-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -2370,7 +2385,7 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showNewIssueDecisionStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="text-lg font-semibold text-[#2F1A55]">Nueva inquietud</div>
                       <div className="text-sm text-slate-700">Define el problema antes de continuar.</div>
@@ -2393,7 +2408,7 @@ export default function SupportTicket() {
                         ))}
                       </select>
                     </div>
-                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                    <div className="mt-auto flex flex-wrap justify-center gap-2 pt-4">
                       <button
                         type="button"
                         onClick={() => {
@@ -2418,7 +2433,7 @@ export default function SupportTicket() {
                   </div>
                 ) : null}
                 {showNewIssueInfoStep ? (
-                  <div className="mt-4 flex h-[calc(100%-2.5rem)] flex-col">
+                  <div className="mt-4 flex min-h-0 flex-1 flex-col">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-lg font-semibold text-[#2F1A55]">Recoleccion de informacion</div>
@@ -2482,7 +2497,7 @@ export default function SupportTicket() {
                     focusedMacro: resolutionFocusedMacro,
                     onBack: resolutionFocusedMacro ? () => setResolutionFocusedMacro(null) : null,
                     overlay: {
-                      message: followupModeLabel,
+                      message: "Esperando respuesta del usuario",
                       label: "Copiar macro de nuevo",
                       onClick: () => {
                         setFlowScreen(FLOW_SCREENS.RESOLUTION_ACTIVE);
@@ -2511,7 +2526,12 @@ export default function SupportTicket() {
                     },
                   })
                   : null}
-                {showNewIssueInfoStep ? renderMacroSuggestionsContent() : null}
+                {showNewIssueInfoStep
+                  ? renderMacroSuggestionsContent({
+                    focusedMacro: newIssueInfoFocusedMacro,
+                    onBack: newIssueInfoFocusedMacro ? () => setNewIssueInfoFocusedMacro(null) : null,
+                  })
+                  : null}
               </div>
             </div>
           ) : null}
