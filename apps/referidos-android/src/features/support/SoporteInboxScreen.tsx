@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { TAB_ROUTES } from "@navigation/routeKeys";
+import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
@@ -198,7 +198,7 @@ export default function SoporteInboxScreen() {
       const safeId = String(threadPublicId || "").trim();
       if (!safeId) return;
       setSelectedThreadPublicId(safeId);
-      navigation.navigate(TAB_ROUTES.SOPORTE.TICKET);
+      navigation.navigate(STACK_ROUTES.SOPORTE.TICKET);
     },
     [navigation, setSelectedThreadPublicId],
   );

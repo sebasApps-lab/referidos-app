@@ -90,10 +90,62 @@ export async function markSupportOpeningMessageSent(supabase, payload = {}) {
   return invokeSupport(supabase, "support-opening-message-sent", payload);
 }
 
+export async function markSupportWhatsAppNameChanged(supabase, payload = {}) {
+  return invokeSupport(supabase, "support-whatsapp-name-updated", payload);
+}
+
+export async function sendSupportWorkflowAction(supabase, payload = {}) {
+  return invokeSupport(supabase, "support-thread-workflow-action", payload);
+}
+
 export async function setSupportAutoAssignMode(supabase, payload = {}) {
   return invokeSupport(supabase, "support-set-auto-assign-mode", payload);
 }
 
 export async function linkAnonymousThreadToUser(supabase, payload = {}) {
   return invokeSupport(supabase, "support-link-anon-to-user", payload);
+}
+
+export async function trackSupportMacroEvents(
+  supabase,
+  { events = [] } = {},
+) {
+  if (!Array.isArray(events) || events.length === 0) {
+    return { ok: true, data: { inserted: 0 } };
+  }
+
+  const payload = events
+    .filter((event) => event && typeof event === "object")
+    .map((event) => ({
+      macro_id: event.macro_id,
+      macro_code: event.macro_code,
+      category_code: event.category_code || null,
+      thread_public_id: event.thread_public_id || null,
+      event_type: event.event_type,
+      app_key: event.app_key,
+      env_key: event.env_key,
+      metadata: event.metadata || {},
+    }))
+    .filter(
+      (event) =>
+        typeof event.macro_id === "string" &&
+        typeof event.macro_code === "string" &&
+        typeof event.event_type === "string" &&
+        typeof event.app_key === "string" &&
+        typeof event.env_key === "string",
+    );
+
+  if (!payload.length) {
+    return { ok: true, data: { inserted: 0 } };
+  }
+
+  const { error } = await supabase
+    .from("support_macro_usage_events")
+    .insert(payload);
+
+  if (error) {
+    return { ok: false, error: error.message || String(error) };
+  }
+
+  return { ok: true, data: { inserted: payload.length } };
 }

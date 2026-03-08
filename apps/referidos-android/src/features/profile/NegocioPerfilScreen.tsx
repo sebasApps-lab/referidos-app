@@ -15,7 +15,13 @@ import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
+import { fetchSystemFeatureFlags } from "@shared/services/systemFeatureFlags";
 import AccessSecurityPanel from "./components/AccessSecurityPanel";
+import {
+  LinkedProvidersSection,
+  NotificationsSection,
+  SessionsSection,
+} from "./components/ProfileRuntimePanels";
 import {
   fetchBusinessByUserId,
   fetchCurrentUserRow,
@@ -55,6 +61,17 @@ export default function NegocioPerfilScreen() {
     () => SUPPORT_CHAT_CATEGORIES.filter((item) => item.roles.includes("negocio")),
     [],
   );
+  const linkedProviders = useMemo(() => {
+    const unique = new Set(
+      (Array.isArray(onboarding?.providers) ? onboarding.providers : [])
+        .map((item: any) => String(item || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    if (usuario?.email) unique.add("email");
+    return Array.from(unique) as string[];
+  }, [onboarding?.providers, usuario?.email]);
+  const primaryProvider = String(onboarding?.provider || "email").trim().toLowerCase();
+  const [appleEnabled, setAppleEnabled] = useState(false);
 
   useEffect(() => {
     if (!visibleCategories.length) return;
@@ -116,6 +133,16 @@ export default function NegocioPerfilScreen() {
     loadBusiness();
     loadTickets();
   }, [loadBusiness, loadTickets]);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchSystemFeatureFlags({ force: true }).then((flags) => {
+      if (mounted) setAppleEnabled(Boolean(flags.oauth_apple_enabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const refreshAll = useCallback(async () => {
     await bootstrapAuth();
@@ -220,6 +247,62 @@ export default function NegocioPerfilScreen() {
   );
   const emailConfirmed = Boolean(readFirst(onboarding, ["email_confirmed"], false));
 
+  const handleOpenTicketWhatsapp = useCallback(
+    async (ticket: any) => {
+      const link = String(readFirst(ticket, ["wa_link"], "")).trim();
+      if (!link) return;
+      try {
+        await Linking.openURL(link);
+      } catch {
+        openAlert({
+          title: "No se pudo abrir WhatsApp",
+          message: "Intenta abrir el ticket nuevamente o desde otra app.",
+          tone: "warning",
+        });
+      }
+    },
+    [openAlert],
+  );
+
+  const handleRequestRetake = useCallback(
+    (ticket: any) => {
+      const threadPublicId = String(readFirst(ticket, ["public_id"], "")).trim();
+      if (!threadPublicId) return;
+      openConfirm({
+        title: `Retomar ${threadPublicId}`,
+        message: "El ticket volvera a cola general para reasignacion de soporte.",
+        tone: "warning",
+        confirmLabel: "Confirmar retomar",
+        cancelLabel: "Cancelar",
+        onConfirm: async () => {
+          const result = await mobileApi.support.requestRetake({
+            thread_public_id: threadPublicId,
+          });
+          if (!result?.ok || result?.data?.ok === false) {
+            openAlert({
+              title: "No se pudo retomar",
+              message: result?.error || result?.data?.error || "No se pudo retomar el ticket.",
+              tone: "warning",
+            });
+            return;
+          }
+          setTickets((current) =>
+            current.map((row) =>
+              String(readFirst(row, ["public_id"], "")) === threadPublicId
+                ? {
+                    ...row,
+                    retake_requested_at:
+                      result?.data?.retake_requested_at || new Date().toISOString(),
+                  }
+                : row,
+            ),
+          );
+        },
+      });
+    },
+    [openAlert, openConfirm],
+  );
+
   return (
     <ScreenScaffold title="Perfil negocio" subtitle="Cuenta, seguridad y soporte">
       <ScrollView contentContainerStyle={styles.content}>
@@ -273,38 +356,46 @@ export default function NegocioPerfilScreen() {
         ) : null}
 
         {profileTab === "seguridad" ? (
-          <SectionCard title="Acceso y seguridad" subtitle="Estado aplicable en RN">
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Rol:</Text>
-              <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "negocio"))}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Verificacion:</Text>
-              <Text style={styles.infoValue}>{verificationStatus}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email:</Text>
-              <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Acceso:</Text>
-              <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
-            </View>
-            <View style={styles.actionsRow}>
-              <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
-              </Pressable>
-              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-              </Pressable>
-            </View>
-            <AccessSecurityPanel
-              usuario={usuario}
-              onReload={async () => {
-                await refreshAll();
-              }}
+          <>
+            <SectionCard title="Acceso y seguridad" subtitle="Estado aplicable en RN">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Rol:</Text>
+                <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "negocio"))}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Verificacion:</Text>
+                <Text style={styles.infoValue}>{verificationStatus}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Acceso:</Text>
+                <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
+                </Pressable>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+              <AccessSecurityPanel
+                usuario={usuario}
+                onReload={async () => {
+                  await refreshAll();
+                }}
+              />
+            </SectionCard>
+            <LinkedProvidersSection
+              providers={linkedProviders}
+              primaryProvider={primaryProvider}
+              appleEnabled={appleEnabled}
             />
-          </SectionCard>
+            <SessionsSection onCurrentSessionRevoked={handleSignOut} />
+          </>
         ) : null}
 
         {profileTab === "ayuda" ? (
@@ -410,10 +501,39 @@ export default function NegocioPerfilScreen() {
                       <Text style={styles.ticketDate}>
                         {formatDateTime(readFirst(ticket, ["created_at"], null))}
                       </Text>
+                      <View style={styles.actionsRow}>
+                        {readFirst(ticket, ["wa_link"], "") ? (
+                          <Pressable
+                            onPress={() => void handleOpenTicketWhatsapp(ticket)}
+                            style={styles.secondaryBtn}
+                          >
+                            <Text style={styles.secondaryBtnText}>Abrir WhatsApp</Text>
+                          </Pressable>
+                        ) : null}
+                        {readFirst(ticket, ["status"], "") === "queued" &&
+                        readFirst(ticket, ["personal_queue"], true) === false ? (
+                          <Pressable
+                            onPress={() => handleRequestRetake(ticket)}
+                            disabled={Boolean(readFirst(ticket, ["retake_requested_at"], null))}
+                            style={[
+                              styles.outlineBtn,
+                              Boolean(readFirst(ticket, ["retake_requested_at"], null)) &&
+                                styles.primaryBtnDisabled,
+                            ]}
+                          >
+                            <Text style={styles.outlineBtnText}>
+                              {readFirst(ticket, ["retake_requested_at"], null)
+                                ? "Retomar solicitado"
+                                : "Retomar ticket"}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                   ))
                 : null}
             </SectionCard>
+            <NotificationsSection role="negocio" />
           </>
         ) : null}
       </ScrollView>

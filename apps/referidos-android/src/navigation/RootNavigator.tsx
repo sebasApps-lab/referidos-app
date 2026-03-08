@@ -3,9 +3,49 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AuthFlowScreen from "@features/auth/AuthFlowScreen";
 import { useAppStore } from "@shared/store/appStore";
 import { AdminTabs, ClienteTabs, NegocioTabs, SoporteTabs } from "./RoleTabs";
-import { ROOT_ROUTES } from "./routeKeys";
+import { ROOT_ROUTES, STACK_ROUTES } from "./routeKeys";
+import AdminAppsScreen from "@features/admin/AdminAppsScreen";
+import AdminSistemaScreen from "@features/admin/AdminSistemaScreen";
+import AdminVersioningScreen from "@features/admin/AdminVersioningScreen";
+import AdminDocumentationScreen from "@features/admin/AdminDocumentationScreen";
+import AdminLegalScreen from "@features/admin/AdminLegalScreen";
+import AdminSupportCatalogScreen from "@features/admin/AdminSupportCatalogScreen";
+import SoporteJornadasScreen from "@features/support/SoporteJornadasScreen";
+import SoporteIssuesScreen from "@features/support/SoporteIssuesScreen";
+import SoporteErrorCatalogScreen from "@features/support/SoporteErrorCatalogScreen";
+import SoporteTicketScreen from "@features/support/SoporteTicketScreen";
 
 const Stack = createNativeStackNavigator();
+const RoleStack = createNativeStackNavigator();
+
+function AdminStackNavigator() {
+  return (
+    <RoleStack.Navigator initialRouteName={STACK_ROUTES.ADMIN.TABS} screenOptions={{ headerShown: false }}>
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.TABS} component={AdminTabs} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.APPS} component={AdminAppsScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.SISTEMA} component={AdminSistemaScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.VERSIONING} component={AdminVersioningScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.DOCUMENTATION} component={AdminDocumentationScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.LEGAL} component={AdminLegalScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.ADMIN.SUPPORT_CATALOG} component={AdminSupportCatalogScreen} />
+    </RoleStack.Navigator>
+  );
+}
+
+function SoporteStackNavigator() {
+  return (
+    <RoleStack.Navigator initialRouteName={STACK_ROUTES.SOPORTE.TABS} screenOptions={{ headerShown: false }}>
+      <RoleStack.Screen name={STACK_ROUTES.SOPORTE.TABS} component={SoporteTabs} />
+      <RoleStack.Screen name={STACK_ROUTES.SOPORTE.JORNADAS} component={SoporteJornadasScreen} />
+      <RoleStack.Screen name={STACK_ROUTES.SOPORTE.ISSUES} component={SoporteIssuesScreen} />
+      <RoleStack.Screen
+        name={STACK_ROUTES.SOPORTE.ERROR_CATALOG}
+        component={SoporteErrorCatalogScreen}
+      />
+      <RoleStack.Screen name={STACK_ROUTES.SOPORTE.TICKET} component={SoporteTicketScreen} />
+    </RoleStack.Navigator>
+  );
+}
 
 export default function RootNavigator() {
   const role = useAppStore((state) => state.role);
@@ -39,10 +79,10 @@ export default function RootNavigator() {
         <Stack.Screen name={ROOT_ROUTES.NEGOCIO} component={NegocioTabs} />
       ) : null}
       {allowAccess && !requiresVerificationFlow && role === "admin" ? (
-        <Stack.Screen name={ROOT_ROUTES.ADMIN} component={AdminTabs} />
+        <Stack.Screen name={ROOT_ROUTES.ADMIN} component={AdminStackNavigator} />
       ) : null}
       {allowAccess && !requiresVerificationFlow && role === "soporte" ? (
-        <Stack.Screen name={ROOT_ROUTES.SOPORTE} component={SoporteTabs} />
+        <Stack.Screen name={ROOT_ROUTES.SOPORTE} component={SoporteStackNavigator} />
       ) : null}
     </Stack.Navigator>
   );

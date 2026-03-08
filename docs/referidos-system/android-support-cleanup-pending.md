@@ -1,27 +1,20 @@
-# Pendientes Android: limpieza macros de soporte
+# Estado Android: limpieza macros de soporte
 
-Fecha: `2026-02-20`.
+Fecha de actualizacion: `2026-03-07`.
 
-Este documento deja explicitamente pendiente la parte Android de la limpieza de sistema legacy de macros.
+La limpieza del sistema legacy de macros/categorias en Android quedo cerrada.
 
-## Alcance pendiente (solo Android)
+## Estado actual
 
-1. Reemplazar hardcode de macros en:
-   - `apps/referidos-android/src/shared/constants/supportDesk.ts`
-   - `apps/referidos-android/src/features/support/SoporteTicketScreen.tsx`
-2. Reemplazar categorias hardcode de soporte en:
-   - `apps/referidos-android/src/shared/constants/supportCategories.ts` (si aplica)
-3. Consumir catalogo desde cache runtime (`support_macro_categories_cache` y `support_macros_cache`) via cliente/servicio Android.
-4. Aplicar filtro de macros por:
-   - app objetivo (`android_app` o `all`)
-   - entorno (`dev|staging|prod|all`)
-   - estado de ticket (`thread_status`)
-5. Eliminar constantes legacy Android despues de validar paridad funcional.
+1. `apps/referidos-android/src/features/support/SoporteTicketScreen.tsx` consume macros runtime desde cache (`support_macro_categories_cache` y `support_macros_cache`) y usa acciones nuevas del backend compartido.
+2. `apps/referidos-android/src/features/support/SoporteIrregularScreen.tsx` ya no usa categorias hardcode; carga categorias runtime.
+3. `apps/referidos-android/src/shared/constants/supportDesk.ts` conserva solo filtros de inbox/estado; ya no expone listas legacy de macros o categorias.
+4. El filtro de macros en Android aplica por `app_targets`, `env_targets`, `thread_status` y categoria del ticket.
 
-## Criterios de cierre
+## Cierre validado
 
-1. Android muestra solo macros publicadas del cache runtime.
+1. Android muestra macros publicadas del cache runtime.
 2. No quedan imports activos de listas hardcode de macros/categorias para soporte en Android.
-3. Flujo de ticket Android mantiene comportamiento actual (sin regresiones de UX).
-4. Documentacion Android actualizada con nuevo origen de datos.
+3. `lint`, `typecheck` y `assembleDebug` quedaron verdes despues de la migracion.
+4. La paridad total Android vs `referidos-app` sigue teniendo otras brechas fuera de esta limpieza puntual; este documento ya no debe usarse como backlog activo.
 

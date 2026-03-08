@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { TAB_ROUTES } from "@navigation/routeKeys";
+import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import { mobileApi, observability } from "@shared/services/mobileApi";
-import { SUPPORT_DESK_CATEGORIES } from "@shared/constants/supportDesk";
 import { useSupportDeskStore } from "@shared/store/supportDeskStore";
+import { loadSupportCatalogFromCache } from "@shared/services/supportCatalog";
+import { dispatchSupportMacrosSync } from "@shared/services/supportOps";
 
 export default function SoporteIrregularScreen() {
   const navigation = useNavigation<any>();
@@ -14,20 +15,63 @@ export default function SoporteIrregularScreen() {
     (state) => state.setSelectedThreadPublicId,
   );
 
-  const categories = useMemo(() => SUPPORT_DESK_CATEGORIES, []);
+  const [categories, setCategories] = useState<any[]>([]);
   const [userPublicId, setUserPublicId] = useState("");
   const [summary, setSummary] = useState("");
-  const [category, setCategory] = useState<string>(categories[0]?.id || "acceso");
+  const [category, setCategory] = useState("");
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState("");
   const [statusTone, setStatusTone] = useState<"ok" | "error">("ok");
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoriesError, setCategoriesError] = useState("");
+
+  const loadCategories = useCallback(async (forceSync = false) => {
+    setLoadingCategories(true);
+    setCategoriesError("");
+    let result = await loadSupportCatalogFromCache({ publishedOnly: true });
+    if (forceSync || result.categories.length === 0) {
+      try {
+        await dispatchSupportMacrosSync({
+          mode: "hot",
+          panelKey: "android_support_irregular",
+        });
+      } catch (syncErr: any) {
+        setCategoriesError(String(syncErr?.message || syncErr || "sync_dispatch_failed"));
+      }
+      result = await loadSupportCatalogFromCache({ publishedOnly: true });
+    }
+    const nextCategories = (result.categories || [])
+      .filter((item) => ["published", "active"].includes(String(item?.status || "published").toLowerCase()))
+      .map((item) => ({
+        id: String(item?.code || item?.id || "").trim(),
+        label: String(item?.label || item?.code || item?.id || "").trim(),
+      }))
+      .filter((item) => item.id);
+    setCategories(nextCategories);
+    if (!nextCategories.length && result.error) {
+      setCategoriesError(String(result.error));
+    }
+    setLoadingCategories(false);
+  }, []);
+
+  useEffect(() => {
+    void loadCategories(false);
+  }, [loadCategories]);
+
+  useEffect(() => {
+    if (!category && categories[0]?.id) {
+      setCategory(categories[0].id);
+    }
+  }, [categories, category]);
+
+  const visibleCategories = useMemo(() => categories, [categories]);
 
   const handleCreate = async () => {
     const safePublicId = userPublicId.trim();
     const safeSummary = summary.trim();
-    if (!safePublicId || !safeSummary) {
+    if (!safePublicId || !safeSummary || !category) {
       setStatusTone("error");
-      setStatus("Debes ingresar user_public_id y resumen.");
+      setStatus("Debes ingresar user_public_id, resumen y categoría.");
       return;
     }
     setCreating(true);
@@ -67,7 +111,7 @@ export default function SoporteIrregularScreen() {
     });
     if (threadPublicId) {
       setSelectedThreadPublicId(threadPublicId);
-      navigation.navigate(TAB_ROUTES.SOPORTE.TICKET);
+      navigation.navigate(STACK_ROUTES.SOPORTE.TICKET);
     }
   };
 
@@ -89,7 +133,7 @@ export default function SoporteIrregularScreen() {
 
           <Text style={styles.label}>Categoria</Text>
           <View style={styles.chipsWrap}>
-            {categories.map((item) => (
+            {visibleCategories.map((item) => (
               <Pressable
                 key={item.id}
                 onPress={() => setCategory(item.id)}
@@ -115,11 +159,14 @@ export default function SoporteIrregularScreen() {
           <View style={styles.actionsRow}>
             <Pressable
               onPress={handleCreate}
-              disabled={creating}
-              style={[styles.primaryBtn, creating && styles.btnDisabled]}
+              disabled={creating || loadingCategories || visibleCategories.length === 0}
+              style={[
+                styles.primaryBtn,
+                (creating || loadingCategories || visibleCategories.length === 0) && styles.btnDisabled,
+              ]}
             >
               <Text style={styles.primaryBtnText}>
-                {creating ? "Creando..." : "Crear ticket irregular"}
+                {creating ? "Creando..." : loadingCategories ? "Cargando categorías..." : "Crear ticket irregular"}
               </Text>
             </Pressable>
             <Pressable
@@ -130,6 +177,10 @@ export default function SoporteIrregularScreen() {
             </Pressable>
           </View>
 
+          {categoriesError ? <Text style={styles.errorText}>{categoriesError}</Text> : null}
+          {!loadingCategories && visibleCategories.length === 0 ? (
+            <Text style={styles.errorText}>No hay categorías runtime disponibles.</Text>
+          ) : null}
           {status ? (
             <Text style={statusTone === "error" ? styles.errorText : styles.successText}>
               {status}
