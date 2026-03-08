@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
+import { useAppStore } from "@shared/store/appStore";
 import { useSupportDeskStore } from "@shared/store/supportDeskStore";
 import {
   fetchSupportLogEvents,
@@ -99,10 +100,15 @@ function formatClock(ms: number) {
 
 export default function SoporteTicketScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const role = useAppStore((state) => state.role);
   const selectedThreadPublicId = useSupportDeskStore((state) => state.selectedThreadPublicId);
   const setSelectedThreadPublicId = useSupportDeskStore((state) => state.setSelectedThreadPublicId);
   const shownRef = useRef(new Set<string>());
   const runtimeEnvKey = useMemo(() => normalizeSupportEnvKey(__DEV__ ? "dev" : "prod", "dev"), []);
+  const routeThreadPublicId = String(route?.params?.threadPublicId || "").trim();
+  const isAdminTicketRoute =
+    role === "admin" || String(route?.name || "") === STACK_ROUTES.ADMIN.SUPPORT_TICKET;
   const [threadIdInput, setThreadIdInput] = useState(selectedThreadPublicId || "");
   const [loading, setLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -194,6 +200,13 @@ export default function SoporteTicketScreen() {
   }, [loadCatalog]);
 
   useEffect(() => {
+    if (!routeThreadPublicId) return;
+    setThreadIdInput(routeThreadPublicId);
+    setSelectedThreadPublicId(routeThreadPublicId);
+    void loadThread(routeThreadPublicId);
+  }, [loadThread, routeThreadPublicId, setSelectedThreadPublicId]);
+
+  useEffect(() => {
     if (!selectedThreadPublicId) return;
     setThreadIdInput(selectedThreadPublicId);
     void loadThread(selectedThreadPublicId);
@@ -235,6 +248,12 @@ export default function SoporteTicketScreen() {
 
   const selectedMacro = activeMacro || macros[0] || null;
   const remainingMs = closingSentAt ? Math.max(0, WAIT_MS - (nowMs - new Date(closingSentAt).getTime())) : WAIT_MS;
+  const backRoute = isAdminTicketRoute
+    ? STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL
+    : TAB_ROUTES.SOPORTE.INBOX;
+  const auxRoute = isAdminTicketRoute
+    ? TAB_ROUTES.ADMIN.SOPORTE
+    : STACK_ROUTES.SOPORTE.JORNADAS;
 
   useEffect(() => {
     if (!thread?.public_id || !macros.length) return;
@@ -339,7 +358,7 @@ export default function SoporteTicketScreen() {
           <TextInput value={threadIdInput} onChangeText={setThreadIdInput} style={styles.input} placeholder="Public ID del ticket" autoCapitalize="characters" />
           <View style={styles.row}>
             <Pressable onPress={() => void loadThread()} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Cargar ticket</Text></Pressable>
-            <Pressable onPress={() => navigation.navigate(TAB_ROUTES.SOPORTE.INBOX)} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>Volver inbox</Text></Pressable>
+            <Pressable onPress={() => navigation.navigate(backRoute)} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{isAdminTicketRoute ? "Volver panel" : "Volver inbox"}</Text></Pressable>
           </View>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </SectionCard>
@@ -404,7 +423,7 @@ export default function SoporteTicketScreen() {
                 <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("in_progress"); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>En progreso</Text></Pressable>
                 <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("waiting_user"); setFlow(FLOW.ACTIVE_WAIT); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>Esperando usuario</Text></Pressable>
                 <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("queued"); setFlow(FLOW.ACTIVE_WAIT); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>Liberar a cola</Text></Pressable>
-                <Pressable onPress={() => navigation.navigate(STACK_ROUTES.SOPORTE.JORNADAS)} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>Jornadas</Text></Pressable>
+                <Pressable onPress={() => navigation.navigate(auxRoute)} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>{isAdminTicketRoute ? "Desk admin" : "Jornadas"}</Text></Pressable>
               </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </SectionCard>

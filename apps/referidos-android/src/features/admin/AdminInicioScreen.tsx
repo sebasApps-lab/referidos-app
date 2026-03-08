@@ -60,14 +60,25 @@ type CountResult = {
 const RN_INCLUDED_MODULES = [
   "Inicio",
   "Usuarios",
+  "Soporte / desk",
   "Soporte / asesores",
+  "Soporte / panel tickets",
+  "Soporte / ticket detalle",
   "Negocios",
   "Promos",
   "QRs",
   "Reportes",
-  "Logs/Sistema",
-  "Observabilidad",
-  "Sistema (perfil/sesion y eventos)",
+  "Logs",
+  "Datos",
+  "Analytics",
+  "Issues / eventos / detalle",
+  "Catalogo errores",
+  "Apps",
+  "Sistema",
+  "Versioning",
+  "Documentacion",
+  "Legal",
+  "Catalogo soporte",
 ];
 
 const RN_DEFERRED_MODULES: string[] = [];
@@ -326,6 +337,61 @@ export default function AdminInicioScreen() {
               title="Observabilidad"
               description="Feed de eventos y errores."
               onPress={() => navigation.navigate(TAB_ROUTES.ADMIN.OBSERVABILIDAD)}
+            />
+            <NavCard
+              title="Negocios"
+              description="Supervision de locales y sucursales."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.NEGOCIOS)}
+            />
+            <NavCard
+              title="Promos"
+              description="Moderacion y control de promociones."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.PROMOS)}
+            />
+            <NavCard
+              title="QRs"
+              description="Auditoria de codigos y canjes."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.QRS)}
+            />
+            <NavCard
+              title="Reportes"
+              description="Quejas y casos pendientes."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.REPORTES)}
+            />
+            <NavCard
+              title="Logs"
+              description="Auditoria de eventos soporte/obs."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.LOGS)}
+            />
+            <NavCard
+              title="Datos"
+              description="Analisis avanzado y tendencias."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.DATOS)}
+            />
+            <NavCard
+              title="Analytics"
+              description="Prelaunch metrics y riesgo."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ANALYTICS)}
+            />
+            <NavCard
+              title="Issues"
+              description="Listado de issues y eventos."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ISSUES)}
+            />
+            <NavCard
+              title="Error codes"
+              description="Catalogo de errores observados."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ERROR_CODES)}
+            />
+            <NavCard
+              title="Asesores"
+              description="Autorizacion, sesiones e historial."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_AGENTS)}
+            />
+            <NavCard
+              title="Panel tickets"
+              description="Control operativo de tickets."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL)}
             />
             <NavCard
               title="Apps"

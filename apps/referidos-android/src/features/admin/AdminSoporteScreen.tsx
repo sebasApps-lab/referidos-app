@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { STACK_ROUTES } from "@navigation/routeKeys";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
@@ -23,6 +25,7 @@ function agentDisplayName(agent: any) {
 }
 
 export default function AdminSoporteScreen() {
+  const navigation = useNavigation<any>();
   const adminUser = useAppStore((state) => state.onboarding?.usuario || null);
   const adminUserId = String(adminUser?.id || "").trim();
 
@@ -240,6 +243,29 @@ export default function AdminSoporteScreen() {
   return (
     <ScreenScaffold title="Admin Soporte" subtitle="Asesores, sesiones y asignacion/reasignacion de tickets">
       <ScrollView contentContainerStyle={styles.content}>
+        <SectionCard title="Modulos soporte admin" subtitle="Desk, asesores, panel tickets y macros">
+          <View style={styles.actionsRow}>
+            <Pressable
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_AGENTS)}
+              style={styles.secondaryBtn}
+            >
+              <Text style={styles.secondaryBtnText}>Asesores</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL)}
+              style={styles.secondaryBtn}
+            >
+              <Text style={styles.secondaryBtnText}>Panel tickets</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_CATALOG)}
+              style={styles.secondaryBtn}
+            >
+              <Text style={styles.secondaryBtnText}>Macros</Text>
+            </Pressable>
+          </View>
+        </SectionCard>
+
         <SectionCard
           title="Jornada admin soporte"
           subtitle="Requerida para operar como asesor/admin en cola"

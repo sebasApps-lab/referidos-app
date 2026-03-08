@@ -23,6 +23,11 @@ import {
   SessionsSection,
 } from "./components/ProfileRuntimePanels";
 import {
+  ProfileBenefitsSection,
+  ProfileFaqSection,
+  ProfilePreferencesSection,
+} from "./components/ProfileExtendedSections";
+import {
   fetchBusinessByUserId,
   fetchCurrentUserRow,
   fetchSupportTicketsByUserPublicId,
@@ -30,8 +35,9 @@ import {
   readFirst,
   toDisplayStatus,
 } from "@shared/services/entityQueries";
+import { deleteCurrentUserAccount } from "@shared/services/accountLifecycle";
 
-type ProfileTab = "cuenta" | "seguridad" | "ayuda";
+type ProfileTab = "cuenta" | "seguridad" | "preferencias" | "ayuda";
 
 function generateClientRequestId() {
   return `rn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -48,6 +54,15 @@ export default function NegocioPerfilScreen() {
   const [business, setBusiness] = useState<any | null>(onboarding?.negocio || null);
   const [category, setCategory] = useState("acceso");
   const [summary, setSummary] = useState("");
+  const [ownerDraft, setOwnerDraft] = useState({
+    nombre: "",
+    telefono: "",
+  });
+  const [businessDraft, setBusinessDraft] = useState({
+    nombre: "",
+    categoria: "",
+    direccion: "",
+  });
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<any | null>(null);
   const [ticketsLoading, setTicketsLoading] = useState(true);
@@ -72,6 +87,7 @@ export default function NegocioPerfilScreen() {
   }, [onboarding?.providers, usuario?.email]);
   const primaryProvider = String(onboarding?.provider || "email").trim().toLowerCase();
   const [appleEnabled, setAppleEnabled] = useState(false);
+  const userAuthId = String(readFirst(usuario, ["id_auth", "id"], "")).trim();
 
   useEffect(() => {
     if (!visibleCategories.length) return;
@@ -79,6 +95,21 @@ export default function NegocioPerfilScreen() {
       setCategory(visibleCategories[0].id);
     }
   }, [category, visibleCategories]);
+
+  useEffect(() => {
+    setOwnerDraft({
+      nombre: String(readFirst(usuario, ["nombre"], "")).trim(),
+      telefono: String(readFirst(usuario, ["telefono", "phone"], "")).trim(),
+    });
+  }, [usuario]);
+
+  useEffect(() => {
+    setBusinessDraft({
+      nombre: String(readFirst(business, ["nombre"], "")).trim(),
+      categoria: String(readFirst(business, ["categoria"], "")).trim(),
+      direccion: String(readFirst(business, ["direccion", "ubicacion"], "")).trim(),
+    });
+  }, [business]);
 
   const loadBusiness = useCallback(async () => {
     const onboardingUserId = onboarding?.usuario?.id || null;
@@ -234,14 +265,6 @@ export default function NegocioPerfilScreen() {
     }
   }, [openAlert]);
 
-  const handleOpenFaq = useCallback(() => {
-    openAlert({
-      title: "Preguntas frecuentes",
-      message: "La FAQ completa se integra en una fase posterior. Ya puedes usar soporte por chat o correo.",
-      tone: "warning",
-    });
-  }, [openAlert]);
-
   const verificationStatus = String(
     readFirst(onboarding, ["verification_status"], "sin_verificacion"),
   );
@@ -303,11 +326,75 @@ export default function NegocioPerfilScreen() {
     [openAlert, openConfirm],
   );
 
+  const handleDeleteAccount = useCallback(() => {
+    openConfirm({
+      title: "Eliminar cuenta",
+      message: "La eliminacion es permanente y cerrara tu sesion actual.",
+      tone: "danger",
+      confirmLabel: "Eliminar cuenta",
+      cancelLabel: "Cancelar",
+      onConfirm: async () => {
+        const result = await deleteCurrentUserAccount(userAuthId);
+        if (!result.ok) {
+          openAlert({
+            title: "No se pudo eliminar",
+            message: result.error || "No se pudo eliminar la cuenta.",
+            tone: "warning",
+          });
+          return;
+        }
+        await signOut();
+      },
+    });
+  }, [openAlert, openConfirm, signOut, userAuthId]);
+
+  const handleSaveProfile = useCallback(async () => {
+    if (!userAuthId) return;
+    const results: Array<{ error?: { message?: string } | null }> = [];
+
+    const ownerResult = await supabase
+      .from("usuarios")
+      .update({
+        nombre: ownerDraft.nombre.trim() || null,
+        telefono: ownerDraft.telefono.trim() || null,
+      })
+      .eq("id_auth", userAuthId);
+    results.push(ownerResult);
+
+    const businessId = String(readFirst(business, ["id"], "")).trim();
+    if (businessId) {
+      const businessResult = await supabase
+        .from("negocios")
+        .update({
+          nombre: businessDraft.nombre.trim() || null,
+          categoria: businessDraft.categoria.trim() || null,
+          direccion: businessDraft.direccion.trim() || null,
+        })
+        .eq("id", businessId);
+      results.push(businessResult);
+    }
+    const failed = results.find((result: any) => result?.error);
+    if (failed?.error) {
+      openAlert({
+        title: "No se pudo guardar",
+        message: failed.error.message || "No se pudo actualizar el perfil de negocio.",
+        tone: "warning",
+      });
+      return;
+    }
+    await refreshAll();
+    openAlert({
+      title: "Perfil actualizado",
+      message: "Los datos basicos del negocio y propietario se actualizaron.",
+      tone: "default",
+    });
+  }, [business, businessDraft.categoria, businessDraft.direccion, businessDraft.nombre, openAlert, ownerDraft.nombre, ownerDraft.telefono, refreshAll, userAuthId]);
+
   return (
     <ScreenScaffold title="Perfil negocio" subtitle="Cuenta, seguridad y soporte">
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.tabRow}>
-          {(["cuenta", "seguridad", "ayuda"] as ProfileTab[]).map((tab) => (
+          {(["cuenta", "seguridad", "preferencias", "ayuda"] as ProfileTab[]).map((tab) => (
             <Pressable
               key={tab}
               onPress={() => setProfileTab(tab)}
@@ -321,38 +408,93 @@ export default function NegocioPerfilScreen() {
         </View>
 
         {profileTab === "cuenta" ? (
-          <SectionCard title="Cuenta y negocio">
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Usuario:</Text>
-              <Text style={styles.infoValue}>
-                {readFirst(usuario, ["nombre", "apodo", "alias"], "sin nombre")}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Correo:</Text>
-              <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Negocio:</Text>
-              <Text style={styles.infoValue}>
-                {readFirst(business, ["nombre"], "sin negocio")}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Categoria:</Text>
-              <Text style={styles.infoValue}>
-                {readFirst(business, ["categoria"], "sin categoria")}
-              </Text>
-            </View>
-            <View style={styles.actionsRow}>
-              <Pressable onPress={refreshAll} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryBtnText}>Refrescar</Text>
-              </Pressable>
-              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-              </Pressable>
-            </View>
-          </SectionCard>
+          <>
+            <SectionCard title="Cuenta y negocio">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Usuario:</Text>
+                <TextInput
+                  value={ownerDraft.nombre}
+                  onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, nombre: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Nombre propietario"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Correo:</Text>
+                <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Telefono:</Text>
+                <TextInput
+                  value={ownerDraft.telefono}
+                  onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, telefono: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Telefono"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Negocio:</Text>
+                <TextInput
+                  value={businessDraft.nombre}
+                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, nombre: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Nombre negocio"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Categoria:</Text>
+                <TextInput
+                  value={businessDraft.categoria}
+                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, categoria: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Categoria"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Direccion:</Text>
+                <TextInput
+                  value={businessDraft.direccion}
+                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, direccion: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Direccion"
+                />
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={() => void handleSaveProfile()} style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>Guardar perfil</Text>
+                </Pressable>
+                <Pressable onPress={refreshAll} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Refrescar</Text>
+                </Pressable>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+            </SectionCard>
+            <ProfileBenefitsSection
+              role="negocio"
+              accountLabel={String(readFirst(business, ["nombre"], "Negocio sin completar"))}
+              accountHelper="Mantener datos, direccion y horarios al dia mejora la operacion del canal negocio."
+            />
+            <SectionCard title="Gestionar cuenta" subtitle="Acciones sensibles y estado general">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Verificacion:</Text>
+                <Text style={styles.infoValue}>{verificationStatus}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+                <Pressable onPress={handleDeleteAccount} style={styles.dangerBtn}>
+                  <Text style={styles.dangerBtnText}>Eliminar cuenta</Text>
+                </Pressable>
+              </View>
+            </SectionCard>
+          </>
         ) : null}
 
         {profileTab === "seguridad" ? (
@@ -398,13 +540,19 @@ export default function NegocioPerfilScreen() {
           </>
         ) : null}
 
+        {profileTab === "preferencias" ? (
+          <>
+            <NotificationsSection role="negocio" />
+            <ProfilePreferencesSection role="negocio" />
+          </>
+        ) : null}
+
         {profileTab === "ayuda" ? (
           <>
+            <ProfileFaqSection audience="negocio" />
+
             <SectionCard title="Ayuda">
               <View style={styles.actionsRow}>
-                <Pressable onPress={handleOpenFaq} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Preguntas frecuentes</Text>
-                </Pressable>
                 <Pressable onPress={handleOpenSupportEmail} style={styles.outlineBtn}>
                   <Text style={styles.outlineBtnText}>Soporte por correo</Text>
                 </Pressable>
@@ -533,7 +681,6 @@ export default function NegocioPerfilScreen() {
                   ))
                 : null}
             </SectionCard>
-            <NotificationsSection role="negocio" />
           </>
         ) : null}
       </ScrollView>
@@ -598,6 +745,17 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 12,
   },
+  inlineInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
+    fontSize: 12,
+  },
   actionsRow: {
     flexDirection: "row",
     gap: 8,
@@ -642,6 +800,21 @@ const styles = StyleSheet.create({
   outlineBtnText: {
     color: "#374151",
     fontWeight: "600",
+    fontSize: 12,
+  },
+  dangerBtn: {
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1F2",
+  },
+  dangerBtnText: {
+    color: "#BE123C",
+    fontWeight: "700",
     fontSize: 12,
   },
   chipWrap: {

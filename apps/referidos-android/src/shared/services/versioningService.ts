@@ -172,6 +172,85 @@ export async function fetchReleaseArtifacts({
   });
 }
 
+export async function fetchLocalArtifactNodes({
+  onlyActive = false,
+  limit = 200,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_nodes", {
+    onlyActive,
+    limit,
+  });
+}
+
+export async function upsertLocalArtifactNode({
+  nodeKey,
+  displayName,
+  runnerLabel,
+  osName = "",
+  active = true,
+  metadata = {},
+}: {
+  nodeKey: string;
+  displayName: string;
+  runnerLabel: string;
+  osName?: string;
+  active?: boolean;
+  metadata?: Record<string, any>;
+}) {
+  return invokeVersioningOps("upsert_local_artifact_node", {
+    nodeKey,
+    displayName,
+    runnerLabel,
+    osName,
+    active,
+    metadata,
+  });
+}
+
+export async function fetchLocalArtifactSyncRequests({
+  productKey = "",
+  envKey = "",
+  status = "",
+  nodeKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_sync_requests", {
+    productKey,
+    envKey,
+    status,
+    nodeKey,
+    limit,
+  });
+}
+
+export async function requestLocalArtifactSync({
+  releaseId = "",
+  productKey = "",
+  envKey = "",
+  semver = "",
+  nodeKey,
+  notes = "",
+  metadata = {},
+}: {
+  releaseId?: string;
+  productKey?: string;
+  envKey?: string;
+  semver?: string;
+  nodeKey: string;
+  notes?: string;
+  metadata?: Record<string, any>;
+}) {
+  return invokeVersioningOps("request_local_artifact_sync", {
+    releaseId,
+    productKey,
+    envKey,
+    semver,
+    nodeKey,
+    notes,
+    metadata,
+  });
+}
+
 export async function previewDevRelease({
   productKey = "",
   ref = "dev",
@@ -212,6 +291,26 @@ export async function backfillReleaseArtifact({
   });
 }
 
+export async function fetchWorkflowPackStatus({
+  sourceRef = "dev",
+} = {}) {
+  return invokeVersioningOps("fetch_workflow_pack_status", {
+    sourceRef,
+  });
+}
+
+export async function syncWorkflowPack({
+  sourceRef = "dev",
+  syncStaging = true,
+  syncProd = true,
+} = {}) {
+  return invokeVersioningOps("sync_workflow_pack", {
+    sourceRef,
+    syncStaging,
+    syncProd,
+  });
+}
+
 export async function validateEnvironmentContract({
   productKey,
   envKey,
@@ -238,6 +337,28 @@ export async function checkReleaseMigrations({
     productKey,
     envKey,
     semver,
+  });
+}
+
+export async function applyReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+  sourceBranch = "",
+  targetBranch = "",
+}: {
+  productKey: string;
+  envKey: string;
+  semver: string;
+  sourceBranch?: string;
+  targetBranch?: string;
+}) {
+  return invokeVersioningOps("apply_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+    sourceBranch,
+    targetBranch,
   });
 }
 
@@ -307,6 +428,31 @@ export async function approveDeployRequest({
     actor,
     forceAdminOverride,
     notes,
+  });
+}
+
+export async function executeDeployRequest({
+  requestId,
+  actor = "android-admin",
+  status = "success",
+  deploymentId = "",
+  logsUrl = "",
+  metadata = {},
+}: {
+  requestId: string;
+  actor?: string;
+  status?: string;
+  deploymentId?: string;
+  logsUrl?: string;
+  metadata?: Record<string, any>;
+}) {
+  return invokeVersioningOps("execute_deploy_request", {
+    requestId,
+    actor,
+    status,
+    deploymentId,
+    logsUrl,
+    metadata,
   });
 }
 
@@ -394,5 +540,39 @@ export async function syncReleaseBranch({
     operation,
     pullNumber,
     commentBody,
+  });
+}
+
+export async function fetchEnvConfigVersions({
+  productKey = "",
+  envKey = "",
+  semver = "",
+  releaseId = "",
+  configKey = "",
+  limit = 80,
+} = {}) {
+  return invokeVersioningOps("fetch_env_config_versions", {
+    productKey,
+    envKey,
+    semver,
+    releaseId,
+    configKey,
+    limit,
+  });
+}
+
+export async function cancelLocalArtifactSyncRequest({
+  requestId,
+  errorDetail = "cancelled_by_user",
+  metadata = {},
+}: {
+  requestId: string;
+  errorDetail?: string;
+  metadata?: Record<string, any>;
+}) {
+  return invokeVersioningOps("cancel_local_artifact_sync", {
+    requestId,
+    errorDetail,
+    metadata,
   });
 }
