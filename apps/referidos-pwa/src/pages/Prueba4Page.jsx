@@ -283,9 +283,9 @@ function LogoMark() {
   );
 }
 
-function FauxSelect({ text, width = "auto" }) {
+function FauxSelect({ text }) {
   return (
-    <div className="prueba4-select" style={{ width }}>
+    <div className="prueba4-select">
       <span>{text}</span>
       <IconChevron />
     </div>
@@ -366,15 +366,15 @@ export default function Prueba4Page() {
                 <div className="prueba4-condition-row">
                   <div className="prueba4-inline-icon"><IconPurchase /></div>
                   <span>Compra</span>
-                  <FauxSelect text="2" width="70px" />
+                  <FauxSelect text="2" />
                   <span className="prueba4-inline-x">×</span>
-                  <FauxSelect text="1" width="58px" />
+                  <FauxSelect text="1" />
                   <span>y lleva gratis</span>
                 </div>
                 <div className="prueba4-condition-row">
                   <div className="prueba4-inline-icon"><IconGift /></div>
                   <span>Gratis</span>
-                  <FauxSelect text="1" width="70px" />
+                  <FauxSelect text="1" />
                   <div className="prueba4-chip-input">Ejemplo: Refresco 350ml</div>
                 </div>
               </div>
@@ -386,7 +386,7 @@ export default function Prueba4Page() {
                 <div className="prueba4-benefit-row">
                   <div className="prueba4-inline-icon"><IconDiscount /></div>
                   <span>Obtiene</span>
-                  <FauxSelect text="Segundo" width="114px" />
+                  <FauxSelect text="Segundo" />
                   <span>con</span>
                   <div className="prueba4-mini-input">20</div>
                   <span>% de descuento</span>
@@ -395,7 +395,7 @@ export default function Prueba4Page() {
                 <div className="prueba4-benefit-row">
                   <div className="prueba4-inline-icon"><IconGift /></div>
                   <span>Obtiene</span>
-                  <FauxSelect text="Tercero" width="114px" />
+                  <FauxSelect text="Tercero" />
                   <span>gratis.</span>
                   <button className="prueba4-trash" type="button" aria-label="Eliminar"><IconTrash /></button>
                 </div>
@@ -472,6 +472,7 @@ export default function Prueba4Page() {
     </div>
   );
 }
+
 
 
 
