@@ -1012,3 +1012,85 @@
   inset: 14% -12% 4% 52%;
   background: radial-gradient(circle, rgba(108, 120, 166, 0.05) 0%, rgba(108, 120, 166, 0.02) 34%, transparent 62%);
 }
+
+.prueba3-page {
+  --prueba3-scale: 0.67;
+  --prueba3-desktop-height: 1048px;
+  position: relative;
+  overflow-x: hidden;
+  min-height: max(100vh, calc(var(--prueba3-desktop-height) * var(--prueba3-scale)));
+}
+
+.prueba3-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: calc(100% / var(--prueba3-scale));
+  min-height: var(--prueba3-desktop-height);
+  transform: scale(var(--prueba3-scale));
+  transform-origin: top left;
+}
+
+@media (max-width: 1220px) {
+  .prueba3-page {
+    --prueba3-scale: 1;
+    min-height: 100vh;
+  }
+
+  .prueba3-canvas {
+    position: static;
+    width: 100%;
+    min-height: auto;
+    transform: none;
+  }
+}
+
+.prueba3-input--select {
+  min-height: 51px;
+  padding: 0 17px 0 20px;
+}
+
+.prueba3-field--benefits {
+  margin-top: 23px;
+}
+
+.prueba3-primary,
+.prueba3-secondary {
+  height: 46px;
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.prueba3-input--select {
+  min-height: 52px;
+}
+
+.prueba3-field--benefits {
+  margin-top: 25px;
+}
+
+.prueba3-primary,
+.prueba3-secondary {
+  height: 47px;
+  padding: 0 21px;
+  font-size: 15.5px;
+}
+
+.prueba3-input--select {
+  min-height: 50px;
+  padding: 0 17px 0 20px;
+}
+
+.prueba3-field--benefits {
+  margin-top: 19px;
+}
+
+.prueba3-primary,
+.prueba3-secondary {
+  height: 45px;
+  padding: 0 20px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}

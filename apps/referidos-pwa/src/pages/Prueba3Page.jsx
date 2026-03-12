@@ -295,178 +295,181 @@ function FauxSelect({ text, width = "auto" }) {
 export default function Prueba3Page() {
   return (
     <div className="prueba3-page">
-      <header className="prueba3-topbar">
-        <div className="prueba3-topbar__left">
-          <div className="prueba3-brand">
-            <LogoMark />
-            <span>Qrew</span>
-          </div>
-          <div className="prueba3-divider" />
-          <div className="prueba3-title">Panel de promociones</div>
-          <nav className="prueba3-mainnav" aria-label="Secciones">
-            <a className="is-active" href="/prueba3">Crear</a>
-            <a href="/prueba3">Gestionar</a>
-            <a href="/prueba3">Métricas</a>
-          </nav>
-        </div>
-
-        <div className="prueba3-topbar__right">
-          <button className="prueba3-icon-button prueba3-notify" type="button" aria-label="Notificaciones">
-            <IconBell />
-            <span className="prueba3-badge">3</span>
-          </button>
-          <button className="prueba3-icon-button" type="button" aria-label="Ayuda">
-            <IconHelp />
-          </button>
-          <button className="prueba3-icon-button" type="button" aria-label="Ajustes">
-            <IconSettings />
-          </button>
-          <button className="prueba3-profile" type="button" aria-label="Perfil">
-            <span className="prueba3-avatar" aria-hidden="true" />
-            <span>Roberto</span>
-            <IconChevron />
-          </button>
-        </div>
-      </header>
-
-      <main className="prueba3-main">
-        <section className="prueba3-editor">
-          <div className="prueba3-editor__glow" />
-          <div className="prueba3-editor__glow prueba3-editor__glow--secondary" />
-          <div className="prueba3-pill-switch">
-            <button className="is-active" type="button">Básica</button>
-            <button type="button">Avanzada</button>
-          </div>
-
-          <div className="prueba3-field">
-            <label>Título</label>
-            <div className="prueba3-input">
-              <span>Ejemplo: Combo burger + bebida</span>
-              <IconDoc />
+      <div className="prueba3-canvas">
+        <header className="prueba3-topbar">
+          <div className="prueba3-topbar__left">
+            <div className="prueba3-brand">
+              <LogoMark />
+              <span>Qrew</span>
             </div>
+            <div className="prueba3-divider" />
+            <div className="prueba3-title">Panel de promociones</div>
+            <nav className="prueba3-mainnav" aria-label="Secciones">
+              <a className="is-active" href="/prueba3">Crear</a>
+              <a href="/prueba3">Gestionar</a>
+              <a href="/prueba3">Métricas</a>
+            </nav>
           </div>
 
-          <div className="prueba3-field">
-            <label>Descripción</label>
-            <div className="prueba3-textarea">Descripción de la promoción...</div>
-          </div>
-
-          <div className="prueba3-field">
-            <label>Tipo de promoción</label>
-            <div className="prueba3-input prueba3-input--select">
-              <span>Tercer objeto gratis</span>
+          <div className="prueba3-topbar__right">
+            <button className="prueba3-icon-button prueba3-notify" type="button" aria-label="Notificaciones">
+              <IconBell />
+              <span className="prueba3-badge">3</span>
+            </button>
+            <button className="prueba3-icon-button" type="button" aria-label="Ayuda">
+              <IconHelp />
+            </button>
+            <button className="prueba3-icon-button" type="button" aria-label="Ajustes">
+              <IconSettings />
+            </button>
+            <button className="prueba3-profile" type="button" aria-label="Perfil">
+              <span className="prueba3-avatar" aria-hidden="true" />
+              <span>Roberto</span>
               <IconChevron />
-            </div>
+            </button>
           </div>
+        </header>
 
-          <div className="prueba3-field">
-            <label>Condiciones</label>
-            <div className="prueba3-group">
-              <div className="prueba3-condition-row">
-                <div className="prueba3-inline-icon"><IconPurchase /></div>
-                <span>Compra</span>
-                <FauxSelect text="2" width="70px" />
-                <span className="prueba3-inline-x">×</span>
-                <FauxSelect text="1" width="58px" />
-                <span>y lleva gratis</span>
-              </div>
-              <div className="prueba3-condition-row">
-                <div className="prueba3-inline-icon"><IconGift /></div>
-                <span>Gratis</span>
-                <FauxSelect text="1" width="70px" />
-                <div className="prueba3-chip-input">Ejemplo: Refresco 350ml</div>
-              </div>
+        <main className="prueba3-main">
+          <section className="prueba3-editor">
+            <div className="prueba3-editor__glow" />
+            <div className="prueba3-editor__glow prueba3-editor__glow--secondary" />
+            <div className="prueba3-pill-switch">
+              <button className="is-active" type="button">Básica</button>
+              <button type="button">Avanzada</button>
             </div>
-          </div>
 
-          <div className="prueba3-field">
-            <label>Beneficios adicionales</label>
-            <div className="prueba3-group prueba3-group--stacked">
-              <div className="prueba3-benefit-row">
-                <div className="prueba3-inline-icon"><IconDiscount /></div>
-                <span>Obtiene</span>
-                <FauxSelect text="Segundo" width="114px" />
-                <span>con</span>
-                <div className="prueba3-mini-input">20</div>
-                <span>% de descuento</span>
-                <button className="prueba3-trash" type="button" aria-label="Eliminar"><IconTrash /></button>
-              </div>
-              <div className="prueba3-benefit-row">
-                <div className="prueba3-inline-icon"><IconGift /></div>
-                <span>Obtiene</span>
-                <FauxSelect text="Tercero" width="114px" />
-                <span>gratis.</span>
-                <button className="prueba3-trash" type="button" aria-label="Eliminar"><IconTrash /></button>
-              </div>
-            </div>
-          </div>
-
-          <button className="prueba3-add" type="button">
-            <IconPlus />
-            <span>Agregar beneficio</span>
-          </button>
-
-          <div className="prueba3-actions">
-            <div className="prueba3-save-state">
-              <span className="prueba3-save-dot" />
-              <span>Guardado hace 3 min</span>
-            </div>
-            <div className="prueba3-actions__buttons">
-              <button className="prueba3-primary" type="button">
+            <div className="prueba3-field">
+              <label>Título</label>
+              <div className="prueba3-input">
+                <span>Ejemplo: Combo burger + bebida</span>
                 <IconDoc />
-                <span>Guardar borrador</span>
-              </button>
-              <button className="prueba3-secondary" type="button">
-                <IconPlane />
-                <span>Enviar a revisión</span>
-              </button>
+              </div>
             </div>
-          </div>
-        </section>
 
-        <section className="prueba3-preview-wrap">
-          <div className="prueba3-speed-switch">
-            <button className="is-active" type="button">Normal</button>
-            <button type="button">Rápida</button>
-          </div>
-          <a className="prueba3-help-link" href="/prueba3">¿Cómo elegir?</a>
-          <div className="prueba3-dots prueba3-dots--left" />
-          <div className="prueba3-dots prueba3-dots--right" />
+            <div className="prueba3-field">
+              <label>Descripción</label>
+              <div className="prueba3-textarea">Descripción de la promoción...</div>
+            </div>
 
-          <article className="prueba3-card">
-            <div className="prueba3-card__media"><IconImage /></div>
-            <div className="prueba3-card__body">
-              <h1>Título</h1>
-              <p>Descripción...</p>
-              <div className="prueba3-separator" />
-              <section className="prueba3-card__conditions">
-                <h2>Condiciones de la promoción</h2>
-                <div className="prueba3-card__pill">
-                  <IconCheck color="#13a66d" />
-                  <span>
-                    Compra <span className="prueba3-card__tone">2 Ejemplo</span> y obtén el <span className="prueba3-card__tone">Tercer objeto gratis.</span>
-                  </span>
+            <div className="prueba3-field">
+              <label>Tipo de promoción</label>
+              <div className="prueba3-input prueba3-input--select">
+                <span>Tercer objeto gratis</span>
+                <IconChevron />
+              </div>
+            </div>
+
+            <div className="prueba3-field prueba3-field--conditions">
+              <label>Condiciones</label>
+              <div className="prueba3-group">
+                <div className="prueba3-condition-row">
+                  <div className="prueba3-inline-icon"><IconPurchase /></div>
+                  <span>Compra</span>
+                  <FauxSelect text="2" width="70px" />
+                  <span className="prueba3-inline-x">×</span>
+                  <FauxSelect text="1" width="58px" />
+                  <span>y lleva gratis</span>
                 </div>
-                <div className="prueba3-card__pill prueba3-card__pill--alt">
-                  <IconCheck color="#6846d8" />
-                  <span><span className="prueba3-card__accent">20%</span> de descuento en el Segundo objeto*</span>
-                </div>
-              </section>
-              <div className="prueba3-separator" />
-              <div className="prueba3-meta">
-                <div className="prueba3-meta__row">
-                  <IconPin />
-                  <span>Nombre local</span>
-                </div>
-                <div className="prueba3-meta__row">
-                  <IconCalendar />
-                  <span>Hasta DD de MM</span>
+                <div className="prueba3-condition-row">
+                  <div className="prueba3-inline-icon"><IconGift /></div>
+                  <span>Gratis</span>
+                  <FauxSelect text="1" width="70px" />
+                  <div className="prueba3-chip-input">Ejemplo: Refresco 350ml</div>
                 </div>
               </div>
             </div>
-          </article>
-        </section>
-      </main>
+
+            <div className="prueba3-field prueba3-field--benefits">
+              <label>Beneficios adicionales</label>
+              <div className="prueba3-group prueba3-group--stacked">
+                <div className="prueba3-benefit-row">
+                  <div className="prueba3-inline-icon"><IconDiscount /></div>
+                  <span>Obtiene</span>
+                  <FauxSelect text="Segundo" width="114px" />
+                  <span>con</span>
+                  <div className="prueba3-mini-input">20</div>
+                  <span>% de descuento</span>
+                  <button className="prueba3-trash" type="button" aria-label="Eliminar"><IconTrash /></button>
+                </div>
+                <div className="prueba3-benefit-row">
+                  <div className="prueba3-inline-icon"><IconGift /></div>
+                  <span>Obtiene</span>
+                  <FauxSelect text="Tercero" width="114px" />
+                  <span>gratis.</span>
+                  <button className="prueba3-trash" type="button" aria-label="Eliminar"><IconTrash /></button>
+                </div>
+              </div>
+            </div>
+
+            <button className="prueba3-add" type="button">
+              <IconPlus />
+              <span>Agregar beneficio</span>
+            </button>
+
+            <div className="prueba3-actions">
+              <div className="prueba3-save-state">
+                <span className="prueba3-save-dot" />
+                <span>Guardado hace 3 min</span>
+              </div>
+              <div className="prueba3-actions__buttons">
+                <button className="prueba3-primary" type="button">
+                  <IconDoc />
+                  <span>Guardar borrador</span>
+                </button>
+                <button className="prueba3-secondary" type="button">
+                  <IconPlane />
+                  <span>Enviar a revisión</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="prueba3-preview-wrap">
+            <div className="prueba3-speed-switch">
+              <button className="is-active" type="button">Normal</button>
+              <button type="button">Rápida</button>
+            </div>
+            <a className="prueba3-help-link" href="/prueba3">¿Cómo elegir?</a>
+            <div className="prueba3-dots prueba3-dots--left" />
+            <div className="prueba3-dots prueba3-dots--right" />
+
+            <article className="prueba3-card">
+              <div className="prueba3-card__media"><IconImage /></div>
+              <div className="prueba3-card__body">
+                <h1>Título</h1>
+                <p>Descripción...</p>
+                <div className="prueba3-separator" />
+                <section className="prueba3-card__conditions">
+                  <h2>Condiciones de la promoción</h2>
+                  <div className="prueba3-card__pill">
+                    <IconCheck color="#13a66d" />
+                    <span>
+                      Compra <span className="prueba3-card__tone">2 Ejemplo</span> y obtén el <span className="prueba3-card__tone">Tercer objeto gratis.</span>
+                    </span>
+                  </div>
+                  <div className="prueba3-card__pill prueba3-card__pill--alt">
+                    <IconCheck color="#6846d8" />
+                    <span><span className="prueba3-card__accent">20%</span> de descuento en el Segundo objeto*</span>
+                  </div>
+                </section>
+                <div className="prueba3-separator" />
+                <div className="prueba3-meta">
+                  <div className="prueba3-meta__row">
+                    <IconPin />
+                    <span>Nombre local</span>
+                  </div>
+                  <div className="prueba3-meta__row">
+                    <IconCalendar />
+                    <span>Hasta DD de MM</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }
+
