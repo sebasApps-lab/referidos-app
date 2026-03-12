@@ -6,6 +6,7 @@ const PruebaPage = lazy(() => import("./pages/PruebaPage"));
 const Prueba1Page = lazy(() => import("./pages/Prueba1Page"));
 const Prueba2Page = lazy(() => import("./pages/Prueba2Page"));
 const Prueba3Page = lazy(() => import("./pages/Prueba3Page"));
+const Prueba4Page = lazy(() => import("./pages/Prueba4Page"));
 
 export default function AppRoutes() {
   return (
@@ -16,6 +17,7 @@ export default function AppRoutes() {
       <Route path="/prueba1" element={<Prueba1Page />} />
       <Route path="/prueba2" element={<Prueba2Page />} />
       <Route path="/prueba3" element={<Prueba3Page />} />
+      <Route path="/prueba4" element={<Prueba4Page />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
