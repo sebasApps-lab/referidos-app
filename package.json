@@ -53,6 +53,8 @@
     "framer-motion": "^12.23.24",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.553.0",
+    "pupeteer": "^0.0.1",
+    "puppeteer": "^24.39.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-qr-code": "^2.0.14",

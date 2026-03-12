@@ -1,6 +1,6 @@
 ﻿// src/waitlist/WaitlistPage.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { submitWaitlistSignup } from "./waitlistApi";
 import { useHeroMotion } from "./hooks/useHeroMotion";
 import { useSectionScrollMotion } from "./hooks/useSectionScrollMotion";
@@ -195,10 +195,12 @@ const BUSINESS_STEPS = [
   },
 ];
 
-export default function WaitlistPage() {
+export default function WaitlistPage({ forcedMode = null }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const mode = normalizeMode(searchParams.get("mode"));
+  const hasForcedMode = forcedMode === "cliente" || forcedMode === "negocio";
+  const mode = hasForcedMode ? normalizeMode(forcedMode) : normalizeMode(searchParams.get("mode"));
   const [uiMode, setUiMode] = useState(mode);
   const [modeAnimTick, setModeAnimTick] = useState(0);
   const [entryAnimTick, setEntryAnimTick] = useState(0);
@@ -379,16 +381,23 @@ export default function WaitlistPage() {
 
   const handleModeChange = (nextMode) => {
     const normalized = normalizeMode(nextMode);
+    const legacyTargetPath = normalized === "negocio" ? "/negocio-legacy" : "/cliente-legacy";
     if (normalized !== uiMode) {
       pendingModeRef.current = normalized;
       setUiMode(normalized);
       setModeAnimTick((value) => value + 1);
     }
-    const currentParam = searchParams.get("mode");
-    if (currentParam !== normalized) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("mode", normalized);
-      setSearchParams(nextParams, { replace: true });
+    if (hasForcedMode) {
+      if (location.pathname !== legacyTargetPath) {
+        navigate(legacyTargetPath);
+      }
+    } else {
+      const currentParam = searchParams.get("mode");
+      if (currentParam !== normalized) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("mode", normalized);
+        setSearchParams(nextParams, { replace: true });
+      }
     }
     trackEvent(normalized === "cliente" ? "select_mode_cliente" : "select_mode_negocio");
     void ingestPrelaunchEvent("cta_toggle_role", {
@@ -1466,8 +1475,8 @@ export default function WaitlistPage() {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Información</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guía de uso</a>
-                <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
+                <a href="/#platform" className="transition-colors hover:text-[var(--brand-yellow)]">Plataforma</a>
+                <a href="/#about" className="transition-colors hover:text-[var(--brand-yellow)]">Quiénes somos</a>
               </div>
             </div>
 
@@ -1658,3 +1667,6 @@ function AlertIcon() {
     </svg>
   );
 }
+
+
+

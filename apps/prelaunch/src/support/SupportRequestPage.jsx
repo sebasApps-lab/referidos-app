@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   cancelAnonymousSupportThread,
@@ -641,8 +641,8 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Información</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guía de uso</a>
-                <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
+                <a href="/#platform" className="transition-colors hover:text-[var(--brand-yellow)]">Plataforma</a>
+                <a href="/#about" className="transition-colors hover:text-[var(--brand-yellow)]">Quiénes somos</a>
               </div>
             </div>
 
@@ -728,4 +728,5 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     </div>
   );
 }
+
 

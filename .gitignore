@@ -56,3 +56,13 @@ apps/referidos-android/env.local.json
 /.npm-cache-local/
 apps/referidos-app/.npm-cache-local/
 apps/referidos-android/.npm-cache-local/
+/.chrome-shot-profile/
+/.edge-shot-profile/
+/.tmp-pwa-server.cjs
+/.tmp-pwa-server.err
+/.tmp-pwa-server.out
+/.tmp-pwa-server.pid
+/chrome-shot.png
+/shot.png
+/prelaunch-dev.err
+/prelaunch-dev.out

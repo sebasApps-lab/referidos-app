@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
 
@@ -292,8 +292,8 @@ export default function FeedbackPage() {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Informacion</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guia de uso</a>
-                <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
+                <a href="/#platform" className="transition-colors hover:text-[var(--brand-yellow)]">Plataforma</a>
+                <a href="/#about" className="transition-colors hover:text-[var(--brand-yellow)]">Quiénes somos</a>
               </div>
             </div>
 
@@ -320,3 +320,5 @@ export default function FeedbackPage() {
     </div>
   );
 }
+
+
