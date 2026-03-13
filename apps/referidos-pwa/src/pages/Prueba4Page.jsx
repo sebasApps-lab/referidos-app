@@ -334,10 +334,6 @@ export default function Prueba4Page() {
           <section className="prueba4-editor">
             <div className="prueba4-editor__glow" />
             <div className="prueba4-editor__glow prueba4-editor__glow--secondary" />
-            <div className="prueba4-pill-switch">
-              <button className="is-active" type="button">Básica</button>
-              <button type="button">Avanzada</button>
-            </div>
 
             <div className="prueba4-field">
               <label>Título</label>
@@ -431,8 +427,6 @@ export default function Prueba4Page() {
               <button type="button">Rápida</button>
             </div>
             <a className="prueba4-help-link" href="/prueba4">¿Cómo elegir?</a>
-            <div className="prueba4-dots prueba4-dots--left" />
-            <div className="prueba4-dots prueba4-dots--right" />
 
             <article className="prueba4-card">
               <div className="prueba4-card__media"><IconImage /></div>
