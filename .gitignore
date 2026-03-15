@@ -66,3 +66,17 @@ apps/referidos-android/.npm-cache-local/
 /shot.png
 /prelaunch-dev.err
 /prelaunch-dev.out
+# Local capture / preview artifacts
+/.tmp-*.mjs
+/.tmp-*.out
+/.tmp-*.err
+/*-shot.png
+/prueba4-*.png
+
+# macOS junk
+__MACOSX/
+._*
+# Optional raw mockup/source assets not used by the app
+/apps/prelaunch/public/editorial/Free_H_Mockups_Google_Pixel_7a/
+/apps/prelaunch/public/editorial/Free_N_Mockups_Nothing_Phone_2a/
+/apps/prelaunch/public/screenshots/Mockup img *.png

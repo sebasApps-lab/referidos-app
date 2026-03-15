@@ -1,0 +1,900 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300&display=swap");
+
+.figma-prototype {
+  min-height: 100vh;
+  overflow-x: auto;
+  background: #ffffff;
+  color: #24055c;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+}
+
+.figma-prototype *,
+.figma-prototype *::before,
+.figma-prototype *::after {
+  box-sizing: border-box;
+}
+
+.figma-prototype button {
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+}
+
+.figma-prototype svg {
+  display: block;
+}
+
+.figma-prototype__frame {
+  position: relative;
+  width: 1440px;
+  height: 2014px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #fcf3fe 0%, #fcf4fe 25.48%, #fcf4fe 69.23%, #fcf3fe 100%);
+}
+
+.figma-prototype__header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 1440px;
+  height: 50px;
+  padding: 0;
+  background: #ffffff;
+}
+
+.figma-prototype__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 1440px;
+  height: 1764px;
+  padding: 0;
+  isolation: isolate;
+}
+
+.figma-prototype__hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: 1440px;
+  height: 574px;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  z-index: 0;
+}
+
+.figma-prototype__hero-bg {
+  width: 1440px;
+  height: 574px;
+  z-index: 0;
+}
+
+.figma-prototype__hero-bg svg {
+  width: 1440px;
+  height: 574px;
+}
+
+.figma-prototype__hero-content {
+  position: absolute;
+  bottom: -2.76px;
+  left: calc(50% - 1109px / 2 - 10.5px);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 1109px;
+  height: 557px;
+  max-width: 1225.62px;
+  padding: 0;
+  gap: 38.85px;
+  z-index: 1;
+}
+
+.figma-prototype__hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 574px;
+  height: 402px;
+  padding: 0;
+  gap: 7px;
+}
+
+.figma-prototype__eyebrow {
+  width: 229px;
+  height: 43px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 31px;
+  line-height: 140%;
+}
+
+.figma-prototype__hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 574px;
+  height: 352px;
+  padding: 0;
+  gap: 33px;
+}
+
+.figma-prototype__hero-bodytext {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 574px;
+  height: 262px;
+  padding: 0;
+  gap: 11px;
+}
+
+.figma-prototype__hero-bodytext h1 {
+  width: 574px;
+  height: 189px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 45px;
+  line-height: 140%;
+}
+
+.figma-prototype__hero-bodytext p {
+  width: 453px;
+  height: 62px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 19px;
+  line-height: 163.83%;
+}
+
+.figma-prototype__download-button {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 194px;
+  height: 57px;
+  padding: 0;
+  gap: 9px;
+  background: #ffffff;
+  border: 0.925px solid rgba(0, 0, 0, 0.35);
+  border-radius: 18px;
+  cursor: default;
+}
+
+.figma-prototype__download-label,
+.figma-prototype__download-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #24055c;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__download-label {
+  width: 118px;
+  height: 33px;
+}
+
+.figma-prototype__download-arrow {
+  width: 13px;
+  height: 33px;
+}
+
+.figma-prototype__hero-right {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 516px;
+  height: 558px;
+  padding: 18px 0 0;
+  isolation: isolate;
+}
+
+.figma-prototype__phone-column {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 280px;
+  height: 540px;
+  margin: 0 -24px 0 0;
+  padding: 0;
+  gap: 9.25px;
+  z-index: 1;
+}
+
+.figma-prototype__phone-placeholder {
+  width: 280px;
+  height: 540px;
+  background: #d9d9d9;
+  border-radius: 46.25px;
+}
+
+.figma-prototype__signup-column {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 260px;
+  height: 431px;
+  padding: 50px 0 0;
+  z-index: 0;
+}
+
+.figma-prototype__signup-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 260px;
+  height: 381px;
+  padding: 38px 0;
+  gap: 32px;
+  isolation: isolate;
+}
+
+.figma-prototype__signup-card-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.figma-prototype__signup-card-bg svg {
+  width: 260px;
+  height: 381px;
+}
+
+.figma-prototype__signup-card h2 {
+  width: 197px;
+  height: 27px;
+  margin: 0;
+  color: #24055c;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 150.71%;
+  z-index: 1;
+}
+
+.figma-prototype__signup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 260px;
+  height: 151px;
+  padding: 0;
+  gap: 22px;
+  z-index: 2;
+}
+
+.figma-prototype__signup-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 260px;
+  height: 129px;
+  padding: 0;
+  gap: 14px;
+}
+
+.figma-prototype__signup-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 205px;
+  height: 100px;
+  padding: 0;
+  gap: 14px;
+}
+
+.figma-prototype__google-button,
+.figma-prototype__mail-button {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 205px;
+  height: 43px;
+  padding: 9px;
+  gap: 7px;
+  border-radius: 12.95px;
+  cursor: default;
+}
+
+.figma-prototype__google-button {
+  border: 0.925px solid #d5d2e5;
+  background: transparent;
+}
+
+.figma-prototype__mail-button {
+  background: #58179a;
+  border: 0.925px solid #440d90;
+}
+
+.figma-prototype__google-button svg {
+  width: 22.2px;
+  height: 22.2px;
+  flex: none;
+}
+
+.figma-prototype__mail-button svg {
+  width: 24.05px;
+  height: 24.05px;
+  flex: none;
+}
+
+.figma-prototype__google-button span {
+  width: 144px;
+  height: 20px;
+  color: #24055c;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__mail-button span {
+  width: 140px;
+  height: 20px;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__signup-bottom-text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 155px;
+  height: 15px;
+  padding: 0;
+  gap: 3px;
+}
+
+.figma-prototype__signup-bottom-text span {
+  color: #24055c;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__signup-bottom-text span:first-child {
+  width: 90px;
+  height: 15px;
+}
+
+.figma-prototype__signup-bottom-text span:last-child {
+  width: 62px;
+  height: 15px;
+  text-decoration-line: underline;
+}
+
+.figma-prototype__signup-line {
+  width: 260px;
+  height: 0;
+  opacity: 0.15;
+  border: 0.925px solid #000000;
+  transform: rotate(180deg);
+}
+
+.figma-prototype__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1440px;
+  height: 590px;
+  min-height: 590px;
+  padding: 60px 44px 70px 0;
+  z-index: 1;
+}
+
+.figma-prototype__mid-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 1396px;
+  height: 465px;
+  min-height: 465px;
+  max-height: 503px;
+  padding: 0 198px;
+  gap: 44.34px;
+}
+
+.figma-prototype__mid-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 678px;
+  height: 143px;
+  padding: 0;
+  gap: 12px;
+}
+
+.figma-prototype__mid-title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 486px;
+  height: 65px;
+  padding: 0;
+  gap: 11px;
+}
+
+.figma-prototype__mid-title span {
+  width: 131px;
+  height: 65px;
+  color: #4b0d82;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 43px;
+  line-height: 150.71%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__mid-title strong {
+  width: 344px;
+  height: 65px;
+  color: #4b0d82;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 43px;
+  line-height: 150.71%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__mid-heading p {
+  width: 678px;
+  height: 66px;
+  margin: 0;
+  color: #1c0049;
+  opacity: 0.86;
+  text-align: center;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 22px;
+  line-height: 150.71%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__cards {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 1048px;
+  height: 278px;
+  padding: 0;
+  gap: 17.55px;
+}
+
+.figma-prototype__card {
+  position: relative;
+  width: 338px;
+  height: 278px;
+}
+
+.figma-prototype__card-volume {
+  position: absolute;
+  width: 338px;
+  height: 208px;
+  background: #eeddf7;
+  opacity: 0.42;
+  border-radius: 34px;
+}
+
+.figma-prototype__card-surface {
+  box-sizing: border-box;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 338px;
+  height: 212px;
+  padding: 0;
+  gap: 16px;
+  background: #fcf9fd;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  box-shadow:
+    0 0 7.38935px 18.4734px rgba(232, 215, 244, 0.2),
+    0 2.77101px 18.4734px 4.61834px rgba(207, 168, 231, 0.12),
+    0 6.46568px 4.61834px rgba(215, 181, 234, 0.18),
+    inset 0 -2.77101px 9.23669px rgba(233, 221, 243, 0.16),
+    inset 0 0.923669px 1.84734px rgba(255, 255, 255, 0.75);
+  filter: blur(0.369468px);
+  border-radius: 34px;
+}
+
+.figma-prototype__card-glow {
+  position: absolute;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 50%, rgba(241, 231, 247, 0.1) 100%);
+  opacity: 0.14;
+  border-radius: 34px;
+}
+
+.figma-prototype__card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #1c0049;
+  text-align: center;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  line-height: 134%;
+}
+
+.figma-prototype__card p {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin: 0;
+  color: #1c0049;
+  opacity: 0.86;
+  text-align: center;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__card--left .figma-prototype__card-volume {
+  top: 71.63px;
+  left: 0;
+}
+
+.figma-prototype__card--left .figma-prototype__card-surface {
+  top: 65px;
+  left: 0;
+}
+
+.figma-prototype__card--left .figma-prototype__card-glow {
+  top: 71.63px;
+  left: 0;
+  width: 337px;
+  height: 208px;
+}
+
+.figma-prototype__card--left h3 {
+  width: 338px;
+  height: 63px;
+  font-weight: 700;
+  font-size: 24px;
+}
+
+.figma-prototype__card--left p {
+  width: 255px;
+  height: 46px;
+}
+
+.figma-prototype__card--mid .figma-prototype__card-volume {
+  top: 71.63px;
+  left: -0.43px;
+}
+
+.figma-prototype__card--mid .figma-prototype__card-surface {
+  top: 65px;
+  left: -0.43px;
+}
+
+.figma-prototype__card--mid .figma-prototype__card-glow {
+  top: 71.63px;
+  left: -0.43px;
+  width: 338px;
+  height: 208px;
+}
+
+.figma-prototype__card--mid h3 {
+  width: 181px;
+  height: 63px;
+  font-weight: 700;
+  font-size: 24px;
+}
+
+.figma-prototype__card--mid p {
+  width: 338px;
+  height: 46px;
+}
+
+.figma-prototype__card--right .figma-prototype__card-volume {
+  top: 71.63px;
+  left: 0.14px;
+}
+
+.figma-prototype__card--right .figma-prototype__card-surface {
+  top: 65px;
+  left: 0.14px;
+}
+
+.figma-prototype__card--right .figma-prototype__card-glow {
+  top: 71.63px;
+  left: 0.14px;
+  width: 337px;
+  height: 208px;
+}
+
+.figma-prototype__card--right h3 {
+  width: 214px;
+  height: 62px;
+  font-weight: 500;
+  font-size: 23px;
+}
+
+.figma-prototype__card--right p {
+  width: 338px;
+  height: 46px;
+}
+
+.figma-prototype__icon-holder {
+  box-sizing: border-box;
+  position: absolute;
+  width: 112px;
+  height: 86px;
+  background: #fcf8fe;
+  border: 0.5px solid #000000;
+  border-radius: 15px;
+}
+
+.figma-prototype__card--left .figma-prototype__icon-holder {
+  top: 5.63px;
+  left: 113px;
+}
+
+.figma-prototype__card--mid .figma-prototype__icon-holder {
+  top: 7.63px;
+  left: 110.57px;
+}
+
+.figma-prototype__card--right .figma-prototype__icon-holder {
+  top: 7.63px;
+  left: 105.14px;
+}
+
+.figma-prototype__icon-holder span {
+  position: absolute;
+  top: 57.27px;
+  left: 43.41px;
+  width: 35px;
+  height: 22px;
+  color: #000000;
+  text-align: center;
+  font-family: "Roboto", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 14.7787px;
+  line-height: 150.71%;
+}
+
+.figma-prototype__icon-cross {
+  position: absolute;
+  left: 3.7px;
+  height: 0;
+  border-top: 0.923669px solid #000000;
+}
+
+.figma-prototype__icon-cross--one {
+  top: 7px;
+  width: 127.81px;
+  transform: rotate(-34.52deg);
+}
+
+.figma-prototype__icon-cross--two {
+  top: 7.39px;
+  width: 127.35px;
+  transform: rotate(34.22deg);
+}
+
+.figma-prototype__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 1440px;
+  height: 600px;
+  min-height: 600px;
+  padding: 50px 188px 160px;
+  background: #150444;
+  z-index: 2;
+}
+
+.figma-prototype__bottom-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 1064px;
+  height: 390px;
+  min-width: 1057.6px;
+  max-width: 1158.28px;
+  max-height: 424px;
+  padding: 0;
+  gap: 96.06px;
+}
+
+.figma-prototype__subscribe-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: 532px;
+  height: 390px;
+  margin: 0 auto;
+  padding: 0 0 100px;
+  gap: 26px;
+}
+
+.figma-prototype__subscribe-block h2 {
+  display: flex;
+  flex-direction: column;
+  width: 516px;
+  height: 98px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 44px;
+  line-height: 117%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__subscribe-block h2 span {
+  white-space: nowrap;
+}
+
+.figma-prototype__email-input {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 532px;
+  height: 150px;
+  padding: 0;
+  gap: 16px;
+}
+
+.figma-prototype__email-input > p {
+  width: 532px;
+  height: 27px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 150.71%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__input-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 532px;
+  height: 107px;
+  padding: 0;
+  gap: 17px;
+}
+
+.figma-prototype__input-row {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 532px;
+  height: 73px;
+  padding: 15px 18px 15px 30px;
+  gap: 65px;
+  isolation: isolate;
+  background: #ffffff;
+  border-radius: 38px;
+}
+
+.figma-prototype__input-row > span {
+  width: 223px;
+  height: 30px;
+  color: rgba(32, 6, 106, 0.71);
+  text-shadow: 0 0.923669px 1.75497px rgba(184, 138, 230, 0.48);
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 20px;
+  line-height: 150.71%;
+  letter-spacing: 0.03em;
+  z-index: 0;
+}
+
+.figma-prototype__input-row button {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 206px;
+  height: 43px;
+  padding: 0;
+  background: #40c678;
+  border: 1px solid #43be73;
+  border-radius: 24px;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 150%;
+  z-index: 1;
+  cursor: default;
+}
+
+.figma-prototype__input-glow {
+  position: absolute;
+  top: 15.12px;
+  left: 312.57px;
+  width: 206px;
+  height: 43px;
+  background: linear-gradient(26.41deg, rgba(255, 255, 255, 0) 16.66%, rgba(255, 255, 255, 0.13) 47.57%, rgba(255, 255, 255, 0.35) 78.47%);
+  opacity: 0.68;
+  z-index: 2;
+}
+
+.figma-prototype__legal-copy {
+  width: 532px;
+  height: 17px;
+  margin: 0;
+  color: #ffffff;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 150.71%;
+  filter: blur(0.277101px);
+}
+
+.figma-prototype__legal-copy span {
+  text-decoration-line: underline;
+}
+
+.figma-prototype__promo-placeholder {
+  width: 428px;
+  height: 390px;
+  margin: 0 auto;
+  background: #d9d9d9;
+  border-radius: 24px;
+}
+
+.figma-prototype__footer {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 1440px;
+  height: 200px;
+  padding: 0;
+  background: #ffffff;
+}
