@@ -5,16 +5,8 @@ const featureCards = [
   {
     key: "explora",
     modifier: "anima-prototype__feature-card--explora",
-    iconLeftWidth: 106,
-    iconLeftHeight: 73,
-    iconLeftTop: 6,
-    iconLeftLeft: 3,
-    iconLeftRotate: -34.52,
-    iconRightWidth: 106,
-    iconRightHeight: 72,
-    iconRightTop: 7,
-    iconRightLeft: 4,
-    iconRightRotate: 34.22,
+    iconSrc: "/icons/icon-1.png",
+    iconAlt: "Icono de regalo",
     title: (
       <p className="anima-prototype__feature-title anima-prototype__feature-title--explora">
         <span className="anima-prototype__feature-title-bold">Explora</span>
@@ -36,16 +28,8 @@ const featureCards = [
   {
     key: "puntos",
     modifier: "anima-prototype__feature-card--puntos",
-    iconLeftWidth: 106,
-    iconLeftHeight: 72,
-    iconLeftTop: 7,
-    iconLeftLeft: 4,
-    iconLeftRotate: -34.52,
-    iconRightWidth: 106,
-    iconRightHeight: 72,
-    iconRightTop: 7,
-    iconRightLeft: 4,
-    iconRightRotate: 34.22,
+    iconSrc: "/icons/icon-2.png",
+    iconAlt: "Icono de puntos y recompensas",
     title: (
       <p className="anima-prototype__feature-title anima-prototype__feature-title--puntos">
         <span className="anima-prototype__feature-title-bold">Gana puntos</span>
@@ -66,16 +50,8 @@ const featureCards = [
   {
     key: "progreso",
     modifier: "anima-prototype__feature-card--progreso",
-    iconLeftWidth: 106,
-    iconLeftHeight: 73,
-    iconLeftTop: 6,
-    iconLeftLeft: 3,
-    iconLeftRotate: -34.52,
-    iconRightWidth: 106,
-    iconRightHeight: 72,
-    iconRightTop: 7,
-    iconRightLeft: 4,
-    iconRightRotate: 34.22,
+    iconSrc: "/icons/icon-3.png",
+    iconAlt: "Icono de progreso",
     title: (
       <p className="anima-prototype__feature-title anima-prototype__feature-title--progreso">
         Sigue tu progreso
@@ -92,6 +68,9 @@ const featureCards = [
     ),
   },
 ];
+
+const heroBgPath =
+  "M0 0H1440V496.565L1363.82 513.913C1363.82 513.913 1310.25 524.7 1275.64 529.886C1231.51 536.499 1206.52 538.532 1162.06 542.42C1116.53 546.403 1090.87 546.969 1045.26 549.91C942.842 556.514 885.552 562.533 783.02 567.03C691.669 571.037 640.379 571.732 548.945 572.838C461.867 573.892 413.013 574.816 325.951 572.838C285.551 571.92 262.856 572.019 222.533 569.398C189.651 567.261 164.18 565.995 131.506 561.754C100.87 557.778 90.4203 554.397 60.4809 548.76C29.0504 542.841 0 536.529 0 536.529V0Z";
 
 export default function AnimaPrototypePage() {
   useEffect(() => {
@@ -163,7 +142,15 @@ function AnimaAppIntroductionSection() {
 
         <div className="anima-prototype__hero-visual">
           <div className="anima-prototype__hero-phone-stack">
-            <div className="anima-prototype__hero-phone-placeholder" />
+            <div className="anima-prototype__hero-phone-mockup">
+              <div className="anima-prototype__hero-phone-glow" aria-hidden="true" />
+              <img
+                className="anima-prototype__hero-phone-device"
+                src="/devices/Nothing%20Phone%202a.png"
+                alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
+                loading="eager"
+              />
+            </div>
           </div>
 
           <div className="anima-prototype__hero-signup-stack">
@@ -241,16 +228,8 @@ function AnimaFeaturesHighlightSection() {
 
               <CardIconPlaceholder
                 modifier={feature.modifier}
-                leftWidth={feature.iconLeftWidth}
-                leftHeight={feature.iconLeftHeight}
-                leftTop={feature.iconLeftTop}
-                leftLeft={feature.iconLeftLeft}
-                leftRotate={feature.iconLeftRotate}
-                rightWidth={feature.iconRightWidth}
-                rightHeight={feature.iconRightHeight}
-                rightTop={feature.iconRightTop}
-                rightLeft={feature.iconRightLeft}
-                rightRotate={feature.iconRightRotate}
+                iconSrc={feature.iconSrc}
+                iconAlt={feature.iconAlt}
               />
             </div>
           ))}
@@ -318,42 +297,11 @@ function AnimaSubscriptionCallToActionSection() {
   );
 }
 
-function CardIconPlaceholder({
-  modifier,
-  leftWidth,
-  leftHeight,
-  leftTop,
-  leftLeft,
-  leftRotate,
-  rightWidth,
-  rightHeight,
-  rightTop,
-  rightLeft,
-  rightRotate,
-}) {
+function CardIconPlaceholder({ modifier, iconSrc, iconAlt }) {
   return (
     <div className={`anima-prototype__icon-placeholder ${modifier}`}>
-      <div className="anima-prototype__icon-placeholder-label">ICON</div>
-      <span
-        className="anima-prototype__icon-placeholder-line"
-        style={{
-          width: `${leftWidth}px`,
-          height: `${leftHeight}px`,
-          top: `${leftTop}px`,
-          left: `${leftLeft}px`,
-          transform: `rotate(${leftRotate}deg)`,
-        }}
-      />
-      <span
-        className="anima-prototype__icon-placeholder-line"
-        style={{
-          width: `${rightWidth}px`,
-          height: `${rightHeight}px`,
-          top: `${rightTop}px`,
-          left: `${rightLeft}px`,
-          transform: `rotate(${rightRotate}deg)`,
-        }}
-      />
+      <span className="anima-prototype__icon-blob" aria-hidden="true" />
+      <img className="anima-prototype__icon-image" src={iconSrc} alt={iconAlt} loading="lazy" />
     </div>
   );
 }
@@ -368,10 +316,20 @@ function HeroBgVector() {
       xmlns="http://www.w3.org/2000/svg"
       preserveAspectRatio="none"
     >
-      <path
-        d="M0 0H1440V496.565L1363.82 513.913C1363.82 513.913 1310.25 524.7 1275.64 529.886C1231.51 536.499 1206.52 538.532 1162.06 542.42C1116.53 546.403 1090.87 546.969 1045.26 549.91C942.842 556.514 885.552 562.533 783.02 567.03C691.669 571.037 640.379 571.732 548.945 572.838C461.867 573.892 413.013 574.816 325.951 572.838C285.551 571.92 262.856 572.019 222.533 569.398C189.651 567.261 164.18 565.995 131.506 561.754C100.87 557.778 90.4203 554.397 60.4809 548.76C29.0504 542.841 0 536.529 0 536.529V0Z"
-        fill="#2F0663"
-      />
+      <defs>
+        <clipPath id="animaPrototypeHeroBgClip">
+          <path d={heroBgPath} />
+        </clipPath>
+      </defs>
+
+      <g clipPath="url(#animaPrototypeHeroBgClip)">
+        <image
+          href="/editorial/landing-waitlist/landing-hero-2-bg.png"
+          width="1440"
+          height="574"
+          preserveAspectRatio="xMidYMid slice"
+        />
+      </g>
     </svg>
   );
 }

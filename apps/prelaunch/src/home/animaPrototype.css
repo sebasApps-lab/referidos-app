@@ -71,7 +71,7 @@
   align-self: stretch;
   width: 1440px;
   height: 574px;
-  overflow: hidden;
+  overflow: visible;
   z-index: 0;
 }
 
@@ -209,12 +209,30 @@
   z-index: 1;
 }
 
-.anima-prototype__hero-phone-placeholder {
+.anima-prototype__hero-phone-mockup {
   position: relative;
   width: 280px;
   height: 540px;
-  background: #d9d9d9;
-  border-radius: 46.25px;
+}
+
+.anima-prototype__hero-phone-glow {
+  position: absolute;
+  inset: 18px 12px -6px;
+  border-radius: 48px;
+  background: radial-gradient(circle at 50% 35%, rgba(133, 82, 233, 0.34) 0%, rgba(133, 82, 233, 0.14) 36%, rgba(133, 82, 233, 0) 76%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.anima-prototype__hero-phone-device {
+  position: absolute;
+  top: -57px;
+  left: -110px;
+  width: 523px;
+  height: 654px;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .anima-prototype__hero-signup-stack {
@@ -657,9 +675,7 @@
   top: 8px;
   width: 112px;
   height: 86px;
-  background: #fcf8fe;
-  border: 0.5px solid #000000;
-  border-radius: 15px;
+  overflow: visible;
 }
 
 .anima-prototype__feature-card--explora .anima-prototype__icon-placeholder {
@@ -674,23 +690,66 @@
   left: 105px;
 }
 
-.anima-prototype__icon-placeholder-label {
-  position: absolute;
-  top: 57px;
-  left: 43px;
-  color: #000000;
-  font-family: "Roboto", "Segoe UI", sans-serif;
-  font-weight: 300;
-  font-size: 14.8px;
-  line-height: 22.3px;
-  text-align: center;
-  white-space: nowrap;
+.anima-prototype__icon-image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
 }
 
-.anima-prototype__icon-placeholder-line {
+.anima-prototype__feature-card--explora .anima-prototype__icon-image {
+  width: 95px;
+  height: 95px;
+  margin-top: -11px;
+  margin-left: 6px;
+}
+
+.anima-prototype__feature-card--puntos .anima-prototype__icon-image {
+  width: 103px;
+  height: 95px;
+  margin-top: -8px;
+  margin-left: 1px;
+}
+
+.anima-prototype__feature-card--progreso .anima-prototype__icon-image {
+  width: 95px;
+  height: 88px;
+  margin-top: -2px;
+  margin-left: 8px;
+}
+
+.anima-prototype__icon-blob {
   position: absolute;
-  border-top: 0.92px solid #000000;
-  transform-origin: center;
+  right: 10px;
+  bottom: 3px;
+  z-index: 1;
+  border-radius: 999px;
+  filter: blur(18px);
+  opacity: 0.46;
+  transform: translate(18%, 26%);
+  pointer-events: none;
+}
+
+.anima-prototype__feature-card--explora .anima-prototype__icon-blob {
+  width: 66px;
+  height: 46px;
+  background: radial-gradient(circle at 35% 40%, rgba(179, 118, 255, 0.7) 0%, rgba(133, 56, 232, 0.48) 44%, rgba(105, 33, 203, 0.14) 72%, rgba(105, 33, 203, 0) 100%);
+}
+
+.anima-prototype__feature-card--puntos .anima-prototype__icon-blob {
+  width: 74px;
+  height: 50px;
+  background: radial-gradient(circle at 35% 40%, rgba(120, 225, 185, 0.6) 0%, rgba(73, 196, 255, 0.42) 46%, rgba(56, 134, 255, 0.16) 74%, rgba(56, 134, 255, 0) 100%);
+}
+
+.anima-prototype__feature-card--progreso .anima-prototype__icon-blob {
+  width: 68px;
+  height: 48px;
+  background: radial-gradient(circle at 35% 40%, rgba(112, 198, 255, 0.62) 0%, rgba(71, 132, 255, 0.44) 48%, rgba(59, 96, 255, 0.15) 74%, rgba(59, 96, 255, 0) 100%);
 }
 
 .anima-prototype__subscription {
