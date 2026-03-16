@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import "./figmaPrototype.css";
 
 const navigationLinks = [
   "Como funciona",
-  "Recibir invitaci\u00f3n",
+  "Recibir invitacion",
   "Para negocios",
 ];
 
@@ -12,15 +12,16 @@ const benefitCards = [
     key: "correo",
     title: (
       <>
-        <span className="figma-prototype__benefit-title-bold">A\u00f1ade</span>
-        <span className="figma-prototype__benefit-title-light"> tu correo</span>
-        <br />
-        <span className="figma-prototype__benefit-title-light">a la lista</span>
+        <span className="figma-prototype__benefit-title-bold">Anade</span>
+        <span className="figma-prototype__benefit-title-medium">
+          {" "}tu correo
+          <br />a la lista
+        </span>
       </>
     ),
-    body: (
+    description: (
       <>
-        Espera y recibe la invitaci\u00f3n
+        Espera y recibe la invitacion
         <br />
         para descargar la app.
       </>
@@ -31,12 +32,14 @@ const benefitCards = [
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Descarga</span>
-        <span className="figma-prototype__benefit-title-light"> y recibe</span>
-        <br />
-        <span className="figma-prototype__benefit-title-light">tu recompensas</span>
+        <span className="figma-prototype__benefit-title-regular">
+          {" "}y recibe
+          <br />
+          tu recompensas
+        </span>
       </>
     ),
-    body: (
+    description: (
       <>
         Recibe tus beneficios extra por
         <br />
@@ -48,16 +51,17 @@ const benefitCards = [
     key: "puntos",
     title: (
       <>
-        <span className="figma-prototype__benefit-title-bold">Gana puntos</span>
-        <br />
+        <span className="figma-prototype__benefit-title-bold">Gana puntos </span>
+        <span className="figma-prototype__benefit-title-regular">
+          <br />
+        </span>
         <span className="figma-prototype__benefit-title-medium">y recompensas</span>
       </>
     ),
-    body: (
+    description: (
       <>
         Canjea promociones, suma puntos
-        <br />
-        y obt\u00e9n m\u00e1s beneficios.
+        <br />y obten mas beneficios.
       </>
     ),
   },
@@ -71,7 +75,10 @@ const promoCards = [
     description:
       "En compras de locales de comida y locales de diferentes productos y servicios.",
     until: "01 Abril",
-    thumb: "/editorial/v4-shop-owners.jpg",
+    shadowSrc: "/assets/bottom-card-shadow.svg",
+    bgSrc: "/assets/card-bg.svg",
+    dividerSrc: "/assets/bottom-card-dotted-line.svg",
+    qrSrc: "/assets/icons/qr-code.svg",
   },
   {
     key: "regalos",
@@ -80,7 +87,10 @@ const promoCards = [
     description:
       "Regalos por realizar compras de ciertos productos o por superar cierto valor de compra.",
     until: "16 de Sept.",
-    thumb: "/editorial/v5-cafe-customer.jpg",
+    shadowSrc: "/assets/card-shadow.svg",
+    bgSrc: "/assets/card-bg.svg",
+    dividerSrc: "/assets/Line%206.svg",
+    qrSrc: "/assets/icons/qr-code.svg",
   },
   {
     key: "dos-por-uno",
@@ -89,18 +99,21 @@ const promoCards = [
     description:
       "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y mas.",
     until: "22 de Abril",
-    thumb: "/editorial/v4-qr-checkout.jpg",
+    shadowSrc: "/assets/card-shadow.svg",
+    bgSrc: "/assets/card-bg.svg",
+    dividerSrc: "/assets/Line%206.svg",
+    qrSrc: "/assets/icons/qr-code.svg",
   },
 ];
 
 const footerColumns = [
   {
-    title: "INFORMACI\u00d3N",
-    links: ["Plataforma", "Qui\u00e9nes somos"],
+    title: "INFORMACION",
+    links: ["Plataforma", "Quienes somos"],
   },
   {
     title: "LEGAL",
-    links: ["Privacidad", "T\u00e9rminos y Condiciones", "Borrar mis datos"],
+    links: ["Privacidad", "Terminos y Condiciones", "Borrar mis datos"],
   },
   {
     title: "CONTACTO",
@@ -109,24 +122,6 @@ const footerColumns = [
 ];
 
 export default function FigmaPrototypePage() {
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const previousHtmlOverflow = html.style.overflowX;
-    const previousBodyOverflow = body.style.overflowX;
-    const previousBodyBackground = body.style.background;
-
-    html.style.overflowX = "auto";
-    body.style.overflowX = "auto";
-    body.style.background = "#ffffff";
-
-    return () => {
-      html.style.overflowX = previousHtmlOverflow;
-      body.style.overflowX = previousBodyOverflow;
-      body.style.background = previousBodyBackground;
-    };
-  }, []);
-
   return (
     <main className="figma-prototype" aria-label="Figma prototype v2">
       <div className="figma-prototype__shell">
@@ -135,8 +130,10 @@ export default function FigmaPrototypePage() {
           <HeroPromoSection />
         </section>
         <BenefitsOverviewSection />
-        <WaitlistCallToActionSection />
-        <FooterLinksSection />
+        <section className="figma-prototype__bottom-band">
+          <WaitlistSignupSection />
+          <FooterLinksSection />
+        </section>
       </div>
     </main>
   );
@@ -165,81 +162,95 @@ function NavigationHeaderSection() {
 function HeroPromoSection() {
   return (
     <section className="figma-prototype__hero">
-      <div className="figma-prototype__hero-bg" aria-hidden="true">
-        <img src="/assets/bg-mask.svg" alt="" />
+      <div className="figma-prototype__hero-shadow-group" aria-hidden="true">
+        <img className="figma-prototype__hero-shadow-pink-glow" src="/assets/shadow-pink-glow.svg" alt="" />
+        <img className="figma-prototype__hero-shadow-pink-base" src="/assets/shadow-pink-base.svg" alt="" />
+        <img className="figma-prototype__hero-shadow-purple-glow" src="/assets/shadow-purple-glow.svg" alt="" />
+        <img className="figma-prototype__hero-shadow-purple-base" src="/assets/shadow-purple-base.svg" alt="" />
       </div>
 
-      <div className="figma-prototype__hero-shadow-stack" aria-hidden="true">
-        <img src="/assets/bottom-shadow.svg" alt="" />
+      <div className="figma-prototype__hero-bg" aria-hidden="true">
+        <img src="/assets/bg-mask-group.svg" alt="" />
       </div>
 
       <div className="figma-prototype__hero-content">
         <div className="figma-prototype__hero-copy">
-          <p className="figma-prototype__hero-title">
-            Descubre y comparte
-            <br />
-            ofertas, gana
-            <br />
-            recompensas f&aacute;cilmente
-          </p>
+          <div className="figma-prototype__hero-copy-stack">
+            <div className="figma-prototype__hero-copy-body">
+              <p className="figma-prototype__hero-title">
+                Descubre y comparte
+                <br />
+                ofertas, gana
+                <br />
+                recompensas facilmente
+              </p>
 
-          <p className="figma-prototype__hero-subtitle">
-            <span>Participa en el </span>
-            <strong>acceso anticipado</strong>
-            <span>
-              {" "}
-              de la app y recibe
-              <br />
-              beneficios extra, solo por usar la aplicaci&oacute;n.
-            </span>
-          </p>
+              <p className="figma-prototype__hero-subtitle">
+                <span>Participa en el </span>
+                <strong>acceso anticipado</strong>
+                <span>
+                  {" "}de la app y recibe
+                  <br />
+                  beneficios extra, solo por usar la aplicacion.
+                </span>
+              </p>
+            </div>
 
-          <button className="figma-prototype__hero-button" type="button">
-            <span>Entrar a la lista de espera</span>
-            <span aria-hidden="true">&gt;</span>
-          </button>
+            <button className="figma-prototype__hero-button" type="button">
+              <span>Entrar a la lista de espera</span>
+              <span aria-hidden="true">&gt;</span>
+            </button>
+          </div>
         </div>
 
-        <div className="figma-prototype__hero-visual">
-          <div className="figma-prototype__hero-phone">
-            <img className="figma-prototype__hero-phone-glow" src="/assets/phone-glow.svg" alt="" aria-hidden="true" />
-            <img
-              src="/assets/Nothing%20Phone%202a%202.png"
-              alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
-              loading="eager"
-            />
+          <div className="figma-prototype__hero-visual">
+            <div className="figma-prototype__hero-phone">
+              <img
+                className="figma-prototype__hero-phone-device"
+                src="/assets/Nothing%20Phone%202a%202.png"
+                alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
+                loading="eager"
+              />
+            </div>
+
+            <img className="figma-prototype__hero-phone-back-shadow" src="/assets/phone-back-shadow.svg" alt="" aria-hidden="true" />
+
+            <div className="figma-prototype__signup-card-wrap">
+              <aside className="figma-prototype__signup-card">
+              <img className="figma-prototype__signup-card-blur" src="/assets/sign-up-card-glow.svg" alt="" aria-hidden="true" />
+              <div className="figma-prototype__signup-card-bg" aria-hidden="true">
+                <SignupCardSvg />
+              </div>
+
+              <h2>Crea tu cuenta gratis</h2>
+
+              <div className="figma-prototype__signup-body-line">
+                <div className="figma-prototype__signup-body">
+                  <div className="figma-prototype__signup-actions">
+                    <button className="figma-prototype__signup-button figma-prototype__signup-button--google" type="button">
+                      <GoogleMark />
+                      <span>Continuar con Google</span>
+                    </button>
+
+                    <button className="figma-prototype__signup-button figma-prototype__signup-button--mail" type="button">
+                      <MailMark />
+                      <span>Continuar con correo</span>
+                    </button>
+                  </div>
+
+                  <div className="figma-prototype__signup-bottom-text">
+                    <p className="figma-prototype__signup-note">
+                      Si ya tienes una cuenta, ten paciencia
+                      <br />
+                      recibiras tu invitacion pronto.
+                    </p>
+                  </div>
+                </div>
+
+                <img className="figma-prototype__signup-line" src="/assets/hero-register-card-line.png" alt="" aria-hidden="true" />
+              </div>
+            </aside>
           </div>
-
-          <img className="figma-prototype__hero-card-rail" src="/assets/phone-shadow.svg" alt="" aria-hidden="true" />
-
-          <aside className="figma-prototype__signup-card">
-            <img className="figma-prototype__signup-card-blur" src="/assets/sign-up-card-glow.svg" alt="" aria-hidden="true" />
-            <div className="figma-prototype__signup-card-bg" aria-hidden="true">
-              <SignupCardSvg />
-            </div>
-
-            <h2>Crea tu cuenta gratis</h2>
-
-            <div className="figma-prototype__signup-actions">
-              <button className="figma-prototype__signup-button figma-prototype__signup-button--google" type="button">
-                <GoogleMark />
-                <span>Continuar con Google</span>
-              </button>
-
-              <button className="figma-prototype__signup-button figma-prototype__signup-button--mail" type="button">
-                <MailMark />
-                <span>Continuar con correo</span>
-              </button>
-            </div>
-
-            <p className="figma-prototype__signup-note">
-              Si ya tienes una cuenta, ten paciencia
-              <br />
-              recibir&aacute;s tu invitaci&oacute;n pronto.
-            </p>
-
-            <div className="figma-prototype__signup-line" aria-hidden="true" />
-          </aside>
         </div>
       </div>
     </section>
@@ -252,13 +263,13 @@ function BenefitsOverviewSection() {
       <div className="figma-prototype__benefits-inner">
         <div className="figma-prototype__benefits-heading">
           <div className="figma-prototype__benefits-title">
-            <span>As&iacute; de</span>
-            <strong>r&aacute;pido y simple</strong>
+            <span>Asi de</span>
+            <strong>rapido y simple</strong>
           </div>
 
           <p>
             <span>
-              Entra en la lista de espera para recibir tu invitaci&oacute;n, descarga la app una vez este disponible y{" "}
+              Entra en la lista de espera para recibir tu invitacion, descarga la app una vez este disponible y{" "}
             </span>
             <span className="figma-prototype__benefits-heading-regular">recibe beneficios</span>
             <span className="figma-prototype__benefits-heading-strong">!</span>
@@ -269,12 +280,14 @@ function BenefitsOverviewSection() {
           {benefitCards.map((card) => (
             <article key={card.key} className={`figma-prototype__benefit-card figma-prototype__benefit-card--${card.key}`}>
               <div className="figma-prototype__benefit-shadow" aria-hidden="true" />
+
               <div className="figma-prototype__benefit-surface">
-                <BenefitIcon type={card.key} />
-                <h3>{card.title}</h3>
-                <p>{card.body}</p>
+                <h3 className="figma-prototype__benefit-title-content">{card.title}</h3>
+                <p className="figma-prototype__benefit-description">{card.description}</p>
               </div>
+
               <div className="figma-prototype__benefit-gloss" aria-hidden="true" />
+              <BenefitIcon type={card.key} />
             </article>
           ))}
         </div>
@@ -285,66 +298,69 @@ function BenefitsOverviewSection() {
 
 function BenefitIcon({ type }) {
   const srcMap = {
-    correo: "/assets/icons/icon-mail-blue-shadow-2.png",
-    recompensas: "/assets/icons/icon2.1.png",
-    puntos: "/assets/icons/icon3.png",
+    correo: "/assets/icons/icon-mail-blue.png",
+    recompensas: "/assets/icons/icon-gift.png",
+    puntos: "/assets/icons/icon-coins.png",
   };
-
-  const altMap = {
-    correo: "Icono de correo",
-    recompensas: "Icono de descarga y recompensas",
-    puntos: "Icono de puntos",
+  const shadowMap = {
+    correo: "/assets/mid-card-icon-shadow-1.svg",
+    recompensas: "/assets/mid-card-icon-shadow-2.svg",
+    puntos: "/assets/mid-card-icon-shadow-3.svg",
   };
 
   return (
     <div className={`figma-prototype__benefit-icon figma-prototype__benefit-icon--${type}`} aria-hidden="true">
-      <span className="figma-prototype__benefit-icon-shadow" />
-      <img src={srcMap[type]} alt={altMap[type]} loading="lazy" />
+      <img className="figma-prototype__benefit-icon-shadow" src={shadowMap[type]} alt="" />
+      <img src={srcMap[type]} alt="" loading="lazy" />
     </div>
   );
 }
 
-function WaitlistCallToActionSection() {
+function WaitlistSignupSection() {
   const [email, setEmail] = useState("");
 
   return (
     <section className="figma-prototype__waitlist">
       <div className="figma-prototype__waitlist-bg" aria-hidden="true" />
-      <div className="figma-prototype__waitlist-glow" aria-hidden="true" />
+      <div className="figma-prototype__waitlist-glow" aria-hidden="true">
+        <img src="/assets/glow-bottom-section.svg" alt="" />
+      </div>
 
       <div className="figma-prototype__waitlist-content">
         <div className="figma-prototype__waitlist-copy">
-          <h2>
+          <p className="figma-prototype__waitlist-title">
             No te quedes sin un puesto
             <br />
             para participar
-          </h2>
-
-          <p className="figma-prototype__waitlist-subtitle">
-            Los puestos son limitados, entra en la lista de espera
           </p>
 
-          <div className="figma-prototype__waitlist-form">
-            <div className="figma-prototype__waitlist-inputRow">
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="Tu correo electr\u00f3nico"
-              />
-
-              <div className="figma-prototype__waitlist-buttonWrap">
-                <button type="button">A\u00f1adir correo</button>
-                <span className="figma-prototype__waitlist-buttonGlow" aria-hidden="true" />
-              </div>
-            </div>
-
-            <p className="figma-prototype__waitlist-legal">
-              <span>Al suscribirte, aceptas los </span>
-              <span className="figma-prototype__waitlist-legal-link">t&eacute;rminos y condiciones</span>
-              <span>, adem&aacute;s de las </span>
-              <span className="figma-prototype__waitlist-legal-link">Pol&iacute;ticas de Privacidad</span>
+          <div className="figma-prototype__waitlist-copy-stack">
+            <p className="figma-prototype__waitlist-subtitle">
+              Los puestos son limitados, entra en la lista de espera
             </p>
+
+            <div className="figma-prototype__waitlist-form">
+              <div className="figma-prototype__waitlist-inputRow">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="Tu correo electronico"
+                />
+
+                <div className="figma-prototype__waitlist-buttonWrap">
+                  <button type="button">Anadir correo</button>
+                  <span className="figma-prototype__waitlist-buttonGlow" aria-hidden="true" />
+                </div>
+              </div>
+
+              <p className="figma-prototype__waitlist-legal">
+                <span>Al suscribirte, aceptas los </span>
+                <span className="figma-prototype__waitlist-legal-link">terminos y condiciones</span>
+                <span>, ademas de las </span>
+                <span className="figma-prototype__waitlist-legal-link">Politicas de Privacidad</span>
+              </p>
+            </div>
           </div>
         </div>
 
@@ -363,42 +379,39 @@ function WaitlistCallToActionSection() {
   );
 }
 
-function PromoCard({ badge, title, description, until, thumb }) {
+function PromoCard({ badge, title, description, until, shadowSrc, bgSrc, dividerSrc, qrSrc }) {
   return (
     <article className="figma-prototype__promo-card">
-      <img className="figma-prototype__promo-card-shadow" src="/assets/card-shadow.svg" alt="" aria-hidden="true" />
+      <img className="figma-prototype__promo-card-shadow" src={shadowSrc} alt="" aria-hidden="true" />
 
       <div className="figma-prototype__promo-card-surface">
-        <img className="figma-prototype__promo-card-bg" src="/assets/card-bg.svg" alt="" aria-hidden="true" />
+        <img className="figma-prototype__promo-card-bg" src={bgSrc} alt="" aria-hidden="true" />
 
-        <div className="figma-prototype__promo-thumb">
-          <img src={thumb} alt={title} loading="lazy" />
-          <span>{badge}</span>
-        </div>
-
-        <img className="figma-prototype__promo-divider" src="/assets/Line%206.svg" alt="" aria-hidden="true" />
-
-        <div className="figma-prototype__promo-copy">
-          <div className="figma-prototype__promo-copy-top">
-            <h3>{title}</h3>
-            <p>{description}</p>
+        <div className="figma-prototype__promo-content">
+          <div className="figma-prototype__promo-thumb">
+            <span>{badge}</span>
           </div>
 
-          <div className="figma-prototype__promo-copy-bottom">
-            <div className="figma-prototype__promo-until">
-              <span>Hasta</span>
-              <span>{until}</span>
+          <img className="figma-prototype__promo-divider" src={dividerSrc} alt="" aria-hidden="true" />
+
+          <div className="figma-prototype__promo-copy">
+            <div className="figma-prototype__promo-copy-top">
+              <h3>{title}</h3>
+              <p>{description}</p>
             </div>
-            <QrMini />
+
+            <div className="figma-prototype__promo-copy-bottom">
+              <div className="figma-prototype__promo-until">
+                <span>Hasta</span>
+                <span>{until}</span>
+              </div>
+              <img className="figma-prototype__qr" src={qrSrc} alt="" aria-hidden="true" />
+            </div>
           </div>
         </div>
       </div>
     </article>
   );
-}
-
-function QrMini() {
-  return <img className="figma-prototype__qr" src="/assets/icons/qr-code.svg" alt="" aria-hidden="true" />;
 }
 
 function FooterLinksSection() {
@@ -408,7 +421,7 @@ function FooterLinksSection() {
         <div className="figma-prototype__footerBrandTop">
           <h3>REFERIDOS APP</h3>
           <p>
-            Cat&aacute;logo de promociones y
+            Catalogo de promociones y
             <br />
             sistema de recompensas por
             <br />
@@ -416,7 +429,7 @@ function FooterLinksSection() {
           </p>
         </div>
 
-        <p className="figma-prototype__footerBrandBottom">&copy; 2026 ReferidosApp</p>
+        <p className="figma-prototype__footerBrandBottom">&copy; 2026 ReferidosApp - BETA v0.1.2</p>
       </div>
 
       <div className="figma-prototype__footerColumns">

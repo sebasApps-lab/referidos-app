@@ -1,60 +1,31 @@
-index.tsx:
+index.jsx:
 import { BenefitsOverviewSection } from "./BenefitsOverviewSection";
 import { FooterLinksSection } from "./FooterLinksSection";
 import { HeroPromoSection } from "./HeroPromoSection";
 import { NavigationHeaderSection } from "./NavigationHeaderSection";
-import { WaitlistCallToActionSection } from "./WaitlistCallToActionSection";
-import shadowPinkBase from "./shadow-pink-base.svg";
-import shadowPinkGlow from "./shadow-pink-glow.svg";
-import shadowPurpleBase from "./shadow-purple-base.svg";
-import shadowPurpleGlow from "./shadow-purple-glow.svg";
+import { WaitlistSignupSection } from "./WaitlistSignupSection";
 
-export const Ready = (): JSX.Element => {
+export const Ready = () => {
   return (
     <div className="flex flex-col items-start justify-end relative bg-[linear-gradient(180deg,rgba(252,243,254,1)_0%,rgba(252,244,254,1)_25%,rgba(252,244,254,1)_69%,rgba(252,243,254,1)_100%)]">
       <NavigationHeaderSection />
-      <div className="h-[1998px] items-start justify-end z-0 flex flex-col relative self-stretch w-full">
-        <div className="absolute top-[484px] left-[754px] w-[437px] h-[81px]">
-          <img
-            className="absolute top-[-27px] left-[-27px] w-[491px] h-[134px]"
-            alt="Shadow pink glow"
-            src={shadowPinkGlow}
-          />
-
-          <img
-            className="absolute top-[-22px] -left-5 w-[452px] h-[123px]"
-            alt="Shadow pink base"
-            src={shadowPinkBase}
-          />
-
-          <img
-            className="absolute top-[-21px] left-[-33px] w-[442px] h-[146px]"
-            alt="Shadow purple glow"
-            src={shadowPurpleGlow}
-          />
-
-          <img
-            className="absolute top-[21px] -left-1 w-[313px] h-[78px]"
-            alt="Shadow purple base"
-            src={shadowPurpleBase}
-          />
-        </div>
-
+      <div className="items-start justify-end z-0 flex flex-col relative self-stretch w-full">
         <HeroPromoSection />
         <BenefitsOverviewSection />
-        <WaitlistCallToActionSection />
+        <WaitlistSignupSection />
         <FooterLinksSection />
       </div>
     </div>
   );
 };
 
-BenefitsOverviewSection.tsx:
+
+BenefitsOverviewSection.jsx:
 import iconMailBlueShadow21 from "./icon-mail-blue-shadow-2-1.png";
 import icon212 from "./icon2-1-2.png";
 import icon32 from "./icon3-2.png";
 
-const benefitCards = [
+const cards = [
   {
     id: 1,
     icon: {
@@ -62,10 +33,10 @@ const benefitCards = [
       alt: "Icon mail blue",
       imgClassName:
         "absolute top-[calc(50.00%_-_71px)] left-[calc(50.00%_-_106px)] w-[211px] h-[140px] aspect-[1.5] object-cover",
-      shadowClassName:
-        "absolute top-10 left-[13px] w-[92px] h-[22px] bg-[#aeaeae96] rounded-[46.19px/10.97px] rotate-[-2.09deg] blur-[1.56px]",
       wrapperClassName:
         "absolute top-[7px] left-[104px] w-[93px] h-[69px] rounded-[13.36px]",
+      shadowClassName:
+        "absolute top-10 left-[13px] w-[92px] h-[22px] bg-[#aeaeae96] rounded-[46.19px/10.97px] rotate-[-2.09deg] blur-[1.56px]",
     },
     title: (
       <p className="relative w-fit [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
@@ -84,8 +55,7 @@ const benefitCards = [
         para descargar la app.
       </p>
     ),
-    shadowLeft: "left-px",
-    cardLeft: "left-px",
+    leftOffset: "left-px",
   },
   {
     id: 2,
@@ -94,10 +64,10 @@ const benefitCards = [
       alt: "Icon",
       imgClassName:
         "absolute top-[calc(50.00%_-_49px)] left-[calc(50.00%_-_50px)] w-[101px] h-[101px] aspect-[1] object-cover",
-      shadowClassName:
-        "top-[46px] left-6 w-[66px] h-[29px] rounded-[33.2px/14.55px] rotate-[-7.22deg] absolute bg-[#aeaeae96] blur-[1.56px]",
       wrapperClassName:
         "left-28 w-[77px] h-[76px] absolute top-[7px] rounded-[13.36px]",
+      shadowClassName:
+        "absolute top-[46px] left-6 w-[66px] h-[29px] bg-[#aeaeae96] rounded-[33.2px/14.55px] rotate-[-7.22deg] blur-[1.56px]",
     },
     title: (
       <p className="relative self-stretch [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
@@ -116,8 +86,7 @@ const benefitCards = [
         participar en el acceso anticipado.
       </p>
     ),
-    shadowLeft: "left-px",
-    cardLeft: "left-px",
+    leftOffset: "left-px",
   },
   {
     id: 3,
@@ -126,10 +95,10 @@ const benefitCards = [
       alt: "Icon",
       imgClassName:
         "absolute top-[calc(50.00%_-_54px)] left-[calc(50.00%_-_85px)] w-[171px] h-[110px] aspect-[1.56]",
-      shadowClassName:
-        "top-[39px] left-11 w-[70px] h-[27px] rounded-[34.9px/13.59px] rotate-[-10.59deg] absolute bg-[#aeaeae96] blur-[1.56px]",
       wrapperClassName:
         "left-[102px] w-[98px] h-[69px] absolute top-[7px] rounded-[13.36px]",
+      shadowClassName:
+        "absolute top-[39px] left-11 w-[70px] h-[27px] bg-[#aeaeae96] rounded-[34.9px/13.59px] rotate-[-10.59deg] blur-[1.56px]",
     },
     title: (
       <p className="relative w-fit [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
@@ -149,15 +118,14 @@ const benefitCards = [
         <br />y obtén más beneficios.
       </p>
     ),
-    shadowLeft: "left-0",
-    cardLeft: "left-0",
+    leftOffset: "left-0",
   },
 ];
 
-export const BenefitsOverviewSection = (): JSX.Element => {
+export const BenefitsOverviewSection = () => {
   return (
-    <div className="w-[1440px] min-h-[590px] pl-0 pr-[29px] pt-[98px] pb-[105px] flex-[0_0_auto] flex flex-col items-center relative">
-      <div className="w-[1243px] max-h-[447.87px] h-[414.04px] justify-between px-[176.3px] py-0 flex flex-col items-center relative">
+    <div className="flex flex-col w-[1440px] min-h-[590px] items-center pl-0 pr-[29px] pt-[98px] pb-[105px] relative flex-[0_0_auto]">
+      <div className="flex flex-col w-[1243px] max-h-[447.87px] h-[414.04px] items-center justify-between px-[176.3px] py-0 relative">
         <div className="inline-flex flex-col items-center gap-[10.68px] relative flex-[0_0_auto]">
           <div className="inline-flex items-center gap-[9.79px] relative flex-[0_0_auto]">
             <div className="relative w-fit mt-[-0.82px] blur-[0.25px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#4b0d82] text-[38.3px] tracking-[0] leading-[57.7px] whitespace-nowrap">
@@ -183,21 +151,21 @@ export const BenefitsOverviewSection = (): JSX.Element => {
         </div>
 
         <div className="flex w-[933.14px] items-start justify-between relative flex-[0_0_auto] ml-[-21.37px] mr-[-21.37px]">
-          {benefitCards.map((card) => (
+          {cards.map((card) => (
             <div key={card.id} className="relative w-[300.96px] h-[247.53px]">
               <div
-                className={`absolute top-16 ${card.shadowLeft} w-[301px] h-[185px] bg-[#eeddf7] rounded-[29.38px] opacity-50`}
+                className={`absolute top-16 ${card.leftOffset} w-[301px] h-[185px] bg-[#eeddf7] rounded-[29.38px] opacity-50`}
               />
 
               <div
-                className={`flex flex-col w-[301px] h-[189px] items-center justify-center gap-[14.25px] absolute top-[58px] ${card.cardLeft} bg-[#fcf9fd] rounded-[30.27px] overflow-hidden border-[0.89px] border-solid border-[#95959585] shadow-[0px_5.76px_4.11px_#d7b5ea2e,0px_2.47px_16.45px_4.11px_#cfa8e71f,0px_0px_6.58px_16.45px_#e8d7f433,inset_0px_0.82px_1.64px_#ffffffbf,inset_0px_-2.47px_8.23px_#e9ddf329] blur-[0.33px]`}
+                className={`flex flex-col w-[301px] h-[189px] items-center justify-center gap-[14.25px] absolute top-[58px] ${card.leftOffset} bg-[#fcf9fd] rounded-[30.27px] overflow-hidden border-[0.89px] border-solid border-[#95959585] shadow-[0px_5.76px_4.11px_#d7b5ea2e,0px_2.47px_16.45px_4.11px_#cfa8e71f,0px_0px_6.58px_16.45px_#e8d7f433,inset_0px_0.82px_1.64px_#ffffffbf,inset_0px_-2.47px_8.23px_#e9ddf329] blur-[0.33px]`}
               >
                 {card.title}
                 {card.description}
               </div>
 
               <div
-                className={`absolute top-16 ${card.shadowLeft} w-[300px] h-[185px] rounded-[30.27px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]`}
+                className={`absolute top-16 ${card.leftOffset} w-[300px] h-[185px] rounded-[30.27px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]`}
               />
 
               <div className={card.icon.wrapperClassName}>
@@ -216,28 +184,25 @@ export const BenefitsOverviewSection = (): JSX.Element => {
   );
 };
 
-FooterLinksSection.tsx:
-export const FooterLinksSection = (): JSX.Element => {
-  const infoLinks = ["Plataforma", "Quiénes somos"];
 
-  const legalLinks = [
-    "Privacidad",
-    "Términos y Condiciones",
-    "Borrar mis datos",
-  ];
+FooterLinksSection.jsx:
+const informacionLinks = ["Plataforma", "Quiénes somos"];
 
-  const contactLinks = [
-    "Chat de soporte",
-    "Soporte por correo",
-    "Comentarios y sugerencias",
-  ];
+const legalLinks = ["Privacidad", "Términos y Condiciones", "Borrar mis datos"];
 
-  const columns = [
-    { title: "INFORMACIÓN", links: infoLinks },
-    { title: "LEGAL", links: legalLinks },
-    { title: "CONTACTO", links: contactLinks },
-  ];
+const contactoLinks = [
+  "Chat de soporte",
+  "Soporte por correo",
+  "Comentarios y sugerencias",
+];
 
+const footerColumns = [
+  { title: "INFORMACIÓN", links: informacionLinks },
+  { title: "LEGAL", links: legalLinks },
+  { title: "CONTACTO", links: contactoLinks },
+];
+
+export const FooterLinksSection = () => {
   return (
     <footer className="flex items-start justify-between pt-16 pb-[35px] px-[74px] relative self-stretch w-full flex-[0_0_auto] bg-transparent">
       <div className="flex flex-col w-[270px] items-end gap-[26px] relative">
@@ -260,7 +225,7 @@ export const FooterLinksSection = (): JSX.Element => {
       </div>
 
       <div className="flex w-[932px] items-start justify-between relative">
-        {columns.map((column) => (
+        {footerColumns.map((column) => (
           <div
             key={column.title}
             className="flex flex-col w-[260px] items-start gap-[26px] relative"
@@ -287,24 +252,57 @@ export const FooterLinksSection = (): JSX.Element => {
 };
 
 
-HeroPromoSection.tsx:
-import bgMask from "./bg-mask.png";
+HeroPromoSection.jsx:
+import bgMaskGroup from "./bg-mask-group.svg";
 import fluentColorMail16 from "./fluent-color-mail-16.svg";
-import line5 from "./line-5.svg";
+import heroRegisterCardLine from "./hero-register-card-line.png";
 import materialIconThemeGoogle from "./material-icon-theme-google.svg";
 import nothingPhone2A2 from "./nothing-phone-2a-2.png";
-import signUpCardBg from "./sign-up-card-BG.svg";
+import phoneBackShadow from "./phone-back-shadow.svg";
+import phoneGlow from "./phone-glow.svg";
+import shadowPinkBase from "./shadow-pink-base.svg";
+import shadowPinkGlow from "./shadow-pink-glow.svg";
+import shadowPurpleBase from "./shadow-purple-base.svg";
+import shadowPurpleGlow from "./shadow-purple-glow.svg";
+import signUpCardBg from "./sign-up-card-bg.svg";
+import signUpCardGlow from "./sign-up-card-glow.svg";
 
-export const HeroPromoSection = (): JSX.Element => {
+export const HeroPromoSection = () => {
   return (
-    <div className="flex flex-col h-[549px] items-start justify-end relative self-stretch w-full mt-[-0.04px]">
+    <div className="flex-col h-[549px] justify-end relative self-stretch w-full mt-[-0.04px] flex items-start">
+      <div className="absolute top-[484px] left-[754px] w-[437px] h-[81px]">
+        <img
+          className="absolute top-[-27px] left-[-27px] w-[491px] h-[134px]"
+          alt="Shadow pink glow"
+          src={shadowPinkGlow}
+        />
+
+        <img
+          className="absolute top-[-22px] -left-5 w-[452px] h-[123px]"
+          alt="Shadow pink base"
+          src={shadowPinkBase}
+        />
+
+        <img
+          className="absolute top-[-21px] left-[-33px] w-[442px] h-[146px]"
+          alt="Shadow purple glow"
+          src={shadowPurpleGlow}
+        />
+
+        <img
+          className="absolute top-[21px] -left-1 w-[313px] h-[78px]"
+          alt="Shadow purple base"
+          src={shadowPurpleBase}
+        />
+      </div>
+
       <img
-        className="relative w-[1440px] h-[668.16px] mt-[-112.96px] mb-[-6.20px]"
-        alt="Bg mask"
-        src={bgMask}
+        className="relative w-[1440px] h-[651.16px] mt-[-95.96px] mb-[-6.20px]"
+        alt="Bg mask group"
+        src={bgMaskGroup}
       />
 
-      <div className="flex max-w-[1225.62px] w-[1109px] h-[557px] items-start justify-between absolute top-[calc(50.00%_-_272px)] left-[calc(50.00%_-_552px)]">
+      <div className="max-w-[1225.62px] w-[1109px] h-[557px] justify-between absolute top-[calc(50.00%_-_272px)] left-[calc(50.00%_-_552px)] flex items-start">
         <div className="flex flex-col w-[574px] items-start gap-[7px] pt-5 pb-0 px-0 relative">
           <div className="flex flex-col items-start gap-[33px] relative self-stretch w-full flex-[0_0_auto]">
             <div className="flex flex-col items-start gap-[11px] relative self-stretch w-full flex-[0_0_auto]">
@@ -330,7 +328,7 @@ export const HeroPromoSection = (): JSX.Element => {
               </p>
             </div>
 
-            <div className="inline-flex h-[58.85px] items-center justify-center gap-[9px] px-[30px] py-0 relative mb-[-0.93px] ml-[-0.93px] bg-white rounded-[18px] border-[0.93px] border-solid border-[#00000059] cursor-pointer">
+            <button className="inline-flex h-[58.85px] items-center justify-center gap-[9px] px-[30px] py-0 relative mb-[-0.93px] ml-[-0.93px] bg-white rounded-[18px] border-[0.93px] border-solid border-[#00000059] cursor-pointer hover:bg-gray-50 transition-colors">
               <p className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-xl tracking-[0] leading-[30.1px] whitespace-nowrap">
                 Entrar a la lista de espera
               </p>
@@ -338,30 +336,42 @@ export const HeroPromoSection = (): JSX.Element => {
               <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-xl tracking-[0] leading-[30.1px] whitespace-nowrap">
                 &gt;
               </div>
-            </div>
+            </button>
           </div>
         </div>
 
         <div className="inline-flex items-start pt-[18px] pb-0 px-0 relative flex-[0_0_auto] mb-[-1.00px]">
           <div className="relative w-[280px] h-[540px] z-[2]">
-            <div className="absolute top-0 -left-px w-[244px] h-[520px] bg-[#ffffff6b] rounded-[42px_0px_0px_42px] blur-[40.35px]" />
+            <img
+              className="absolute top-[-81px] left-[-82px] w-[405px] h-[681px]"
+              alt="Phone glow"
+              src={phoneGlow}
+            />
 
             <img
               className="absolute top-[-29px] -left-7 w-[328px] h-[580px]"
-              alt="Nothing phone"
+              alt="Nothing phone 2a"
               src={nothingPhone2A2}
             />
           </div>
 
-          <div className="absolute top-[25px] left-[68px] w-56 h-[428px] z-[1] bg-[#652662c9] rounded-[0px_66px_0px_0px] opacity-80" />
+          <img
+            className="absolute top-1.5 left-[49px] w-[262px] h-[462px] z-[1]"
+            alt="Phone back shadow"
+            src={phoneBackShadow}
+          />
 
           <div className="inline-flex items-center pt-[50px] pb-0 px-0 relative flex-[0_0_auto] -ml-6 z-0">
             <div className="flex flex-col w-[261.85px] h-[382.85px] items-center gap-8 px-0 py-[38px] relative mt-[-0.93px] mb-[-0.93px] ml-[-0.93px] mr-[-0.93px] bg-white rounded-[0px_44px_44px_0px] border-[0.93px] border-solid border-[#ffffff38]">
-              <div className="absolute top-0 -left-2 w-[268px] h-[359px] bg-white rounded-[0px_44px_44px_0px] blur-[42px] opacity-[0.38]" />
+              <img
+                className="absolute top-[-84px] left-[-92px] w-[436px] h-[527px]"
+                alt="Sign up card glow"
+                src={signUpCardGlow}
+              />
 
               <img
                 className="absolute top-[calc(50.00%_-_193px)] left-[calc(50.00%_-_132px)] w-[262px] h-[383px]"
-                alt="Sign up card BG"
+                alt="Sign up card bg"
                 src={signUpCardBg}
               />
 
@@ -372,10 +382,10 @@ export const HeroPromoSection = (): JSX.Element => {
               <div className="flex flex-col items-end gap-[22px] relative self-stretch w-full flex-[0_0_auto]">
                 <div className="items-center gap-3.5 flex-[0_0_auto] flex flex-col relative self-stretch w-full">
                   <div className="flex flex-col w-[205px] items-start gap-3.5 relative flex-[0_0_auto]">
-                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full rounded-[12.95px] border-[0.93px] border-solid border-[#d5d2e5] bg-transparent cursor-pointer">
+                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full rounded-[12.95px] border-[0.93px] border-solid border-[#d5d2e5] bg-white cursor-pointer hover:bg-gray-50 transition-colors">
                       <img
                         className="relative w-[22.2px] h-[22.2px] aspect-[1]"
-                        alt="Material icon theme"
+                        alt="Material icon theme google"
                         src={materialIconThemeGoogle}
                       />
 
@@ -384,10 +394,10 @@ export const HeroPromoSection = (): JSX.Element => {
                       </div>
                     </button>
 
-                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full bg-[#58179a] rounded-[12.95px] border-[0.93px] border-solid border-[#440d90] cursor-pointer">
+                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full bg-[#58179a] rounded-[12.95px] border-[0.93px] border-solid border-[#440d90] cursor-pointer hover:bg-[#4a1385] transition-colors">
                       <img
                         className="relative w-[24.05px] h-[24.05px] aspect-[1]"
-                        alt="Fluent color mail"
+                        alt="Fluent color mail 16"
                         src={fluentColorMail16}
                       />
 
@@ -408,8 +418,8 @@ export const HeroPromoSection = (): JSX.Element => {
 
                 <img
                   className="relative self-stretch w-full h-px mb-[-1.00px]"
-                  alt="Line"
-                  src={line5}
+                  alt="Hero register card line"
+                  src={heroRegisterCardLine}
                 />
               </div>
             </div>
@@ -421,58 +431,20 @@ export const HeroPromoSection = (): JSX.Element => {
 };
 
 
-NavigationHeaderSection.tsx:
-export const NavigationHeaderSection = (): JSX.Element => {
-  const navLinks = [
-    { label: "Como funciona" },
-    { label: "Recibir invitación" },
-    { label: "Para negocios" },
-  ];
-
-  return (
-    <header className="flex items-center justify-between px-[46px] py-[35px] relative self-stretch w-full flex-[0_0_auto] z-[1] bg-transparent">
-      <div className="inline-flex items-center gap-2.5 relative flex-[0_0_auto]">
-        <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[31px] tracking-[0] leading-[43.4px] whitespace-nowrap">
-          REFERIDOS
-        </div>
-
-        <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-[#b26cf2] text-[31px] tracking-[0] leading-[43.4px] whitespace-nowrap">
-          APP
-        </div>
-
-        <div className="relative flex items-end w-[167px] h-9 [font-family:'Poppins-ExtraLightItalic',Helvetica] font-extralight italic text-white text-base tracking-[0] leading-[22.4px]">
-          Acceso anticipado
-        </div>
-      </div>
-
-      <nav className="inline-flex items-center gap-[78px] relative flex-[0_0_auto]">
-        {navLinks.map((link) => (
-          <a
-            key={link.label}
-            href="#"
-            className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[19px] tracking-[0] leading-[26.6px] whitespace-nowrap no-underline"
-          >
-            {link.label}
-          </a>
-        ))}
-      </nav>
-    </header>
-  );
-};
-
-
-WaitlistCallToActionSection.tsx:
+WaitlistSignupSection.jsx:
 import { useState } from "react";
+import bottomCardBg from "./bottom-card-bg.svg";
+import bottomCardDottedLine from "./bottom-card-dotted-line.svg";
+import bottomCardShadow from "./bottom-card-shadow.svg";
 import cardBg2 from "./card-bg-2.svg";
-import cardBg3 from "./card-bg-3.svg";
 import cardBg from "./card-bg.svg";
-import cardShadow2 from "./card-shadow-2.svg";
+import cardCarouselGlow from "./card-carousel-glow.svg";
+import cardCarousleGlass from "./card-carousle-glass.svg";
 import cardShadow from "./card-shadow.svg";
-import glowBottom from "./glow-bottom.svg";
+import glowBottomSection from "./glow-bottom-section.svg";
 import image from "./image.svg";
 import landingBottomFooterBg1 from "./landing-bottom-footer-bg-1.png";
 import line62 from "./line-6-2.svg";
-import line63 from "./line-6-3.svg";
 import line6 from "./line-6.svg";
 import qrCode2 from "./qr-code-2.svg";
 import qrCode3 from "./qr-code-3.svg";
@@ -480,41 +452,53 @@ import qrCode from "./qr-code.svg";
 
 const cards = [
   {
-    shadow: cardShadow2,
-    bg: cardBg3,
     badge: "- 30%",
-    line: line63,
     title: "DESCUENTOS",
     description:
       "En compras de locales de comida y locales de diferentes productos y servicios.",
     until: "01 Abril",
     qr: qrCode3,
+    qrAlt: "Qr code",
+    shadowSrc: bottomCardShadow,
+    shadowAlt: "Bottom card shadow",
+    bgSrc: bottomCardBg,
+    bgAlt: "Bottom card bg",
+    lineSrc: bottomCardDottedLine,
+    lineAlt: "Bottom card dotted",
   },
   {
-    shadow: image,
-    bg: cardBg2,
     badge: "Gratis",
-    line: line62,
     title: "REGALOS POR COMPRAR",
     description:
       "Regalos por realizar compras de ciertos productos o por superar cierto valor de compra.",
     until: "16 de Sept.",
     qr: qrCode2,
+    qrAlt: "Qr code",
+    shadowSrc: image,
+    shadowAlt: "Card shadow",
+    bgSrc: cardBg2,
+    bgAlt: "Card bg",
+    lineSrc: line62,
+    lineAlt: "Line",
   },
   {
-    shadow: cardShadow,
-    bg: cardBg,
     badge: "2 x 1",
-    line: line6,
     title: "2 X 1",
     description:
       "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más.",
     until: "22 de Abril",
     qr: qrCode,
+    qrAlt: "Qr code",
+    shadowSrc: cardShadow,
+    shadowAlt: "Card shadow",
+    bgSrc: cardBg,
+    bgAlt: "Card bg",
+    lineSrc: line6,
+    lineAlt: "Line",
   },
 ];
 
-export const WaitlistCallToActionSection = (): JSX.Element => {
+export const WaitlistSignupSection = () => {
   const [email, setEmail] = useState("");
 
   return (
@@ -528,8 +512,8 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
       <div className="absolute top-[calc(50.00%_-_280px)] left-[-79px] w-[1597px] h-[832px]">
         <img
           className="absolute top-0 left-[79px] w-[1440px] h-[832px]"
-          alt="Glow bottom"
-          src={glowBottom}
+          alt="Glow bottom section"
+          src={glowBottomSection}
         />
       </div>
 
@@ -553,7 +537,7 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Tu correo electrónico"
-                  className="relative w-full bg-transparent outline-none [text-shadow:0px_0.92px_1.75px_#b88ae67a] [font-family:'Poppins-Light',Helvetica] font-light text-[#20066ab5] text-lg tracking-[0.54px] leading-[27.1px] whitespace-nowrap placeholder:text-[#20066ab5]"
+                  className="relative w-full bg-transparent outline-none [text-shadow:0px_0.92px_1.75px_#b88ae67a] [font-family:'Poppins-Light',Helvetica] font-light text-[#20066ab5] text-lg tracking-[0.54px] leading-[27.1px] placeholder:text-[#20066ab5]"
                 />
 
                 <div className="relative w-[155px] h-[47px] flex-shrink-0">
@@ -596,15 +580,15 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
               >
                 <img
                   className="absolute top-[-18px] left-[-21px] w-[426px] h-[190px]"
-                  alt="Card shadow"
-                  src={card.shadow}
+                  alt={card.shadowAlt}
+                  src={card.shadowSrc}
                 />
 
                 <div className="flex flex-col items-start gap-2.5 p-3 relative self-stretch w-full flex-[0_0_auto]">
                   <img
                     className="absolute top-0 left-0 w-[380px] h-36"
-                    alt="Card bg"
-                    src={card.bg}
+                    alt={card.bgAlt}
+                    src={card.bgSrc}
                   />
 
                   <div className="flex items-center gap-3.5 relative self-stretch w-full flex-[0_0_auto]">
@@ -618,8 +602,8 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
 
                     <img
                       className="relative w-px h-[100px]"
-                      alt="Line"
-                      src={card.line}
+                      alt={card.lineAlt}
+                      src={card.lineSrc}
                     />
 
                     <div className="flex flex-col w-[206px] items-start gap-[5px] relative">
@@ -646,7 +630,7 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
 
                         <img
                           className="relative w-[34px] h-[34px]"
-                          alt="Qr code"
+                          alt={card.qrAlt}
                           src={card.qr}
                         />
                       </div>
@@ -657,9 +641,17 @@ export const WaitlistCallToActionSection = (): JSX.Element => {
             ))}
           </div>
 
-          <div className="absolute top-[-26px] left-[-41px] w-[462px] h-[533px] z-[1] bg-[#ffffffc2] rounded-[23px] blur-[52.5px] opacity-[0.13]" />
+          <img
+            className="absolute top-[-131px] left-[-146px] w-[670px] h-[743px] z-[1]"
+            alt="Card carousel glow"
+            src={cardCarouselGlow}
+          />
 
-          <div className="absolute top-[-7px] left-[-7px] w-[394px] h-[466px] z-0 bg-[#ffffff1a] rounded-[23px] blur-[0.85px] backdrop-brightness-[100.0%] backdrop-saturate-[83.0%] backdrop-hue-rotate-[-6.6deg] [-webkit-backdrop-filter:brightness(100.0%)_saturate(83.0%)_hue-rotate(-6.6deg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.40),inset_1px_0_0_rgba(255,255,255,0.32),inset_0_-1px_1px_rgba(0,0,0,0.07),inset_-1px_0_1px_rgba(0,0,0,0.05)] opacity-[0.28]" />
+          <img
+            className="absolute top-[-9px] left-[-9px] w-[397px] h-[469px] z-0"
+            alt="Card carousle glass"
+            src={cardCarousleGlass}
+          />
         </div>
       </div>
     </div>
