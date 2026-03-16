@@ -1,0 +1,821 @@
+index.tsx:
+import { BenefitsOverviewSection } from "./BenefitsOverviewSection";
+import { FooterLinksSection } from "./FooterLinksSection";
+import { HeroPromoSection } from "./HeroPromoSection";
+import { NavigationHeaderSection } from "./NavigationHeaderSection";
+import { WaitlistCallToActionSection } from "./WaitlistCallToActionSection";
+import shadowPinkBase from "./shadow-pink-base.svg";
+import shadowPinkGlow from "./shadow-pink-glow.svg";
+import shadowPurpleBase from "./shadow-purple-base.svg";
+import shadowPurpleGlow from "./shadow-purple-glow.svg";
+
+export const Ready = (): JSX.Element => {
+  return (
+    <div className="flex flex-col items-start justify-end relative bg-[linear-gradient(180deg,rgba(252,243,254,1)_0%,rgba(252,244,254,1)_25%,rgba(252,244,254,1)_69%,rgba(252,243,254,1)_100%)]">
+      <NavigationHeaderSection />
+      <div className="h-[1998px] items-start justify-end z-0 flex flex-col relative self-stretch w-full">
+        <div className="absolute top-[484px] left-[754px] w-[437px] h-[81px]">
+          <img
+            className="absolute top-[-27px] left-[-27px] w-[491px] h-[134px]"
+            alt="Shadow pink glow"
+            src={shadowPinkGlow}
+          />
+
+          <img
+            className="absolute top-[-22px] -left-5 w-[452px] h-[123px]"
+            alt="Shadow pink base"
+            src={shadowPinkBase}
+          />
+
+          <img
+            className="absolute top-[-21px] left-[-33px] w-[442px] h-[146px]"
+            alt="Shadow purple glow"
+            src={shadowPurpleGlow}
+          />
+
+          <img
+            className="absolute top-[21px] -left-1 w-[313px] h-[78px]"
+            alt="Shadow purple base"
+            src={shadowPurpleBase}
+          />
+        </div>
+
+        <HeroPromoSection />
+        <BenefitsOverviewSection />
+        <WaitlistCallToActionSection />
+        <FooterLinksSection />
+      </div>
+    </div>
+  );
+};
+
+BenefitsOverviewSection.tsx:
+import iconMailBlueShadow21 from "./icon-mail-blue-shadow-2-1.png";
+import icon212 from "./icon2-1-2.png";
+import icon32 from "./icon3-2.png";
+
+const benefitCards = [
+  {
+    id: 1,
+    icon: {
+      src: iconMailBlueShadow21,
+      alt: "Icon mail blue",
+      imgClassName:
+        "absolute top-[calc(50.00%_-_71px)] left-[calc(50.00%_-_106px)] w-[211px] h-[140px] aspect-[1.5] object-cover",
+      shadowClassName:
+        "absolute top-10 left-[13px] w-[92px] h-[22px] bg-[#aeaeae96] rounded-[46.19px/10.97px] rotate-[-2.09deg] blur-[1.56px]",
+      wrapperClassName:
+        "absolute top-[7px] left-[104px] w-[93px] h-[69px] rounded-[13.36px]",
+    },
+    title: (
+      <p className="relative w-fit [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
+        <span className="font-bold">Añade</span>
+        <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-[20.5px] leading-[27.4px]">
+          {" "}
+          tu correo
+          <br />a la lista
+        </span>
+      </p>
+    ),
+    description: (
+      <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[13.4px] text-center tracking-[0] leading-[20.1px]">
+        Espera y recibe la invitación
+        <br />
+        para descargar la app.
+      </p>
+    ),
+    shadowLeft: "left-px",
+    cardLeft: "left-px",
+  },
+  {
+    id: 2,
+    icon: {
+      src: icon212,
+      alt: "Icon",
+      imgClassName:
+        "absolute top-[calc(50.00%_-_49px)] left-[calc(50.00%_-_50px)] w-[101px] h-[101px] aspect-[1] object-cover",
+      shadowClassName:
+        "top-[46px] left-6 w-[66px] h-[29px] rounded-[33.2px/14.55px] rotate-[-7.22deg] absolute bg-[#aeaeae96] blur-[1.56px]",
+      wrapperClassName:
+        "left-28 w-[77px] h-[76px] absolute top-[7px] rounded-[13.36px]",
+    },
+    title: (
+      <p className="relative self-stretch [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
+        <span className="font-bold">Descarga</span>
+        <span className="[font-family:'Poppins-Regular',Helvetica] text-[20.6px] leading-[27.6px]">
+          {" "}
+          y recibe <br />
+          tu recompensas
+        </span>
+      </p>
+    ),
+    description: (
+      <p className="relative w-fit opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[13.4px] text-center tracking-[0] leading-[20.1px]">
+        Recibe tus beneficios extra por
+        <br />
+        participar en el acceso anticipado.
+      </p>
+    ),
+    shadowLeft: "left-px",
+    cardLeft: "left-px",
+  },
+  {
+    id: 3,
+    icon: {
+      src: icon32,
+      alt: "Icon",
+      imgClassName:
+        "absolute top-[calc(50.00%_-_54px)] left-[calc(50.00%_-_85px)] w-[171px] h-[110px] aspect-[1.56]",
+      shadowClassName:
+        "top-[39px] left-11 w-[70px] h-[27px] rounded-[34.9px/13.59px] rotate-[-10.59deg] absolute bg-[#aeaeae96] blur-[1.56px]",
+      wrapperClassName:
+        "left-[102px] w-[98px] h-[69px] absolute top-[7px] rounded-[13.36px]",
+    },
+    title: (
+      <p className="relative w-fit [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-[21.4px] text-center tracking-[0] leading-[28.6px]">
+        <span className="font-bold">Gana puntos </span>
+        <span className="[font-family:'Poppins-Regular',Helvetica] text-[20.6px] leading-[27.6px]">
+          {" "}
+          <br />
+        </span>
+        <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-[20.5px] leading-[27.4px]">
+          y recompensas
+        </span>
+      </p>
+    ),
+    description: (
+      <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[13.4px] text-center tracking-[0] leading-[20.1px]">
+        Canjea promociones, suma puntos
+        <br />y obtén más beneficios.
+      </p>
+    ),
+    shadowLeft: "left-0",
+    cardLeft: "left-0",
+  },
+];
+
+export const BenefitsOverviewSection = (): JSX.Element => {
+  return (
+    <div className="w-[1440px] min-h-[590px] pl-0 pr-[29px] pt-[98px] pb-[105px] flex-[0_0_auto] flex flex-col items-center relative">
+      <div className="w-[1243px] max-h-[447.87px] h-[414.04px] justify-between px-[176.3px] py-0 flex flex-col items-center relative">
+        <div className="inline-flex flex-col items-center gap-[10.68px] relative flex-[0_0_auto]">
+          <div className="inline-flex items-center gap-[9.79px] relative flex-[0_0_auto]">
+            <div className="relative w-fit mt-[-0.82px] blur-[0.25px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#4b0d82] text-[38.3px] tracking-[0] leading-[57.7px] whitespace-nowrap">
+              Así de
+            </div>
+            <div className="relative w-fit mt-[-0.82px] blur-[0.25px] [font-family:'Poppins-Bold',Helvetica] font-bold text-[#4b0d82] text-[38.3px] tracking-[0] leading-[57.7px] whitespace-nowrap">
+              rápido y simple
+            </div>
+          </div>
+
+          <p className="relative w-[603.69px] h-[58.77px] blur-[0.25px] opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-normal text-[#1b0048] text-[19.6px] text-center tracking-[0] leading-[29.5px]">
+            <span className="font-light">
+              Entra en la lista de espera para recibir tu invitación, descarga
+              la app una vez este disponible y{" "}
+            </span>
+            <span className="[font-family:'Poppins-Regular',Helvetica]">
+              recibe beneficios
+            </span>
+            <span className="[font-family:'Poppins-Medium',Helvetica] font-medium">
+              !
+            </span>
+          </p>
+        </div>
+
+        <div className="flex w-[933.14px] items-start justify-between relative flex-[0_0_auto] ml-[-21.37px] mr-[-21.37px]">
+          {benefitCards.map((card) => (
+            <div key={card.id} className="relative w-[300.96px] h-[247.53px]">
+              <div
+                className={`absolute top-16 ${card.shadowLeft} w-[301px] h-[185px] bg-[#eeddf7] rounded-[29.38px] opacity-50`}
+              />
+
+              <div
+                className={`flex flex-col w-[301px] h-[189px] items-center justify-center gap-[14.25px] absolute top-[58px] ${card.cardLeft} bg-[#fcf9fd] rounded-[30.27px] overflow-hidden border-[0.89px] border-solid border-[#95959585] shadow-[0px_5.76px_4.11px_#d7b5ea2e,0px_2.47px_16.45px_4.11px_#cfa8e71f,0px_0px_6.58px_16.45px_#e8d7f433,inset_0px_0.82px_1.64px_#ffffffbf,inset_0px_-2.47px_8.23px_#e9ddf329] blur-[0.33px]`}
+              >
+                {card.title}
+                {card.description}
+              </div>
+
+              <div
+                className={`absolute top-16 ${card.shadowLeft} w-[300px] h-[185px] rounded-[30.27px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]`}
+              />
+
+              <div className={card.icon.wrapperClassName}>
+                <div className={card.icon.shadowClassName} />
+                <img
+                  className={card.icon.imgClassName}
+                  alt={card.icon.alt}
+                  src={card.icon.src}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+FooterLinksSection.tsx:
+export const FooterLinksSection = (): JSX.Element => {
+  const infoLinks = ["Plataforma", "Quiénes somos"];
+
+  const legalLinks = [
+    "Privacidad",
+    "Términos y Condiciones",
+    "Borrar mis datos",
+  ];
+
+  const contactLinks = [
+    "Chat de soporte",
+    "Soporte por correo",
+    "Comentarios y sugerencias",
+  ];
+
+  const columns = [
+    { title: "INFORMACIÓN", links: infoLinks },
+    { title: "LEGAL", links: legalLinks },
+    { title: "CONTACTO", links: contactLinks },
+  ];
+
+  return (
+    <footer className="flex items-start justify-between pt-16 pb-[35px] px-[74px] relative self-stretch w-full flex-[0_0_auto] bg-transparent">
+      <div className="flex flex-col w-[270px] items-end gap-[26px] relative">
+        <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
+          <div className="relative self-stretch mt-[-1.00px] opacity-85 [font-family:'Poppins-Bold',Helvetica] font-bold text-white text-[22px] tracking-[0] leading-[30.8px]">
+            REFERIDOS APP
+          </div>
+
+          <p className="relative self-stretch opacity-45 [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-lg tracking-[0] leading-[25.2px]">
+            Catálogo de promociones y<br />
+            sistema de recompensas por
+            <br />
+            canjearlas y referir.
+          </p>
+        </div>
+
+        <p className="relative self-stretch opacity-85 [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-base tracking-[0] leading-[22.4px]">
+          © 2026 ReferidosApp - BETA v0.1.2
+        </p>
+      </div>
+
+      <div className="flex w-[932px] items-start justify-between relative">
+        {columns.map((column) => (
+          <div
+            key={column.title}
+            className="flex flex-col w-[260px] items-start gap-[26px] relative"
+          >
+            <div className="relative self-stretch mt-[-1.00px] opacity-85 [font-family:'Poppins-Bold',Helvetica] font-bold text-white text-base tracking-[0] leading-[22.4px]">
+              {column.title}
+            </div>
+
+            <div className="flex flex-col items-start gap-[18px] relative self-stretch w-full flex-[0_0_auto]">
+              {column.links.map((link, index) => (
+                <div
+                  key={link}
+                  className={`relative self-stretch ${index === 0 ? "mt-[-1.00px]" : ""} opacity-45 [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-lg tracking-[0] leading-[25.2px]`}
+                >
+                  {link}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </footer>
+  );
+};
+
+
+HeroPromoSection.tsx:
+import bgMask from "./bg-mask.png";
+import fluentColorMail16 from "./fluent-color-mail-16.svg";
+import line5 from "./line-5.svg";
+import materialIconThemeGoogle from "./material-icon-theme-google.svg";
+import nothingPhone2A2 from "./nothing-phone-2a-2.png";
+import signUpCardBg from "./sign-up-card-BG.svg";
+
+export const HeroPromoSection = (): JSX.Element => {
+  return (
+    <div className="flex flex-col h-[549px] items-start justify-end relative self-stretch w-full mt-[-0.04px]">
+      <img
+        className="relative w-[1440px] h-[668.16px] mt-[-112.96px] mb-[-6.20px]"
+        alt="Bg mask"
+        src={bgMask}
+      />
+
+      <div className="flex max-w-[1225.62px] w-[1109px] h-[557px] items-start justify-between absolute top-[calc(50.00%_-_272px)] left-[calc(50.00%_-_552px)]">
+        <div className="flex flex-col w-[574px] items-start gap-[7px] pt-5 pb-0 px-0 relative">
+          <div className="flex flex-col items-start gap-[33px] relative self-stretch w-full flex-[0_0_auto]">
+            <div className="flex flex-col items-start gap-[11px] relative self-stretch w-full flex-[0_0_auto]">
+              <p className="relative self-stretch mt-[-0.93px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[45px] tracking-[0] leading-[63.0px]">
+                Descubre y comparte <br />
+                ofertas, gana <br />
+                recompensas fácilmente
+              </p>
+
+              <p className="relative w-fit [font-family:'Poppins-Light',Helvetica] font-normal text-white text-[19px] tracking-[0] leading-[31.1px]">
+                <span className="font-light">Participa en el </span>
+
+                <span className="[font-family:'Poppins-Medium',Helvetica] font-medium">
+                  acceso anticipado
+                </span>
+
+                <span className="font-light">
+                  {" "}
+                  de la app y recibe
+                  <br />
+                  beneficios extra, solo por usar la aplicación.
+                </span>
+              </p>
+            </div>
+
+            <div className="inline-flex h-[58.85px] items-center justify-center gap-[9px] px-[30px] py-0 relative mb-[-0.93px] ml-[-0.93px] bg-white rounded-[18px] border-[0.93px] border-solid border-[#00000059] cursor-pointer">
+              <p className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-xl tracking-[0] leading-[30.1px] whitespace-nowrap">
+                Entrar a la lista de espera
+              </p>
+
+              <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-xl tracking-[0] leading-[30.1px] whitespace-nowrap">
+                &gt;
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="inline-flex items-start pt-[18px] pb-0 px-0 relative flex-[0_0_auto] mb-[-1.00px]">
+          <div className="relative w-[280px] h-[540px] z-[2]">
+            <div className="absolute top-0 -left-px w-[244px] h-[520px] bg-[#ffffff6b] rounded-[42px_0px_0px_42px] blur-[40.35px]" />
+
+            <img
+              className="absolute top-[-29px] -left-7 w-[328px] h-[580px]"
+              alt="Nothing phone"
+              src={nothingPhone2A2}
+            />
+          </div>
+
+          <div className="absolute top-[25px] left-[68px] w-56 h-[428px] z-[1] bg-[#652662c9] rounded-[0px_66px_0px_0px] opacity-80" />
+
+          <div className="inline-flex items-center pt-[50px] pb-0 px-0 relative flex-[0_0_auto] -ml-6 z-0">
+            <div className="flex flex-col w-[261.85px] h-[382.85px] items-center gap-8 px-0 py-[38px] relative mt-[-0.93px] mb-[-0.93px] ml-[-0.93px] mr-[-0.93px] bg-white rounded-[0px_44px_44px_0px] border-[0.93px] border-solid border-[#ffffff38]">
+              <div className="absolute top-0 -left-2 w-[268px] h-[359px] bg-white rounded-[0px_44px_44px_0px] blur-[42px] opacity-[0.38]" />
+
+              <img
+                className="absolute top-[calc(50.00%_-_193px)] left-[calc(50.00%_-_132px)] w-[262px] h-[383px]"
+                alt="Sign up card BG"
+                src={signUpCardBg}
+              />
+
+              <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-lg tracking-[0] leading-[27.1px] whitespace-nowrap">
+                Crea tu cuenta gratis
+              </div>
+
+              <div className="flex flex-col items-end gap-[22px] relative self-stretch w-full flex-[0_0_auto]">
+                <div className="items-center gap-3.5 flex-[0_0_auto] flex flex-col relative self-stretch w-full">
+                  <div className="flex flex-col w-[205px] items-start gap-3.5 relative flex-[0_0_auto]">
+                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full rounded-[12.95px] border-[0.93px] border-solid border-[#d5d2e5] bg-transparent cursor-pointer">
+                      <img
+                        className="relative w-[22.2px] h-[22.2px] aspect-[1]"
+                        alt="Material icon theme"
+                        src={materialIconThemeGoogle}
+                      />
+
+                      <div className="text-[#24055c] relative w-fit [font-family:'Poppins-Regular',Helvetica] font-normal text-[13px] tracking-[0] leading-[19.6px] whitespace-nowrap">
+                        Continuar con Google
+                      </div>
+                    </button>
+
+                    <button className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full bg-[#58179a] rounded-[12.95px] border-[0.93px] border-solid border-[#440d90] cursor-pointer">
+                      <img
+                        className="relative w-[24.05px] h-[24.05px] aspect-[1]"
+                        alt="Fluent color mail"
+                        src={fluentColorMail16}
+                      />
+
+                      <div className="text-white relative w-fit [font-family:'Poppins-Regular',Helvetica] font-normal text-[13px] tracking-[0] leading-[19.6px] whitespace-nowrap">
+                        Continuar con correo
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="inline-flex items-center gap-[3px] relative flex-[0_0_auto]">
+                    <p className="relative w-fit mt-[-0.93px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#24055c] text-[10px] text-center tracking-[0] leading-[15.1px]">
+                      Si ya tienes una cuenta, ten paciencia
+                      <br />
+                      recibirás tu invitación pronto.
+                    </p>
+                  </div>
+                </div>
+
+                <img
+                  className="relative self-stretch w-full h-px mb-[-1.00px]"
+                  alt="Line"
+                  src={line5}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+NavigationHeaderSection.tsx:
+export const NavigationHeaderSection = (): JSX.Element => {
+  const navLinks = [
+    { label: "Como funciona" },
+    { label: "Recibir invitación" },
+    { label: "Para negocios" },
+  ];
+
+  return (
+    <header className="flex items-center justify-between px-[46px] py-[35px] relative self-stretch w-full flex-[0_0_auto] z-[1] bg-transparent">
+      <div className="inline-flex items-center gap-2.5 relative flex-[0_0_auto]">
+        <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[31px] tracking-[0] leading-[43.4px] whitespace-nowrap">
+          REFERIDOS
+        </div>
+
+        <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-[#b26cf2] text-[31px] tracking-[0] leading-[43.4px] whitespace-nowrap">
+          APP
+        </div>
+
+        <div className="relative flex items-end w-[167px] h-9 [font-family:'Poppins-ExtraLightItalic',Helvetica] font-extralight italic text-white text-base tracking-[0] leading-[22.4px]">
+          Acceso anticipado
+        </div>
+      </div>
+
+      <nav className="inline-flex items-center gap-[78px] relative flex-[0_0_auto]">
+        {navLinks.map((link) => (
+          <a
+            key={link.label}
+            href="#"
+            className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[19px] tracking-[0] leading-[26.6px] whitespace-nowrap no-underline"
+          >
+            {link.label}
+          </a>
+        ))}
+      </nav>
+    </header>
+  );
+};
+
+
+WaitlistCallToActionSection.tsx:
+import { useState } from "react";
+import cardBg2 from "./card-bg-2.svg";
+import cardBg3 from "./card-bg-3.svg";
+import cardBg from "./card-bg.svg";
+import cardShadow2 from "./card-shadow-2.svg";
+import cardShadow from "./card-shadow.svg";
+import glowBottom from "./glow-bottom.svg";
+import image from "./image.svg";
+import landingBottomFooterBg1 from "./landing-bottom-footer-bg-1.png";
+import line62 from "./line-6-2.svg";
+import line63 from "./line-6-3.svg";
+import line6 from "./line-6.svg";
+import qrCode2 from "./qr-code-2.svg";
+import qrCode3 from "./qr-code-3.svg";
+import qrCode from "./qr-code.svg";
+
+const cards = [
+  {
+    shadow: cardShadow2,
+    bg: cardBg3,
+    badge: "- 30%",
+    line: line63,
+    title: "DESCUENTOS",
+    description:
+      "En compras de locales de comida y locales de diferentes productos y servicios.",
+    until: "01 Abril",
+    qr: qrCode3,
+  },
+  {
+    shadow: image,
+    bg: cardBg2,
+    badge: "Gratis",
+    line: line62,
+    title: "REGALOS POR COMPRAR",
+    description:
+      "Regalos por realizar compras de ciertos productos o por superar cierto valor de compra.",
+    until: "16 de Sept.",
+    qr: qrCode2,
+  },
+  {
+    shadow: cardShadow,
+    bg: cardBg,
+    badge: "2 x 1",
+    line: line6,
+    title: "2 X 1",
+    description:
+      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más.",
+    until: "22 de Abril",
+    qr: qrCode,
+  },
+];
+
+export const WaitlistCallToActionSection = (): JSX.Element => {
+  const [email, setEmail] = useState("");
+
+  return (
+    <div className="flex flex-col items-center pt-[50px] pb-[119px] px-[146px] relative self-stretch w-full flex-[0_0_auto] bg-[#150444] shadow-[0px_-1px_5.5px_#24055c4c]">
+      <img
+        className="absolute top-0 left-0 w-[1440px] h-[832px] aspect-[1.5] object-cover"
+        alt="Landing bottom"
+        src={landingBottomFooterBg1}
+      />
+
+      <div className="absolute top-[calc(50.00%_-_280px)] left-[-79px] w-[1597px] h-[832px]">
+        <img
+          className="absolute top-0 left-[79px] w-[1440px] h-[832px]"
+          alt="Glow bottom"
+          src={glowBottom}
+        />
+      </div>
+
+      <div className="flex min-w-[1057.6px] max-w-[1158.28px] max-h-[424px] h-[390px] items-end justify-between relative w-full">
+        <div className="inline-flex flex-col items-start justify-end gap-[26px] pt-0 pb-[100px] px-0 relative self-stretch flex-[0_0_auto] overflow-hidden">
+          <p className="relative w-fit ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[40px] tracking-[0] leading-[46.8px] border-white-text-stroke">
+            No te quedes sin un puesto
+            <br />
+            para participar
+          </p>
+
+          <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
+            <p className="relative self-stretch mt-[-1.42px] ml-[-0.50px] [-webkit-text-stroke:0.5px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-lg tracking-[0] leading-[27.1px] border-white-text-stroke">
+              Los puestos son limitados, entra en la lista de espera
+            </p>
+
+            <div className="flex flex-col items-start gap-[17px] relative self-stretch w-full flex-[0_0_auto]">
+              <div className="flex items-center justify-between pl-[30px] pr-2 py-1.5 relative self-stretch w-full flex-[0_0_auto] bg-white rounded-[38px] overflow-hidden">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Tu correo electrónico"
+                  className="relative w-full bg-transparent outline-none [text-shadow:0px_0.92px_1.75px_#b88ae67a] [font-family:'Poppins-Light',Helvetica] font-light text-[#20066ab5] text-lg tracking-[0.54px] leading-[27.1px] whitespace-nowrap placeholder:text-[#20066ab5]"
+                />
+
+                <div className="relative w-[155px] h-[47px] flex-shrink-0">
+                  <button
+                    type="button"
+                    className="flex w-[154px] h-[47px] items-center justify-center absolute top-0 left-px bg-[#40c678] rounded-3xl overflow-hidden border border-solid border-[#43be73] cursor-pointer"
+                  >
+                    <div className="relative w-fit [-webkit-text-stroke:0.92px_#569c7980] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[15px] tracking-[0] leading-[22.5px] whitespace-nowrap">
+                      Añadir correo
+                    </div>
+                  </button>
+
+                  <div className="absolute top-[calc(50.00%_-_24px)] left-[calc(50.00%_-_78px)] w-[155px] h-[47px] blur-[1.15px] bg-[linear-gradient(1deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.14)_50%,rgba(255,255,255,0.35)_100%)] pointer-events-none" />
+                </div>
+              </div>
+
+              <p className="relative self-stretch ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-transparent text-[11px] tracking-[0] leading-[16.6px] border-white-text-stroke">
+                <span className="text-white">Al suscribirte, aceptas los </span>
+
+                <span className="text-[#b78ce5] underline cursor-pointer">
+                  términos y condiciones,
+                </span>
+
+                <span className="text-white"> además de las </span>
+
+                <span className="text-[#b78ce5] underline cursor-pointer">
+                  Políticas de Privacidad
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex w-[378.08px] h-[390px] items-start relative rounded-[19.51px]">
+          <div className="flex flex-col items-start gap-2.5 relative flex-1 grow mb-[-62.00px] z-[2]">
+            {cards.map((card, index) => (
+              <div
+                key={index}
+                className="flex flex-col w-[378.08px] items-start justify-end relative flex-[0_0_auto]"
+              >
+                <img
+                  className="absolute top-[-18px] left-[-21px] w-[426px] h-[190px]"
+                  alt="Card shadow"
+                  src={card.shadow}
+                />
+
+                <div className="flex flex-col items-start gap-2.5 p-3 relative self-stretch w-full flex-[0_0_auto]">
+                  <img
+                    className="absolute top-0 left-0 w-[380px] h-36"
+                    alt="Card bg"
+                    src={card.bg}
+                  />
+
+                  <div className="flex items-center gap-3.5 relative self-stretch w-full flex-[0_0_auto]">
+                    <div className="relative w-[120px] h-[120px] bg-[#c7c7c7] rounded-[8.88px] overflow-hidden">
+                      <div className="flex w-[35px] h-[23px] items-center justify-center gap-2.5 relative left-[73px] bg-black rounded-[0px_0px_3px_3px] overflow-hidden">
+                        <div className="relative w-fit [font-family:'Roboto-Medium',Helvetica] font-medium text-white text-[11px] tracking-[0] leading-[15.4px] whitespace-nowrap">
+                          {card.badge}
+                        </div>
+                      </div>
+                    </div>
+
+                    <img
+                      className="relative w-px h-[100px]"
+                      alt="Line"
+                      src={card.line}
+                    />
+
+                    <div className="flex flex-col w-[206px] items-start gap-[5px] relative">
+                      <div className="flex flex-col items-start gap-[5px] relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="relative self-stretch mt-[-1.00px] [font-family:'Roboto-Medium',Helvetica] font-medium text-black text-[11px] tracking-[0] leading-[15.4px]">
+                          {card.title}
+                        </div>
+
+                        <p className="relative self-stretch opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] tracking-[0] leading-[15.4px]">
+                          {card.description}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="inline-flex items-center gap-[27px] relative flex-[0_0_auto]">
+                          <div className="relative w-fit mt-[-1.00px] opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] tracking-[0] leading-[15.4px] whitespace-nowrap">
+                            Hasta
+                          </div>
+
+                          <div className="relative w-fit mt-[-1.00px] opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] text-right tracking-[0] leading-[15.4px] whitespace-nowrap">
+                            {card.until}
+                          </div>
+                        </div>
+
+                        <img
+                          className="relative w-[34px] h-[34px]"
+                          alt="Qr code"
+                          src={card.qr}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="absolute top-[-26px] left-[-41px] w-[462px] h-[533px] z-[1] bg-[#ffffffc2] rounded-[23px] blur-[52.5px] opacity-[0.13]" />
+
+          <div className="absolute top-[-7px] left-[-7px] w-[394px] h-[466px] z-0 bg-[#ffffff1a] rounded-[23px] blur-[0.85px] backdrop-brightness-[100.0%] backdrop-saturate-[83.0%] backdrop-hue-rotate-[-6.6deg] [-webkit-backdrop-filter:brightness(100.0%)_saturate(83.0%)_hue-rotate(-6.6deg)] shadow-[inset_0_1px_0_rgba(255,255,255,0.40),inset_1px_0_0_rgba(255,255,255,0.32),inset_0_-1px_1px_rgba(0,0,0,0.07),inset_-1px_0_1px_rgba(0,0,0,0.05)] opacity-[0.28]" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+tailwind.config.js:
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        "mid-block-text": "var(--mid-block-text)",
+        "vector-stroke": "var(--vector-stroke)",
+        "white-text-stroke": "var(--white-text-stroke)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+tailwind.css:
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --mid-block-text: rgba(28, 0, 73, 1);
+  --vector-stroke: rgba(223, 195, 250, 1);
+  --white-text-stroke: rgba(36, 5, 92, 0.75);
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}
