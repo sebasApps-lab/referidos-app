@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import "./figmaPrototype.css";
 
 const navigationLinks = [
-  "Como funciona",
-  "Recibir invitacion",
+  "Cómo funciona",
+  "Recibir invitación",
   "Para negocios",
 ];
 
@@ -22,6 +22,7 @@ const benefitCards = [
     description: (
       <>
         Espera y recibe la invitacion
+        Espera y recibe la invitación
         <br />
         para descargar la app.
       </>
@@ -182,7 +183,7 @@ function HeroPromoSection() {
                 <br />
                 ofertas, gana
                 <br />
-                recompensas facilmente
+                recompensas fácilmente
               </p>
 
               <p className="figma-prototype__hero-subtitle">
@@ -191,7 +192,7 @@ function HeroPromoSection() {
                 <span>
                   {" "}de la app y recibe
                   <br />
-                  beneficios extra, solo por usar la aplicacion.
+                  beneficios extra, solo por usar la aplicación.
                 </span>
               </p>
             </div>
@@ -205,6 +206,12 @@ function HeroPromoSection() {
 
           <div className="figma-prototype__hero-visual">
             <div className="figma-prototype__hero-phone">
+              <img
+                className="figma-prototype__hero-phone-glow"
+                src="/assets/phone-glow.svg"
+                alt=""
+                aria-hidden="true"
+              />
               <img
                 className="figma-prototype__hero-phone-device"
                 src="/assets/Nothing%20Phone%202a%202.png"
@@ -242,7 +249,7 @@ function HeroPromoSection() {
                     <p className="figma-prototype__signup-note">
                       Si ya tienes una cuenta, ten paciencia
                       <br />
-                      recibiras tu invitacion pronto.
+                      recibirás tu invitación pronto.
                     </p>
                   </div>
                 </div>
@@ -269,7 +276,7 @@ function BenefitsOverviewSection() {
 
           <p>
             <span>
-              Entra en la lista de espera para recibir tu invitacion, descarga la app una vez este disponible y{" "}
+              Entra en la lista de espera para recibir tu invitación, descarga la app una vez este disponible y{" "}
             </span>
             <span className="figma-prototype__benefits-heading-regular">recibe beneficios</span>
             <span className="figma-prototype__benefits-heading-strong">!</span>
@@ -365,7 +372,7 @@ function WaitlistSignupSection() {
         </div>
 
         <div className="figma-prototype__promo-stack">
-          <img className="figma-prototype__promo-stack-blur" src="/assets/card-carousel-glow.svg" alt="" aria-hidden="true" />
+          <img className="figma-prototype__promo-stack-blur" src="/assets/card-carousel-glow.png" alt="" aria-hidden="true" />
           <img className="figma-prototype__promo-stack-glass" src="/assets/card-carousle-glass.svg" alt="" aria-hidden="true" />
 
           <div className="figma-prototype__promo-cards">

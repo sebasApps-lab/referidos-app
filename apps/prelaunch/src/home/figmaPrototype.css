@@ -157,7 +157,7 @@
   width: 452px;
   height: 123px;
   opacity: 1;
-  filter: blur(8px);
+  filter: blur(7px);
 }
 
 .figma-prototype__hero-shadow-purple-glow {
@@ -167,7 +167,7 @@
   width: 442px;
   height: 146px;
   opacity: 1;
-  filter: blur(8px);
+  filter: blur(14px);
 }
 
 .figma-prototype__hero-shadow-purple-base {
@@ -176,8 +176,8 @@
   left: -1px;
   width: 313px;
   height: 78px;
-  opacity: 1;
-  filter: blur(6px);
+  opacity: 0.9;
+  filter: blur(8px);
 }
 
 .figma-prototype__hero-bg {
@@ -192,6 +192,7 @@
 .figma-prototype__hero-bg img {
   width: 1440px;
   height: 662.96px;
+  filter: drop-shadow(0 2px 4px rgba(36, 5, 92, 0.58));
 }
 
 .figma-prototype__hero-content {
@@ -297,23 +298,26 @@
   z-index: 2;
   width: 280px;
   height: 540px;
+  overflow: visible;
 }
 
 .figma-prototype__hero-phone-glow {
   position: absolute;
-  top: -81px;
+  top: -281px;
   left: -82px;
   width: 405px;
-  height: 681px;
+  max-width: none;
+  height: 1081px;
 }
 
 .figma-prototype__hero-phone-device {
   position: absolute;
   top: -29px;
   left: -28px;
+  width: 328px;
   height: 580px;
-  width: auto;
   max-width: none;
+  object-fit: contain;
 }
 
 .figma-prototype__hero-phone-back-shadow {
@@ -329,7 +333,7 @@
 
 .figma-prototype__signup-card-wrap {
   position: relative;
-  z-index: 1;
+  z-index: 0;
   display: inline-flex;
   align-items: center;
   overflow: visible;
@@ -337,11 +341,32 @@
   margin-left: -24px;
 }
 
+.figma-prototype__signup-card-wrap::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 6px;
+  z-index: 0;
+  width: 286px;
+  height: 386px;
+  background: radial-gradient(
+    ellipse 60% 54% at 60% 50%,
+    rgba(255, 255, 255, 0.68) 0%,
+    rgba(255, 255, 255, 0.3) 48%,
+    rgba(255, 255, 255, 0.12) 68%,
+    transparent 84%
+  );
+  filter: blur(32px);
+  border-radius: 0 44px 44px 0;
+  pointer-events: none;
+}
+
 .figma-prototype__signup-card {
   position: relative;
   isolation: isolate;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
   gap: 32px;
   width: 261.85px;
@@ -351,18 +376,11 @@
   border: 0.93px solid rgba(255, 255, 255, 0.22);
   border-radius: 0 44px 44px 0;
   background: #ffffff;
+  box-shadow: 26px 0 96px rgba(255, 255, 255, 0.22);
 }
 
 .figma-prototype__signup-card-blur {
-  position: absolute;
-  top: -84px;
-  left: -92px;
-  z-index: 0;
-  display: block;
-  width: 436px;
-  height: 527px;
-  opacity: 0.92;
-  pointer-events: none;
+  display: none;
 }
 
 .figma-prototype__signup-card-bg {
@@ -381,7 +399,9 @@
 }
 
 .figma-prototype__signup-card h2 {
-  position: relative;
+  position: absolute;
+  top: 38px;
+  left: calc(50% - 98.5px);
   z-index: 2;
   width: 197px;
   height: 27px;
@@ -393,13 +413,16 @@
 }
 
 .figma-prototype__signup-body-line {
-  position: relative;
+  position: absolute;
+  top: 97px;
+  left: 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 22px;
   width: 100%;
+  height: 166px;
 }
 
 .figma-prototype__signup-body {
@@ -813,7 +836,7 @@
   width: 1440px;
   height: 832px;
   background: url("/assets/glow-bottom-section.svg") left top / 1440px 832px no-repeat;
-  opacity: 0.58;
+  opacity: 0.36;
   pointer-events: none;
 }
 
@@ -996,12 +1019,18 @@
 
 .figma-prototype__promo-stack-blur {
   position: absolute;
-  top: -148px;
-  left: -108px;
-  z-index: 1;
-  width: 726px;
-  height: 804px;
-  opacity: 0.72;
+  top: calc(50% - 340px);
+  left: calc(50% - 357.5px);
+  z-index: 0;
+  display: block;
+  width: 715px;
+  max-width: none;
+  height: 680px;
+  opacity: 1;
+  mix-blend-mode: screen;
+  filter: brightness(4.2) contrast(1.28) saturate(1.65)
+    drop-shadow(0 0 72px rgba(255, 255, 255, 0.42))
+    drop-shadow(0 0 132px rgba(187, 128, 255, 0.3));
   pointer-events: none;
 }
 
@@ -1009,7 +1038,7 @@
   position: absolute;
   top: -9px;
   left: -9px;
-  z-index: 0;
+  z-index: 1;
   width: 397px;
   height: 469px;
   pointer-events: none;
