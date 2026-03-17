@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import "./figmaPrototype.css";
 
 const navigationLinks = [
-  "Cómo funciona",
-  "Recibir invitación",
+  "C\u00F3mo funciona",
+  "Recibir invitaci\u00F3n",
   "Para negocios",
 ];
 
@@ -12,7 +12,7 @@ const benefitCards = [
     key: "correo",
     title: (
       <>
-        <span className="figma-prototype__benefit-title-bold">Anade</span>
+        <span className="figma-prototype__benefit-title-bold">{"A\u00F1ade"}</span>
         <span className="figma-prototype__benefit-title-medium">
           {" "}tu correo
           <br />a la lista
@@ -21,8 +21,7 @@ const benefitCards = [
     ),
     description: (
       <>
-        Espera y recibe la invitacion
-        Espera y recibe la invitación
+        {"Espera y recibe la invitaci\u00F3n"}
         <br />
         para descargar la app.
       </>
@@ -62,7 +61,7 @@ const benefitCards = [
     description: (
       <>
         Canjea promociones, suma puntos
-        <br />y obten mas beneficios.
+        <br />{"y obt\u00E9n m\u00E1s beneficios."}
       </>
     ),
   },
@@ -98,7 +97,7 @@ const promoCards = [
     badge: "2 x 1",
     title: "2 X 1",
     description:
-      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y mas.",
+      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más.",
     until: "22 de Abril",
     shadowSrc: "/assets/card-shadow.svg",
     bgSrc: "/assets/card-bg.svg",
@@ -109,12 +108,12 @@ const promoCards = [
 
 const footerColumns = [
   {
-    title: "INFORMACION",
-    links: ["Plataforma", "Quienes somos"],
+    title: "INFORMACIÓN",
+    links: ["Plataforma", "Quiénes somos"],
   },
   {
     title: "LEGAL",
-    links: ["Privacidad", "Terminos y Condiciones", "Borrar mis datos"],
+    links: ["Privacidad", "Términos y Condiciones", "Borrar mis datos"],
   },
   {
     title: "CONTACTO",
@@ -183,7 +182,7 @@ function HeroPromoSection() {
                 <br />
                 ofertas, gana
                 <br />
-                recompensas fácilmente
+                {"recompensas f\u00E1cilmente"}
               </p>
 
               <p className="figma-prototype__hero-subtitle">
@@ -192,7 +191,7 @@ function HeroPromoSection() {
                 <span>
                   {" "}de la app y recibe
                   <br />
-                  beneficios extra, solo por usar la aplicación.
+                  {"beneficios extra, solo por usar la aplicaci\u00F3n."}
                 </span>
               </p>
             </div>
@@ -249,7 +248,7 @@ function HeroPromoSection() {
                     <p className="figma-prototype__signup-note">
                       Si ya tienes una cuenta, ten paciencia
                       <br />
-                      recibirás tu invitación pronto.
+                      {"recibir\u00E1s tu invitaci\u00F3n pronto."}
                     </p>
                   </div>
                 </div>
@@ -270,13 +269,13 @@ function BenefitsOverviewSection() {
       <div className="figma-prototype__benefits-inner">
         <div className="figma-prototype__benefits-heading">
           <div className="figma-prototype__benefits-title">
-            <span>Asi de</span>
-            <strong>rapido y simple</strong>
+            <span>{"As\u00ED de"}</span>
+            <strong>{"r\u00E1pido y simple"}</strong>
           </div>
 
           <p>
             <span>
-              Entra en la lista de espera para recibir tu invitación, descarga la app una vez este disponible y{" "}
+              {"Entra en la lista de espera para recibir tu invitaci\u00F3n, descarga la app una vez este disponible y "}
             </span>
             <span className="figma-prototype__benefits-heading-regular">recibe beneficios</span>
             <span className="figma-prototype__benefits-heading-strong">!</span>
@@ -318,7 +317,7 @@ function BenefitIcon({ type }) {
   return (
     <div className={`figma-prototype__benefit-icon figma-prototype__benefit-icon--${type}`} aria-hidden="true">
       <img className="figma-prototype__benefit-icon-shadow" src={shadowMap[type]} alt="" />
-      <img src={srcMap[type]} alt="" loading="lazy" />
+      <img className="figma-prototype__benefit-icon-image" src={srcMap[type]} alt="" loading="lazy" />
     </div>
   );
 }
@@ -356,16 +355,18 @@ function WaitlistSignupSection() {
                 />
 
                 <div className="figma-prototype__waitlist-buttonWrap">
-                  <button type="button">Anadir correo</button>
+                  <button type="button">
+                    <span className="figma-prototype__waitlist-buttonLabel">{"A\u00F1adir correo"}</span>
+                  </button>
                   <span className="figma-prototype__waitlist-buttonGlow" aria-hidden="true" />
                 </div>
               </div>
 
               <p className="figma-prototype__waitlist-legal">
                 <span>Al suscribirte, aceptas los </span>
-                <span className="figma-prototype__waitlist-legal-link">terminos y condiciones</span>
-                <span>, ademas de las </span>
-                <span className="figma-prototype__waitlist-legal-link">Politicas de Privacidad</span>
+                <span className="figma-prototype__waitlist-legal-link">{"t\u00E9rminos y condiciones"}</span>
+                <span>{", adem\u00E1s de las "}</span>
+                <span className="figma-prototype__waitlist-legal-link">{"Pol\u00EDticas de Privacidad"}</span>
               </p>
             </div>
           </div>
@@ -426,9 +427,12 @@ function FooterLinksSection() {
     <footer className="figma-prototype__footerSection">
       <div className="figma-prototype__footerBrand">
         <div className="figma-prototype__footerBrandTop">
-          <h3>REFERIDOS APP</h3>
+          <h3>
+            <span>REFERIDOS </span>
+            <span className="figma-prototype__footerBrandAccent">APP</span>
+          </h3>
           <p>
-            Catalogo de promociones y
+            {"Cat\u00E1logo de promociones y"}
             <br />
             sistema de recompensas por
             <br />
@@ -436,7 +440,7 @@ function FooterLinksSection() {
           </p>
         </div>
 
-        <p className="figma-prototype__footerBrandBottom">&copy; 2026 ReferidosApp - BETA v0.1.2</p>
+        <p className="figma-prototype__footerBrandBottom">&copy; 2026 Referidos App - BETA v0.1.2</p>
       </div>
 
       <div className="figma-prototype__footerColumns">

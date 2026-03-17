@@ -67,8 +67,7 @@
   justify-content: space-between;
   align-items: center;
   width: 1440px;
-  height: 113px;
-  padding: 35px 46px;
+  padding: 15px 46px 35px;
   background: transparent;
 }
 
@@ -112,15 +111,19 @@
   display: flex;
   align-items: center;
   gap: 78px;
-  width: 605px;
-  height: 27px;
+  width: auto;
+  height: auto;
+  margin-left: 0;
 }
 
 .figma-prototype__nav-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 0;
   color: #ffffff;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 400;
-  line-height: 26.6px;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -785,35 +788,21 @@
   height: 35.88px;
 }
 
-.figma-prototype__benefit-icon img {
+.figma-prototype__benefit-icon-image {
   position: absolute;
-}
-
-.figma-prototype__benefit-card--correo .figma-prototype__benefit-icon img {
-  top: calc(50% - 67px);
-  left: calc(50% - 101px);
-  width: 201px;
-  height: 134px;
-}
-
-.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-icon img {
-  top: calc(50% - 46px);
-  left: calc(50% - 47px);
-  width: 94px;
-  height: 94px;
-}
-
-.figma-prototype__benefit-card--puntos .figma-prototype__benefit-icon img {
-  top: calc(50% - 50px);
-  left: calc(50% - 78px);
-  width: 156px;
-  height: 100px;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
 }
 
 .figma-prototype__bottom-band {
   position: relative;
   overflow: hidden;
   background: #150444;
+  box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
 }
 
 .figma-prototype__bottom-band::before {
@@ -850,7 +839,6 @@
   height: 559px;
   padding: 50px 146px 119px;
   overflow: visible;
-  box-shadow: 0 -1px 5.5px rgba(36, 5, 92, 0.3);
   background: transparent;
 }
 
@@ -898,7 +886,6 @@
   font-weight: 500;
   line-height: 46.8px;
   filter: blur(0.277101px);
-  -webkit-text-stroke: 1px rgba(36, 5, 92, 0.75);
 }
 
 .figma-prototype__waitlist-copy-stack {
@@ -916,7 +903,6 @@
   font-weight: 400;
   line-height: 27.13px;
   filter: blur(0.277101px);
-  -webkit-text-stroke: 0.5px rgba(36, 5, 92, 0.75);
 }
 
 .figma-prototype__waitlist-form {
@@ -962,6 +948,9 @@
 }
 
 .figma-prototype__waitlist-buttonWrap button {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
   position: absolute;
   top: 0;
   left: 1px;
@@ -969,6 +958,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 0;
   width: 154px;
   height: 47px;
   border: 1px solid #43be73;
@@ -981,14 +971,36 @@
   cursor: pointer;
 }
 
+.figma-prototype__waitlist-buttonLabel {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 103px;
+  height: 23px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 150%;
+  white-space: nowrap;
+  -webkit-text-stroke: 0.45px rgba(87, 157, 121, 0.5);
+}
+
 .figma-prototype__waitlist-buttonGlow {
   position: absolute;
-  top: calc(50% - 23.5px);
+  top: calc(50% - 45px);
   left: calc(50% - 77.5px);
+  z-index: 2;
   width: 155px;
-  height: 47px;
-  background: linear-gradient(1deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.14) 50%, rgba(255, 255, 255, 0.35) 100%);
+  height: 90px;
+  background: linear-gradient(
+    26.41deg,
+    rgba(255, 255, 255, 0) 16.66%,
+    rgba(255, 255, 255, 0.14) 47.57%,
+    rgba(255, 255, 255, 0.3) 78.47%
+  );
   filter: blur(1.15px);
+  transform: rotate(-14deg);
+  transform-origin: center;
   pointer-events: none;
 }
 
@@ -998,7 +1010,6 @@
   font-weight: 400;
   line-height: 16.58px;
   filter: blur(0.277101px);
-  -webkit-text-stroke: 1px rgba(36, 5, 92, 0.75);
 }
 
 .figma-prototype__waitlist-legal-link {
@@ -1206,7 +1217,7 @@
   justify-content: space-between;
   align-items: flex-start;
   width: 1440px;
-  padding: 64px 74px 35px;
+  padding: 64px 74px 20px;
   background: transparent;
 }
 
@@ -1230,18 +1241,22 @@
   width: 270px;
   color: #ffffff;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 30.8px;
   opacity: 0.85;
+}
+
+.figma-prototype__footerBrandAccent {
+  color: #b26cf2;
 }
 
 .figma-prototype__footerBrandTop p {
   width: 270px;
   color: #ffffff;
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 25.2px;
-  opacity: 0.45;
+  font-size: 16px;
+  font-weight: 200;
+  line-height: 22.4px;
+  opacity: 0.9;
 }
 
 .figma-prototype__footerBrandBottom {
@@ -1271,7 +1286,7 @@
   width: 260px;
   color: #ffffff;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 22.4px;
   opacity: 0.85;
 }
@@ -1287,8 +1302,8 @@
 .figma-prototype__footerLinks span {
   width: 260px;
   color: #ffffff;
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 25.2px;
-  opacity: 0.45;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 19.6px;
+  opacity: 0.75;
 }
