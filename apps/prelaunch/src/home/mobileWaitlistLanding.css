@@ -52,32 +52,28 @@
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 627px;
+  width: 100vw;
+  max-width: 100vw;
   height: 918px;
+  overflow: hidden;
   z-index: 0;
   pointer-events: none;
 }
 
-.mobile-landing__hero-mask {
-  display: none;
+.mobile-landing__hero-bg-svg,
+.mobile-landing__hero-bg-image {
+  display: block;
+  max-width: none;
 }
 
-.mobile-landing__hero-bg-image {
+.mobile-landing__hero-bg-svg {
   position: absolute;
   top: 0;
-  left: -3px;
+  left: 50%;
   width: 627px;
   height: 918px;
-  object-fit: cover;
-  -webkit-mask-image: url("/assets/mobile/BG-mask-vector.svg");
-  mask-image: url("/assets/mobile/BG-mask-vector.svg");
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center top;
-  mask-position: center top;
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  filter: drop-shadow(0 2.11467px 4.44081px rgba(255, 255, 255, 0.51));
+  transform: translateX(-50%);
+  overflow: visible;
 }
 
 .mobile-landing__top-page {

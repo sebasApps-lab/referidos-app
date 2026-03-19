@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import "./mobileWaitlistLanding.css";
 
 const asset = (name) => `/assets/mobile/${encodeURIComponent(name)}`;
 const sharedAsset = (name) => `/assets/icons/${encodeURIComponent(name)}`;
+const HERO_MASK_PATH =
+  "M345.06 883.145C418.6 877.273 467.016 870.173 526 863.263C584.984 856.352 1076 775.5 1076 775.5V0H-529V869C-529 869 -228.5 895 -123 897C-17.5 899 50.02 899.641 146.682 894.391C255.173 888.498 236.691 891.797 345.06 883.145Z";
+const HERO_MASK_SCALE_X = 627 / 430;
+const HERO_MASK_SCALE_Y = 902 / 906;
 
 const steps = [
   {
@@ -134,6 +138,8 @@ const footerPanels = [
 ];
 
 export default function MobileWaitlistLandingPage() {
+  const heroClipId = useId().replace(/:/g, "");
+  const heroFilterId = useId().replace(/:/g, "");
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -142,12 +148,64 @@ export default function MobileWaitlistLandingPage() {
   return (
     <main className="mobile-landing" aria-label="Mobile waitlist landing">
       <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
-        <img className="mobile-landing__hero-mask" src={asset("BG-mask-vector.svg")} alt="" />
-        <img
-          className="mobile-landing__hero-bg-image"
-          src={asset("hero-header-bg-image.png")}
-          alt=""
-        />
+        <svg
+          className="mobile-landing__hero-bg-svg"
+          viewBox="0 0 627 918"
+          preserveAspectRatio="xMidYMin meet"
+          xmlns="http://www.w3.org/2000/svg"
+          overflow="visible"
+        >
+          <defs>
+            <clipPath id={heroClipId} clipPathUnits="userSpaceOnUse">
+              <path
+                d={HERO_MASK_PATH}
+                transform={`scale(${HERO_MASK_SCALE_X} ${HERO_MASK_SCALE_Y})`}
+              />
+            </clipPath>
+            <filter
+              id={heroFilterId}
+              x="-780"
+              y="-6"
+              width="2380"
+              height="930"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feColorMatrix
+                in="SourceAlpha"
+                type="matrix"
+                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                result="hardAlpha"
+              />
+              <feOffset dy="2.11467" />
+              <feGaussianBlur stdDeviation="2.2204" />
+              <feComposite in2="hardAlpha" operator="out" />
+              <feColorMatrix
+                type="matrix"
+                values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.51 0"
+              />
+              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
+              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
+            </filter>
+          </defs>
+          <path
+            d={HERO_MASK_PATH}
+            transform={`scale(${HERO_MASK_SCALE_X} ${HERO_MASK_SCALE_Y})`}
+            fill="#ffffff"
+            filter={`url(#${heroFilterId})`}
+          />
+          <image
+            className="mobile-landing__hero-bg-image"
+            href={asset("hero-header-bg-image.png")}
+            x="-3"
+            y="0"
+            width="627"
+            height="918"
+            preserveAspectRatio="xMidYMin slice"
+            clipPath={`url(#${heroClipId})`}
+          />
+        </svg>
       </div>
 
       <section className="mobile-landing__top-page">
