@@ -1,8 +1,9 @@
 .mobile-landing {
-  --mobile-common-min-width: 395px;
+  --mobile-common-min-width: 360px;
   --mobile-horizontal-gutter: clamp(28px, 6vw, 40px);
   --mobile-content-max-width: 564px;
   --mobile-phone-offset-x: -6px;
+  --mobile-phone-scale: 1;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -10,7 +11,7 @@
   gap: 246px;
   isolation: isolate;
   width: 100%;
-  min-width: min(100%, var(--mobile-common-min-width));
+  min-width: var(--mobile-common-min-width);
   max-width: none;
   margin: 0 auto;
   background: #ffffff;
@@ -191,11 +192,10 @@
   width: 100%;
   margin: 0;
   font-weight: 500;
-  font-size: 34px;
+  font-size: clamp(32px, 3.6vw + 20px, 44px);
   line-height: 165%;
   text-align: center;
   color: #ffffff;
-  text-wrap: balance;
 }
 
 .mobile-landing__hero-copy {
@@ -268,19 +268,28 @@
 
 .mobile-landing__phone-section {
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   width: 100%;
-  min-height: 725px;
+  min-height: calc(725px * var(--mobile-phone-scale));
+  height: calc(725px * var(--mobile-phone-scale));
   padding: 0 40.5px;
   isolation: isolate;
+}
+
+.mobile-landing__phone-stack {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 398.5px + var(--mobile-phone-offset-x));
+  width: 797px;
+  height: 725px;
+  transform: scale(var(--mobile-phone-scale));
+  transform-origin: top center;
+  overflow: visible;
 }
 
 .mobile-landing__phone-back-shadow {
   position: absolute;
   top: 13px;
-  left: calc(50% - 191.5px + 7.5px + var(--mobile-phone-offset-x));
+  left: 208.5px;
   width: 383px;
   height: 689px;
   z-index: 0;
@@ -289,7 +298,7 @@
 .mobile-landing__phone-glow {
   position: absolute;
   top: -252px;
-  left: calc(50% - 398.5px - 28px + var(--mobile-phone-offset-x));
+  left: -28px;
   width: 797px;
   height: 700px;
   pointer-events: none;
@@ -297,12 +306,13 @@
 }
 
 .mobile-landing__phone-image {
-  position: relative;
-  left: var(--mobile-phone-offset-x);
+  position: absolute;
+  top: 0;
+  left: 187.5px;
   z-index: 2;
   width: 410px;
   height: 725px;
-  margin: 0 -30.5px;
+  margin: 0;
 }
 
 .mobile-landing__signup-about {

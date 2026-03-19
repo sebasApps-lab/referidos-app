@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import "./mobileWaitlistLanding.css";
 
 const asset = (name) => `/assets/mobile/${encodeURIComponent(name)}`;
@@ -143,13 +143,33 @@ export default function MobileWaitlistLandingPage() {
   const heroClipId = useId().replace(/:/g, "");
   const heroFilterId = useId().replace(/:/g, "");
   const phoneGlowFilterId = useId().replace(/:/g, "");
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 430 : window.innerWidth,
+  );
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
+  useEffect(() => {
+    const updateViewportWidth = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    updateViewportWidth();
+    window.addEventListener("resize", updateViewportWidth);
+    return () => window.removeEventListener("resize", updateViewportWidth);
+  }, []);
+
+  const effectiveViewportWidth = Math.max(viewportWidth, 360);
+  const phoneScale = effectiveViewportWidth >= 410 ? 1 : effectiveViewportWidth / 410;
+
   return (
-    <main className="mobile-landing" aria-label="Mobile waitlist landing">
+    <main
+      className="mobile-landing"
+      aria-label="Mobile waitlist landing"
+      style={{ "--mobile-phone-scale": phoneScale.toFixed(4) }}
+    >
       <section className="mobile-landing__top-page">
         <div className="mobile-landing__top-section">
           <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
@@ -232,7 +252,13 @@ export default function MobileWaitlistLandingPage() {
           <section className="mobile-landing__hero-section">
             <div className="mobile-landing__hero-text">
               <h1 className="mobile-landing__hero-title">
-                {"Descubre y comparte ofertas, gana recompensas f\u00e1cilmente"}
+                Descubre y
+                <br />
+                comparte ofertas,
+                <br />
+                gana recompensas
+                <br />
+                {"f\u00e1cilmente"}
               </h1>
               <p className="mobile-landing__hero-copy">
                 Participa en el <strong>acceso anticipado</strong> de la app y recibe
@@ -255,45 +281,47 @@ export default function MobileWaitlistLandingPage() {
 
         <div className="mobile-landing__second-section">
           <section className="mobile-landing__phone-section">
-            <img
-              className="mobile-landing__phone-back-shadow"
-              src={asset("phone-back-shadow-container.png")}
-              alt=""
-            />
-            <svg
-              className="mobile-landing__phone-glow"
-              viewBox="-211.5 0 797 700"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
-                <path
-                  d="M-24 239.5C-24 210.781 -0.718803 187.5 28 187.5H346C374.719 187.5 398 210.781 398 239.5V512.5H-24V239.5Z"
-                  fill="white"
-                  fillOpacity="0.42"
-                />
-              </g>
-              <defs>
-                <filter
-                  id={phoneGlowFilterId}
-                  x="-211.5"
-                  y="0"
-                  width="797"
-                  height="700"
-                  filterUnits="userSpaceOnUse"
-                  colorInterpolationFilters="sRGB"
-                >
-                  <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                  <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-                  <feGaussianBlur stdDeviation="93.75" result="effect1_foregroundBlur" />
-                </filter>
-              </defs>
-            </svg>
-            <img
-              className="mobile-landing__phone-image"
-              src={asset("Nothing Phone 2a 2.png")}
-              alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
-            />
+            <div className="mobile-landing__phone-stack">
+              <img
+                className="mobile-landing__phone-back-shadow"
+                src={asset("phone-back-shadow-container.png")}
+                alt=""
+              />
+              <svg
+                className="mobile-landing__phone-glow"
+                viewBox="-211.5 0 797 700"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
+                  <path
+                    d="M-24 239.5C-24 210.781 -0.718803 187.5 28 187.5H346C374.719 187.5 398 210.781 398 239.5V512.5H-24V239.5Z"
+                    fill="white"
+                    fillOpacity="0.42"
+                  />
+                </g>
+                <defs>
+                  <filter
+                    id={phoneGlowFilterId}
+                    x="-211.5"
+                    y="0"
+                    width="797"
+                    height="700"
+                    filterUnits="userSpaceOnUse"
+                    colorInterpolationFilters="sRGB"
+                  >
+                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                    <feGaussianBlur stdDeviation="93.75" result="effect1_foregroundBlur" />
+                  </filter>
+                </defs>
+              </svg>
+              <img
+                className="mobile-landing__phone-image"
+                src={asset("Nothing Phone 2a 2.png")}
+                alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
+              />
+            </div>
           </section>
 
           <section className="mobile-landing__signup-about">
