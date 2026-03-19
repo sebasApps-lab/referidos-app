@@ -3,13 +3,12 @@ import "./mobileWaitlistLanding.css";
 
 const asset = (name) => `/assets/mobile/${encodeURIComponent(name)}`;
 const sharedAsset = (name) => `/assets/icons/${encodeURIComponent(name)}`;
+const sharedBgAsset = (name) => `/assets/bg/${encodeURIComponent(name)}`;
 const HERO_MASK_PATH =
   "M345.06 883.145C418.6 877.273 467.016 870.173 526 863.263C584.984 856.352 1076 775.5 1076 775.5V0H-529V869C-529 869 -228.5 895 -123 897C-17.5 899 50.02 899.641 146.682 894.391C255.173 888.498 236.691 891.797 345.06 883.145Z";
 const HERO_MASK_VIEWBOX_MIN_X = -529;
 const HERO_MASK_VIEWBOX_WIDTH = 1605;
 const HERO_MASK_VIEWBOX_HEIGHT = 906;
-const HERO_MASK_IMAGE_X = -35.905;
-const HERO_MASK_IMAGE_WIDTH = 618.81;
 
 const steps = [
   {
@@ -143,6 +142,7 @@ const footerPanels = [
 export default function MobileWaitlistLandingPage() {
   const heroClipId = useId().replace(/:/g, "");
   const heroFilterId = useId().replace(/:/g, "");
+  const phoneGlowFilterId = useId().replace(/:/g, "");
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -150,65 +150,65 @@ export default function MobileWaitlistLandingPage() {
 
   return (
     <main className="mobile-landing" aria-label="Mobile waitlist landing">
-      <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
-        <svg
-          className="mobile-landing__hero-bg-svg"
-          viewBox={`${HERO_MASK_VIEWBOX_MIN_X} 0 ${HERO_MASK_VIEWBOX_WIDTH} ${HERO_MASK_VIEWBOX_HEIGHT}`}
-          preserveAspectRatio="xMidYMin meet"
-          xmlns="http://www.w3.org/2000/svg"
-          overflow="visible"
-        >
-          <defs>
-            <clipPath id={heroClipId} clipPathUnits="userSpaceOnUse">
-              <path d={HERO_MASK_PATH} />
-            </clipPath>
-            <filter
-              id={heroFilterId}
-              x="-533.441"
-              y="-2.32614"
-              width="1613.88"
-              height="907.347"
-              filterUnits="userSpaceOnUse"
-              colorInterpolationFilters="sRGB"
-            >
-              <feFlood floodOpacity="0" result="BackgroundImageFix" />
-              <feColorMatrix
-                in="SourceAlpha"
-                type="matrix"
-                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                result="hardAlpha"
-              />
-              <feOffset dy="2.11467" />
-              <feGaussianBlur stdDeviation="2.2204" />
-              <feComposite in2="hardAlpha" operator="out" />
-              <feColorMatrix
-                type="matrix"
-                values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.51 0"
-              />
-              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
-            </filter>
-          </defs>
-          <path
-            d={HERO_MASK_PATH}
-            fill="#2f0663"
-            filter={`url(#${heroFilterId})`}
-          />
-          <image
-            className="mobile-landing__hero-bg-image"
-            href={asset("hero-header-bg-image.png")}
-            x={HERO_MASK_IMAGE_X}
-            y="0"
-            width={HERO_MASK_IMAGE_WIDTH}
-            height="906"
-            preserveAspectRatio="xMidYMin slice"
-            clipPath={`url(#${heroClipId})`}
-          />
-        </svg>
-      </div>
-
       <section className="mobile-landing__top-page">
         <div className="mobile-landing__top-section">
+          <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
+            <svg
+              className="mobile-landing__hero-bg-svg"
+              viewBox={`${HERO_MASK_VIEWBOX_MIN_X} 0 ${HERO_MASK_VIEWBOX_WIDTH} ${HERO_MASK_VIEWBOX_HEIGHT}`}
+              preserveAspectRatio="xMidYMin meet"
+              xmlns="http://www.w3.org/2000/svg"
+              overflow="visible"
+            >
+              <defs>
+                <clipPath id={heroClipId} clipPathUnits="userSpaceOnUse">
+                  <path d={HERO_MASK_PATH} />
+                </clipPath>
+                <filter
+                  id={heroFilterId}
+                  x="-533.441"
+                  y="-2.32614"
+                  width="1613.88"
+                  height="907.347"
+                  filterUnits="userSpaceOnUse"
+                  colorInterpolationFilters="sRGB"
+                >
+                  <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                  <feColorMatrix
+                    in="SourceAlpha"
+                    type="matrix"
+                    values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                    result="hardAlpha"
+                  />
+                  <feOffset dy="2.11467" />
+                  <feGaussianBlur stdDeviation="2.2204" />
+                  <feComposite in2="hardAlpha" operator="out" />
+                  <feColorMatrix
+                    type="matrix"
+                    values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.51 0"
+                  />
+                  <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
+                  <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
+                </filter>
+              </defs>
+              <path
+                d={HERO_MASK_PATH}
+                fill="#2f0663"
+                filter={`url(#${heroFilterId})`}
+              />
+              <image
+                className="mobile-landing__hero-bg-image"
+                href={sharedBgAsset("landing-hero-2-bg.png")}
+                x={HERO_MASK_VIEWBOX_MIN_X}
+                y="0"
+                width={HERO_MASK_VIEWBOX_WIDTH}
+                height="906"
+                preserveAspectRatio="xMidYMin slice"
+                clipPath={`url(#${heroClipId})`}
+              />
+            </svg>
+          </div>
+
           <header className="mobile-landing__header">
             <div className="mobile-landing__brand">
               <div className="mobile-landing__brand-row">
@@ -260,7 +260,35 @@ export default function MobileWaitlistLandingPage() {
               src={asset("phone-back-shadow-container.png")}
               alt=""
             />
-            <img className="mobile-landing__phone-glow" src={asset("phone-glow.png")} alt="" />
+            <svg
+              className="mobile-landing__phone-glow"
+              viewBox="-211.5 0 797 700"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
+                <path
+                  d="M-24 239.5C-24 210.781 -0.718803 187.5 28 187.5H346C374.719 187.5 398 210.781 398 239.5V512.5H-24V239.5Z"
+                  fill="white"
+                  fillOpacity="0.42"
+                />
+              </g>
+              <defs>
+                <filter
+                  id={phoneGlowFilterId}
+                  x="-211.5"
+                  y="0"
+                  width="797"
+                  height="700"
+                  filterUnits="userSpaceOnUse"
+                  colorInterpolationFilters="sRGB"
+                >
+                  <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                  <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                  <feGaussianBlur stdDeviation="93.75" result="effect1_foregroundBlur" />
+                </filter>
+              </defs>
+            </svg>
             <img
               className="mobile-landing__phone-image"
               src={asset("Nothing Phone 2a 2.png")}
