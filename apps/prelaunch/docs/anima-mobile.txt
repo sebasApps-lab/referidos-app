@@ -1,0 +1,891 @@
+index.jsx:
+import BGMaskVector from "./BG-mask-vector.svg";
+import { FeaturesAndContactSection } from "./FeaturesAndContactSection";
+import { HeroSection } from "./HeroSection";
+import heroHeaderBgImage from "./hero-header-bg-image.png";
+
+export const MobileWebLanding = () => {
+  return (
+    <div className="flex flex-col min-w-[395px] max-w-[620px] items-start gap-[246px] relative bg-white overflow-hidden">
+      <div className="absolute top-0 left-[calc(50.00%_-_313px)] w-[627px] h-[918px]">
+        <img
+          className="absolute top-0 left-[calc(50.00%_-_218px)] w-[627px] h-[902px]"
+          alt="Bg mask vector"
+          src={BGMaskVector}
+        />
+
+        <img
+          className="absolute top-0 left-[calc(50.00%_-_216px)] w-[430px] h-[909px]"
+          alt="Hero header bg image"
+          src={heroHeaderBgImage}
+        />
+      </div>
+
+      <HeroSection />
+      <FeaturesAndContactSection />
+    </div>
+  );
+};
+
+
+FeaturesAndContactSection.jsx:
+import { useState } from "react";
+import x1Icon2 from "./2x1-icon-2.png";
+import bottomBgMask from "./bottom-bg-mask.svg";
+import bottomGlow from "./bottom-glow.svg";
+import discountBomb from "./discount-bomb.png";
+import giftIconBlack1 from "./gift-icon-black-1.png";
+import grayScaleBg2 from "./gray-scale-bg-2.png";
+import grayScaleBg from "./gray-scale-bg.png";
+import greenButtonGlow from "./green-button-glow.svg";
+import image1 from "./image.png";
+import image from "./image.svg";
+import promoCardBg2 from "./promo-card-bg-2.svg";
+import promoCardBg from "./promo-card-bg.svg";
+import promoCardDottedLine2 from "./promo-card-dotted-line-2.svg";
+import promoCardDottedLine from "./promo-card-dotted-line.png";
+import promoCardDottedLine1 from "./promo-card-dotted-line.svg";
+import purpleButtonGlow from "./purple-button-glow.png";
+import qrCode2 from "./qr-code-2.svg";
+import qrCode from "./qr-code.svg";
+
+const promoCards = [
+  {
+    id: 1,
+    bg: promoCardBg2,
+    imageBg: grayScaleBg2,
+    icon: discountBomb,
+    iconClass:
+      "left-0 w-[120px] h-[120px] aspect-[0.67] object-cover absolute top-0",
+    badge: "20%",
+    title: "DESCUENTOS",
+    description:
+      "En compras de locales de comida y locales de diferentes productos y servicios.",
+    until: "01 Abril",
+    qrType: "vaadin",
+    dottedLine: promoCardDottedLine,
+    dottedLineClass: "relative w-px h-[100px]",
+    shadow: "shadow-[0px_6px_15px_#00000036]",
+  },
+  {
+    id: 2,
+    bg: image,
+    imageBg: image1,
+    icon: giftIconBlack1,
+    iconClass: "absolute top-8 left-[3px] w-[114px] h-[88px] aspect-[1.01]",
+    badge: "Gratis",
+    title: "REGALOS POR COMPRAR",
+    description:
+      "Regalos por realizar compras de ciertos productos o por superar cierto valor de compra.",
+    until: "16 de Sept.",
+    qrType: "img",
+    qrSrc: qrCode2,
+    dottedLine: promoCardDottedLine2,
+    dottedLineClass: "relative w-px h-[100px]",
+    shadow: "shadow-[0px_6px_15px_#00000036]",
+  },
+  {
+    id: 3,
+    bg: promoCardBg,
+    imageBg: grayScaleBg,
+    icon: x1Icon2,
+    iconClass:
+      "absolute top-0 left-1.5 w-[107px] h-[120px] aspect-[0.67] object-cover",
+    badge: "2 x 1",
+    title: "2 X 1",
+    description:
+      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más.",
+    until: "22 de Abril",
+    qrType: "img",
+    qrSrc: qrCode,
+    dottedLine: promoCardDottedLine1,
+    dottedLineClass: "relative w-px h-[100px]",
+    shadow: "",
+  },
+];
+
+const footerLinks = [
+  "Ayuda",
+  "Para negocios",
+  "¿Quienes somos?",
+  "Borrar datos",
+];
+
+export const FeaturesAndContactSection = () => {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [message, setMessage] = useState("");
+
+  const messageMaxLength = 200;
+
+  return (
+    <div className="flex flex-col items-center gap-[185px] px-7 py-0 relative self-stretch w-full flex-[0_0_auto]">
+      <div className="flex flex-col max-w-[430px] items-center gap-[182px] relative w-full flex-[0_0_auto]">
+        <div className="flex flex-col items-center gap-[175px] pt-[156px] pb-0 px-0 relative self-stretch w-full flex-[0_0_auto]">
+          <img
+            className="absolute -top-1 left-[calc(50.00%_-_215px)] w-[430px] h-[1249px]"
+            alt="Bottom bg mask"
+            src={bottomBgMask}
+          />
+
+          <div className="flex flex-col items-start gap-[60px] relative self-stretch w-full flex-[0_0_auto] overflow-hidden">
+            <p className="relative self-stretch mt-[-1.92px] ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[38px] tracking-[0] leading-[43.7px] border-white-text-stroke">
+              No te quedes sin participar
+            </p>
+
+            <div className="flex flex-col items-start gap-11 relative self-stretch w-full flex-[0_0_auto]">
+              <p className="relative self-stretch mt-[-1.42px] ml-[-0.50px] [-webkit-text-stroke:0.5px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-xl text-center tracking-[0] leading-[30px] border-white-text-stroke">
+                Los puestos son limitados, entra en la lista de espera
+              </p>
+
+              <div className="flex-col items-center gap-[34px] flex relative self-stretch w-full flex-[0_0_auto]">
+                <div className="flex flex-col items-center gap-[22px] relative self-stretch w-full flex-[0_0_auto]">
+                  <div className="items-start gap-[65px] px-[23px] py-[18px] bg-white rounded-xl overflow-hidden flex relative self-stretch w-full flex-[0_0_auto]">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Tu correo electrónico..."
+                      className="relative w-full mt-[-0.92px] [text-shadow:0px_0.92px_1.75px_#b88ae67a] [font-family:'Poppins-Light',Helvetica] font-light text-[#190651cc] text-base tracking-[0] leading-[24.1px] bg-transparent border-none outline-none placeholder-[#190651cc]"
+                    />
+                  </div>
+
+                  <div className="relative w-[271.11px] h-[60px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center px-11 py-[18px] absolute top-0 left-px bg-[#40c678] rounded-2xl overflow-hidden border border-solid border-[#447256] cursor-pointer"
+                    >
+                      <p className="relative w-fit mt-[-1.92px] ml-[-0.92px] [-webkit-text-stroke:0.92px_#569c7980] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-base tracking-[0] leading-6 whitespace-nowrap">
+                        Añadir correo a la lista
+                      </p>
+                    </button>
+
+                    <img
+                      className="absolute top-[calc(50.00%_-_32px)] left-[calc(50.00%_-_138px)] w-[276px] h-[65px]"
+                      alt="Green button glow"
+                      src={greenButtonGlow}
+                    />
+                  </div>
+                </div>
+
+                <div className="relative w-[374px] h-9">
+                  <p className="absolute w-full h-[100.00%] top-[-2.78%] left-0 [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Light',Helvetica] font-light text-transparent text-xs tracking-[0] leading-[18px] border-white-text-stroke">
+                    <span className="text-white">
+                      Al suscribirte, aceptas los{" "}
+                    </span>
+
+                    <span className="text-[#b78ce5] underline">
+                      términos y condiciones,
+                    </span>
+
+                    <span className="text-white"> además de las </span>
+
+                    <span className="text-[#b78ce5] underline">
+                      Políticas de Privacidad
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="inline-flex flex-col items-start gap-[38px] relative flex-[0_0_auto]">
+            <div className="relative self-stretch mt-[-2.00px] ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[28px] text-center tracking-[0] leading-[32.2px] border-white-text-stroke">
+              ¡Encuentra esto y más!
+            </div>
+
+            <div className="inline-flex flex-col items-start gap-2.5 relative flex-[0_0_auto]">
+              {promoCards.map((card) => (
+                <div
+                  key={card.id}
+                  className={`inline-flex flex-col items-start gap-2.5 px-2.5 py-3 relative flex-[0_0_auto] ${card.shadow}`}
+                >
+                  <img
+                    className="absolute top-0 left-0 w-[370px] h-36"
+                    alt="Promo card bg"
+                    src={card.bg}
+                  />
+
+                  <div className="inline-flex items-center gap-3.5 relative flex-[0_0_auto]">
+                    <div className="relative w-[120px] h-[120px] bg-[#c7c7c7] rounded-[9px] overflow-hidden">
+                      <img
+                        className="absolute top-0 left-0 w-[120px] h-[120px] aspect-[1.05] object-cover"
+                        alt="Gray scale bg"
+                        src={card.imageBg}
+                      />
+
+                      <img
+                        className={card.iconClass}
+                        alt="Card icon"
+                        src={card.icon}
+                      />
+
+                      <div className="flex w-[35px] h-[23px] items-center justify-center gap-2.5 left-[73px] bg-black rounded-[0px_0px_3px_3px] overflow-hidden absolute top-0">
+                        <div className="relative w-fit [font-family:'Roboto-Medium',Helvetica] font-medium text-white text-[11px] tracking-[0] leading-[15.4px] whitespace-nowrap">
+                          {card.badge}
+                        </div>
+                      </div>
+                    </div>
+
+                    <img
+                      className={card.dottedLineClass}
+                      alt="Promo card dotted"
+                      src={card.dottedLine}
+                    />
+
+                    <div className="flex flex-col w-[202px] items-start gap-[5px] relative">
+                      <div className="flex flex-col items-start gap-[5px] relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="relative self-stretch mt-[-1.00px] [font-family:'Roboto-Medium',Helvetica] font-medium text-black text-[11px] tracking-[0] leading-[15.4px]">
+                          {card.title}
+                        </div>
+
+                        <p className="relative self-stretch opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] tracking-[0] leading-[15.4px]">
+                          {card.description}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="inline-flex items-center gap-[27px] relative flex-[0_0_auto]">
+                          <div className="relative w-fit mt-[-1.00px] opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] tracking-[0] leading-[15.4px] whitespace-nowrap">
+                            Hasta
+                          </div>
+
+                          <div className="relative w-fit mt-[-1.00px] opacity-55 [font-family:'Roboto-Regular',Helvetica] font-normal text-black text-[11px] text-right tracking-[0] leading-[15.4px] whitespace-nowrap">
+                            {card.until}
+                          </div>
+                        </div>
+
+                        {card.qrType === "vaadin" ? (
+                          <div className="relative w-[33.96px] h-[34px] rounded-[1px] bg-[url(/vaadin-qrcode.svg)] bg-[100%_100%]" />
+                        ) : (
+                          <img
+                            className="relative w-[34px] h-[34px]"
+                            alt="Qr code"
+                            src={card.qrSrc}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <img
+            className="absolute top-[-200px] left-[calc(50.00%_-_215px)] w-[430px] h-[1699px]"
+            alt="Bottom glow"
+            src={bottomGlow}
+          />
+        </div>
+
+        <div className="items-center gap-9 flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+          <div className="relative self-stretch mt-[-0.92px] [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#4b0d82] text-[32px] text-center tracking-[0] leading-[36.8px]">
+            Dejanos un mensaje
+          </div>
+
+          <div className="items-start gap-9 flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+            <div className="flex flex-col items-start gap-[13px] relative self-stretch w-full flex-[0_0_auto]">
+              <p className="relative self-stretch mt-[-1.00px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1c0049b2] text-base text-center tracking-[0] leading-6">
+                Tus ideas y opiniones son muy valiosas para nosotros, no dudes
+                en escribirnos.
+              </p>
+
+              <p className="relative self-stretch [font-family:'Poppins-Light',Helvetica] font-normal text-[#1c0049b2] text-base text-center tracking-[0] leading-6">
+                <span className="font-light">
+                  Si necesitas ayuda, usa el siguiente{" "}
+                </span>
+
+                <span className="[font-family:'Poppins-SemiBold',Helvetica] font-semibold underline cursor-pointer">
+                  enlace
+                </span>
+
+                <span className="font-light underline">.</span>
+              </p>
+            </div>
+
+            <div className="items-center gap-6 flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+              <div className="flex flex-col items-start gap-[26px] relative self-stretch w-full flex-[0_0_auto]">
+                <div className="items-start px-[13px] py-[15px] bg-white rounded-[10px] overflow-hidden border border-solid border-[#dad8e5] flex relative self-stretch w-full flex-[0_0_auto]">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nombre..."
+                    className="relative w-full mt-[-1.00px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1906518c] text-base tracking-[0] leading-[24.1px] bg-transparent border-none outline-none placeholder-[#1906518c]"
+                  />
+                </div>
+
+                <div className="items-start px-[13px] py-[15px] bg-white rounded-[10px] overflow-hidden border border-solid border-[#dad8e5] flex relative self-stretch w-full flex-[0_0_auto]">
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="Correo electrónico"
+                    className="relative w-full mt-[-1.00px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1906518c] text-base tracking-[0] leading-[24.1px] bg-transparent border-none outline-none placeholder-[#1906518c]"
+                  />
+                </div>
+
+                <div className="flex h-[100px] items-start px-[13px] py-[15px] relative self-stretch w-full bg-white rounded-[10px] overflow-hidden border border-solid border-[#dad8e5]">
+                  <textarea
+                    value={message}
+                    onChange={(e) => {
+                      if (e.target.value.length <= messageMaxLength) {
+                        setMessage(e.target.value);
+                      }
+                    }}
+                    placeholder="Mensaje..."
+                    maxLength={messageMaxLength}
+                    className="relative w-full h-full mt-[-1.00px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1906518c] text-base tracking-[0] leading-[24.1px] bg-transparent border-none outline-none resize-none placeholder-[#1906518c]"
+                  />
+
+                  <div className="absolute top-[73px] left-[318px] [font-family:'Poppins-Light',Helvetica] font-light text-[#19065173] text-sm tracking-[0] leading-[21px] whitespace-nowrap">
+                    {message.length} / {messageMaxLength}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="all-[unset] box-border relative w-[179px] h-14 cursor-pointer"
+              >
+                <div className="inline-flex items-center justify-center px-7 py-4 absolute top-0 left-px bg-[#6a40c6] rounded-[14px] border border-solid border-[#49307e54]">
+                  <div className="relative w-fit mt-[-1.92px] ml-[-0.92px] [-webkit-text-stroke:0.92px_#48396680] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-base tracking-[0] leading-6 whitespace-nowrap">
+                    Enviar mensaje
+                  </div>
+                </div>
+
+                <img
+                  className="absolute top-[calc(50.00%_-_30px)] left-[calc(50.00%_-_92px)] w-[184px] h-[61px]"
+                  alt="Purple button glow"
+                  src={purpleButtonGlow}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer className="flex flex-col w-[430px] items-center gap-[52px] pt-0 pb-10 px-0 relative flex-[0_0_auto] ml-[-28.00px] mr-[-28.00px] bg-transparent">
+        <div className="items-start border-t [border-top-style:solid] border-[#1c004926] flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+          {footerLinks.map((link) => (
+            <div
+              key={link}
+              className="items-center justify-center px-0 py-5 border-b [border-bottom-style:solid] border-[#1c004926] flex relative self-stretch w-full flex-[0_0_auto] cursor-pointer"
+            >
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1c0049bf] text-lg tracking-[0] leading-[25.2px] whitespace-nowrap">
+                {link}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="items-center gap-8 flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+          <div className="inline-flex flex-col items-center gap-5 px-[15px] py-0 relative flex-[0_0_auto]">
+            <div className="relative w-[150px] mt-[-0.63px] [font-family:'Poppins-Medium',Helvetica] font-medium text-[#b26cf2] text-xl tracking-[0] leading-[28.0px]">
+              REFERIDOS APP
+            </div>
+
+            <p className="relative w-[350px] [font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-[#1c0049bf] text-base text-center tracking-[0] leading-6">
+              Catálogo de promociones y sistema de recompensas por canjearlas y
+              referir.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
+            <div className="flex items-baseline justify-center gap-3 relative self-stretch w-full flex-[0_0_auto]">
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#1c0049bf] text-base tracking-[0] leading-[22.4px] whitespace-nowrap">
+                Términos
+              </div>
+
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#1c0049] text-base tracking-[0] leading-[22.4px] whitespace-nowrap">
+                -
+              </div>
+
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#1c0049bf] text-base tracking-[0] leading-[22.4px] whitespace-nowrap">
+                Privacidad
+              </div>
+            </div>
+
+            <p className="relative self-stretch [font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-[#1c0049bf] text-sm text-center tracking-[0] leading-[21px]">
+              © 2026 ReferidosApp. Todos los derechos reservados.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+
+HeroSection.jsx:
+import bLine from "./b-line.svg";
+import cardGlow from "./card-glow.svg";
+import cardVolume from "./card-volume.svg";
+import fluentColorMail16 from "./fluent-color-mail-16.svg";
+import giftIcon from "./gift-icon.png";
+import heroRegisterCardLine from "./hero-register-card-line.svg";
+import mLine from "./m-line.svg";
+import mailIconShadow from "./mail-icon-shadow.png";
+import mailIcon from "./mail-icon.png";
+import materialIconThemeGoogle from "./material-icon-theme-google.svg";
+import nothingPhone2A2 from "./nothing-phone-2a-2.png";
+import phoneBackShadowContainer from "./phone-back-shadow-container.png";
+import phoneGlow from "./phone-glow.png";
+import signUpCardBg from "./sign-up-card-bg.svg";
+import tLine from "./t-line.svg";
+
+const steps = [
+  {
+    id: 1,
+    topContent: (
+      <>
+        <img
+          className="absolute top-[75px] left-px w-[353px] h-[215px]"
+          alt="Card volume"
+          src={cardVolume}
+        />
+        <div className="flex flex-col w-[353px] h-[221px] items-center gap-5 pt-[57px] pb-0 px-0 absolute top-[68px] left-px bg-[#fcf9fd] rounded-[35px] overflow-hidden border border-solid border-[#95959521] shadow-[0px_6.74px_4.82px_#d7b5ea1f,0px_2.89px_19.27px_4.82px_#cfa8e714,0px_0px_7.71px_19.27px_#e8d7f40d,inset_0px_0.96px_1.93px_#ffffffbf,inset_0px_-2.89px_9.64px_#e9ddf329] blur-[0.2px]">
+          <p className="relative w-fit mt-[-1.00px] [font-family:'Poppins-SemiBold',Helvetica] font-normal text-[#1b0048] text-[23px] text-center tracking-[0] leading-[30.8px]">
+            <span className="font-semibold">Añade</span>
+            <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-2xl leading-[32.2px]">
+              &nbsp;
+            </span>
+            <span className="[font-family:'Poppins-Light',Helvetica] font-light text-[22px] leading-[29.5px]">
+              tu correo
+              <br />a la lista
+            </span>
+          </p>
+          <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-[#1b0048] text-base text-center tracking-[0] leading-6">
+            Espera y recibe la invitación
+            <br />
+            para descargar la app.
+          </p>
+        </div>
+        <img
+          className="absolute top-[75px] left-px w-[352px] h-[215px]"
+          alt="Card glow"
+          src={cardGlow}
+        />
+        <img
+          className="absolute top-[46px] left-[123px] w-[171px] h-[47px]"
+          alt="Mail icon shadow"
+          src={mailIconShadow}
+        />
+        <img
+          className="absolute top-0 left-[calc(50.00%_-_155px)] w-[311px] h-[153px] object-cover"
+          alt="Mail icon"
+          src={mailIcon}
+        />
+      </>
+    ),
+    wrapperClass: "relative w-[354px] h-[290px]",
+  },
+  {
+    id: 2,
+    topContent: (
+      <>
+        <div className="absolute top-[75px] left-0 w-[353px] h-[217px] bg-[#eeddf7] rounded-[35px] opacity-[0.22]" />
+        <div className="flex flex-col w-[353px] h-[221px] items-center gap-5 pt-[57px] pb-0 px-0 absolute top-[68px] left-0 bg-[#fcf9fd] rounded-[35px] overflow-hidden border border-solid border-[#95959521] shadow-[0px_6.74px_4.82px_#d7b5ea1f,0px_2.89px_19.27px_4.82px_#cfa8e714,0px_0px_7.71px_19.27px_#e8d7f40d,inset_0px_0.96px_1.93px_#ffffffbf,inset_0px_-2.89px_9.64px_#e9ddf329] blur-[0.2px]">
+          <p className="relative self-stretch mt-[-1.00px] [font-family:'Poppins-SemiBold',Helvetica] font-normal text-[#1b0048] text-[23px] text-center tracking-[0] leading-[30.8px]">
+            <span className="font-semibold">Descarga</span>
+            <span className="[font-family:'Poppins-Regular',Helvetica] text-[24.1px] leading-[32.3px]">
+              &nbsp;
+            </span>
+            <span className="[font-family:'Poppins-Light',Helvetica] font-light text-[22px] leading-[29.5px]">
+              y recibe <br />
+              tu recompensas
+            </span>
+          </p>
+          <p className="relative w-fit opacity-[0.86] [font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-[#1b0048] text-base text-center tracking-[0] leading-6">
+            Recibe tus beneficios extra por
+            <br />
+            participar en el acceso anticipado.
+          </p>
+        </div>
+        <div className="w-[352px] absolute top-[75px] left-0 h-[217px] rounded-[35px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]" />
+        <div className="absolute top-[-7px] left-[calc(50.00%_-_61px)] w-[123px] h-[121px] rounded-[21.37px]">
+          <div className="absolute top-[73px] left-[38px] w-[106px] h-[47px] bg-[#aeaeae96] rounded-[53px/23.5px] rotate-[-7.22deg] blur-[2.49px]" />
+          <img
+            className="absolute top-[calc(50.00%_-_54px)] left-[calc(50.00%_-_78px)] w-[161px] h-[136px] aspect-[1] object-cover"
+            alt="Gift icon"
+            src={giftIcon}
+          />
+        </div>
+      </>
+    ),
+    wrapperClass: "relative w-[354px] h-[290px] overflow-hidden",
+  },
+  {
+    id: 3,
+    topContent: (
+      <>
+        <div className="absolute top-[75px] left-0 w-[353px] h-[217px] bg-[#eeddf7] rounded-[35px] opacity-[0.22]" />
+        <div className="flex flex-col w-[353px] h-[221px] items-center gap-5 pt-[57px] pb-0 px-0 absolute top-[68px] left-0 bg-[#fcf9fd] rounded-[35px] overflow-hidden border border-solid border-[#95959521] shadow-[0px_6.74px_4.82px_#d7b5ea1f,0px_2.89px_19.27px_4.82px_#cfa8e714,0px_0px_7.71px_19.27px_#e8d7f40d,inset_0px_0.96px_1.93px_#ffffffbf,inset_0px_-2.89px_9.64px_#e9ddf329] blur-[0.2px]">
+          <p className="relative w-fit mt-[-1.00px] [font-family:'Poppins-SemiBold',Helvetica] font-normal text-[#1b0048] text-[23px] text-center tracking-[0] leading-[30.8px]">
+            <span className="font-semibold">Gana puntos</span>
+            <span className="[font-family:'Poppins-Bold',Helvetica] font-bold text-[25px] leading-[33.5px]">
+              &nbsp;
+            </span>
+            <span className="[font-family:'Poppins-Regular',Helvetica] text-[24.1px] leading-[32.3px]">
+              {" "}
+              <br />
+            </span>
+            <span className="[font-family:'Poppins-Light',Helvetica] font-light text-[22px] leading-[29.5px]">
+              y recompensas
+            </span>
+          </p>
+          <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-[#1b0048] text-base text-center tracking-[0] leading-6">
+            Canjea promociones, suma puntos
+            <br />y obtén más beneficios.
+          </p>
+        </div>
+        <div className="w-[353px] absolute top-[75px] left-0 h-[217px] rounded-[35px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]" />
+        <div className="absolute top-[58px] left-[171px] w-[104px] h-10 bg-[#aeaeae96] rounded-[52px/20px] rotate-[-10.59deg] blur-[2.32px]" />
+        <div className="absolute top-[-29px] left-[calc(50.00%_-_127px)] w-[255px] h-[163px] bg-[url(/coins-icon.png)] bg-cover bg-[50%_50%]" />
+      </>
+    ),
+    wrapperClass: "relative w-[354px] h-[290px] overflow-hidden",
+  },
+];
+
+export const HeroSection = () => {
+  return (
+    <div className="items-end gap-[93.75px] flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+      <div className="items-start gap-[85px] flex flex-col relative self-stretch w-full flex-[0_0_auto]">
+        <header className="flex items-center justify-between pt-[23px] pb-2 px-[30px] relative self-stretch w-full flex-[0_0_auto] bg-transparent">
+          <div className="inline-flex flex-col items-start justify-center relative flex-[0_0_auto]">
+            <div className="inline-flex items-center gap-1 relative flex-[0_0_auto]">
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[26px] tracking-[0] leading-[36.4px] whitespace-nowrap">
+                REFERIDOS
+              </div>
+              <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-[#b26cf2] text-[26px] tracking-[0] leading-[36.4px] whitespace-nowrap">
+                APP
+              </div>
+            </div>
+            <div className="relative flex items-end w-fit -mt-1 [font-family:'Poppins-ExtraLightItalic',Helvetica] font-extralight italic text-white text-[17px] tracking-[0] leading-[23.8px] whitespace-nowrap">
+              Acceso anticipado
+            </div>
+          </div>
+
+          <div className="flex flex-col w-[29px] items-start gap-2.5 relative">
+            <img
+              className="relative self-stretch w-full h-1 mt-[-2.00px] ml-[-2.00px] mr-[-2.00px]"
+              alt="T line"
+              src={tLine}
+            />
+            <img
+              className="relative self-stretch w-full h-1 ml-[-2.00px] mr-[-2.00px]"
+              alt="M line"
+              src={mLine}
+            />
+            <img
+              className="relative self-stretch w-full h-1 mb-[-2.00px] ml-[-2.00px] mr-[-2.00px]"
+              alt="B line"
+              src={bLine}
+            />
+          </div>
+        </header>
+
+        <div className="gap-[62px] px-7 py-0 flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
+          <div className="gap-10 flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
+            <p className="relative self-stretch mt-[-0.93px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-4xl text-center tracking-[0] leading-[59.4px]">
+              Descubre y<br /> comparte ofertas, gana recompensas fácilmente
+            </p>
+            <p className="relative self-stretch [font-family:'Poppins-Light',Helvetica] font-normal text-white text-lg text-center tracking-[0] leading-[29.5px]">
+              <span className="font-light">Participa en el </span>
+              <span className="[font-family:'Poppins-Medium',Helvetica] font-medium">
+                acceso anticipado
+              </span>
+              <span className="font-light">
+                {" "}
+                de la app y recibe beneficios extra, solo por usar la
+                aplicación.
+              </span>
+            </p>
+          </div>
+
+          <div className="gap-[13px] self-stretch w-full flex flex-col items-center relative flex-[0_0_auto]">
+            <div className="flex w-[291px] items-center justify-center gap-[22px] pl-7 pr-5 py-4 relative flex-[0_0_auto] mt-[-1.00px] bg-white rounded-xl border border-solid border-[#59476559]">
+              <p className="relative w-fit [font-family:'Poppins-Medium',Helvetica] font-medium text-[#24055c] text-base tracking-[0] leading-6 whitespace-nowrap">
+                Entrar a la lista de espera
+              </p>
+              <div className="relative w-fit [font-family:'Poppins-Medium',Helvetica] font-medium text-[#24055c] text-base tracking-[0] leading-6 whitespace-nowrap">
+                &gt;
+              </div>
+            </div>
+
+            <div className="inline-flex items-center justify-center px-5 py-3 relative flex-[0_0_auto]">
+              <button className="all-[unset] box-border relative w-[141px] h-[22px]">
+                <div className="absolute w-full h-full top-0 left-0 [font-family:'Poppins-Light',Helvetica] font-light text-white text-base tracking-[0] leading-[22.4px] underline whitespace-nowrap">
+                  ¿Como funciona?
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-[84px] relative self-stretch w-full flex-[0_0_auto]">
+        <div className="flex items-center justify-center px-[40.5px] py-0 relative self-stretch w-full flex-[0_0_auto]">
+          <img
+            className="absolute top-[-11px] left-[calc(50.00%_-_184px)] w-[399px] h-[739px]"
+            alt="Phone back shadow"
+            src={phoneBackShadowContainer}
+          />
+          <img
+            className="absolute top-[-252px] left-[calc(50.00%_-_215px)] w-[430px] h-[700px]"
+            alt="Phone glow"
+            src={phoneGlow}
+          />
+          <img
+            className="relative w-[410px] h-[725px] ml-[-30.50px] mr-[-30.50px]"
+            alt="Nothing phone"
+            src={nothingPhone2A2}
+          />
+        </div>
+
+        <div className="flex flex-col items-center gap-[115px] relative self-stretch w-full flex-[0_0_auto]">
+          <div className="flex flex-col max-w-[430px] h-[739px] items-center gap-[72px] pt-[71px] pb-0 px-10 relative w-full mt-[-1.00px] ml-[-1.00px] mr-[-1.00px] bg-white rounded-[0px_0px_24px_24px] border-t [border-top-style:solid] border-[#f2ecec] shadow-[0px_5px_9px_#0000001a]">
+            <img
+              className="absolute left-[calc(50.00%_-_216px)] bottom-0 w-[430px] h-[737px]"
+              alt="Sign up card bg"
+              src={signUpCardBg}
+            />
+
+            <div className="relative self-stretch [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#4b0d82] text-[32px] text-center tracking-[0] leading-[48px]">
+              Crea tu cuenta gratis
+            </div>
+
+            <div className="flex flex-col items-end gap-[82px] relative self-stretch w-full flex-[0_0_auto]">
+              <div className="flex flex-col items-center gap-[68px] relative self-stretch w-full flex-[0_0_auto]">
+                <div className="w-[270px] gap-[18px] flex flex-col items-center relative flex-[0_0_auto]">
+                  <button className="all-[unset] box-border inline-flex items-center justify-center gap-3 px-7 py-4 relative flex-[0_0_auto] ml-[-0.50px] mr-[-0.50px] rounded-[18px] border border-solid border-[#dad8e5]">
+                    <img
+                      className="relative w-[26px] h-[26px] aspect-[1]"
+                      alt="Material icon theme"
+                      src={materialIconThemeGoogle}
+                    />
+                    <div className="[font-family:'Poppins-Light',Helvetica] font-light text-[#626262] relative w-fit text-base tracking-[0] leading-6 whitespace-nowrap">
+                      Continuar con Google
+                    </div>
+                  </button>
+
+                  <button className="all-[unset] box-border inline-flex items-center justify-center gap-3 px-[30px] py-4 relative flex-[0_0_auto] bg-[#58179a] rounded-[18px] border-[1.36px] border-solid border-[#440d90]">
+                    <img
+                      className="relative w-7 h-7 aspect-[1]"
+                      alt="Fluent color mail"
+                      src={fluentColorMail16}
+                    />
+                    <div className="[font-family:'Poppins-ExtraLight',Helvetica] font-extralight text-white relative w-fit text-base tracking-[0] leading-6 whitespace-nowrap">
+                      Continuar con correo
+                    </div>
+                  </button>
+                </div>
+
+                <div className="flex items-center relative self-stretch w-full flex-[0_0_auto]">
+                  <p className="relative flex-1 mt-[-1.36px] [font-family:'Poppins-Light',Helvetica] font-light text-[#1c0049b2] text-sm text-center tracking-[0] leading-[21px]">
+                    Si ya tienes una cuenta, ten paciencia recibirás tu
+                    invitación pronto.
+                  </p>
+                </div>
+              </div>
+
+              <img
+                className="relative self-stretch w-full h-px mb-[-1.00px] object-cover"
+                alt="Hero register card"
+                src={heroRegisterCardLine}
+              />
+            </div>
+          </div>
+
+          <div className="gap-[82px] px-7 py-0 flex flex-col items-center relative self-stretch w-full flex-[0_0_auto]">
+            <div className="gap-[60px] flex flex-col items-center relative self-stretch w-full flex-[0_0_auto]">
+              <p className="relative flex-1 w-[374px] mt-[-0.82px] blur-[0.25px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#4b0d82] text-[32px] text-center tracking-[0] leading-[48px]">
+                <span className="[font-family:'Poppins-Regular',Helvetica] font-normal text-[#4b0d82] text-[32px] tracking-[0] leading-[48px]">
+                  Así de{" "}
+                </span>
+                <span className="[font-family:'Poppins-Bold',Helvetica] font-bold">
+                  rápido y simple
+                </span>
+              </p>
+
+              <p className="relative self-stretch blur-[0.25px] opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-normal text-[#1b0048] text-base text-center tracking-[0] leading-6">
+                <span className="font-light">
+                  Entra en la lista de espera para recibir tu invitación.
+                  Descarga la app una vez este disponible y{" "}
+                </span>
+                <span className="[font-family:'Poppins-Regular',Helvetica]">
+                  recibe beneficios!
+                </span>
+              </p>
+            </div>
+
+            <div className="inline-flex flex-col items-start gap-[120px] relative flex-[0_0_auto]">
+              {steps.map((step) => (
+                <div key={step.id} className={step.wrapperClass}>
+                  {step.topContent}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+tailwind.config.js:
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        "mid-block-text": "var(--mid-block-text)",
+        "vector-stroke": "var(--vector-stroke)",
+        "white-text-stroke": "var(--white-text-stroke)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+tailwind.css:
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --mid-block-text: rgba(28, 0, 73, 1);
+  --vector-stroke: rgba(223, 195, 250, 1);
+  --white-text-stroke: rgba(36, 5, 92, 0.75);
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}

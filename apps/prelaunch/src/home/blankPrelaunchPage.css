@@ -1,0 +1,17 @@
+html[data-prelaunch-root-entry="mobile"],
+html[data-prelaunch-root-entry="mobile"] body {
+  background: #ffffff;
+}
+
+html[data-prelaunch-root-entry="mobile"] #root {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.waitlist-landing-mobile-root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  background: #ffffff;
+}

@@ -1,11 +1,11 @@
 ﻿import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import PrelaunchHomePage from "./home/PrelaunchHomePage";
 import PrelaunchHomePageV2 from "./home/PrelaunchHomePageV2";
 import PrelaunchHomePageV3 from "./home/PrelaunchHomePageV3";
 import PrelaunchHomePageV4 from "./home/PrelaunchHomePageV4";
 import PrelaunchHomePageV5 from "./home/PrelaunchHomePageV5";
+import BlankPrelaunchPage from "./home/BlankPrelaunchPage";
 import LandingPruebaPage from "./home/LandingPruebaPage";
 import LandingPrueba2Page from "./home/LandingPrueba2Page";
 import AnimaPrototypePage from "./home/AnimaPrototypePage";
@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PrelaunchHomePage />} />
+        <Route path="/" element={<BlankPrelaunchPage />} />
         <Route path="/v2" element={<PrelaunchHomePageV2 />} />
         <Route path="/v3" element={<PrelaunchHomePageV3 />} />
         <Route path="/v4" element={<PrelaunchHomePageV4 />} />
