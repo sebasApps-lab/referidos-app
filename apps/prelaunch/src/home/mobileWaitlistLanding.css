@@ -5,8 +5,8 @@
   align-items: flex-start;
   gap: 246px;
   isolation: isolate;
-  width: 100%;
-  min-width: 395px;
+  width: min(100%, 430px);
+  min-width: 0;
   max-width: 430px;
   margin: 0 auto;
   background: #ffffff;
@@ -50,28 +50,34 @@
 .mobile-landing__hero-bg-wrap {
   position: absolute;
   top: 0;
-  left: calc(50% - 313px);
+  left: 50%;
+  transform: translateX(-50%);
   width: 627px;
   height: 918px;
   z-index: 0;
+  pointer-events: none;
 }
 
 .mobile-landing__hero-mask {
-  position: absolute;
-  top: 0;
-  left: calc(50% - 313px - 3px);
-  width: 627px;
-  height: 902px;
-  filter: drop-shadow(0 2.11467px 4.44081px rgba(255, 255, 255, 0.51));
+  display: none;
 }
 
 .mobile-landing__hero-bg-image {
   position: absolute;
   top: 0;
-  left: calc(50% - 313px - 3px);
+  left: -3px;
   width: 627px;
   height: 918px;
   object-fit: cover;
+  -webkit-mask-image: url("/assets/mobile/BG-mask-vector.svg");
+  mask-image: url("/assets/mobile/BG-mask-vector.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center top;
+  mask-position: center top;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  filter: drop-shadow(0 2.11467px 4.44081px rgba(255, 255, 255, 0.51));
 }
 
 .mobile-landing__top-page {
@@ -159,29 +165,31 @@
 .mobile-landing__hero-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 62px;
   width: 100%;
   min-height: 543px;
-  padding: 0 28px;
+  padding: 0 clamp(20px, 6.5vw, 28px);
 }
 
 .mobile-landing__hero-text {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 40px;
-  width: 374px;
+  width: 100%;
+  max-width: 374px;
 }
 
 .mobile-landing__hero-title {
   width: 100%;
   margin: 0;
   font-weight: 500;
-  font-size: 36px;
+  font-size: 34px;
   line-height: 165%;
   text-align: center;
   color: #ffffff;
+  text-wrap: balance;
 }
 
 .mobile-landing__hero-copy {
@@ -203,27 +211,36 @@
   flex-direction: column;
   align-items: center;
   gap: 13px;
-  width: 374px;
+  width: 100%;
+  max-width: 374px;
 }
 
-.mobile-landing__hero-primary-button {
-  display: flex;
+.mobile-landing button.mobile-landing__hero-primary-button {
+  box-sizing: border-box;
+  position: relative;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 22px;
-  width: 289px;
-  height: 56px;
+  width: auto;
+  min-height: 56px;
   padding: 16px 20px 16px 28px;
   background: #ffffff;
+  background-color: #ffffff;
   border: 1px solid rgba(89, 71, 101, 0.35);
   border-radius: 12px;
   color: #24055c;
   font-weight: 500;
   font-size: 16px;
   line-height: 150%;
+  appearance: none;
 }
 
-.mobile-landing__hero-link-button {
+.mobile-landing__hero-primary-button span {
+  white-space: nowrap;
+}
+
+.mobile-landing button.mobile-landing__hero-link-button {
   width: 181px;
   height: 46px;
   padding: 12px 20px;
@@ -297,8 +314,9 @@
   gap: 72px;
   width: 100%;
   max-width: 430px;
-  height: 737px;
-  padding: 71px 40px 0;
+  min-height: 737px;
+  height: auto;
+  padding: 71px 40px 220px;
   background: #ffffff;
   border-top: 1px solid #f3ecec;
   box-shadow: 0 5px 9px rgba(0, 0, 0, 0.1);
@@ -321,7 +339,7 @@
   width: 100%;
   margin: 0;
   font-weight: 600;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 150%;
   text-align: center;
   color: #4b0d82;
@@ -342,17 +360,18 @@
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  width: 270px;
+  width: 271px;
   margin: 0 auto;
 }
 
-.mobile-landing__signup-button {
-  display: flex;
+.mobile-landing button.mobile-landing__signup-button {
+  box-sizing: border-box;
+  position: relative;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 12px;
-  width: 270px;
-  padding: 16px 28px;
+  appearance: none;
   border-radius: 18px;
 }
 
@@ -360,8 +379,12 @@
   flex: 0 0 auto;
 }
 
-.mobile-landing__signup-button--google {
-  height: 58px;
+.mobile-landing button.mobile-landing__signup-button--google {
+  width: auto;
+  min-height: 58px;
+  padding: 16px 28px;
+  background: #ffffff;
+  background-color: #ffffff;
   border: 1px solid #dbd9e6;
 }
 
@@ -370,6 +393,7 @@
   font-size: 16px;
   line-height: 150%;
   color: #636363;
+  white-space: nowrap;
 }
 
 .mobile-landing__signup-button--google img {
@@ -377,10 +401,13 @@
   height: 26px;
 }
 
-.mobile-landing__signup-button--mail {
-  height: 60px;
+.mobile-landing button.mobile-landing__signup-button--mail {
+  width: auto;
+  min-height: 60px;
   padding: 16px 30px;
   background: #58179a;
+  background-color: #58179a;
+  background-image: none;
   border: 1.36268px solid #440d90;
 }
 
@@ -389,6 +416,7 @@
   font-size: 16px;
   line-height: 150%;
   color: #ffffff;
+  white-space: nowrap;
 }
 
 .mobile-landing__signup-button--mail img {
@@ -407,7 +435,9 @@
 }
 
 .mobile-landing__signup-divider {
-  width: 350px;
+  align-self: center;
+  width: 100%;
+  max-width: 350px;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -433,7 +463,7 @@
   width: 374px;
   margin: 0;
   font-weight: 400;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 150%;
   text-align: center;
   color: #4b0d82;
@@ -548,8 +578,8 @@
 
 .mobile-landing__step-gift-shadow {
   position: absolute;
-  top: 66px;
-  left: 145px;
+  top: 60px;
+  left: calc(50% - 26px);
   width: 106px;
   height: 47px;
   background: rgba(174, 174, 174, 0.59);
@@ -585,11 +615,11 @@
 }
 
 .mobile-landing__step-icon-image--gift {
-  top: -7px;
+  top: -25px;
   left: calc(50% - 78px);
   width: 161px;
-  height: 136px;
-  object-fit: cover;
+  height: 161px;
+  object-fit: contain;
 }
 
 .mobile-landing__step-icon-image--coins {
@@ -612,7 +642,7 @@
 
 .mobile-landing__bottom-mask-wrap {
   position: absolute;
-  top: 156px;
+  top: 124px;
   left: calc(50% - 215px);
   width: 430px;
   height: 1249px;
@@ -643,6 +673,7 @@
   align-items: center;
   gap: 185px;
   width: 100%;
+  padding-bottom: 280px;
 }
 
 .mobile-landing__waitlist {
@@ -651,7 +682,7 @@
   align-items: center;
   gap: 175px;
   width: 100%;
-  padding-top: 156px;
+  padding-top: 284px;
 }
 
 .mobile-landing__waitlist-heading {
@@ -665,8 +696,8 @@
 .mobile-landing__waitlist-title {
   margin: 0;
   font-weight: 500;
-  font-size: 38px;
-  line-height: 43.7px;
+  font-size: 34px;
+  line-height: 115%;
   color: #ffffff;
   -webkit-text-stroke: 1px rgba(36, 5, 92, 0.75);
   filter: blur(0.28px);
@@ -724,22 +755,28 @@
   position: relative;
   width: 271.11px;
   height: 60px;
+  isolation: isolate;
 }
 
-.mobile-landing__green-button {
+.mobile-landing button.mobile-landing__green-button {
   position: absolute;
   top: 0;
-  left: 1px;
+  left: 0.11px;
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  width: 270px;
-  height: 58px;
+  width: auto;
+  min-width: 270px;
+  min-height: 60px;
   padding: 18px 44px;
   background: #40c678;
-  border: 1px solid #447256;
+  background-color: #40c678;
+  background-image: none;
+  border: 1px solid #447356;
   border-radius: 16px;
   z-index: 1;
+  appearance: none;
 }
 
 .mobile-landing__green-button span {
@@ -748,16 +785,20 @@
   font-size: 16px;
   line-height: 24px;
   color: #ffffff;
+  white-space: nowrap;
 }
 
 .mobile-landing__green-button-glow {
   position: absolute;
-  top: calc(50% - 32.5px);
-  left: calc(50% - 138px);
-  width: 276px;
-  height: 65px;
+  top: calc(50% - 30px);
+  left: calc(50% - 135.5px - 0.05px);
+  width: 271px;
+  height: 60px;
   z-index: 2;
   pointer-events: none;
+  opacity: 0.7;
+  filter: blur(1.15px);
+  border-radius: 16px;
 }
 
 .mobile-landing__legal-copy {
@@ -767,7 +808,6 @@
   font-size: 12px;
   line-height: 18px;
   color: #ffffff;
-  -webkit-text-stroke: 1px rgba(36, 5, 92, 0.75);
   filter: blur(0.28px);
 }
 
@@ -972,7 +1012,7 @@
   width: 100%;
   margin: 0;
   font-weight: 600;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 115%;
   text-align: center;
   color: #4b0d82;
@@ -1068,22 +1108,28 @@
   width: 179px;
   height: 56px;
   margin: 0 auto;
+  isolation: isolate;
 }
 
-.mobile-landing__purple-button {
+.mobile-landing button.mobile-landing__purple-button {
   position: absolute;
   top: 0;
   left: 0.14px;
-  display: flex;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  width: 179px;
-  height: 56px;
+  width: auto;
+  min-width: 179px;
+  min-height: 56px;
   padding: 16px 28px;
   background: #6a40c6;
+  background-color: #6a40c6;
+  background-image: none;
   border: 1px solid rgba(74, 49, 127, 0.33);
   border-radius: 14px;
   z-index: 1;
+  appearance: none;
 }
 
 .mobile-landing__purple-button span {
@@ -1092,16 +1138,20 @@
   font-size: 16px;
   line-height: 150%;
   color: #ffffff;
+  white-space: nowrap;
 }
 
 .mobile-landing__purple-button-glow {
   position: absolute;
-  top: calc(50% - 30.5px);
+  top: calc(50% - 28px);
   left: calc(50% - 92px);
   width: 184px;
   height: 61px;
   z-index: 2;
   pointer-events: none;
+  opacity: 0.1;
+  filter: blur(1.15px);
+  border-radius: 14px;
 }
 
 .mobile-landing__footer {
@@ -1109,25 +1159,30 @@
   flex-direction: column;
   align-items: center;
   gap: 52px;
-  width: calc(100% + 56px);
-  margin: 0 -28px;
-  padding: 0 0 40px;
+  width: 430px;
+  margin: 0 -28px 0;
+  padding: 0 0 8px;
   background: transparent;
 }
 
 .mobile-landing__footer-panels {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  width: 100%;
+  width: 430px;
+  min-height: 260px;
   border-top: 1px solid rgba(28, 0, 73, 0.15);
 }
 
-.mobile-landing__footer-panel {
+.mobile-landing button.mobile-landing__footer-panel {
+  box-sizing: border-box;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 430px;
+  height: 65px;
   padding: 20px 0;
   border-bottom: 1px solid rgba(28, 0, 73, 0.15);
 }
@@ -1144,7 +1199,7 @@
   flex-direction: column;
   align-items: center;
   gap: 32px;
-  width: 100%;
+  width: 430px;
 }
 
 .mobile-landing__footer-about {
@@ -1178,7 +1233,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 16px;
-  width: 100%;
+  width: 430px;
 }
 
 .mobile-landing__footer-legal-links {

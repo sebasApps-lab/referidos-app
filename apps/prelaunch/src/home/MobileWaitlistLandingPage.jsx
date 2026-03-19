@@ -2,29 +2,32 @@ import { useState } from "react";
 import "./mobileWaitlistLanding.css";
 
 const asset = (name) => `/assets/mobile/${encodeURIComponent(name)}`;
+const sharedAsset = (name) => `/assets/icons/${encodeURIComponent(name)}`;
 
 const steps = [
   {
     id: "mail",
     title: (
       <>
-        <span className="mobile-landing__step-title-strong">Añade</span>{" "}
+        <span className="mobile-landing__step-title-strong">{"A\u00f1ade"}</span>{" "}
         <span className="mobile-landing__step-title-light">
           tu correo
-          <br />a la lista
+          <br />
+          a la lista
         </span>
       </>
     ),
     description: (
       <>
-        Espera y recibe la invitación
+        {"Espera y recibe la invitaci\u00f3n"}
         <br />
         para descargar la app.
       </>
     ),
     iconShadowSrc: asset("mail-icon-shadow.png"),
     iconSrc: asset("mail-icon.png"),
-    iconShadowClassName: "mobile-landing__step-icon-shadow mobile-landing__step-icon-shadow--mail",
+    iconShadowClassName:
+      "mobile-landing__step-icon-shadow mobile-landing__step-icon-shadow--mail",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--mail",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--mail",
   },
@@ -47,7 +50,7 @@ const steps = [
         participar en el acceso anticipado.
       </>
     ),
-    iconSrc: asset("gift-icon-black 1.png"),
+    iconSrc: sharedAsset("icon-gift.png"),
     iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--gift",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--gift",
@@ -64,11 +67,12 @@ const steps = [
     description: (
       <>
         Canjea promociones, suma puntos
-        <br />y obtén más beneficios.
+        <br />
+        {"y obt\u00e9n m\u00e1s beneficios."}
       </>
     ),
     iconShadowClassName: "mobile-landing__step-gift-shadow",
-    iconSrc: "/assets/icons/icon-coins.png",
+    iconSrc: sharedAsset("icon-coins.png"),
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--coins",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--coins",
   },
@@ -110,7 +114,7 @@ const promoCards = [
     badge: "2 x 1",
     title: "2 X 1",
     description:
-      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más.",
+      "Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y m\u00e1s.",
     until: "22 de Abril",
     background: asset("promo-card-bg.svg"),
     dottedLine: asset("promo-card-dotted-line.svg"),
@@ -122,7 +126,12 @@ const promoCards = [
   },
 ];
 
-const footerPanels = ["Ayuda", "Para negocios", "¿Quiénes somos?", "Borrar datos"];
+const footerPanels = [
+  "Ayuda",
+  "Para negocios",
+  "\u00bfQui\u00e9nes somos?",
+  "Borrar datos",
+];
 
 export default function MobileWaitlistLandingPage() {
   const [waitlistEmail, setWaitlistEmail] = useState("");
@@ -152,7 +161,11 @@ export default function MobileWaitlistLandingPage() {
               <div className="mobile-landing__brand-subtitle">Acceso anticipado</div>
             </div>
 
-            <button type="button" className="mobile-landing__menu-button" aria-label="Abrir menú">
+            <button
+              type="button"
+              className="mobile-landing__menu-button"
+              aria-label={"Abrir men\u00fa"}
+            >
               <span className="mobile-landing__menu-line" />
               <span className="mobile-landing__menu-line" />
               <span className="mobile-landing__menu-line" />
@@ -162,11 +175,11 @@ export default function MobileWaitlistLandingPage() {
           <section className="mobile-landing__hero-section">
             <div className="mobile-landing__hero-text">
               <h1 className="mobile-landing__hero-title">
-                Descubre y comparte ofertas, gana recompensas fácilmente
+                {"Descubre y comparte ofertas, gana recompensas f\u00e1cilmente"}
               </h1>
               <p className="mobile-landing__hero-copy">
                 Participa en el <strong>acceso anticipado</strong> de la app y recibe
-                beneficios extra, solo por usar la aplicación.
+                beneficios extra, solo por usar la {"aplicaci\u00f3n"}.
               </p>
             </div>
 
@@ -177,7 +190,7 @@ export default function MobileWaitlistLandingPage() {
               </button>
 
               <button type="button" className="mobile-landing__hero-link-button">
-                ¿Cómo funciona?
+                {"\u00bfC\u00f3mo funciona?"}
               </button>
             </div>
           </section>
@@ -194,7 +207,7 @@ export default function MobileWaitlistLandingPage() {
             <img
               className="mobile-landing__phone-image"
               src={asset("Nothing Phone 2a 2.png")}
-              alt="Aplicación Referidos App en un teléfono"
+              alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
             />
           </section>
 
@@ -228,7 +241,7 @@ export default function MobileWaitlistLandingPage() {
                 </div>
 
                 <p className="mobile-landing__signup-note">
-                  Si ya tienes una cuenta, ten paciencia recibirás tu invitación pronto.
+                  {"Si ya tienes una cuenta, ten paciencia recibir\u00e1s tu invitaci\u00f3n pronto."}
                 </p>
 
                 <div className="mobile-landing__signup-divider" />
@@ -238,12 +251,13 @@ export default function MobileWaitlistLandingPage() {
             <section className="mobile-landing__about-block">
               <div className="mobile-landing__about-heading">
                 <h2 className="mobile-landing__about-title">
-                  <span>Así de </span>
-                  <strong>rápido y simple</strong>
+                  <span>{"As\u00ed de "}</span>
+                  <strong>{"r\u00e1pido y simple"}</strong>
                 </h2>
                 <p className="mobile-landing__about-copy">
-                  Entra en la lista de espera para recibir tu invitación. Descarga la
-                  app una vez esté disponible y recibe beneficios.
+                  {"Entra en la lista de espera para recibir tu invitaci\u00f3n."}
+                  <br />
+                  {"Descarga la app una vez est\u00e9 disponible y recibe beneficios."}
                 </p>
               </div>
 
@@ -269,11 +283,7 @@ export default function MobileWaitlistLandingPage() {
                     ) : (
                       <div className={step.iconShadowClassName} />
                     )}
-                    {step.iconSrc ? (
-                      <img className={step.iconClassName} src={step.iconSrc} alt="" />
-                    ) : (
-                      <div className={step.iconClassName} aria-hidden="true" />
-                    )}
+                    <img className={step.iconClassName} src={step.iconSrc} alt="" />
                   </article>
                 ))}
               </div>
@@ -291,7 +301,7 @@ export default function MobileWaitlistLandingPage() {
         <div className="mobile-landing__features-contact-inner">
           <section className="mobile-landing__waitlist">
             <div className="mobile-landing__waitlist-heading">
-              <h2 className="mobile-landing__waitlist-title">No te quedes sin participar</h2>
+              <h2 className="mobile-landing__waitlist-title">No te quedes sin tu invitación</h2>
               <div className="mobile-landing__waitlist-form-block">
                 <p className="mobile-landing__waitlist-copy">
                   Los puestos son limitados, entra en la lista de espera
@@ -303,32 +313,36 @@ export default function MobileWaitlistLandingPage() {
                       type="email"
                       value={waitlistEmail}
                       onChange={(event) => setWaitlistEmail(event.target.value)}
-                      placeholder="Tu correo electrónico..."
+                      placeholder={"Tu correo electr\u00f3nico..."}
                       className="mobile-landing__waitlist-email-input"
                     />
                   </div>
 
                   <div className="mobile-landing__green-button-wrap">
-                    <button type="button" className="mobile-landing__green-button">
-                      <span>Añadir correo a la lista</span>
-                    </button>
                     <img
                       className="mobile-landing__green-button-glow"
                       src={asset("green-button-glow.png")}
                       alt=""
                     />
+                    <button type="button" className="mobile-landing__green-button">
+                      <span>{"A\u00f1adir correo a la lista"}</span>
+                    </button>
                   </div>
 
                   <p className="mobile-landing__legal-copy">
-                    Al suscribirte, aceptas los <span>términos y condiciones,</span>{" "}
-                    además de las <span>Políticas de Privacidad</span>
+                    {"Al suscribirte, aceptas los "}
+                    <span>{"t\u00e9rminos y condiciones,"}</span>
+                    {" adem\u00e1s de las "}
+                    <span>{"Pol\u00edticas de Privacidad"}</span>
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="mobile-landing__promo-section">
-              <h2 className="mobile-landing__promo-heading">¡Encuentra esto y más!</h2>
+              <h2 className="mobile-landing__promo-heading">
+                {"\u00a1Encuentra esto y m\u00e1s!"}
+              </h2>
 
               <div className="mobile-landing__promo-list">
                 {promoCards.map((card) => (
@@ -370,7 +384,7 @@ export default function MobileWaitlistLandingPage() {
           </section>
 
           <section className="mobile-landing__contact-section">
-            <h2 className="mobile-landing__contact-title">Déjanos un mensaje</h2>
+            <h2 className="mobile-landing__contact-title">{"D\u00e9janos un mensaje"}</h2>
 
             <div className="mobile-landing__contact-form">
               <div className="mobile-landing__contact-copy-block">
@@ -399,7 +413,7 @@ export default function MobileWaitlistLandingPage() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="Correo electrónico"
+                    placeholder={"Correo electr\u00f3nico"}
                     className="mobile-landing__contact-input"
                   />
                 </div>
@@ -421,14 +435,14 @@ export default function MobileWaitlistLandingPage() {
               </div>
 
               <div className="mobile-landing__purple-button-wrap">
-                <button type="button" className="mobile-landing__purple-button">
-                  <span>Enviar mensaje</span>
-                </button>
                 <img
                   className="mobile-landing__purple-button-glow"
                   src={asset("purple-button-glow.png")}
                   alt=""
                 />
+                <button type="button" className="mobile-landing__purple-button">
+                  <span>Enviar mensaje</span>
+                </button>
               </div>
             </div>
           </section>
@@ -447,18 +461,19 @@ export default function MobileWaitlistLandingPage() {
             <div className="mobile-landing__footer-about">
               <div className="mobile-landing__footer-brand">REFERIDOS APP</div>
               <p className="mobile-landing__footer-about-copy">
-                Catálogo de promociones y sistema de recompensas por canjearlas y
-                referir.
+                {"Cat\u00e1logo de promociones y sistema de recompensas por canjearlas y referir."}
               </p>
             </div>
 
             <div className="mobile-landing__footer-legal">
               <div className="mobile-landing__footer-legal-links">
-                <button type="button">Términos</button>
+                <button type="button">{"T\u00e9rminos"}</button>
                 <span>-</span>
                 <button type="button">Privacidad</button>
               </div>
-              <div className="mobile-landing__footer-copyright">© 2026 ReferidosApp</div>
+              <div className="mobile-landing__footer-copyright">
+                {"\u00a9 2026 Referidos App. Todos los derechos reservados."}
+              </div>
             </div>
           </div>
         </footer>
