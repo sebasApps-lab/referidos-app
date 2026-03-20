@@ -150,6 +150,18 @@ export default function MobileWaitlistLandingPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const effectiveViewportWidth = Math.max(viewportWidth, 360);
+  const phoneScale = effectiveViewportWidth >= 410 ? 1 : effectiveViewportWidth / 410;
+  const isTabletHeroLayout = effectiveViewportWidth >= 750;
+  let stepCardScale = 1;
+
+  if (effectiveViewportWidth >= 750 && effectiveViewportWidth < 1025) {
+    const progress = (effectiveViewportWidth - 750) / 275;
+    stepCardScale = 0.8 + progress * 0.2;
+  } else if (effectiveViewportWidth >= 1025) {
+    const progress = Math.min((effectiveViewportWidth - 1025) / 375, 1);
+    stepCardScale = 0.85 + progress * 0.15;
+  }
 
   useEffect(() => {
     const updateViewportWidth = () => {
@@ -161,14 +173,64 @@ export default function MobileWaitlistLandingPage() {
     return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
 
-  const effectiveViewportWidth = Math.max(viewportWidth, 360);
-  const phoneScale = effectiveViewportWidth >= 410 ? 1 : effectiveViewportWidth / 410;
+  const phoneSection = (
+    <section
+      className={`mobile-landing__phone-section${
+        isTabletHeroLayout ? " mobile-landing__phone-section--hero" : ""
+      }`}
+    >
+      <div className="mobile-landing__phone-stack">
+        <img
+          className="mobile-landing__phone-back-shadow"
+          src={asset("phone-back-shadow-container.png")}
+          alt=""
+        />
+        <svg
+          className="mobile-landing__phone-glow"
+          viewBox="-211.5 0 797 700"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
+            <path
+              d="M-24 239.5C-24 210.781 -0.718803 187.5 28 187.5H346C374.719 187.5 398 210.781 398 239.5V512.5H-24V239.5Z"
+              fill="white"
+              fillOpacity="0.42"
+            />
+          </g>
+          <defs>
+            <filter
+              id={phoneGlowFilterId}
+              x="-211.5"
+              y="0"
+              width="797"
+              height="700"
+              filterUnits="userSpaceOnUse"
+              colorInterpolationFilters="sRGB"
+            >
+              <feFlood floodOpacity="0" result="BackgroundImageFix" />
+              <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+              <feGaussianBlur stdDeviation="93.75" result="effect1_foregroundBlur" />
+            </filter>
+          </defs>
+        </svg>
+        <img
+          className="mobile-landing__phone-image"
+          src={asset("Nothing Phone 2a 2.png")}
+          alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
+        />
+      </div>
+    </section>
+  );
 
   return (
     <main
       className="mobile-landing"
       aria-label="Mobile waitlist landing"
-      style={{ "--mobile-phone-scale": phoneScale.toFixed(4) }}
+      style={{
+        "--mobile-phone-scale": phoneScale.toFixed(4),
+        "--mobile-step-card-scale": stepCardScale.toFixed(4),
+      }}
     >
       <section className="mobile-landing__top-page">
         <div className="mobile-landing__top-section">
@@ -249,134 +311,60 @@ export default function MobileWaitlistLandingPage() {
             </button>
           </header>
 
-          <section className="mobile-landing__hero-section">
-            <div className="mobile-landing__hero-text">
-              <h1 className="mobile-landing__hero-title">
-                Descubre y
-                <br />
-                comparte ofertas,
-                <br />
-                gana recompensas
-                <br />
-                {"f\u00e1cilmente"}
-              </h1>
-              <p className="mobile-landing__hero-copy">
-                Participa en el <strong>acceso anticipado</strong> de la app y recibe
-                beneficios extra, solo por usar la {"aplicaci\u00f3n"}.
-              </p>
-            </div>
-
-            <div className="mobile-landing__hero-actions">
-              <button type="button" className="mobile-landing__hero-primary-button">
-                <span>Entrar a la lista de espera</span>
-                <span>&gt;</span>
-              </button>
-
-              <button type="button" className="mobile-landing__hero-link-button">
-                {"\u00bfC\u00f3mo funciona?"}
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <div className="mobile-landing__second-section">
-          <section className="mobile-landing__phone-section">
-            <div className="mobile-landing__phone-stack">
-              <img
-                className="mobile-landing__phone-back-shadow"
-                src={asset("phone-back-shadow-container.png")}
-                alt=""
-              />
-              <svg
-                className="mobile-landing__phone-glow"
-                viewBox="-211.5 0 797 700"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
-                  <path
-                    d="M-24 239.5C-24 210.781 -0.718803 187.5 28 187.5H346C374.719 187.5 398 210.781 398 239.5V512.5H-24V239.5Z"
-                    fill="white"
-                    fillOpacity="0.42"
-                  />
-                </g>
-                <defs>
-                  <filter
-                    id={phoneGlowFilterId}
-                    x="-211.5"
-                    y="0"
-                    width="797"
-                    height="700"
-                    filterUnits="userSpaceOnUse"
-                    colorInterpolationFilters="sRGB"
-                  >
-                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                    <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-                    <feGaussianBlur stdDeviation="93.75" result="effect1_foregroundBlur" />
-                  </filter>
-                </defs>
-              </svg>
-              <img
-                className="mobile-landing__phone-image"
-                src={asset("Nothing Phone 2a 2.png")}
-                alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
-              />
-            </div>
-          </section>
-
-          <section className="mobile-landing__signup-about">
-            <section className="mobile-landing__signup-card">
-              <img
-                className="mobile-landing__signup-card-bg"
-                src={asset("sign-up-card-bg.png")}
-                alt=""
-              />
-
-              <h2 className="mobile-landing__signup-title">Crea tu cuenta gratis</h2>
-
-              <div className="mobile-landing__signup-body">
-                <div className="mobile-landing__signup-buttons">
-                  <button
-                    type="button"
-                    className="mobile-landing__signup-button mobile-landing__signup-button--google"
-                  >
-                    <img src={asset("material-icon-theme_google.svg")} alt="" />
-                    <span>Continuar con Google</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mobile-landing__signup-button mobile-landing__signup-button--mail"
-                  >
-                    <img src={asset("fluent-color_mail-16.svg")} alt="" />
-                    <span>Continuar con correo</span>
-                  </button>
-                </div>
-
-                <p className="mobile-landing__signup-note">
-                  {"Si ya tienes una cuenta, ten paciencia recibir\u00e1s tu invitaci\u00f3n pronto."}
+          <div className="mobile-landing__hero-layout">
+            <section className="mobile-landing__hero-section">
+              <div className="mobile-landing__hero-text">
+                <h1 className="mobile-landing__hero-title">
+                  Descubre y
+                  <br />
+                  comparte ofertas,
+                  <br />
+                  gana recompensas
+                  <br />
+                  {"f\u00e1cilmente"}
+                </h1>
+                <p className="mobile-landing__hero-copy">
+                  Participa en el <strong>acceso anticipado</strong> de la app y recibe
+                  beneficios extra, solo por usar la {"aplicaci\u00f3n"}.
                 </p>
+              </div>
 
-                <div className="mobile-landing__signup-divider" />
+              <div className="mobile-landing__hero-actions">
+                <button type="button" className="mobile-landing__hero-primary-button">
+                  <span>Entrar a la lista de espera</span>
+                  <span>&gt;</span>
+                </button>
+
+                <button type="button" className="mobile-landing__hero-link-button">
+                  {"\u00bfC\u00f3mo funciona?"}
+                </button>
               </div>
             </section>
 
-            <section className="mobile-landing__about-block">
-              <div className="mobile-landing__about-heading">
-                <h2 className="mobile-landing__about-title">
-                  <span>{"As\u00ed de "}</span>
-                  <strong>{"r\u00e1pido y simple"}</strong>
-                </h2>
-                <p className="mobile-landing__about-copy">
-                  {"Entra en la lista de espera para recibir tu invitaci\u00f3n."}
-                  <br />
-                  {"Descarga la app una vez est\u00e9 disponible y recibe beneficios."}
-                </p>
-              </div>
+            {isTabletHeroLayout ? phoneSection : null}
+          </div>
+        </div>
 
-              <div className="mobile-landing__steps">
-                {steps.map((step) => (
-                  <article key={step.id} className={step.wrapClassName}>
+        <div className="mobile-landing__second-section">
+          {!isTabletHeroLayout ? phoneSection : null}
+
+          <section className="mobile-landing__about-block">
+            <div className="mobile-landing__about-heading">
+              <h2 className="mobile-landing__about-title">
+                <span>{"As\u00ed de "}</span>
+                <strong>{"r\u00e1pido y simple"}</strong>
+              </h2>
+              <p className="mobile-landing__about-copy">
+                {"Entra en la lista de espera para recibir tu invitaci\u00f3n."}
+                <br />
+                {"Descarga la app una vez est\u00e9 disponible y recibe beneficios."}
+              </p>
+            </div>
+
+            <div className="mobile-landing__steps">
+              {steps.map((step) => (
+                <div key={step.id} className="mobile-landing__step-card-shell">
+                  <article className={step.wrapClassName}>
                     <img
                       className="mobile-landing__step-card-volume"
                       src={asset("card-volume.png")}
@@ -398,9 +386,9 @@ export default function MobileWaitlistLandingPage() {
                     )}
                     <img className={step.iconClassName} src={step.iconSrc} alt="" />
                   </article>
-                ))}
-              </div>
-            </section>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </section>
