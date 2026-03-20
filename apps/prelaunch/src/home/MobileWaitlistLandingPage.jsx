@@ -391,7 +391,7 @@ export default function MobileWaitlistLandingPage() {
 
       <section className="mobile-landing__features-contact">
         <div className="mobile-landing__bottom-mask-wrap" aria-hidden="true">
-          <img className="mobile-landing__bottom-mask" src={asset("bottom-bg-mask.png")} alt="" />
+          <div className="mobile-landing__bottom-mask" />
           <img className="mobile-landing__bottom-glow" src={asset("bottom-glow.png")} alt="" />
         </div>
 

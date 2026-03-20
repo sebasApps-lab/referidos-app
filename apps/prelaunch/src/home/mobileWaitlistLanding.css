@@ -669,7 +669,7 @@
 
 .mobile-landing__bottom-mask-wrap {
   position: absolute;
-  top: 124px;
+  top: 0;
   left: 50%;
   width: 100vw;
   height: 1249px;
@@ -684,8 +684,21 @@
   left: 0;
   width: 100%;
   height: 1249px;
-  object-fit: cover;
-  object-position: center top;
+  background-image: url("/assets/bg/landing-bottom-footer-bg.png");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  -webkit-mask-image: url("/assets/mobile/bottom-bg-mask-shape.svg");
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center top;
+  mask-image: url("/assets/mobile/bottom-bg-mask-shape.svg");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  mask-position: center top;
+  filter:
+    drop-shadow(0 -1px 5.5px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 6px 6.7px rgba(0, 0, 0, 0.2));
 }
 
 .mobile-landing__bottom-glow {
@@ -714,7 +727,7 @@
   align-items: center;
   gap: 175px;
   width: 100%;
-  padding-top: 284px;
+  padding-top: 160px;
 }
 
 .mobile-landing__waitlist-heading {
