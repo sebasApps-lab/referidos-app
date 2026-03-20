@@ -30,6 +30,7 @@ const steps = [
         para descargar la app.
       </>
     ),
+    numberSrc: asset("icon-number-1-blue.png"),
     iconShadowSrc: asset("mail-icon-shadow.png"),
     iconSrc: asset("mail-icon.png"),
     iconShadowClassName:
@@ -56,6 +57,7 @@ const steps = [
         participar en el acceso anticipado.
       </>
     ),
+    numberSrc: asset("icon-number-2-purple.png"),
     iconSrc: sharedAsset("icon-gift.png"),
     iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--gift",
@@ -77,6 +79,7 @@ const steps = [
         {"y obt\u00e9n m\u00e1s beneficios."}
       </>
     ),
+    numberSrc: asset("icon-number-3-blue-cyan.png"),
     iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconSrc: sharedAsset("icon-coins.png"),
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--coins",
@@ -365,26 +368,19 @@ export default function MobileWaitlistLandingPage() {
               {steps.map((step) => (
                 <div key={step.id} className="mobile-landing__step-card-shell">
                   <article className={step.wrapClassName}>
-                    <img
-                      className="mobile-landing__step-card-volume"
-                      src={asset("card-volume.png")}
-                      alt=""
-                    />
-                    <div className="mobile-landing__step-card-surface">
-                      <p className="mobile-landing__step-title">{step.title}</p>
-                      <p className="mobile-landing__step-description">{step.description}</p>
+                    <img className="mobile-landing__step-number-badge" src={step.numberSrc} alt="" />
+                    <div className="mobile-landing__step-card-body">
+                      {step.iconShadowSrc ? (
+                        <img className={step.iconShadowClassName} src={step.iconShadowSrc} alt="" />
+                      ) : (
+                        <div className={step.iconShadowClassName} />
+                      )}
+                      <img className={step.iconClassName} src={step.iconSrc} alt="" />
+                      <div className="mobile-landing__step-card-surface">
+                        <p className="mobile-landing__step-title">{step.title}</p>
+                        <p className="mobile-landing__step-description">{step.description}</p>
+                      </div>
                     </div>
-                    <img
-                      className="mobile-landing__step-card-glow"
-                      src={asset("card-glow.svg")}
-                      alt=""
-                    />
-                    {step.iconShadowSrc ? (
-                      <img className={step.iconShadowClassName} src={step.iconShadowSrc} alt="" />
-                    ) : (
-                      <div className={step.iconShadowClassName} />
-                    )}
-                    <img className={step.iconClassName} src={step.iconSrc} alt="" />
                   </article>
                 </div>
               ))}
@@ -442,45 +438,18 @@ export default function MobileWaitlistLandingPage() {
 
             <div className="mobile-landing__promo-section">
               <h2 className="mobile-landing__promo-heading">
-                {"\u00a1Encuentra esto y m\u00e1s!"}
+                <span className="mobile-landing__promo-heading-prefix">{"\u00a1Empieza en "}</span>
+                <strong className="mobile-landing__promo-heading-emphasis">
+                  {"3 simples "}
+                </strong>
+                <strong className="mobile-landing__promo-heading-break">pasos!</strong>
               </h2>
 
-              <div className="mobile-landing__promo-list">
-                {promoCards.map((card) => (
-                  <article key={card.id} className="mobile-landing__promo-card">
-                    <img className="mobile-landing__promo-card-bg" src={card.background} alt="" />
-                    <div className="mobile-landing__promo-card-content">
-                      <div className={card.thumbClassName}>
-                        <div className={card.thumbBgClassName} />
-                        <img className={card.iconClassName} src={card.iconSrc} alt="" />
-                        <div className="mobile-landing__promo-badge">{card.badge}</div>
-                      </div>
-
-                      <img
-                        className="mobile-landing__promo-dotted-line"
-                        src={card.dottedLine}
-                        alt=""
-                      />
-
-                      <div className="mobile-landing__promo-body">
-                        <div className="mobile-landing__promo-description">
-                          <div className="mobile-landing__promo-title">{card.title}</div>
-                          <p className="mobile-landing__promo-copy">{card.description}</p>
-                        </div>
-
-                        <div className="mobile-landing__promo-meta">
-                          <div className="mobile-landing__promo-date">
-                            <span>Hasta</span>
-                            <span>{card.until}</span>
-                          </div>
-
-                          <img className="mobile-landing__promo-qr" src={card.qr} alt="" />
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <img
+                className="mobile-landing__promo-mockup"
+                src={asset("mockup-how-to-use.png")}
+                alt=""
+              />
             </div>
           </section>
 
