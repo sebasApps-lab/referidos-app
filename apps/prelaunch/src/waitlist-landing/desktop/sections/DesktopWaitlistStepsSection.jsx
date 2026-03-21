@@ -3,7 +3,7 @@ import DesktopStepCard from "../components/DesktopStepCard";
 
 export default function DesktopWaitlistStepsSection() {
   return (
-    <section className="figma-prototype__benefits">
+    <section className="figma-prototype__benefits" id="waitlist-steps">
       <div className="figma-prototype__benefits-inner">
         <div className="figma-prototype__benefits-heading">
           <div className="figma-prototype__benefits-title">

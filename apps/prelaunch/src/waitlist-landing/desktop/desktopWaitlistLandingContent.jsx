@@ -1,6 +1,10 @@
 import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
 
-export const navigationLinks = ["Cómo funciona", "Recibir invitación", "Para negocios"];
+export const navigationLinks = [
+  { label: "Cómo funciona", targetId: "waitlist-bottom" },
+  { label: "Recibir mi invitación", targetId: "waitlist-steps" },
+  { label: "Para negocios" },
+];
 
 export const desktopSteps = [
   {
@@ -78,7 +82,11 @@ export const footerColumns = [
   },
   {
     title: "LEGAL",
-    links: ["Privacidad", "Términos y Condiciones", "Borrar mis datos"],
+    links: [
+      { label: "Privacidad", to: "/ayuda/es/articulo/privacidad" },
+      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos" },
+      { label: "Borrar mis datos", to: "/ayuda/es/articulo/borrar-datos" },
+    ],
   },
   {
     title: "CONTACTO",

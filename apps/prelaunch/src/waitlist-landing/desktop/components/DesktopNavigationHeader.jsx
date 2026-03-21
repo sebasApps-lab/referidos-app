@@ -1,3 +1,4 @@
+import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 
 export default function DesktopNavigationHeader() {
@@ -13,9 +14,16 @@ export default function DesktopNavigationHeader() {
 
       <nav className="figma-prototype__nav-links" aria-label="Principal">
         {navigationLinks.map((link) => (
-          <a key={link} href="#!" onClick={(event) => event.preventDefault()}>
-            {link}
-          </a>
+          <button
+            type="button"
+            key={link.label}
+            onClick={() => {
+              if (!link.targetId) return;
+              scrollToSection(link.targetId);
+            }}
+          >
+            {link.label}
+          </button>
         ))}
       </nav>
 

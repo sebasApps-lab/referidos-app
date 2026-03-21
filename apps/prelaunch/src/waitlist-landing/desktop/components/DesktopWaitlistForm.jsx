@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 
 export default function DesktopWaitlistForm() {
@@ -23,9 +24,13 @@ export default function DesktopWaitlistForm() {
 
       <p className="figma-prototype__waitlist-legal">
         <span>Al suscribirte, aceptas los </span>
-        <span className="figma-prototype__waitlist-legal-link">términos y condiciones</span>
+        <Link className="figma-prototype__waitlist-legal-link" to="/ayuda/es/articulo/terminos">
+          términos y condiciones
+        </Link>
         <span>, además de las </span>
-        <span className="figma-prototype__waitlist-legal-link">Políticas de Privacidad</span>
+        <Link className="figma-prototype__waitlist-legal-link" to="/ayuda/es/articulo/privacidad">
+          Políticas de Privacidad
+        </Link>
       </p>
     </div>
   );

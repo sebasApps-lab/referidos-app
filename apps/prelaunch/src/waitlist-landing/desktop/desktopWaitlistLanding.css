@@ -126,15 +126,19 @@
   margin-left: 0;
 }
 
-.figma-prototype__nav-links a {
+.figma-prototype__nav-links a,
+.figma-prototype__nav-links button {
   display: inline-flex;
   align-items: center;
   padding: 3px 0;
+  border: 0;
+  background: transparent;
   color: #ffffff;
   font-size: 16px;
   font-weight: 400;
   line-height: 1;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .figma-prototype__nav-menu-button {
@@ -552,7 +556,7 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  min-height: 590px;
+  min-height: 760px;
   padding: 98px 24px 105px;
 }
 
@@ -563,8 +567,8 @@
   align-items: center;
   width: min(1243px, 100%);
   height: auto;
-  min-height: 414.04px;
-  max-height: 447.87px;
+  min-height: 530px;
+  max-height: 575px;
   padding: 0 clamp(24px, 12vw, 176.3px);
 }
 
@@ -574,7 +578,7 @@
   align-items: center;
   gap: 10.68px;
   width: 603.69px;
-  height: 127.45px;
+  height: 160px;
 }
 
 .figma-prototype__benefits-title {
@@ -644,13 +648,19 @@
 
 .figma-prototype__step-number-badge {
   position: absolute;
-  top: -74px;
-  left: calc(50% - 82.5px);
+  top: -128px;
+  left: calc(50% - 60px);
   z-index: 0;
-  width: 165px;
-  height: 165px;
+  width: 120px;
+  height: 120px;
   opacity: 0.8;
   pointer-events: none;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__step-number-badge {
+  left: calc(50% - 58px);
+  width: 116px;
+  height: 116px;
 }
 
 .figma-prototype__benefit-shadow {
@@ -1067,9 +1077,11 @@
   filter: blur(0.277101px);
 }
 
-.figma-prototype__waitlist-legal-link {
+.figma-prototype__waitlist-legal-link,
+.figma-prototype__waitlist-legal-link:visited {
   color: #b78ce5;
   text-decoration: underline;
+  text-decoration-color: #b78ce5;
 }
 
 .figma-prototype__promo-stack {
@@ -1297,7 +1309,6 @@
   flex-shrink: 0;
   gap: 26px;
   width: 270px;
-  outline: 1px dashed rgba(255, 255, 255, 0.75);
 }
 
 .figma-prototype__footerBrandScaleWrap {
@@ -1369,7 +1380,6 @@
   width: auto;
   min-width: 0;
   max-width: 260px;
-  outline: 1px dashed rgba(255, 255, 255, 0.75);
 }
 
 .figma-prototype__footerColumn h4 {
@@ -1391,7 +1401,8 @@
   max-width: 260px;
 }
 
-.figma-prototype__footerLinks span {
+.figma-prototype__footerLinks span,
+.figma-prototype__footerLinks a {
   width: 100%;
   max-width: 260px;
   color: #ffffff;
@@ -1399,6 +1410,7 @@
   font-weight: 300;
   line-height: 19.6px;
   opacity: 0.75;
+  text-decoration: none;
 }
 
 @media (max-width: 1280px) {
@@ -1464,11 +1476,27 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: 48px 24px;
+    padding-top: 0;
   }
 
   .figma-prototype__benefits-inner {
     max-height: none;
     gap: 72px;
+  }
+
+  .figma-prototype__benefit-card {
+    height: 387.53px;
+  }
+
+  .figma-prototype__step-card-body {
+    top: 140px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  .figma-prototype__step-number-badge {
+    top: 0;
   }
 
   .figma-prototype__waitlist {
@@ -1523,7 +1551,8 @@
     gap: clamp(18px, calc(5.15vw - 21.58px), 32px);
   }
 
-  .figma-prototype__nav-links a {
+  .figma-prototype__nav-links a,
+  .figma-prototype__nav-links button {
     font-size: clamp(13px, calc(1.1vw + 4.53px), 16px);
   }
 

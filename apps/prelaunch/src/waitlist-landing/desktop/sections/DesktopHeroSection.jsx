@@ -1,3 +1,4 @@
+import { scrollToSection } from "../../scrollToSection";
 import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
 import DesktopHeroShadowGroup from "../components/DesktopHeroShadowGroup";
@@ -31,7 +32,11 @@ export default function DesktopHeroSection() {
               </p>
             </div>
 
-            <button className="figma-prototype__hero-button" type="button">
+            <button
+              className="figma-prototype__hero-button"
+              type="button"
+              onClick={() => scrollToSection("waitlist-bottom")}
+            >
               <span>Entrar a la lista de espera</span>
               <span aria-hidden="true">&gt;</span>
             </button>
