@@ -649,9 +649,9 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Legal</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <Link to="/legal/es/privacidad" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Privacidad</Link>
-                <Link to="/legal/es/terminos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Terminos</Link>
-                <Link to="/legal/es/borrar-datos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</Link>
+                <Link to="/ayuda/es/articulo/privacidad" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Privacidad</Link>
+                <Link to="/ayuda/es/articulo/terminos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Terminos</Link>
+                <Link to="/ayuda/es/articulo/borrar-datos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</Link>
               </div>
             </div>
 

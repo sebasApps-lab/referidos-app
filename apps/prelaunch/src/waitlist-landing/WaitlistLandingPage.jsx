@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import MobileWaitlistLandingPage from "./MobileWaitlistLandingPage";
-import "./blankPrelaunchPage.css";
+import DesktopWaitlistLandingPage from "./desktop/DesktopWaitlistLandingPage";
+import MobileWaitlistLandingPage from "./mobile/MobileWaitlistLandingPage";
+import "./waitlistLandingPage.css";
 
 const ROOT_ATTR = "data-prelaunch-root-entry";
 
@@ -10,7 +10,7 @@ function detectDeviceTree() {
 
   const userAgent = navigator.userAgent || "";
   const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
-    userAgent
+    userAgent,
   );
 
   const uaDataMobile = navigator.userAgentData?.mobile;
@@ -25,7 +25,7 @@ function detectDeviceTree() {
   return isMobileUserAgent ? "mobile" : "desktop";
 }
 
-export default function BlankPrelaunchPage() {
+export default function WaitlistLandingPage() {
   const [tree] = useState(() => detectDeviceTree());
 
   useEffect(() => {
@@ -42,16 +42,8 @@ export default function BlankPrelaunchPage() {
   }, [tree]);
 
   if (tree === "desktop") {
-    return <DesktopWaitlistLandingTree />;
+    return <DesktopWaitlistLandingPage />;
   }
 
-  return <MobileWaitlistLandingTree />;
-}
-
-function DesktopWaitlistLandingTree() {
-  return <Navigate to="/figma-prototype" replace />;
-}
-
-function MobileWaitlistLandingTree() {
   return <MobileWaitlistLandingPage />;
 }

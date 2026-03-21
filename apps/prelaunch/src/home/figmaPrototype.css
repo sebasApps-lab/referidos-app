@@ -603,6 +603,23 @@
   position: relative;
   width: 300.96px;
   height: 247.53px;
+  overflow: visible;
+}
+
+.figma-prototype__step-card-body {
+  position: absolute;
+  inset: 0;
+}
+
+.figma-prototype__step-number-badge {
+  position: absolute;
+  top: -74px;
+  left: calc(50% - 82.5px);
+  z-index: 0;
+  width: 165px;
+  height: 165px;
+  opacity: 0.8;
+  pointer-events: none;
 }
 
 .figma-prototype__benefit-shadow {
