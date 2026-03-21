@@ -670,32 +670,20 @@
 .mobile-landing__bottom-mask-wrap {
   position: absolute;
   top: 0;
-  left: 50%;
-  width: 100vw;
+  left: 0;
+  right: 0;
   height: 1249px;
-  transform: translateX(-50%);
   overflow: hidden;
   z-index: 0;
 }
 
-.mobile-landing__bottom-mask {
+.mobile-landing__bottom-mask-svg {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
   width: 100%;
-  height: 1249px;
-  background-image: url("/assets/bg/landing-bottom-footer-bg.png");
-  background-size: cover;
-  background-position: center top;
-  background-repeat: no-repeat;
-  -webkit-mask-image: url("/assets/mobile/bottom-bg-mask-shape.svg");
-  -webkit-mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center top;
-  mask-image: url("/assets/mobile/bottom-bg-mask-shape.svg");
-  mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-  mask-position: center top;
+  height: 100%;
   filter:
     drop-shadow(0 -1px 5.5px rgba(0, 0, 0, 0.45))
     drop-shadow(0 6px 6.7px rgba(0, 0, 0, 0.2));
@@ -1452,8 +1440,8 @@
     height: clamp(749px, calc(749px + (100vw - 900px) * 0.5), 849px);
   }
 
-  .mobile-landing__bottom-mask {
-    height: clamp(749px, calc(749px + (100vw - 900px) * 0.5), 849px);
+  .mobile-landing__bottom-mask-svg {
+    height: 100%;
   }
 
   .mobile-landing__waitlist-heading {

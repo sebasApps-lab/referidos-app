@@ -9,6 +9,10 @@ const HERO_MASK_PATH =
 const HERO_MASK_VIEWBOX_MIN_X = -529;
 const HERO_MASK_VIEWBOX_WIDTH = 1605;
 const HERO_MASK_VIEWBOX_HEIGHT = 906;
+const BOTTOM_MASK_PATH =
+  "M-122 1220.5C337.239 1246.95 408.483 1235.95 565.671 1220.5V6.5C135.631 38.6678 -18.7969 47.004 -122 14V1220.5Z";
+const BOTTOM_MASK_OBJECT_BOUNDING_BOX_TRANSFORM =
+  "matrix(0.0014534883720930232 0 0 0.0008 0.17732558139534885 0)";
 
 const steps = [
   {
@@ -146,6 +150,7 @@ export default function MobileWaitlistLandingPage() {
   const heroClipId = useId().replace(/:/g, "");
   const heroFilterId = useId().replace(/:/g, "");
   const phoneGlowFilterId = useId().replace(/:/g, "");
+  const bottomClipId = useId().replace(/:/g, "");
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 430 : window.innerWidth,
   );
@@ -391,7 +396,25 @@ export default function MobileWaitlistLandingPage() {
 
       <section className="mobile-landing__features-contact">
         <div className="mobile-landing__bottom-mask-wrap" aria-hidden="true">
-          <div className="mobile-landing__bottom-mask" />
+          <svg className="mobile-landing__bottom-mask-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id={bottomClipId} clipPathUnits="objectBoundingBox">
+                <path
+                  d={BOTTOM_MASK_PATH}
+                  transform={BOTTOM_MASK_OBJECT_BOUNDING_BOX_TRANSFORM}
+                />
+              </clipPath>
+            </defs>
+            <image
+              href={sharedBgAsset("landing-bottom-footer-bg.png")}
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#${bottomClipId})`}
+            />
+          </svg>
           <img className="mobile-landing__bottom-glow" src={asset("bottom-glow.png")} alt="" />
         </div>
 
