@@ -11,11 +11,7 @@ export default function DesktopWaitlistSection() {
 
       <div className="figma-prototype__waitlist-content">
         <div className="figma-prototype__waitlist-copy">
-          <p className="figma-prototype__waitlist-title">
-            No te quedes sin un puesto
-            <br />
-            para participar
-          </p>
+          <p className="figma-prototype__waitlist-title">No te quedes sin un puesto para participar</p>
 
           <div className="figma-prototype__waitlist-copy-stack">
             <p className="figma-prototype__waitlist-subtitle">

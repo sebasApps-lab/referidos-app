@@ -9,9 +9,10 @@ html[data-prelaunch-root-entry="mobile"] body {
 
 html[data-prelaunch-root-entry="desktop"] body {
   background: #ffffff;
-  overflow-x: hidden;
+  overflow-x: auto;
   margin: 0;
   padding: 0;
+  min-width: 700px;
 }
 
 html[data-prelaunch-root-entry="mobile"] #root {
@@ -22,7 +23,7 @@ html[data-prelaunch-root-entry="mobile"] #root {
 
 html[data-prelaunch-root-entry="desktop"] #root {
   width: 100%;
-  min-width: 0;
+  min-width: 700px;
   max-width: none;
 }
 
