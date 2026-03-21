@@ -2,6 +2,8 @@ html[data-prelaunch-root-entry="mobile"],
 html[data-prelaunch-root-entry="mobile"] body {
   background: #ffffff;
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 html[data-prelaunch-root-entry="mobile"] #root {

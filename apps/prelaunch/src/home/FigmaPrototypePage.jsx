@@ -374,13 +374,12 @@ function WaitlistSignupSection() {
 
         <div className="figma-prototype__promo-stack">
           <img className="figma-prototype__promo-stack-blur" src="/assets/card-carousel-glow.png" alt="" aria-hidden="true" />
-          <img className="figma-prototype__promo-stack-glass" src="/assets/card-carousle-glass.svg" alt="" aria-hidden="true" />
-
-          <div className="figma-prototype__promo-cards">
-            {promoCards.map((card) => (
-              <PromoCard key={card.key} {...card} />
-            ))}
-          </div>
+          <img
+            className="figma-prototype__promo-mockup"
+            src="/assets/mobile/mockup-how-to-use.png"
+            alt="Mockup de uso de la app Referidos con promociones y recompensas"
+            loading="lazy"
+          />
         </div>
       </div>
     </section>

@@ -1021,6 +1021,7 @@
   position: relative;
   display: flex;
   align-items: flex-start;
+  justify-content: center;
   overflow: visible;
   isolation: isolate;
   width: 378.08px;
@@ -1053,6 +1054,16 @@
   width: 397px;
   height: 469px;
   pointer-events: none;
+}
+
+.figma-prototype__promo-mockup {
+  position: relative;
+  top: -18px;
+  z-index: 2;
+  display: block;
+  width: min(100%, 300px);
+  height: auto;
+  max-width: none;
 }
 
 .figma-prototype__promo-cards {
