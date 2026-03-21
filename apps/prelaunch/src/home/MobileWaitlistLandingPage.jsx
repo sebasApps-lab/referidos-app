@@ -142,7 +142,6 @@ const promoCards = [
 const footerPanels = [
   "Ayuda",
   "Para negocios",
-  "\u00bfQui\u00e9nes somos?",
   "Borrar datos",
 ];
 
@@ -461,10 +460,14 @@ export default function MobileWaitlistLandingPage() {
 
             <div className="mobile-landing__promo-section">
               <h2 className="mobile-landing__promo-heading">
-                <span className="mobile-landing__promo-heading-prefix">{"\u00a1Empieza en "}</span>
-                <strong className="mobile-landing__promo-heading-emphasis">
-                  {"3 simples "}
-                </strong>
+                <span className="mobile-landing__promo-heading-first-line">
+                  <span className="mobile-landing__promo-heading-prefix">
+                    {"\u00a1Empieza en "}
+                  </span>
+                  <strong className="mobile-landing__promo-heading-emphasis">
+                    {"3 simples "}
+                  </strong>
+                </span>
                 <strong className="mobile-landing__promo-heading-break">pasos!</strong>
               </h2>
 
