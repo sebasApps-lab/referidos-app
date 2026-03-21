@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
 import "./helpCenter.css";
 
+function helpCenterAsset(filename) {
+  return `/assets/shared/help-center/${filename}`;
+}
+
 export const sidebarCategories = [
   {
     key: "legal",
@@ -50,7 +54,7 @@ export const defaultResources = [
     key: "verify",
     title: "Verificar cuenta",
     description: "Cómo verificar tu identidad y activar beneficios.",
-    Icon: PrivacyIcon,
+    Icon: VerifyAccountIcon,
   },
   {
     key: "redeem",
@@ -105,7 +109,7 @@ export const categoryResources = {
       key: "verify-main",
       title: "Verificar cuenta",
       description: "Cómo verificar tu identidad y activar beneficios.",
-      Icon: PrivacyIcon,
+      Icon: VerifyAccountIcon,
     },
   ],
   redeem: [
@@ -148,6 +152,11 @@ export function HelpCenterLayout({
   activeCategoryKey = null,
   content = null,
 }) {
+  const activeCategory = activeCategoryKey
+    ? sidebarItems.find((category) => category.key === activeCategoryKey) || null
+    : null;
+  const showCtas = !activeCategory && !content;
+
   return (
     <main className="help-center" aria-label="Centro de Ayuda">
       <HelpCenterHeader />
@@ -169,6 +178,10 @@ export function HelpCenterLayout({
           </aside>
 
           <section className="help-center__content">
+            {activeCategory ? (
+              <h2 className="help-center__content-title">{activeCategory.title}</h2>
+            ) : null}
+
             {content ?? (
               <div className="help-center__resource-list">
                 {resourceItems.map((resource) => (
@@ -177,7 +190,7 @@ export function HelpCenterLayout({
               </div>
             )}
 
-            <HelpCenterCtas />
+            {showCtas ? <HelpCenterCtas /> : null}
           </section>
         </div>
       </section>
@@ -197,7 +210,9 @@ function HelpCenterHeader() {
           <span className="help-center__brand-separator" aria-hidden="true">
             |
           </span>
-          <span className="help-center__brand-support">Centro de Ayuda</span>
+          <Link className="help-center__brand-support" to="/ayuda/es">
+            Centro de Ayuda
+          </Link>
         </div>
 
         <nav className="help-center__header-actions" aria-label="Cuenta">
@@ -270,10 +285,18 @@ function HelpCenterCtas() {
 
           <div className="help-center__business-text">
             <h3>¿Eres un Negocio o Empresa?</h3>
-            <button type="button" className="help-center__business-button">
-              <span>Ir al Centro de Ayuda para Empresas</span>
-              <ChevronRightIcon />
-            </button>
+            <div className="help-center__business-action">
+              <span className="help-center__business-link-text">
+                Ir al Centro de Ayuda para Empresas
+              </span>
+              <button
+                type="button"
+                className="help-center__business-arrow-button"
+                aria-label="Ir al Centro de Ayuda para Empresas"
+              >
+                <BusinessArrowIcon />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -286,155 +309,72 @@ function HelpCenterCtas() {
 
           <div className="help-center__support-text">
             <h3>¿No encontraste lo que buscabas?</h3>
-            <p>
-              Ve al <strong>Chat de Soporte</strong> por
-            </p>
+            <div className="help-center__support-line">
+              <p>
+                Ve al <strong>Chat de Soporte</strong> por
+              </p>
+
+              <div className="help-center__support-actions">
+                <Link className="help-center__whatsapp-button" to="/soporte-chat">
+                  <WhatsAppIcon />
+                  <span>Whatsapp</span>
+                </Link>
+
+                <Link className="help-center__email-button" to="/soporte-correo">
+                  <MailSupportIcon />
+                  <span>Correo electrónico</span>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-
-        <Link className="help-center__whatsapp-button" to="/soporte-chat">
-          <WhatsAppIcon />
-          <span>Whatsapp</span>
-        </Link>
       </div>
     </section>
   );
 }
 
 function SignInIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-signin-gradient" x1="10" x2="56" y1="8" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ddc8ff" />
-          <stop offset="1" stopColor="#a05bf6" />
-        </linearGradient>
-      </defs>
-      <path d="m35 8-23 23v12h12L47 20 35 8Z" fill="url(#help-signin-gradient)" />
-      <path d="M20 39 8 51v5h5l12-12" fill="url(#help-signin-gradient)" opacity="0.82" />
-      <circle cx="49" cy="17" r="7" fill="#ffffff" opacity="0.24" />
-      <circle cx="48" cy="46" r="9" fill="#8c47f3" />
-      <path d="m44.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("key-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function TermsIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-terms-gradient" x1="10" x2="54" y1="6" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#dac8ff" />
-          <stop offset="1" stopColor="#9c58f6" />
-        </linearGradient>
-      </defs>
-      <path d="M18 8h21l13 13v26c0 4.418-3.582 8-8 8H18c-4.418 0-8-3.582-8-8V16c0-4.418 3.582-8 8-8Z" fill="url(#help-terms-gradient)" opacity="0.18" />
-      <path d="M20 8h19l13 13v24c0 4.418-3.582 8-8 8H20c-4.418 0-8-3.582-8-8V16c0-4.418 3.582-8 8-8Z" fill="url(#help-terms-gradient)" />
-      <path d="M39 8v10c0 1.657 1.343 3 3 3h10" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-      <path d="M23 26h16M23 33h16M23 40h10" fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="3.5" opacity="0.92" />
-      <circle cx="47" cy="46" r="9" fill="#8c47f3" />
-      <path d="m43.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("terms-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function PrivacyIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-privacy-gradient" x1="8" x2="55" y1="10" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#e0cbff" />
-          <stop offset="1" stopColor="#a45df8" />
-        </linearGradient>
-      </defs>
-      <path d="M32 8c6.445 6.1 14.792 8.39 19 8.96V31c0 12.4-9.03 21.52-19 24.92C22.03 52.52 13 43.4 13 31V16.96c4.208-.57 12.555-2.86 19-8.96Z" fill="url(#help-privacy-gradient)" />
-      <path d="m24.4 32.5 4.4 4.5 11-12" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      <circle cx="47" cy="46" r="9" fill="#8c47f3" />
-      <path d="m43.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("privacy-icon.png")} alt="" aria-hidden="true" />;
+}
+
+function VerifyAccountIcon() {
+  return <img src={helpCenterAsset("verify-account-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function RedeemIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-redeem-gradient" x1="8" x2="56" y1="10" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#e7d0ff" />
-          <stop offset="1" stopColor="#a35ff7" />
-        </linearGradient>
-      </defs>
-      <path d="M14 21h36c4.418 0 8 3.582 8 8v18c0 4.418-3.582 8-8 8H14c-4.418 0-8-3.582-8-8V29c0-4.418 3.582-8 8-8Z" fill="url(#help-redeem-gradient)" />
-      <path d="M14 29h44M32 21v34" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" opacity="0.94" />
-      <path d="M26 16c0 3.314 2.686 6 6 6-3.314 0-6-2.686-6-6Zm12 0c0 3.314-2.686 6-6 6 3.314 0 6-2.686 6-6Z" fill="url(#help-redeem-gradient)" />
-      <circle cx="47" cy="46" r="9" fill="#8c47f3" />
-      <path d="m43.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("gift-promos-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-delete-gradient" x1="8" x2="56" y1="10" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#e3ccff" />
-          <stop offset="1" stopColor="#a15af7" />
-        </linearGradient>
-      </defs>
-      <path d="M22 14h20l-1.6 34.3a6 6 0 0 1-6 5.7h-4.8a6 6 0 0 1-6-5.7L22 14Z" fill="url(#help-delete-gradient)" />
-      <path d="M18 14h28M26 14V9h12v5M27 24v18M37 24v18" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      <circle cx="46" cy="46" r="9" fill="#8c47f3" />
-      <path d="m42.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("delete-data-icon.png")} alt="" aria-hidden="true" />;
+}
+
+function MailSupportIcon() {
+  return <img src="/assets/fluent-color-mail-16.svg" alt="" aria-hidden="true" />;
 }
 
 function PointsIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-points-gradient" x1="10" x2="56" y1="10" y2="54" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#d9bbff" />
-          <stop offset="1" stopColor="#8b47f2" />
-        </linearGradient>
-      </defs>
-      <path d="m32 9 6.8 11.8 13.4 2.3-9.2 8.9 2 13.1L32 39.2 19 45.1l2-13.1-9.2-8.9 13.4-2.3L32 9Z" fill="url(#help-points-gradient)" />
-      <circle cx="47" cy="46" r="9" fill="#8c47f3" />
-      <path d="m43.2 46.3 2.3 2.4 5.2-5.7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("points-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function BriefcaseIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-briefcase-gradient" x1="6" x2="58" y1="8" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ffffff" stopOpacity="0.96" />
-          <stop offset="1" stopColor="#d9b8ff" />
-        </linearGradient>
-      </defs>
-      <path d="M17 18h30c4.418 0 8 3.582 8 8v20c0 4.418-3.582 8-8 8H17c-4.418 0-8-3.582-8-8V26c0-4.418 3.582-8 8-8Z" fill="url(#help-briefcase-gradient)" opacity="0.92" />
-      <path d="M24 18v-3a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v3" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-      <path d="M9 31h46M28 31v7h8v-7" fill="none" stroke="#fff" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("negocio-icon.png")} alt="" aria-hidden="true" />;
 }
 
 function ChatBubbleIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="help-chat-gradient" x1="10" x2="56" y1="8" y2="54" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#d8e2ff" />
-          <stop offset="1" stopColor="#6994ff" />
-        </linearGradient>
-      </defs>
-      <path d="M16 12h32c6.627 0 12 5.373 12 12v13c0 6.627-5.373 12-12 12H31l-11 9v-9h-4c-6.627 0-12-5.373-12-12V24c0-6.627 5.373-12 12-12Z" fill="url(#help-chat-gradient)" />
-      <path d="M21 27h22M21 35h17" fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="4" opacity="0.92" />
-    </svg>
-  );
+  return <img src={helpCenterAsset("chat-support-icon.png")} alt="" aria-hidden="true" />;
+}
+
+function BusinessArrowIcon() {
+  return <img src={helpCenterAsset("ir-right-arrow.png")} alt="" aria-hidden="true" />;
 }
 
 function WhatsAppIcon() {

@@ -2,6 +2,11 @@ import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 
 export default function DesktopNavigationHeader() {
+  function handleScroll(event, targetId) {
+    event.preventDefault();
+    scrollToSection(targetId);
+  }
+
   return (
     <header className="figma-prototype__nav">
       <div className="figma-prototype__nav-brand">
@@ -13,18 +18,25 @@ export default function DesktopNavigationHeader() {
       </div>
 
       <nav className="figma-prototype__nav-links" aria-label="Principal">
-        {navigationLinks.map((link) => (
-          <button
-            type="button"
-            key={link.label}
-            onClick={() => {
-              if (!link.targetId) return;
-              scrollToSection(link.targetId);
-            }}
-          >
-            {link.label}
-          </button>
-        ))}
+        {navigationLinks.map((link) =>
+          link.targetId ? (
+            <a
+              key={link.label}
+              href={`#${link.targetId}`}
+              className="figma-prototype__nav-link figma-prototype__nav-link--interactive"
+              onClick={(event) => handleScroll(event, link.targetId)}
+            >
+              {link.label}
+            </a>
+          ) : (
+            <span
+              key={link.label}
+              className="figma-prototype__nav-link figma-prototype__nav-link--placeholder"
+            >
+              {link.label}
+            </span>
+          ),
+        )}
       </nav>
 
       <button type="button" className="figma-prototype__nav-menu-button" aria-label="Abrir menú">

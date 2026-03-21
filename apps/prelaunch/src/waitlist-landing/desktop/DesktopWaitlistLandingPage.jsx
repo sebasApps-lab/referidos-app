@@ -48,7 +48,7 @@ export default function DesktopWaitlistLandingPage() {
           <DesktopHeroSection />
         </section>
         <DesktopWaitlistStepsSection />
-        <section className="figma-prototype__bottom-band">
+        <section className="figma-prototype__bottom-band" id="waitlist-bottom">
           <DesktopWaitlistSection />
           <DesktopFooterSection />
         </section>
