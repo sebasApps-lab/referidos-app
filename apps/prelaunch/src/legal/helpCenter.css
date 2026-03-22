@@ -1024,39 +1024,49 @@
 
 .help-center-mobile .help-center__business-copy {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   align-items: start;
   gap: 14px;
 }
 
 .help-center-mobile .help-center__business-icon {
   position: relative;
-  width: 62px;
-  height: 82px;
+  width: 104px;
+  height: 138px;
   overflow: visible;
+  outline: 1px solid #ff0000;
 }
 
 .help-center-mobile .help-center__business-icon img {
   position: absolute;
   top: 50%;
   left: 50%;
-  height: 100%;
+  height: 122px;
   width: auto;
   max-width: none;
   display: block;
   transform: translate(-50%, -50%);
+  outline: 1px solid #00aa00;
 }
 
 .help-center-mobile .help-center__support-icon img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: auto;
   max-width: none;
-  height: 100%;
+  height: 138px;
   display: block;
-  transform: none;
+  transform: translate(-50%, -50%);
+  outline: 1px solid #00aa00;
 }
 
 .help-center-mobile.help-center--business .help-center__business-icon {
-  width: 78px;
+  width: 104px;
+  height: 138px;
+}
+
+.help-center-mobile.help-center--business .help-center__business-icon img {
   height: 100px;
 }
 
@@ -1105,16 +1115,27 @@
 
 .help-center-mobile .help-center__support-copy {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   align-items: start;
   gap: 14px;
   width: 100%;
 }
 
 .help-center-mobile .help-center__support-icon {
+  position: relative;
   width: 104px;
   height: 138px;
   overflow: visible;
+  outline: 1px solid #ff0000;
+}
+
+.help-center-mobile.help-center--business .help-center__support-icon {
+  width: 104px;
+  height: 138px;
+}
+
+.help-center-mobile.help-center--business .help-center__support-icon img {
+  height: 152px;
 }
 
 .help-center-mobile .help-center__support-text {
@@ -2070,37 +2091,58 @@
   }
 
   .help-center-mobile .help-center__support-copy {
-    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-columns: clamp(124px, 13vw, 160px) minmax(0, 1fr);
     gap: 36px;
     align-items: center;
   }
 
   .help-center-mobile .help-center__business-copy {
-    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-columns: clamp(124px, 13vw, 160px) minmax(0, 1fr);
     gap: 36px;
     align-items: center;
   }
 
   .help-center-mobile .help-center__business-icon,
   .help-center-mobile .help-center__support-icon {
-    width: clamp(82px, 9.2vw, 108px);
-    height: clamp(108px, 12vw, 140px);
+    width: clamp(124px, 13vw, 160px);
+    height: clamp(160px, 16vw, 204px);
   }
 
   .help-center-mobile .help-center__business-icon {
     position: relative;
-    width: clamp(82px, 9.2vw, 108px);
-    height: clamp(108px, 12vw, 140px);
+    width: clamp(124px, 13vw, 160px);
+    height: clamp(160px, 16vw, 204px);
+  }
+
+  .help-center-mobile .help-center__business-icon img {
+    height: clamp(154px, 14.8vw, 188px);
   }
 
   .help-center-mobile.help-center--business .help-center__business-icon {
-    width: clamp(94px, 10vw, 122px);
+    width: clamp(124px, 13vw, 160px);
+    height: clamp(160px, 16vw, 204px);
+  }
+
+  .help-center-mobile.help-center--business .help-center__business-icon img {
     height: clamp(124px, 13vw, 158px);
   }
 
   .help-center-mobile .help-center__support-icon {
     width: clamp(124px, 13vw, 160px);
     height: clamp(160px, 16vw, 204px);
+  }
+
+  .help-center-mobile.help-center--business .help-center__support-icon {
+    width: clamp(124px, 13vw, 160px);
+    height: clamp(160px, 16vw, 204px);
+  }
+
+  .help-center-mobile .help-center__support-icon img {
+    height: clamp(160px, 16vw, 204px);
+  }
+
+  .help-center-mobile.help-center--business .help-center__support-icon img {
+    height: clamp(174px, 17vw, 220px);
   }
 
   .help-center-mobile .help-center__resource-icon {
@@ -2216,8 +2258,36 @@
     line-height: 1.35;
   }
 
+  .help-center-mobile .help-center__business-copy,
+  .help-center-mobile .help-center__support-copy {
+    grid-template-columns: 172px minmax(0, 1fr);
+  }
+
+  .help-center-mobile .help-center__business-icon,
   .help-center-mobile .help-center__support-icon {
     width: 172px;
     height: 218px;
+  }
+
+  .help-center-mobile .help-center__business-icon img {
+    height: 198px;
+  }
+
+  .help-center-mobile.help-center--business .help-center__business-icon {
+    width: 172px;
+    height: 218px;
+  }
+
+  .help-center-mobile.help-center--business .help-center__support-icon {
+    width: 172px;
+    height: 218px;
+  }
+
+  .help-center-mobile .help-center__support-icon img {
+    height: 218px;
+  }
+
+  .help-center-mobile.help-center--business .help-center__support-icon img {
+    height: 236px;
   }
 }
