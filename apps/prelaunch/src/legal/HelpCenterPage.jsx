@@ -1,14 +1,12 @@
-import {
-  defaultResources,
-  HelpCenterLayout,
-  sidebarCategories,
-} from "./helpCenterShared";
+import HelpCenterTreeRoute from "./help-center/HelpCenterTreeRoute";
+import HelpCenterDesktopPage from "./desktop/HelpCenterDesktopPage";
+import HelpCenterMobilePage from "./mobile/HelpCenterMobilePage";
 
 export default function HelpCenterPage() {
   return (
-    <HelpCenterLayout
-      sidebarItems={sidebarCategories}
-      resourceItems={defaultResources}
+    <HelpCenterTreeRoute
+      DesktopComponent={HelpCenterDesktopPage}
+      MobileComponent={HelpCenterMobilePage}
     />
   );
 }

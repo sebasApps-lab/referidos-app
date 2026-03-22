@@ -4,6 +4,9 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import HelpCenterPage from "./legal/HelpCenterPage";
 import HelpCenterCategoryPage from "./legal/HelpCenterCategoryPage";
 import HelpCenterArticlePage from "./legal/HelpCenterArticlePage";
+import HelpCenterBusinessPage from "./legal/HelpCenterBusinessPage";
+import HelpCenterBusinessCategoryPage from "./legal/HelpCenterBusinessCategoryPage";
+import HelpCenterBusinessArticlePage from "./legal/HelpCenterBusinessArticlePage";
 import SupportChatPage from "./support/SupportChatPage";
 import SupportEmailPage from "./support/SupportEmailPage";
 import FeedbackPage from "./support/FeedbackPage";
@@ -20,10 +23,20 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/ayuda/es" element={<HelpCenterPage />} />
         <Route path="/ayuda/es/categoria/:category" element={<HelpCenterCategoryPage />} />
         <Route path="/ayuda/es/articulo/:doc" element={<HelpCenterArticlePage />} />
+        <Route path="/ayuda-negocios/es" element={<HelpCenterBusinessPage />} />
+        <Route
+          path="/ayuda-negocios/es/categoria/:category"
+          element={<HelpCenterBusinessCategoryPage />}
+        />
+        <Route
+          path="/ayuda-negocios/es/articulo/:doc"
+          element={<HelpCenterBusinessArticlePage />}
+        />
         <Route path="/soporte-chat" element={<SupportChatPage />} />
         <Route path="/soporte-correo" element={<SupportEmailPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/ayuda/*" element={<Navigate to="/ayuda/es" replace />} />
+        <Route path="/ayuda-negocios/*" element={<Navigate to="/ayuda-negocios/es" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

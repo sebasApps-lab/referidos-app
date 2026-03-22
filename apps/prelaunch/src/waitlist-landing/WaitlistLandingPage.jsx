@@ -41,6 +41,36 @@ export default function WaitlistLandingPage() {
     };
   }, [tree]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const scrollToHashTarget = () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        return;
+      }
+
+      const targetId = decodeURIComponent(hash.slice(1));
+      requestAnimationFrame(() => {
+        const section = document.getElementById(targetId);
+        if (!section) {
+          return;
+        }
+
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+
+    scrollToHashTarget();
+    window.addEventListener("hashchange", scrollToHashTarget);
+
+    return () => {
+      window.removeEventListener("hashchange", scrollToHashTarget);
+    };
+  }, [tree]);
+
   if (tree === "desktop") {
     return <DesktopWaitlistLandingPage />;
   }

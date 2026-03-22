@@ -1,49 +1,58 @@
+import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
 import "./helpCenter.css";
 
-function helpCenterAsset(filename) {
-  return `/assets/shared/help-center/${filename}`;
+const HelpCenterThemeContext = createContext("consumer");
+
+const HELP_CENTER_ICON_FILES = {
+  consumer: {
+    signin: "cliente/key-icon-cliente.png",
+    terms: "cliente/terms-icon-cliente.png",
+    privacy: "cliente/privacy-icon-cliente.png",
+    verify: "cliente/verify-account-icon-cliente.png",
+    redeem: "cliente/gift-promos-icon-cliente.png",
+    delete: "cliente/delete-data-icon-cliente.png",
+    points: "cliente/points-icon-cliente.png",
+    business: "cliente/negocio-icon-cliente.png",
+    support: "cliente/chat-support-icon-cliente.png",
+    arrow: "ir-right-arrow-negocio.png",
+  },
+  business: {
+    signin: "negocio/key-icon-negocio.png",
+    terms: "negocio/terms-icon-negocio.png",
+    privacy: "negocio/privacy-icon-negocio.png",
+    verify: "negocio/verify-account-icon-negocio.png",
+    redeem: "negocio/gift-promos-icon-negocio.png",
+    delete: "negocio/delete-data-icon-negocio.png",
+    points: "negocio/points-icon-negocio.png",
+    business: "negocio/clientes-icon-negocio.png",
+    support: "negocio/chat-support-icon-negocio.png",
+    arrow: "ir-right-arrow-negocio.png",
+  },
+};
+
+function helpCenterAsset(relativePath) {
+  return `/assets/shared/help-center/${relativePath}`;
 }
 
-export const sidebarCategories = [
-  {
-    key: "legal",
-    title: "Legal",
-    to: "/ayuda/es/categoria/legal",
-  },
-  {
-    key: "signin",
-    title: "Cómo iniciar sesión",
-    to: "/ayuda/es/categoria/signin",
-  },
-  {
-    key: "verify",
-    title: "Verificar cuenta",
-    to: "/ayuda/es/categoria/verify",
-  },
-  {
-    key: "redeem",
-    title: "Canjear promos",
-    to: "/ayuda/es/categoria/redeem",
-  },
-  {
-    key: "benefits",
-    title: "Beneficios",
-    to: "/ayuda/es/categoria/benefits",
-  },
-  {
-    key: "points",
-    title: "Sistema de puntos",
-    to: "/ayuda/es/categoria/points",
-  },
-  {
-    key: "levels",
-    title: "Beneficios por nivel",
-    to: "/ayuda/es/categoria/levels",
-  },
+function useThemedHelpCenterAsset(key) {
+  const theme = useContext(HelpCenterThemeContext);
+  const relativePath =
+    HELP_CENTER_ICON_FILES[theme]?.[key] ?? HELP_CENTER_ICON_FILES.business[key];
+  return helpCenterAsset(relativePath);
+}
+
+const SIDEBAR_CATEGORY_DEFS = [
+  { key: "legal", title: "Legal", slug: "legal" },
+  { key: "signin", title: "Cómo iniciar sesión", slug: "signin" },
+  { key: "verify", title: "Verificar cuenta", slug: "verify" },
+  { key: "redeem", title: "Canjear promos", slug: "redeem" },
+  { key: "benefits", title: "Beneficios", slug: "benefits" },
+  { key: "points", title: "Sistema de puntos", slug: "points" },
+  { key: "levels", title: "Beneficios por nivel", slug: "levels" },
 ];
 
-export const defaultResources = [
+const DEFAULT_RESOURCE_DEFS = [
   {
     key: "signin",
     title: "Cómo iniciar sesión",
@@ -70,32 +79,7 @@ export const defaultResources = [
   },
 ];
 
-export const legalResources = [
-  {
-    key: "terms",
-    title: "Términos y Condiciones",
-    description: "Consulta nuestras normas y reglas.",
-    to: "/ayuda/es/articulo/terminos",
-    Icon: TermsIcon,
-  },
-  {
-    key: "privacy",
-    title: "Política de Privacidad",
-    description: "Lee cómo protegemos tu privacidad.",
-    to: "/ayuda/es/articulo/privacidad",
-    Icon: PrivacyIcon,
-  },
-  {
-    key: "delete",
-    title: "Borrar mis datos",
-    description: "Solicita la eliminación de tu información.",
-    to: "/ayuda/es/articulo/borrar-datos",
-    Icon: DeleteIcon,
-  },
-];
-
-export const categoryResources = {
-  legal: legalResources,
+const CATEGORY_RESOURCE_DEFS = {
   signin: [
     {
       key: "signin-main",
@@ -146,59 +130,159 @@ export const categoryResources = {
   ],
 };
 
+function cloneItems(items) {
+  return items.map((item) => ({ ...item }));
+}
+
+export function buildSidebarCategories(basePath = "/ayuda/es") {
+  return SIDEBAR_CATEGORY_DEFS.map((category) => ({
+    key: category.key,
+    title: category.title,
+    to: `${basePath}/categoria/${category.slug}`,
+  }));
+}
+
+export function buildDefaultResources() {
+  return cloneItems(DEFAULT_RESOURCE_DEFS);
+}
+
+export function buildLegalResources(basePath = "/ayuda/es") {
+  return [
+    {
+      key: "terms",
+      title: "Términos y Condiciones",
+      description: "Consulta nuestras normas y reglas.",
+      to: `${basePath}/articulo/terminos`,
+      Icon: TermsIcon,
+    },
+    {
+      key: "privacy",
+      title: "Política de Privacidad",
+      description: "Lee cómo protegemos tu privacidad.",
+      to: `${basePath}/articulo/privacidad`,
+      Icon: PrivacyIcon,
+    },
+    {
+      key: "delete",
+      title: "Borrar mis datos",
+      description: "Solicita la eliminación de tu información.",
+      to: `${basePath}/articulo/borrar-datos`,
+      Icon: DeleteIcon,
+    },
+  ];
+}
+
+export function buildCategoryResources(basePath = "/ayuda/es") {
+  return {
+    legal: buildLegalResources(basePath),
+    signin: cloneItems(CATEGORY_RESOURCE_DEFS.signin),
+    verify: cloneItems(CATEGORY_RESOURCE_DEFS.verify),
+    redeem: cloneItems(CATEGORY_RESOURCE_DEFS.redeem),
+    benefits: cloneItems(CATEGORY_RESOURCE_DEFS.benefits),
+    points: cloneItems(CATEGORY_RESOURCE_DEFS.points),
+    levels: cloneItems(CATEGORY_RESOURCE_DEFS.levels),
+  };
+}
+
+export const sidebarCategories = buildSidebarCategories();
+export const defaultResources = buildDefaultResources();
+export const legalResources = buildLegalResources();
+export const categoryResources = buildCategoryResources();
+
+export function HelpCenterThemeProvider({ theme, children }) {
+  return (
+    <HelpCenterThemeContext.Provider value={theme}>{children}</HelpCenterThemeContext.Provider>
+  );
+}
+
 export function HelpCenterLayout({
   sidebarItems,
   resourceItems = [],
   activeCategoryKey = null,
   content = null,
+  basePath = "/ayuda/es",
+  headerTitle = "Centro de Ayuda",
+  theme = "consumer",
+  headerActions = null,
 }) {
   const activeCategory = activeCategoryKey
     ? sidebarItems.find((category) => category.key === activeCategoryKey) || null
     : null;
-  const showCtas = !activeCategory && !content;
+  const isDefaultScreen = !activeCategory && !content;
+  const showCtas = isDefaultScreen;
 
   return (
-    <main className="help-center" aria-label="Centro de Ayuda">
-      <HelpCenterHeader />
+    <HelpCenterThemeProvider theme={theme}>
+      <main className={`help-center help-center--${theme}`} aria-label="Centro de Ayuda">
+        <HelpCenterHeader
+          basePath={basePath}
+          headerTitle={headerTitle}
+          headerActions={headerActions}
+        />
 
-      <section className="help-center__body">
-        <div className="help-center__layout">
-          <aside className="help-center__sidebar">
-            <h1 className="help-center__sidebar-title">Categorías</h1>
+        <section className="help-center__body">
+          <div className="help-center__layout">
+            <aside className="help-center__sidebar">
+              <h1 className="help-center__sidebar-title">Categorías</h1>
 
-            <div className="help-center__sidebar-panel">
-              {sidebarItems.map((category) => (
-                <SidebarCategoryRow
-                  key={category.key}
-                  category={category}
-                  isActive={category.key === activeCategoryKey}
-                />
-              ))}
-            </div>
-          </aside>
+              <div className="help-center__sidebar-panel">
+                {sidebarItems.map((category) => (
+                  <SidebarCategoryRow
+                    key={category.key}
+                    category={category}
+                    isActive={category.key === activeCategoryKey}
+                  />
+                ))}
+              </div>
+            </aside>
 
-          <section className="help-center__content">
-            {activeCategory ? (
-              <h2 className="help-center__content-title">{activeCategory.title}</h2>
-            ) : null}
+            <section className="help-center__content">
+              {activeCategory ? (
+                <h2 className="help-center__content-title">{activeCategory.title}</h2>
+              ) : null}
 
             {content ?? (
-              <div className="help-center__resource-list">
+              <div
+                className={[
+                  "help-center__resource-list",
+                  isDefaultScreen ? "help-center__resource-list--overview" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 {resourceItems.map((resource) => (
                   <HelpResourceCard key={resource.key} resource={resource} />
                 ))}
               </div>
-            )}
+              )}
 
-            {showCtas ? <HelpCenterCtas /> : null}
-          </section>
-        </div>
-      </section>
-    </main>
+              {showCtas ? <HelpCenterCtas /> : null}
+            </section>
+          </div>
+        </section>
+      </main>
+    </HelpCenterThemeProvider>
   );
 }
 
-function HelpCenterHeader() {
+function HelpCenterHeader({ basePath, headerTitle, headerActions }) {
+  const actions =
+    headerActions ??
+    [
+      {
+        key: "signup",
+        label: "Crear cuenta",
+        to: "/",
+        className: "help-center__header-link help-center__header-link--ghost",
+      },
+      {
+        key: "login",
+        label: "Ingresar",
+        to: "/",
+        className: "help-center__header-link help-center__header-link--solid",
+      },
+    ];
+
   return (
     <header className="help-center__header">
       <div className="help-center__header-inner">
@@ -210,18 +294,17 @@ function HelpCenterHeader() {
           <span className="help-center__brand-separator" aria-hidden="true">
             |
           </span>
-          <Link className="help-center__brand-support" to="/ayuda/es">
-            Centro de Ayuda
+          <Link className="help-center__brand-support" to={basePath}>
+            {headerTitle}
           </Link>
         </div>
 
         <nav className="help-center__header-actions" aria-label="Cuenta">
-          <Link className="help-center__header-link help-center__header-link--ghost" to="/">
-            Crear cuenta
-          </Link>
-          <Link className="help-center__header-link help-center__header-link--solid" to="/">
-            Ingresar
-          </Link>
+          {actions.map((action) => (
+            <Link key={action.key} className={action.className} to={action.to}>
+              {action.label}
+            </Link>
+          ))}
         </nav>
       </div>
     </header>
@@ -274,7 +357,15 @@ function HelpResourceCard({ resource }) {
   return <article className={cardClassName}>{content}</article>;
 }
 
-function HelpCenterCtas() {
+export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
+  const theme = useContext(HelpCenterThemeContext);
+  const businessTitle =
+    theme === "business" ? "¿Eres un cliente?" : "¿Eres un Negocio o Empresa?";
+  const businessLinkText =
+    theme === "business"
+      ? "Ir al Centro de Ayuda para Clientes"
+      : "Ir al Centro de Ayuda para Empresas";
+
   return (
     <section className="help-center__cta-panel">
       <div className="help-center__business-card">
@@ -284,15 +375,13 @@ function HelpCenterCtas() {
           </div>
 
           <div className="help-center__business-text">
-            <h3>¿Eres un Negocio o Empresa?</h3>
+            <h3>{businessTitle}</h3>
             <div className="help-center__business-action">
-              <span className="help-center__business-link-text">
-                Ir al Centro de Ayuda para Empresas
-              </span>
+              <span className="help-center__business-link-text">{businessLinkText}</span>
               <button
                 type="button"
                 className="help-center__business-arrow-button"
-                aria-label="Ir al Centro de Ayuda para Empresas"
+                aria-label={businessLinkText}
               >
                 <BusinessArrowIcon />
               </button>
@@ -322,7 +411,7 @@ function HelpCenterCtas() {
 
                 <Link className="help-center__email-button" to="/soporte-correo">
                   <MailSupportIcon />
-                  <span>Correo electrónico</span>
+                  <span>{emailLabel}</span>
                 </Link>
               </div>
             </div>
@@ -334,27 +423,33 @@ function HelpCenterCtas() {
 }
 
 function SignInIcon() {
-  return <img src={helpCenterAsset("key-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("signin");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function TermsIcon() {
-  return <img src={helpCenterAsset("terms-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("terms");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function PrivacyIcon() {
-  return <img src={helpCenterAsset("privacy-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("privacy");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function VerifyAccountIcon() {
-  return <img src={helpCenterAsset("verify-account-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("verify");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function RedeemIcon() {
-  return <img src={helpCenterAsset("gift-promos-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("redeem");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function DeleteIcon() {
-  return <img src={helpCenterAsset("delete-data-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("delete");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function MailSupportIcon() {
@@ -362,19 +457,23 @@ function MailSupportIcon() {
 }
 
 function PointsIcon() {
-  return <img src={helpCenterAsset("points-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("points");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function BriefcaseIcon() {
-  return <img src={helpCenterAsset("negocio-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("business");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function ChatBubbleIcon() {
-  return <img src={helpCenterAsset("chat-support-icon.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("support");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function BusinessArrowIcon() {
-  return <img src={helpCenterAsset("ir-right-arrow.png")} alt="" aria-hidden="true" />;
+  const src = useThemedHelpCenterAsset("arrow");
+  return <img src={src} alt="" aria-hidden="true" />;
 }
 
 function WhatsAppIcon() {
