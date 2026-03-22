@@ -1041,7 +1041,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  height: 122px;
+  height: 130px;
   width: auto;
   max-width: none;
   display: block;
@@ -2115,7 +2115,7 @@
   }
 
   .help-center-mobile .help-center__business-icon img {
-    height: clamp(154px, 14.8vw, 188px);
+    height: clamp(164px, 15.6vw, 198px);
   }
 
   .help-center-mobile.help-center--business .help-center__business-icon {
@@ -2270,7 +2270,7 @@
   }
 
   .help-center-mobile .help-center__business-icon img {
-    height: 198px;
+    height: 208px;
   }
 
   .help-center-mobile.help-center--business .help-center__business-icon {
