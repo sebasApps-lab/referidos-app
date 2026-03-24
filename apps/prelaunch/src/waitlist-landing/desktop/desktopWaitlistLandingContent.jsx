@@ -3,7 +3,7 @@ import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
 export const navigationLinks = [
   { label: "Cómo funciona", targetId: "waitlist-bottom" },
   { label: "Recibir mi invitación", targetId: "waitlist-steps" },
-  { label: "Para negocios" },
+  { label: "Para negocios", actionId: "business-interest-modal" },
 ];
 
 export const desktopSteps = [

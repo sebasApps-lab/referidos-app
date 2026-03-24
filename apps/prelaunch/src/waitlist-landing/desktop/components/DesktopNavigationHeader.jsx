@@ -1,7 +1,7 @@
 import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 
-export default function DesktopNavigationHeader() {
+export default function DesktopNavigationHeader({ onBusinessClick }) {
   function handleScroll(event, targetId) {
     event.preventDefault();
     scrollToSection(targetId);
@@ -28,6 +28,15 @@ export default function DesktopNavigationHeader() {
             >
               {link.label}
             </a>
+          ) : link.actionId === "business-interest-modal" ? (
+            <button
+              key={link.label}
+              type="button"
+              className="figma-prototype__nav-link figma-prototype__nav-link--interactive"
+              onClick={onBusinessClick}
+            >
+              {link.label}
+            </button>
           ) : (
             <span
               key={link.label}

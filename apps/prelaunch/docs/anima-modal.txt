@@ -1,0 +1,335 @@
+index.jsx:
+import { useState } from "react";
+import bellIconCircle from "./bell-icon-circle.svg";
+import bottomLineModal from "./bottom-line-modal.svg";
+import clockYellowIcon from "./clock-yellow-icon.png";
+import gridiconsBriefcase from "./gridicons-briefcase.svg";
+import letsIconsCheckFill from "./lets-icons-check-fill.svg";
+import lucideMail from "./lucide-mail.svg";
+import majesticonsLock from "./majesticons-lock.svg";
+import mdiBell from "./mdi-bell.svg";
+import vector from "./vector.svg";
+
+export const ModalParaNegocios = () => {
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+  };
+
+  return (
+    <div className="flex flex-col w-[1105px] h-[825px] items-start gap-2.5 pl-[105px] pr-[104px] pt-[51px] pb-[30px] relative rounded-[28px] bg-[linear-gradient(0deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_100%)]">
+      <button
+        type="button"
+        aria-label="Cerrar modal"
+        className="absolute top-9 left-[1022px] w-12 h-[46px] rounded-3xl border border-solid border-[#e0e0e6] flex items-center justify-center cursor-pointer bg-transparent"
+      >
+        <div className="w-7 h-7 flex items-center justify-center">
+          <img className="w-[16.33px]" alt="Vector" src={vector} />
+        </div>
+      </button>
+
+      <div className="flex flex-col w-[896px] items-center gap-3.5 relative flex-[0_0_auto]">
+        <img
+          className="relative w-[312px] h-[310px] mt-[-117.00px]"
+          alt="Clock yellow icon"
+          src={clockYellowIcon}
+        />
+
+        <div className="flex flex-col w-[896px] items-center gap-[31px] relative flex-[0_0_auto]">
+          <div className="flex flex-col w-[824px] items-center gap-[19px] relative flex-[0_0_auto]">
+            <div className="flex flex-col items-center gap-5 relative self-stretch w-full flex-[0_0_auto]">
+              <div className="flex flex-col items-center gap-7 relative self-stretch w-full flex-[0_0_auto]">
+                <p className="relative w-[696px] mt-[-1.00px] [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-transparent text-[37px] text-center tracking-[0] leading-[44.4px]">
+                  <span className="text-black">
+                    El acceso anticipado al panel de promociones para negocios
+                    llegará el{" "}
+                  </span>
+                  <span className="text-[#0c427c]">10 de abril de 2026</span>
+                </p>
+
+                <p className="relative self-stretch [font-family:'Poppins-Medium',Helvetica] font-normal text-transparent text-2xl text-center tracking-[0] leading-[33.6px]">
+                  <span className="font-medium text-black">
+                    Estamos preparando una plataforma profesional para que los
+                    negocios puedan
+                  </span>
+                  <span className="[font-family:'Poppins-Regular',Helvetica] text-black">
+                    &nbsp;
+                  </span>
+                  <span className="[font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#0c427c]">
+                    crear, publicar y gestionar
+                  </span>
+                  <span className="[font-family:'Poppins-SemiBold',Helvetica] font-semibold text-black">
+                    &nbsp;
+                  </span>
+                  <span className="[font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#0c427c]">
+                    promociones
+                  </span>
+                  <span className="[font-family:'Poppins-Regular',Helvetica] text-black">
+                    &nbsp;
+                  </span>
+                  <span className="font-medium text-black">
+                    desde cualquier dispositivo.
+                  </span>
+                </p>
+              </div>
+
+              <div className="inline-flex items-center gap-5 relative flex-[0_0_auto]">
+                <img
+                  className="relative w-[38px] h-[38px]"
+                  alt="Bell icon circle"
+                  src={bellIconCircle}
+                />
+                <p className="relative w-fit [font-family:'Poppins-Medium',Helvetica] font-medium text-black text-xl tracking-[0] leading-[normal]">
+                  Activa las notificaciones y te avisaremos por email
+                </p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col w-[720px] items-center gap-4 relative flex-[0_0_auto]"
+            >
+              <label
+                htmlFor="email-input"
+                className="relative self-stretch w-full h-[66px] rounded-[15px] overflow-hidden border-2 border-solid border-black flex items-center"
+              >
+                <img
+                  className="absolute top-[19px] left-[25px] w-[30px] h-[30px] aspect-[1]"
+                  alt="Lucide mail"
+                  src={lucideMail}
+                />
+                <input
+                  id="email-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@empresa.com"
+                  aria-label="Correo electrónico de empresa"
+                  className="absolute top-0 left-0 w-full h-full pl-[74px] pr-4 [font-family:'Poppins-Regular',Helvetica] font-normal text-[#5a5a5a] text-[23px] tracking-[0] leading-[normal] bg-transparent border-0 outline-none"
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="relative self-stretch w-full h-[69px] bg-[#030f23] rounded-[14px] flex items-center cursor-pointer border-0 outline-none"
+              >
+                <img
+                  className="absolute top-[18px] left-36 w-[31px] h-[31px] aspect-[1]"
+                  alt="Mdi bell"
+                  src={mdiBell}
+                />
+                <span className="absolute top-[19px] left-[187px] [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal]">
+                  Notificarme cuando esté disponible
+                </span>
+              </button>
+            </form>
+          </div>
+
+          <div className="flex flex-col items-center gap-[42px] relative self-stretch w-full flex-[0_0_auto]">
+            <div className="inline-flex items-center gap-4 relative flex-[0_0_auto]">
+              <div className="inline-flex items-center gap-[11px] relative flex-[0_0_auto]">
+                <img
+                  className="relative w-[38px] h-[38px] aspect-[1]"
+                  alt="Lets icons check"
+                  src={letsIconsCheckFill}
+                />
+                <div className="relative w-fit [font-family:'Poppins-Medium',Helvetica] font-medium text-black text-lg tracking-[0] leading-[normal]">
+                  Sin spam.
+                </div>
+              </div>
+
+              <div className="inline-flex items-center gap-2.5 relative flex-[0_0_auto]">
+                <img
+                  className="relative w-[22px] h-[22px] aspect-[1]"
+                  alt="Majesticons lock"
+                  src={majesticonsLock}
+                />
+                <p className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-black text-lg tracking-[0] leading-[normal]">
+                  Solo usaremos tu correo para esta notificación.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-7 relative self-stretch w-full flex-[0_0_auto]">
+              <img
+                className="relative self-stretch w-full h-px mt-[-1.00px] object-cover"
+                alt="Bottom line modal"
+                src={bottomLineModal}
+              />
+              <p className="relative self-stretch [font-family:'Poppins-Regular',Helvetica] font-normal text-black text-lg text-center tracking-[0] leading-[normal]">
+                Al enviar tu correo, aceptas recibir una notificacion cuando
+                esté listo el panel para negocios.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="inline-flex items-end gap-2.5 absolute top-0 left-0">
+          <img
+            className="relative w-7 h-7 aspect-[1]"
+            alt="Gridicons briefcase"
+            src={gridiconsBriefcase}
+          />
+          <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins-Medium',Helvetica] font-medium text-black text-xl tracking-[0] leading-[normal]">
+            PARA NEGOCIOS
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+tailwind.config.js:
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        "mid-block-text": "var(--mid-block-text)",
+        "vector-stroke": "var(--vector-stroke)",
+        "white-text-stroke": "var(--white-text-stroke)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+tailwind.css:
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --mid-block-text: rgba(28, 0, 73, 1);
+  --vector-stroke: rgba(223, 195, 250, 1);
+  --white-text-stroke: rgba(36, 5, 92, 0.75);
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./desktopWaitlistLanding.css";
+import DesktopBusinessInterestModal from "./components/DesktopBusinessInterestModal";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";
 import DesktopFooterSection from "./sections/DesktopFooterSection";
 import DesktopHeroSection from "./sections/DesktopHeroSection";
@@ -26,6 +27,7 @@ export default function DesktopWaitlistLandingPage() {
   const [footerColumnsScale, setFooterColumnsScale] = useState(() =>
     getFooterColumnsScale(),
   );
+  const [isBusinessModalOpen, setBusinessModalOpen] = useState(false);
 
   useEffect(() => {
     function handleResize() {
@@ -44,7 +46,7 @@ export default function DesktopWaitlistLandingPage() {
     >
       <div className="figma-prototype__shell">
         <section className="figma-prototype__hero-band">
-          <DesktopNavigationHeader />
+          <DesktopNavigationHeader onBusinessClick={() => setBusinessModalOpen(true)} />
           <DesktopHeroSection />
         </section>
         <DesktopWaitlistStepsSection />
@@ -53,6 +55,10 @@ export default function DesktopWaitlistLandingPage() {
           <DesktopFooterSection />
         </section>
       </div>
+      <DesktopBusinessInterestModal
+        isOpen={isBusinessModalOpen}
+        onClose={() => setBusinessModalOpen(false)}
+      />
     </main>
   );
 }
