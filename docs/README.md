@@ -44,3 +44,15 @@ Control plane de versionado:
 - `docs/android-parity-checklist.md`
 - `docs/android-phase-playbook.md`
 - `docs/versioning-system.md` (resumen/atajo)
+
+## 4) Nuevas notas por audiencia
+
+Revision documental adicional creada desde el codigo actual del monorepo:
+
+- `docs/notas-usuarios/README.md`
+- `docs/notas-desarrolladores/README.md`
+
+Organizacion:
+
+- `docs/notas-usuarios/**`: explica que hace cada app y cada seccion desde uso funcional.
+- `docs/notas-desarrolladores/**`: explica arquitectura, rutas, stores, servicios y dependencias por app.

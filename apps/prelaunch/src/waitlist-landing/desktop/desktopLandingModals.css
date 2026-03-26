@@ -74,10 +74,37 @@
   padding-right: 0;
 }
 
+.figma-prototype__landing-modal-stage--congrats {
+  zoom: 0.7;
+  padding: 36px 0 12px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-main {
+  width: 760px;
+  gap: 24px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats {
+  width: 720px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-copyRow {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-footerCopy {
+  width: 620px;
+}
+
 .figma-prototype__landing-modal-heroIcon {
   width: 468px;
   height: 465px;
   margin-top: -175.5px;
+  margin-bottom: -145px;
 }
 
 .figma-prototype__landing-modal-main {
@@ -88,7 +115,7 @@
   align-items: center;
   gap: 27px;
   width: 896px;
-  margin-top: -8px;
+  margin-top: 0;
 }
 
 .figma-prototype__landing-modal-main--wide {
@@ -164,9 +191,15 @@
   justify-content: center;
   width: 76px;
   min-height: 60px;
-  border: 0;
+  border: 0 !important;
   border-radius: 0 10px 10px 0;
-  background: #030f23;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  box-shadow: none;
+  flex: 0 0 76px;
+  position: relative;
+  z-index: 1;
   cursor: pointer;
 }
 

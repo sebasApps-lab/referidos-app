@@ -16,6 +16,7 @@ export default function DesktopLandingModalFrame({
   designWidth,
   designHeight,
   dialogLabel,
+  lockHeight = false,
   children,
 }) {
   const [scale, setScale] = useState(() => getModalScale(designWidth, designHeight));
@@ -80,7 +81,9 @@ export default function DesktopLandingModalFrame({
         className="figma-prototype__landing-modal-shell"
         style={{
           width: `${designWidth * scale}px`,
-          minHeight: `${designHeight * scale}px`,
+          ...(lockHeight
+            ? { height: `${designHeight * scale}px` }
+            : { minHeight: `${designHeight * scale}px` }),
         }}
       >
         <div
@@ -90,7 +93,7 @@ export default function DesktopLandingModalFrame({
           aria-label={dialogLabel}
           style={{
             width: `${designWidth}px`,
-            minHeight: `${designHeight}px`,
+            ...(lockHeight ? { height: `${designHeight}px` } : { minHeight: `${designHeight}px` }),
             transform: `scale(${scale})`,
           }}
         >

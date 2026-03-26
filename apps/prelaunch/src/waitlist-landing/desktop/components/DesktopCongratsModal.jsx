@@ -21,9 +21,10 @@ export default function DesktopCongratsModal({ isOpen, onClose }) {
     <DesktopLandingModalFrame
       isOpen={isOpen}
       onClose={onClose}
-      designWidth={924}
-      designHeight={557}
+      designWidth={650}
+      designHeight={405}
       dialogLabel="Felicitaciones, ya estás en la lista"
+      lockHeight
     >
       <button
         type="button"
