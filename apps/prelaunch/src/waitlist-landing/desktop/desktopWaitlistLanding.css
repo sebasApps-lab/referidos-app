@@ -1038,7 +1038,7 @@
   margin: 0;
   color: #4b0d82;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
   letter-spacing: -0.02em;
   text-wrap: balance;
@@ -1906,7 +1906,7 @@
   overflow: visible;
   white-space: nowrap;
   color: #ffffff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 22.4px;
   opacity: 0.85;
@@ -1959,7 +1959,8 @@
 }
 
 .figma-prototype__footerLinks span,
-.figma-prototype__footerLinks a {
+.figma-prototype__footerLinks a,
+.figma-prototype__footerLinks button {
   width: 100%;
   max-width: 260px;
   color: #ffffff;
@@ -1968,6 +1969,14 @@
   line-height: 19.6px;
   opacity: 0.75;
   text-decoration: none;
+}
+
+.figma-prototype__footerLinks button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
 @media (max-width: 1280px) {

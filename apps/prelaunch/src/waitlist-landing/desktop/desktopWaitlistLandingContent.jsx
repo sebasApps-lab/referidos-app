@@ -2,7 +2,7 @@ import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
 
 export const navigationLinks = [
   { label: "Ayuda", to: "/ayuda/es" },
-  { label: "C\u00f3mo funciona", targetId: "waitlist-bottom" },
+  { label: "Cómo funciona", targetId: "waitlist-bottom" },
   { label: "Para negocios", actionId: "business-interest-modal" },
 ];
 
@@ -14,7 +14,7 @@ export const desktopSteps = [
     shadowSrc: asset("mid-card-icon-shadow-1.svg"),
     title: (
       <>
-        <span className="figma-prototype__benefit-title-bold">A\u00f1ade</span>
+        <span className="figma-prototype__benefit-title-bold">Añade</span>
         <span className="figma-prototype__benefit-title-medium">
           {" "}tu correo
           <br />a la lista
@@ -23,7 +23,7 @@ export const desktopSteps = [
     ),
     description: (
       <>
-        Espera y recibe la invitaci\u00f3n
+        Espera y recibe la invitación
         <br />
         para descargar la app.
       </>
@@ -69,7 +69,7 @@ export const desktopSteps = [
     description: (
       <>
         Canjea promociones, suma puntos
-        <br />y obt\u00e9n m\u00e1s beneficios.
+        <br />y obtén más beneficios.
       </>
     ),
   },
@@ -77,14 +77,17 @@ export const desktopSteps = [
 
 export const footerColumns = [
   {
-    title: "INFORMACI\u00d3N",
-    links: ["Plataforma", "Qui\u00e9nes somos"],
+    title: "INFORMACIÓN",
+    links: [
+      { label: "Plataforma", actionId: "platform-modal" },
+      { label: "Quiénes somos", actionId: "who-we-are-modal" },
+    ],
   },
   {
     title: "LEGAL",
     links: [
       { label: "Privacidad", to: "/ayuda/es/articulo/privacidad" },
-      { label: "T\u00e9rminos y Condiciones", to: "/ayuda/es/articulo/terminos" },
+      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos" },
       { label: "Borrar mis datos", to: "/ayuda/es/articulo/borrar-datos" },
     ],
   },

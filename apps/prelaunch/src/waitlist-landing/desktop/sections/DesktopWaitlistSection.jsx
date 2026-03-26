@@ -1,7 +1,7 @@
 import DesktopMockupSteps from "../components/DesktopMockupSteps";
 import DesktopWaitlistForm from "../components/DesktopWaitlistForm";
 
-export default function DesktopWaitlistSection() {
+export default function DesktopWaitlistSection({ onAddEmailClick }) {
   return (
     <section className="figma-prototype__waitlist">
       <div className="figma-prototype__waitlist-bg" aria-hidden="true" />
@@ -18,7 +18,7 @@ export default function DesktopWaitlistSection() {
               Los puestos son limitados, entra en la lista de espera
             </p>
 
-            <DesktopWaitlistForm />
+            <DesktopWaitlistForm onAddEmailClick={onAddEmailClick} />
           </div>
         </div>
 

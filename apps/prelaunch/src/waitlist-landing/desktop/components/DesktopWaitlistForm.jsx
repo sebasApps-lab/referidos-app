@@ -1,7 +1,7 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
-export default function DesktopWaitlistForm() {
+export default function DesktopWaitlistForm({ onAddEmailClick }) {
   const [email, setEmail] = useState("");
 
   return (
@@ -15,7 +15,7 @@ export default function DesktopWaitlistForm() {
         />
 
         <div className="figma-prototype__waitlist-buttonWrap">
-          <button type="button">
+          <button type="button" onClick={onAddEmailClick}>
             <span className="figma-prototype__waitlist-buttonLabel">Añadir correo</span>
           </button>
           <span className="figma-prototype__waitlist-buttonGlow" aria-hidden="true" />

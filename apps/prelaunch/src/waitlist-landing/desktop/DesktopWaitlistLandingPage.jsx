@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import "./desktopWaitlistLanding.css";
+import "./desktopLandingModals.css";
 import DesktopBusinessInterestModal from "./components/DesktopBusinessInterestModal";
+import DesktopCongratsModal from "./components/DesktopCongratsModal";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";
+import DesktopPlatformModal from "./components/DesktopPlatformModal";
+import DesktopWhoWeAreModal from "./components/DesktopWhoWeAreModal";
 import DesktopFooterSection from "./sections/DesktopFooterSection";
 import DesktopHeroSection from "./sections/DesktopHeroSection";
 import DesktopWaitlistSection from "./sections/DesktopWaitlistSection";
@@ -27,7 +31,7 @@ export default function DesktopWaitlistLandingPage() {
   const [footerColumnsScale, setFooterColumnsScale] = useState(() =>
     getFooterColumnsScale(),
   );
-  const [isBusinessModalOpen, setBusinessModalOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
 
   useEffect(() => {
     function handleResize() {
@@ -46,18 +50,34 @@ export default function DesktopWaitlistLandingPage() {
     >
       <div className="figma-prototype__shell">
         <section className="figma-prototype__hero-band">
-          <DesktopNavigationHeader onBusinessClick={() => setBusinessModalOpen(true)} />
+          <DesktopNavigationHeader onBusinessClick={() => setActiveModal("business-interest")} />
           <DesktopHeroSection />
         </section>
         <DesktopWaitlistStepsSection />
         <section className="figma-prototype__bottom-band" id="waitlist-bottom">
-          <DesktopWaitlistSection />
-          <DesktopFooterSection />
+          <DesktopWaitlistSection onAddEmailClick={() => setActiveModal("congrats")} />
+          <DesktopFooterSection
+            onPlatformClick={() => setActiveModal("platform")}
+            onWhoWeAreClick={() => setActiveModal("team")}
+          />
         </section>
       </div>
+
       <DesktopBusinessInterestModal
-        isOpen={isBusinessModalOpen}
-        onClose={() => setBusinessModalOpen(false)}
+        isOpen={activeModal === "business-interest"}
+        onClose={() => setActiveModal(null)}
+      />
+      <DesktopPlatformModal
+        isOpen={activeModal === "platform"}
+        onClose={() => setActiveModal(null)}
+      />
+      <DesktopWhoWeAreModal
+        isOpen={activeModal === "team"}
+        onClose={() => setActiveModal(null)}
+      />
+      <DesktopCongratsModal
+        isOpen={activeModal === "congrats"}
+        onClose={() => setActiveModal(null)}
       />
     </main>
   );
