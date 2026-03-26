@@ -1,3 +1,5 @@
+import { useEffect, useId, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { scrollToSection } from "../../scrollToSection";
 import MobileHeroBackground from "../components/MobileHeroBackground";
 import MobilePhoneSection from "../components/MobilePhoneSection";
@@ -7,7 +9,38 @@ export default function MobileHeroSection({
   heroFilterId,
   isTabletHeroLayout,
   phoneGlowFilterId,
+  onBusinessClick,
 }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const drawerId = useId();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
+  function handleMenuAction(callback) {
+    setIsMenuOpen(false);
+    window.setTimeout(callback, 0);
+  }
+
   return (
     <div className="mobile-landing__top-section">
       <MobileHeroBackground heroClipId={heroClipId} heroFilterId={heroFilterId} />
@@ -21,12 +54,83 @@ export default function MobileHeroSection({
           <div className="mobile-landing__brand-subtitle">Acceso anticipado</div>
         </div>
 
-        <button type="button" className="mobile-landing__menu-button" aria-label="Abrir menú">
+        <button
+          type="button"
+          className="mobile-landing__menu-button"
+          aria-label="Abrir menú"
+          aria-expanded={isMenuOpen}
+          aria-controls={drawerId}
+          onClick={() => setIsMenuOpen((current) => !current)}
+        >
           <span className="mobile-landing__menu-line" />
           <span className="mobile-landing__menu-line" />
           <span className="mobile-landing__menu-line" />
         </button>
       </header>
+
+      <button
+        type="button"
+        aria-label="Cerrar menú"
+        className={[
+          "mobile-landing__drawer-backdrop",
+          isMenuOpen ? "mobile-landing__drawer-backdrop--open" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={() => setIsMenuOpen(false)}
+      />
+
+      <aside
+        id={drawerId}
+        className={[
+          "mobile-landing__drawer",
+          isMenuOpen ? "mobile-landing__drawer--open" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        aria-label="Menú principal"
+      >
+        <div className="mobile-landing__drawer-header">
+          <h2>Menú</h2>
+          <button
+            type="button"
+            className="mobile-landing__drawer-close"
+            aria-label="Cerrar menú"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <span />
+            <span />
+          </button>
+        </div>
+
+        <nav className="mobile-landing__drawer-nav">
+          <button
+            type="button"
+            className="mobile-landing__drawer-link"
+            onClick={() => handleMenuAction(() => navigate("/ayuda/es"))}
+          >
+            Ayuda
+          </button>
+
+          <button
+            type="button"
+            className="mobile-landing__drawer-link"
+            onClick={() =>
+              handleMenuAction(() => scrollToSection("waitlist-invitation-form"))
+            }
+          >
+            Recibir mi invitación
+          </button>
+
+          <button
+            type="button"
+            className="mobile-landing__drawer-link"
+            onClick={() => handleMenuAction(onBusinessClick)}
+          >
+            Para negocios
+          </button>
+        </nav>
+      </aside>
 
       <div className="mobile-landing__hero-layout">
         <section className="mobile-landing__hero-section">
@@ -59,7 +163,7 @@ export default function MobileHeroSection({
             <button
               type="button"
               className="mobile-landing__hero-link-button"
-              onClick={() => scrollToSection("waitlist-bottom")}
+              onClick={() => scrollToSection("waitlist-steps")}
             >
               ¿Cómo funciona?
             </button>

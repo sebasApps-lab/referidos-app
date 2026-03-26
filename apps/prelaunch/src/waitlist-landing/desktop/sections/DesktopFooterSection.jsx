@@ -20,7 +20,7 @@ export default function DesktopFooterSection() {
           </div>
 
           <p className="figma-prototype__footerBrandBottom">
-            &copy; 2026 Referidos App - BETA v0.1.2
+            {"\u00a9 2026 Referidos App. Todos los derechos reservados."}
           </p>
         </div>
       </div>

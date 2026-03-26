@@ -767,6 +767,7 @@
   filter: blur(8px);
 }
 
+.figma-prototype__info-card-wrap,
 .figma-prototype__signup-card-wrap {
   position: relative;
   z-index: 0;
@@ -775,8 +776,10 @@
   overflow: visible;
   padding-top: 50px;
   margin-left: -24px;
+  opacity: 1;
 }
 
+.figma-prototype__info-card-wrap::before,
 .figma-prototype__signup-card-wrap::before {
   content: "";
   position: absolute;
@@ -794,11 +797,14 @@
   );
   filter: blur(32px);
   border-radius: 0 44px 44px 0;
+  opacity: 0.7;
   pointer-events: none;
 }
 
+.figma-prototype__info-card,
 .figma-prototype__signup-card {
   position: relative;
+  z-index: 2;
   isolation: isolate;
   display: flex;
   flex-direction: column;
@@ -812,13 +818,25 @@
   border: 0.93px solid rgba(255, 255, 255, 0.22);
   border-radius: 0 44px 44px 0;
   background: #ffffff;
-  box-shadow: 26px 0 96px rgba(255, 255, 255, 0.22);
+  box-shadow: 26px 0 96px rgba(255, 255, 255, 0.154);
 }
 
+.figma-prototype__info-card-blur,
 .figma-prototype__signup-card-blur {
-  display: none;
+  position: absolute;
+  top: -72px;
+  left: -84px;
+  z-index: 1;
+  display: block;
+  width: 436px;
+  height: 527px;
+  max-width: none;
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  pointer-events: none;
 }
 
+.figma-prototype__info-card-bg,
 .figma-prototype__signup-card-bg {
   position: absolute;
   inset: 0;
@@ -829,27 +847,13 @@
   border-radius: 0 44px 44px 0;
 }
 
-.figma-prototype__signup-card-bg::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 132px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.92) 28%,
-    #ffffff 58%
-  );
-  pointer-events: none;
-}
-
+.figma-prototype__info-card-bg img,
 .figma-prototype__signup-card-bg img {
   width: 100%;
   height: 100%;
 }
 
+.figma-prototype__info-card h2,
 .figma-prototype__signup-card h2 {
   position: absolute;
   top: 38px;
@@ -864,6 +868,7 @@
   white-space: nowrap;
 }
 
+.figma-prototype__info-body-line,
 .figma-prototype__signup-body-line {
   position: absolute;
   top: 97px;
@@ -877,6 +882,7 @@
   height: 166px;
 }
 
+.figma-prototype__info-body,
 .figma-prototype__signup-body {
   display: flex;
   flex-direction: column;
@@ -885,6 +891,7 @@
   width: 100%;
 }
 
+.figma-prototype__info-actions,
 .figma-prototype__signup-actions {
   display: flex;
   flex-direction: column;
@@ -893,6 +900,7 @@
   width: 205px;
 }
 
+.figma-prototype__info-button,
 .figma-prototype__signup-button {
   display: flex;
   align-items: center;
@@ -905,12 +913,14 @@
   cursor: pointer;
 }
 
+.figma-prototype__info-button--google,
 .figma-prototype__signup-button--google {
   border: 0.93px solid #d5d2e5;
   background: #ffffff !important;
   background-color: #ffffff !important;
 }
 
+.figma-prototype__info-button--mail,
 .figma-prototype__signup-button--mail {
   border: 0.93px solid #440d90;
   background: #58179a !important;
@@ -918,16 +928,19 @@
   background-image: none;
 }
 
+.figma-prototype__info-button--google img,
 .figma-prototype__signup-button--google img {
   width: 22.2px;
   height: 22.2px;
 }
 
+.figma-prototype__info-button--mail img,
 .figma-prototype__signup-button--mail img {
   width: 24.05px;
   height: 24.05px;
 }
 
+.figma-prototype__info-button span,
 .figma-prototype__signup-button span {
   font-size: 13px;
   font-weight: 400;
@@ -935,20 +948,24 @@
   white-space: nowrap;
 }
 
+.figma-prototype__info-button--google span,
 .figma-prototype__signup-button--google span {
   color: #24055c;
 }
 
+.figma-prototype__info-button--mail span,
 .figma-prototype__signup-button--mail span {
   color: #ffffff;
 }
 
+.figma-prototype__info-bottom-text,
 .figma-prototype__signup-bottom-text {
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
 
+.figma-prototype__info-note,
 .figma-prototype__signup-note {
   width: 192px;
   color: #24055c;
@@ -958,9 +975,128 @@
   text-align: center;
 }
 
+.figma-prototype__info-line,
 .figma-prototype__signup-line {
   width: 100%;
   height: 1px;
+}
+
+.figma-prototype__info-card--notify {
+  padding: 0;
+  height: 448px;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-card-bg {
+  inset: -1px -1px -2px;
+  width: auto;
+  height: auto;
+  border-radius: inherit;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-card-bg img {
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-content {
+  position: absolute;
+  inset: 28px 18px 98px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-clock-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 106px;
+  height: 56px;
+  margin-top: -8px;
+  overflow: visible;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-clock {
+  width: 178px;
+  height: 178px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-copy-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-heading {
+  margin: 0;
+  color: #4b0d82;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-heading span {
+  color: #4b0d82;
+  font-weight: 700;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-copy {
+  margin: 0;
+  color: #4b0d82;
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-copy span {
+  color: #4b0d82;
+  font-weight: 600;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-line {
+  width: calc(100% + 12px);
+  height: 1px;
+  margin: 10px 0 0;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-button--notify {
+  width: 205px;
+  height: 43px;
+  margin-top: 24px;
+  border: 0.93px solid #440d90;
+  background: #58179a !important;
+  background-color: #58179a !important;
+  background-image: none;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-button--notify svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-button--notify span {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.figma-prototype__info-card-wrap {
+  margin-top: -32px;
+}
+
+.figma-prototype__info-card--notify .figma-prototype__info-copy {
+  margin-top: 10px;
 }
 
 .figma-prototype__benefits {
@@ -1764,7 +1900,11 @@
 }
 
 .figma-prototype__footerBrandBottom {
-  width: 270px;
+  align-self: flex-start;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  white-space: nowrap;
   color: #ffffff;
   font-size: 16px;
   font-weight: 400;
@@ -2024,6 +2164,7 @@
     margin-left: 24px;
   }
 
+  .figma-prototype__info-card,
   .figma-prototype__signup-card {
     border-color: rgba(149, 149, 149, 0.52);
   }

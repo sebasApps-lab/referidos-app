@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 
@@ -19,7 +20,15 @@ export default function DesktopNavigationHeader({ onBusinessClick }) {
 
       <nav className="figma-prototype__nav-links" aria-label="Principal">
         {navigationLinks.map((link) =>
-          link.targetId ? (
+          link.to ? (
+            <Link
+              key={link.label}
+              to={link.to}
+              className="figma-prototype__nav-link figma-prototype__nav-link--interactive"
+            >
+              {link.label}
+            </Link>
+          ) : link.targetId ? (
             <a
               key={link.label}
               href={`#${link.targetId}`}
@@ -48,7 +57,7 @@ export default function DesktopNavigationHeader({ onBusinessClick }) {
         )}
       </nav>
 
-      <button type="button" className="figma-prototype__nav-menu-button" aria-label="Abrir menú">
+      <button type="button" className="figma-prototype__nav-menu-button" aria-label="Abrir men\u00fa">
         <span className="figma-prototype__nav-menu-line" />
         <span className="figma-prototype__nav-menu-line" />
         <span className="figma-prototype__nav-menu-line" />

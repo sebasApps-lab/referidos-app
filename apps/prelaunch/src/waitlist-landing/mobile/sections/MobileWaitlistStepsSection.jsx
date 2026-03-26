@@ -9,16 +9,16 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGl
         <MobilePhoneSection phoneGlowFilterId={phoneGlowFilterId} />
       ) : null}
 
-      <section className="mobile-landing__about-block">
+      <section className="mobile-landing__about-block" id="waitlist-steps">
         <div className="mobile-landing__about-heading">
           <h2 className="mobile-landing__about-title">
-            <span>{"As\u00ed de "}</span>
-            <strong>{"r\u00e1pido y simple"}</strong>
+            <span>{"Así de "}</span>
+            <strong>{"rápido y simple"}</strong>
           </h2>
           <p className="mobile-landing__about-copy">
-            {"Entra en la lista de espera para recibir tu invitaci\u00f3n."}
+            {"Entra en la lista de espera para recibir tu invitación."}
             <br />
-            {"Descarga la app una vez est\u00e9 disponible y recibe beneficios."}
+            {"Descarga la app una vez esté disponible y recibe beneficios."}
           </p>
         </div>
 

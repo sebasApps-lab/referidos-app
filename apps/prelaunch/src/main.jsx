@@ -12,6 +12,7 @@ import SupportEmailPage from "./support/SupportEmailPage";
 import FeedbackPage from "./support/FeedbackPage";
 import { initPrelaunchObservability } from "./observability/prelaunchObservability";
 import BusinessLandingPage from "./business-landing/BusinessLandingPage";
+import ComponentsPlaygroundPage from "./components-playground/ComponentsPlaygroundPage";
 import WaitlistLandingPage from "./waitlist-landing/WaitlistLandingPage";
 
 initPrelaunchObservability();
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<WaitlistLandingPage />} />
+        <Route path="/components" element={<ComponentsPlaygroundPage />} />
         <Route path="/negocios" element={<BusinessLandingPage />} />
         <Route path="/ayuda/es" element={<HelpCenterPage />} />
         <Route path="/ayuda/es/categoria/:category" element={<HelpCenterCategoryPage />} />

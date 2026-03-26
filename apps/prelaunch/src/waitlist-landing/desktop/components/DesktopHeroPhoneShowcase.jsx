@@ -1,5 +1,5 @@
 import { asset } from "../desktopWaitlistLandingAssets";
-import DesktopSignupCard from "./DesktopSignupCard";
+import DesktopInfoCard from "./DesktopInfoCard";
 
 export default function DesktopHeroPhoneShowcase() {
   return (
@@ -26,7 +26,7 @@ export default function DesktopHeroPhoneShowcase() {
         aria-hidden="true"
       />
 
-      <DesktopSignupCard />
+      <DesktopInfoCard />
     </div>
   );
 }

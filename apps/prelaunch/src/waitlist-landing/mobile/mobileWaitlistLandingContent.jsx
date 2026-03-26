@@ -5,7 +5,7 @@ export const steps = [
     id: "mail",
     title: (
       <>
-        <span className="mobile-landing__step-title-strong">{"A\u00f1ade"}</span>{" "}
+        <span className="mobile-landing__step-title-strong">{"Añade"}</span>{" "}
         <span className="mobile-landing__step-title-light">
           tu correo
           <br />
@@ -15,7 +15,7 @@ export const steps = [
     ),
     description: (
       <>
-        {"Espera y recibe la invitaci\u00f3n"}
+        {"Espera y recibe la invitación"}
         <br />
         para descargar la app.
       </>
@@ -66,7 +66,7 @@ export const steps = [
       <>
         Canjea promociones, suma puntos
         <br />
-        {"y obt\u00e9n m\u00e1s beneficios."}
+        {"y obtén más beneficios."}
       </>
     ),
     numberSrc: asset("icon-number-3-blue-cyan.png"),
@@ -77,4 +77,8 @@ export const steps = [
   },
 ];
 
-export const footerPanels = ["Ayuda", "Para negocios", "Borrar datos"];
+export const footerPanels = [
+  { key: "help", label: "Ayuda" },
+  { key: "business", label: "Para negocios" },
+  { key: "delete-data", label: "Borrar datos" },
+];

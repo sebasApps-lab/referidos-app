@@ -1,7 +1,8 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import "../../home/mobileWaitlistLanding.css";
 import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
+import MobileBusinessInterestModal from "./components/MobileBusinessInterestModal";
 import MobileContactSection from "./sections/MobileContactSection";
 import MobileFooterSection from "./sections/MobileFooterSection";
 import MobileHeroSection from "./sections/MobileHeroSection";
@@ -9,6 +10,7 @@ import MobileWaitlistSection from "./sections/MobileWaitlistSection";
 import MobileWaitlistStepsSection from "./sections/MobileWaitlistStepsSection";
 
 export default function MobileWaitlistLandingPage() {
+  const [isBusinessModalOpen, setBusinessModalOpen] = useState(false);
   const heroClipId = useId().replace(/:/g, "");
   const heroFilterId = useId().replace(/:/g, "");
   const phoneGlowFilterId = useId().replace(/:/g, "");
@@ -30,6 +32,7 @@ export default function MobileWaitlistLandingPage() {
           heroFilterId={heroFilterId}
           isTabletHeroLayout={isTabletHeroLayout}
           phoneGlowFilterId={phoneGlowFilterId}
+          onBusinessClick={() => setBusinessModalOpen(true)}
         />
         <MobileWaitlistStepsSection
           isTabletHeroLayout={isTabletHeroLayout}
@@ -45,8 +48,13 @@ export default function MobileWaitlistLandingPage() {
           <MobileContactSection />
         </div>
 
-        <MobileFooterSection />
+        <MobileFooterSection onBusinessClick={() => setBusinessModalOpen(true)} />
       </section>
+
+      <MobileBusinessInterestModal
+        isOpen={isBusinessModalOpen}
+        onClose={() => setBusinessModalOpen(false)}
+      />
     </main>
   );
 }

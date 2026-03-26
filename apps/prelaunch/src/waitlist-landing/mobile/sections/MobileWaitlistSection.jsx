@@ -6,7 +6,7 @@ export default function MobileWaitlistSection() {
     <section className="mobile-landing__waitlist" id="waitlist-bottom">
       <div className="mobile-landing__waitlist-heading">
         <h2 className="mobile-landing__waitlist-title">No te quedes sin tu invitación</h2>
-        <div className="mobile-landing__waitlist-form-block">
+        <div className="mobile-landing__waitlist-form-block" id="waitlist-invitation-form">
           <p className="mobile-landing__waitlist-copy">
             Los puestos son limitados, entra en la lista de espera
           </p>
