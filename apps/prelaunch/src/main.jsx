@@ -7,8 +7,7 @@ import HelpCenterArticlePage from "./legal/HelpCenterArticlePage";
 import HelpCenterBusinessPage from "./legal/HelpCenterBusinessPage";
 import HelpCenterBusinessCategoryPage from "./legal/HelpCenterBusinessCategoryPage";
 import HelpCenterBusinessArticlePage from "./legal/HelpCenterBusinessArticlePage";
-import SupportChatPage from "./support/SupportChatPage";
-import SupportEmailPage from "./support/SupportEmailPage";
+import SupportOpenTicketPage from "./support/SupportOpenTicketPage";
 import FeedbackPage from "./support/FeedbackPage";
 import { initPrelaunchObservability } from "./observability/prelaunchObservability";
 import BusinessLandingPage from "./business-landing/BusinessLandingPage";
@@ -36,8 +35,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           path="/ayuda-negocios/es/articulo/:doc"
           element={<HelpCenterBusinessArticlePage />}
         />
-        <Route path="/soporte-chat" element={<SupportChatPage />} />
-        <Route path="/soporte-correo" element={<SupportEmailPage />} />
+        <Route path="/soporte/abrir-ticket" element={<SupportOpenTicketPage />} />
+        <Route path="/soporte-chat" element={<Navigate to="/soporte/abrir-ticket" replace />} />
+        <Route path="/soporte-correo" element={<Navigate to="/soporte/abrir-ticket" replace />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/ayuda/*" element={<Navigate to="/ayuda/es" replace />} />
         <Route path="/ayuda-negocios/*" element={<Navigate to="/ayuda-negocios/es" replace />} />

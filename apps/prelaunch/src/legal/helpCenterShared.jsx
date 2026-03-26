@@ -265,7 +265,7 @@ export function HelpCenterLayout({
   );
 }
 
-function HelpCenterHeader({ basePath, headerTitle, headerActions }) {
+export function HelpCenterHeader({ basePath, headerTitle, headerActions, titleTo = basePath }) {
   const actions =
     headerActions ??
     [
@@ -294,9 +294,13 @@ function HelpCenterHeader({ basePath, headerTitle, headerActions }) {
           <span className="help-center__brand-separator" aria-hidden="true">
             |
           </span>
-          <Link className="help-center__brand-support" to={basePath}>
-            {headerTitle}
-          </Link>
+          {titleTo ? (
+            <Link className="help-center__brand-support" to={titleTo}>
+              {headerTitle}
+            </Link>
+          ) : (
+            <span className="help-center__brand-support">{headerTitle}</span>
+          )}
         </div>
 
         <nav className="help-center__header-actions" aria-label="Cuenta">
@@ -404,12 +408,18 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
               </p>
 
               <div className="help-center__support-actions">
-                <Link className="help-center__whatsapp-button" to="/soporte-chat">
+                <Link
+                  className="help-center__whatsapp-button"
+                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "business" : "consumer"}&channel=whatsapp`}
+                >
                   <WhatsAppIcon />
                   <span>Whatsapp</span>
                 </Link>
 
-                <Link className="help-center__email-button" to="/soporte-correo">
+                <Link
+                  className="help-center__email-button"
+                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "business" : "consumer"}&channel=email`}
+                >
                   <MailSupportIcon />
                   <span>{emailLabel}</span>
                 </Link>

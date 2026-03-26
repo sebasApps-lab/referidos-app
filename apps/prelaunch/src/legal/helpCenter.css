@@ -1,5 +1,17 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+}
+
+body,
+#root {
+  min-height: 100vh;
+}
+
 .help-center {
   --help-text: #1f1729;
   --help-accent: #9d63ef;
@@ -50,7 +62,7 @@
   backdrop-filter: blur(18px);
   background: rgba(255, 255, 255, 0.82);
   border-bottom: 1px solid rgba(165, 126, 221, 0.14);
-  box-shadow: 0 8px 24px rgba(108, 77, 151, 0.05);
+  box-shadow: 0 2px 8px rgba(31, 23, 41, 0.14);
 }
 
 .help-center__header-inner {
