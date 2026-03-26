@@ -1,6 +1,4 @@
-export const HELP_CENTER_MOBILE_MAX_WIDTH = 1040;
-
-export function detectHelpCenterTree() {
+export function detectTree() {
   if (typeof window === "undefined") return "desktop";
 
   const userAgent = navigator.userAgent || "";
@@ -8,12 +6,13 @@ export function detectHelpCenterTree() {
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
 
   const uaDataMobile = navigator.userAgentData?.mobile;
-  const isMobileOrTabletDevice =
-    uaDataMobile === true || isMobileUserAgent;
-
-  if (isMobileOrTabletDevice) {
+  if (uaDataMobile === true) {
     return "mobile";
   }
 
-  return window.innerWidth <= HELP_CENTER_MOBILE_MAX_WIDTH ? "mobile" : "desktop";
+  if (typeof uaDataMobile === "boolean" && !isMobileUserAgent) {
+    return uaDataMobile ? "mobile" : "desktop";
+  }
+
+  return isMobileUserAgent ? "mobile" : "desktop";
 }

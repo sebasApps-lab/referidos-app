@@ -31,130 +31,19 @@ export function HelpCenterMobileLayout({
         className={`help-center help-center--${theme} help-center-mobile help-center-mobile--${theme}`}
         aria-label="Centro de Ayuda"
       >
-        <header className="help-center-mobile__header">
-          <Link className="help-center-mobile__brand" to="/">
-            <span className="help-center-mobile__brand-main">REFERIDOS</span>
-            <span className="help-center-mobile__brand-accent">APP</span>
-          </Link>
-
-          <Link className="help-center-mobile__header-title" to={basePath}>
-            {headerTitle}
-          </Link>
-
-          <div className="help-center-mobile__header-end">
-            {headerActions.length ? (
-              <nav className="help-center-mobile__header-actions" aria-label="Cuenta">
-                {headerActions.map((action) => (
-                  <Link
-                    key={action.key}
-                    className={[
-                      "help-center-mobile__header-action",
-                      action.variant === "ghost"
-                        ? "help-center-mobile__header-action--ghost"
-                        : "help-center-mobile__header-action--primary",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    to={action.to}
-                  >
-                    {action.label}
-                  </Link>
-                ))}
-              </nav>
-            ) : null}
-
-            <button
-              type="button"
-              className="help-center-mobile__menu-button"
-              aria-label="Abrir men\u00fa"
-              aria-expanded={isMenuOpen}
-              aria-controls={drawerId}
-              onClick={() => setIsMenuOpen((current) => !current)}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
-          </div>
-        </header>
-
-        <button
-          type="button"
-          aria-label="Cerrar men\u00fa"
-          className={[
-            "help-center-mobile__drawer-backdrop",
-            isMenuOpen ? "help-center-mobile__drawer-backdrop--open" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          onClick={() => setIsMenuOpen(false)}
+        <HelpCenterMobileHeader
+          basePath={basePath}
+          headerTitle={headerTitle}
+          titleTo={basePath}
+          headerActions={headerActions}
+          drawerId={drawerId}
+          drawerTitle={"Categor\u00EDas"}
+          drawerItems={sidebarItems}
+          activeItemKey={activeCategoryKey}
+          isMenuOpen={isMenuOpen}
+          onToggleMenu={() => setIsMenuOpen((current) => !current)}
+          onCloseMenu={() => setIsMenuOpen(false)}
         />
-
-        <aside
-          id={drawerId}
-          className={[
-            "help-center-mobile__drawer",
-            isMenuOpen ? "help-center-mobile__drawer--open" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          aria-label="Categor\u00edas"
-        >
-          <div className="help-center-mobile__drawer-header">
-            <h2>{"Categor\u00EDas"}</h2>
-            <button
-              type="button"
-              className="help-center-mobile__drawer-close"
-              aria-label="Cerrar men\u00fa"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span />
-              <span />
-            </button>
-          </div>
-
-          <nav className="help-center-mobile__drawer-nav">
-            {sidebarItems.map((category) => (
-              <Link
-                key={category.key}
-                className={[
-                  "help-center-mobile__drawer-link",
-                  category.key === activeCategoryKey
-                    ? "help-center-mobile__drawer-link--active"
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                to={category.to}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span>{category.title}</span>
-              </Link>
-            ))}
-          </nav>
-
-          {headerActions.length ? (
-            <div className="help-center-mobile__drawer-actions">
-              {headerActions.map((action) => (
-                <Link
-                  key={action.key}
-                  className={[
-                    "help-center-mobile__drawer-action",
-                    action.variant === "ghost"
-                      ? "help-center-mobile__drawer-action--ghost"
-                      : "help-center-mobile__drawer-action--primary",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  to={action.to}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {action.label}
-                </Link>
-              ))}
-            </div>
-          ) : null}
-        </aside>
 
         <section className="help-center-mobile__body">
           <div className="help-center-mobile__main">
@@ -193,6 +82,158 @@ export function HelpCenterMobileLayout({
         <HelpCenterMobileFooter basePath={basePath} />
       </main>
     </HelpCenterThemeProvider>
+  );
+}
+
+export function HelpCenterMobileHeader({
+  basePath = "/ayuda/es",
+  headerTitle = "Centro de ayuda",
+  titleTo = basePath,
+  headerActions = [],
+  drawerActions = headerActions,
+  drawerId,
+  drawerTitle = "Men\u00fa",
+  drawerItems = [],
+  activeItemKey = null,
+  isMenuOpen = false,
+  onToggleMenu,
+  onCloseMenu,
+}) {
+  return (
+    <>
+      <header className="help-center-mobile__header">
+        <Link className="help-center-mobile__brand" to="/">
+          <span className="help-center-mobile__brand-main">REFERIDOS</span>
+          <span className="help-center-mobile__brand-accent">APP</span>
+        </Link>
+
+        {titleTo ? (
+          <Link className="help-center-mobile__header-title" to={titleTo}>
+            {headerTitle}
+          </Link>
+        ) : (
+          <span className="help-center-mobile__header-title">{headerTitle}</span>
+        )}
+
+        <div className="help-center-mobile__header-end">
+          {headerActions.length ? (
+            <nav className="help-center-mobile__header-actions" aria-label="Cuenta">
+              {headerActions.map((action) => (
+                <Link
+                  key={action.key}
+                  className={[
+                    "help-center-mobile__header-action",
+                    action.variant === "ghost"
+                      ? "help-center-mobile__header-action--ghost"
+                      : "help-center-mobile__header-action--primary",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  to={action.to}
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+
+          {drawerItems.length ? (
+            <button
+              type="button"
+              className="help-center-mobile__menu-button"
+              aria-label="Abrir men\u00fa"
+              aria-expanded={isMenuOpen}
+              aria-controls={drawerId}
+              onClick={onToggleMenu}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      {drawerItems.length ? (
+        <>
+          <button
+            type="button"
+            aria-label="Cerrar men\u00fa"
+            className={[
+              "help-center-mobile__drawer-backdrop",
+              isMenuOpen ? "help-center-mobile__drawer-backdrop--open" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={onCloseMenu}
+          />
+
+          <aside
+            id={drawerId}
+            className={[
+              "help-center-mobile__drawer",
+              isMenuOpen ? "help-center-mobile__drawer--open" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-label={drawerTitle}
+          >
+            <div className="help-center-mobile__drawer-header">
+              <h2>{drawerTitle}</h2>
+              <button
+                type="button"
+                className="help-center-mobile__drawer-close"
+                aria-label="Cerrar men\u00fa"
+                onClick={onCloseMenu}
+              >
+                <span />
+                <span />
+              </button>
+            </div>
+
+            <nav className="help-center-mobile__drawer-nav">
+              {drawerItems.map((item) => (
+                <Link
+                  key={item.key}
+                  className={[
+                    "help-center-mobile__drawer-link",
+                    item.key === activeItemKey ? "help-center-mobile__drawer-link--active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  to={item.to}
+                  onClick={onCloseMenu}
+                >
+                  <span>{item.title}</span>
+                </Link>
+              ))}
+            </nav>
+
+            {drawerActions.length ? (
+              <div className="help-center-mobile__drawer-actions">
+                {drawerActions.map((action) => (
+                  <Link
+                    key={action.key}
+                    className={[
+                      "help-center-mobile__drawer-action",
+                      action.variant === "ghost"
+                        ? "help-center-mobile__drawer-action--ghost"
+                        : "help-center-mobile__drawer-action--primary",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    to={action.to}
+                    onClick={onCloseMenu}
+                  >
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </aside>
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -246,7 +287,7 @@ function MobileSidebarCategoryRow({ category, isActive }) {
   );
 }
 
-function HelpCenterMobileFooter({ basePath }) {
+export function HelpCenterMobileFooter({ basePath }) {
   return (
     <footer className="help-center-mobile__footer">
       <div className="help-center-mobile__footer-about">

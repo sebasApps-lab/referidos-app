@@ -1,46 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import AdaptiveRoute from "../UI-detect/AdaptiveRoute";
 import DesktopWaitlistLandingPage from "./desktop/DesktopWaitlistLandingPage";
 import MobileWaitlistLandingPage from "./mobile/MobileWaitlistLandingPage";
 import "./waitlistLandingPage.css";
 
-const ROOT_ATTR = "data-prelaunch-root-entry";
-
-function detectDeviceTree() {
-  if (typeof window === "undefined") return "desktop";
-
-  const userAgent = navigator.userAgent || "";
-  const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
-    userAgent,
-  );
-
-  const uaDataMobile = navigator.userAgentData?.mobile;
-  if (uaDataMobile === true) {
-    return "mobile";
-  }
-
-  if (typeof uaDataMobile === "boolean" && !isMobileUserAgent) {
-    return uaDataMobile ? "mobile" : "desktop";
-  }
-
-  return isMobileUserAgent ? "mobile" : "desktop";
-}
-
 export default function WaitlistLandingPage() {
-  const [tree] = useState(() => detectDeviceTree());
-
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-
-    html.setAttribute(ROOT_ATTR, tree);
-    body.setAttribute(ROOT_ATTR, tree);
-
-    return () => {
-      html.removeAttribute(ROOT_ATTR);
-      body.removeAttribute(ROOT_ATTR);
-    };
-  }, [tree]);
-
   useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
@@ -69,11 +33,12 @@ export default function WaitlistLandingPage() {
     return () => {
       window.removeEventListener("hashchange", scrollToHashTarget);
     };
-  }, [tree]);
+  }, []);
 
-  if (tree === "desktop") {
-    return <DesktopWaitlistLandingPage />;
-  }
-
-  return <MobileWaitlistLandingPage />;
+  return (
+    <AdaptiveRoute
+      DesktopComponent={DesktopWaitlistLandingPage}
+      MobileComponent={MobileWaitlistLandingPage}
+    />
+  );
 }

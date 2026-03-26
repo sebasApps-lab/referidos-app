@@ -163,6 +163,51 @@ body,
   color: #ffffff !important;
 }
 
+.help-center:not(.help-center-mobile) .help-center__header-inner {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 10px 22px;
+  gap: 20px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__brand-wrap {
+  gap: 14px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__brand {
+  gap: 4px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__brand-main,
+.help-center:not(.help-center-mobile) .help-center__brand-accent {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.help-center:not(.help-center-mobile) .help-center__brand-separator,
+.help-center:not(.help-center-mobile) .help-center__brand-support {
+  font-size: 13px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__header-actions {
+  gap: 3px;
+  padding: 3px;
+  border-radius: 14px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__header-link {
+  min-width: 116px;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 12px;
+}
+
+.help-center:not(.help-center-mobile) .help-center__header-link--ghost,
+.help-center:not(.help-center-mobile) .help-center__header-link--solid {
+  border-radius: 10px;
+}
+
 .help-center__body {
   width: min(100%, 1280px);
   margin: 0 auto;
@@ -1046,7 +1091,6 @@ body,
   width: 104px;
   height: 138px;
   overflow: visible;
-  outline: 1px solid #ff0000;
 }
 
 .help-center-mobile .help-center__business-icon img {
@@ -1058,7 +1102,6 @@ body,
   max-width: none;
   display: block;
   transform: translate(-50%, -50%);
-  outline: 1px solid #00aa00;
 }
 
 .help-center-mobile .help-center__support-icon img {
@@ -1070,7 +1113,6 @@ body,
   height: 138px;
   display: block;
   transform: translate(-50%, -50%);
-  outline: 1px solid #00aa00;
 }
 
 .help-center-mobile.help-center--business .help-center__business-icon {
@@ -1138,7 +1180,6 @@ body,
   width: 104px;
   height: 138px;
   overflow: visible;
-  outline: 1px solid #ff0000;
 }
 
 .help-center-mobile.help-center--business .help-center__support-icon {
@@ -2013,6 +2054,225 @@ body,
     width: 100%;
     justify-content: center;
     font-size: 18px;
+  }
+}
+
+@media (max-width: 1040px) {
+  .help-center:not(.help-center-mobile) .help-center__header-inner {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 18px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__brand-wrap {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__header-actions {
+    width: auto;
+    max-width: 100%;
+    flex: 0 1 auto;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__header-link {
+    min-width: 104px;
+    padding: 0 14px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar {
+    gap: 16px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-title {
+    font-size: 18px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__content-title {
+    font-size: 26px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-list--overview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-panel {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-link {
+    flex: 0 0 auto;
+    width: max-content;
+    min-height: 48px;
+    padding: 12px 14px;
+    gap: 8px;
+    border-top: 0;
+    border-left: 1px solid rgba(162, 124, 222, 0.14);
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-link:first-child {
+    border-left: 0;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__article-title {
+    font-size: 26px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__article-subtitle {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-copy h2 {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-copy p {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__business-text h3 {
+    font-size: 22px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__business-link-text {
+    font-size: 12px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__support-text h3 {
+    font-size: 20px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__support-text p {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__whatsapp-button,
+  .help-center:not(.help-center-mobile) .help-center__email-button {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 760px) {
+  .help-center:not(.help-center-mobile) .help-center__header-inner {
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__brand-main,
+  .help-center:not(.help-center-mobile) .help-center__brand-accent {
+    font-size: 17px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__brand-separator,
+  .help-center:not(.help-center-mobile) .help-center__brand-support {
+    font-size: 11px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__header-actions {
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__header-link {
+    flex: 0 1 auto;
+    min-width: 88px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 10px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-title {
+    font-size: 18px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__content-title {
+    font-size: 26px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-list--overview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-panel {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-link {
+    flex: 0 0 auto;
+    width: max-content;
+    min-height: 48px;
+    padding: 12px 14px;
+    gap: 8px;
+    border-top: 0;
+    border-left: 1px solid rgba(162, 124, 222, 0.14);
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__sidebar-link:first-child {
+    border-left: 0;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__article-title {
+    font-size: 26px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__article-subtitle {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-copy h2 {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__resource-copy p {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__business-text h3 {
+    font-size: 22px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__business-link-text {
+    font-size: 12px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__support-text h3 {
+    font-size: 20px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__support-text p {
+    font-size: 13px;
+  }
+
+  .help-center:not(.help-center-mobile) .help-center__whatsapp-button,
+  .help-center:not(.help-center-mobile) .help-center__email-button {
+    font-size: 11px;
   }
 }
 
