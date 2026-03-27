@@ -306,19 +306,20 @@
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-shell {
   width: min(100vw, 600px);
-  height: min(100dvh, 1050px);
+  height: auto;
   max-width: 600px;
-  max-height: 1050px;
+  max-height: none;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-panel {
   width: 100%;
-  height: 100%;
+  height: auto;
   border: 0;
-  border-radius: 0;
+  border-radius: 16px;
   box-shadow: none;
   display: flex;
-  overflow-y: auto;
+  justify-content: center;
+  overflow-y: visible;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-close {
@@ -330,11 +331,13 @@
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
-  width: 100%;
-  min-height: 100%;
+  width: min(100%, 600px);
+  min-height: 0;
   padding: 22px 18px 30px;
   padding-top: clamp(170px, 34vw, 250px);
   box-sizing: border-box;
+  --landing-grow-title: 0px;
+  --landing-grow-body: 0px;
 }
 
 .mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage {
@@ -353,7 +356,7 @@
 }
 
 .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
-  padding-top: clamp(104px, 22vw, 152px);
+  padding-top: 92px;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
@@ -364,8 +367,8 @@
 }
 
 .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
-  margin-top: -162px;
-  margin-bottom: -70px;
+  margin-top: -174px;
+  margin-bottom: -82px;
 }
 
 .mobile-landing__modal-root--wide .figma-prototype__landing-modal-heroIcon {
@@ -397,14 +400,14 @@
 .mobile-landing__modal-root .figma-prototype__landing-modal-header h2,
 .mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
   width: 100%;
-  font-size: 18px;
+  font-size: calc(18px + var(--landing-grow-title));
   font-weight: 600;
   line-height: 1.08;
   text-wrap: balance;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-header p {
-  font-size: 14px;
+  font-size: calc(14px + var(--landing-grow-body));
   font-weight: 400;
   line-height: 1.38;
   text-wrap: pretty;
@@ -416,18 +419,18 @@
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyField {
-  min-height: clamp(62px, 15vw, 84px);
+  min-height: clamp(46px, 11vw, 58px);
   padding: 0 18px;
   border-radius: 14px 0 0 14px;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyField span {
-  font-size: 14px;
+  font-size: calc(14px + var(--landing-grow-body));
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyButton {
   width: clamp(74px, 18vw, 94px);
-  min-height: clamp(62px, 15vw, 84px);
+  min-height: clamp(46px, 11vw, 58px);
   flex: 0 0 clamp(74px, 18vw, 94px);
   border-radius: 0 14px 14px 0;
 }
@@ -439,7 +442,7 @@
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyFeedback {
   margin-top: -6px;
-  font-size: 14px;
+  font-size: calc(14px + var(--landing-grow-body));
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-divider {
@@ -449,7 +452,7 @@
 .mobile-landing__modal-root .figma-prototype__landing-modal-footerCopy,
 .mobile-landing__modal-root .figma-prototype__landing-modal-footerNote p {
   width: 100%;
-  font-size: 14px;
+  font-size: calc(14px + var(--landing-grow-body));
   line-height: 1.42;
 }
 
@@ -470,10 +473,75 @@
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-bullet p {
-  font-size: 14px;
+  font-size: calc(14px + var(--landing-grow-body));
   font-weight: 400;
   line-height: 1.38;
   text-wrap: pretty;
+}
+
+@media (min-width: 401px) {
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
+    --landing-grow-title: clamp(0px, calc((100vw - 400px) * 0.017), 3.4px);
+    --landing-grow-body: clamp(0px, calc((100vw - 400px) * 0.012), 2.4px);
+    padding-top: clamp(170px, calc(170px + (100vw - 400px) * 0.12), 194px);
+  }
+
+  .mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage,
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--wide {
+    padding-top: clamp(120px, calc(120px + (100vw - 400px) * 0.1), 140px);
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats {
+    padding-top: clamp(150px, calc(150px + (100vw - 400px) * 0.08), 166px);
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 92px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
+    margin-top: -174px;
+    margin-bottom: -82px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
+    width: clamp(260px, calc(260px + (100vw - 400px) * 0.22), 304px);
+  }
+}
+
+@media (min-width: 600px) {
+  .mobile-landing__modal-root .figma-prototype__landing-modal-shell {
+    width: min(100vw, 700px);
+    max-width: 700px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
+    width: 600px;
+    max-width: 600px;
+    padding-top: 194px;
+  }
+
+  .mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage,
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--wide {
+    padding-top: 140px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 166px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 92px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
+    margin-top: -174px;
+    margin-bottom: -82px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
+    width: 304px;
+  }
 }
 
 .mobile-landing__business-modal-v2-root.figma-prototype__business-modal-backdrop {
