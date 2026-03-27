@@ -70,6 +70,62 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
             </button>
           </div>
 
+          <div className="figma-prototype__landing-modal-copyRow figma-prototype__landing-modal-copyRow--social">
+            <div className="figma-prototype__landing-modal-shareList" aria-label="Compartir enlace">
+              <button
+                type="button"
+                className="figma-prototype__landing-modal-shareButton"
+                aria-label="Compartir por WhatsApp"
+              >
+                <img
+                  src={LANDING_MODAL_ASSETS.whatsappIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="figma-prototype__landing-modal-shareIcon figma-prototype__landing-modal-shareIcon--large"
+                />
+              </button>
+
+              <button
+                type="button"
+                className="figma-prototype__landing-modal-shareButton"
+                aria-label="Compartir por Facebook"
+              >
+                <img
+                  src={LANDING_MODAL_ASSETS.facebookIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="figma-prototype__landing-modal-shareIcon figma-prototype__landing-modal-shareIcon--large"
+                />
+              </button>
+
+              <button
+                type="button"
+                className="figma-prototype__landing-modal-shareButton"
+                aria-label="Compartir por Instagram"
+              >
+                <img
+                  src={LANDING_MODAL_ASSETS.instagramIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="figma-prototype__landing-modal-shareIcon"
+                />
+              </button>
+
+              <button
+                type="button"
+                className="figma-prototype__landing-modal-shareButton"
+                aria-label="Compartir por X"
+              >
+                <img
+                  src={LANDING_MODAL_ASSETS.twitterXIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="figma-prototype__landing-modal-shareIcon"
+                />
+              </button>
+            </div>
+          </div>
+
           {copied ? (
             <p className="figma-prototype__landing-modal-copyFeedback">Enlace copiado.</p>
           ) : null}

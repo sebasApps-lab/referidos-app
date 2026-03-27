@@ -418,6 +418,11 @@
   width: 100%;
 }
 
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyRow--social {
+  display: flex;
+  align-items: stretch;
+}
+
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyField {
   min-height: clamp(46px, 11vw, 58px);
   padding: 0 18px;
@@ -438,6 +443,47 @@
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyButtonIcon {
   width: 20px;
   height: 20px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareList {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  width: 100%;
+  min-height: clamp(46px, 11vw, 58px);
+  padding: 0 32px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  flex: 0 0 auto;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareIcon {
+  width: clamp(36px, 8vw, 46px);
+  height: clamp(36px, 8vw, 46px);
+  object-fit: contain;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareIcon--large {
+  width: clamp(42px, 9vw, 54px);
+  height: clamp(42px, 9vw, 54px);
+  transform: scale(1.04);
+  transform-origin: center;
 }
 
 .mobile-landing__modal-root .figma-prototype__landing-modal-copyFeedback {
@@ -479,7 +525,86 @@
   text-wrap: pretty;
 }
 
+.mobile-landing__modal-root--invitation .figma-prototype__landing-modal-header h2 {
+  font-size: clamp(18px, calc(3px + 4.167vw), 30px);
+  font-weight: 500;
+}
+
+.mobile-landing__invitation-title-regular {
+  font-weight: 500;
+}
+
+.mobile-landing__invitation-title-accent {
+  font-weight: 700;
+}
+
+.mobile-landing__modal-root--invitation .figma-prototype__landing-modal-header .mobile-landing__invitation-copy {
+  font-size: clamp(14px, calc(2px + 3.333vw), 22px);
+  font-weight: 400;
+  padding-inline: 30px;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-copy-accent {
+  font-weight: 600;
+}
+
+.mobile-landing__invitation-divider {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 1px;
+  object-fit: fill;
+}
+
+.mobile-landing__invitation-cta-wrap {
+  width: 100%;
+  padding-inline: 50px;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 16px 16px;
+  border: 0 !important;
+  border-radius: 16px;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: clamp(16px, calc(10px + 1.667vw), 20px);
+  font-weight: 500;
+  line-height: 1.25;
+  cursor: pointer;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit span {
+  font-size: clamp(16px, calc(10px + 1.667vw), 20px);
+  line-height: 1.25;
+  white-space: normal;
+}
+
 @media (min-width: 401px) {
+  .mobile-landing__modal-root--invitation .figma-prototype__landing-modal-stage {
+    --invitation-grow-title: clamp(0px, calc((100vw - 400px) * 0.01), 2px);
+    --invitation-grow-body: clamp(0px, calc((100vw - 400px) * 0.007), 1.4px);
+  }
+
   .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
     --landing-grow-title: clamp(0px, calc((100vw - 400px) * 0.017), 3.4px);
     --landing-grow-body: clamp(0px, calc((100vw - 400px) * 0.012), 2.4px);
@@ -510,6 +635,11 @@
 }
 
 @media (min-width: 600px) {
+  .mobile-landing__modal-root--invitation .figma-prototype__landing-modal-stage {
+    --invitation-grow-title: 2px;
+    --invitation-grow-body: 1.4px;
+  }
+
   .mobile-landing__modal-root .figma-prototype__landing-modal-shell {
     width: min(100vw, 700px);
     max-width: 700px;

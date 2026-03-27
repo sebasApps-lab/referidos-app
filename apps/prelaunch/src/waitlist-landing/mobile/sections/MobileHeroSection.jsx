@@ -10,6 +10,7 @@ export default function MobileHeroSection({
   isTabletHeroLayout,
   phoneGlowFilterId,
   onBusinessClick,
+  onInvitationClick,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const drawerId = useId();
@@ -115,9 +116,7 @@ export default function MobileHeroSection({
           <button
             type="button"
             className="mobile-landing__drawer-link"
-            onClick={() =>
-              handleMenuAction(() => scrollToSection("waitlist-invitation-form"))
-            }
+            onClick={() => handleMenuAction(onInvitationClick)}
           >
             Recibir mi invitación
           </button>

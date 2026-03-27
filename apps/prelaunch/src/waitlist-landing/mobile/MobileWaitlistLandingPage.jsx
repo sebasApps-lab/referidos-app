@@ -5,6 +5,7 @@ import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
 import MobileBusinessInterestModal from "./components/MobileBusinessInterestModal";
 import MobileCongratsModal from "./components/MobileCongratsModal";
+import MobileInvitationModal from "./components/MobileInvitationModal";
 import MobilePlatformModal from "./components/MobilePlatformModal";
 import MobileWhoWeAreModal from "./components/MobileWhoWeAreModal";
 import MobileContactSection from "./sections/MobileContactSection";
@@ -37,6 +38,7 @@ export default function MobileWaitlistLandingPage() {
           isTabletHeroLayout={isTabletHeroLayout}
           phoneGlowFilterId={phoneGlowFilterId}
           onBusinessClick={() => setActiveModal("business-interest")}
+          onInvitationClick={() => setActiveModal("invitation")}
         />
         <MobileWaitlistStepsSection
           isTabletHeroLayout={isTabletHeroLayout}
@@ -61,6 +63,10 @@ export default function MobileWaitlistLandingPage() {
 
       <MobileBusinessInterestModal
         isOpen={activeModal === "business-interest"}
+        onClose={() => setActiveModal(null)}
+      />
+      <MobileInvitationModal
+        isOpen={activeModal === "invitation"}
         onClose={() => setActiveModal(null)}
       />
       <MobilePlatformModal
