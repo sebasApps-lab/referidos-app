@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./desktopWaitlistLanding.css";
-import "./desktopLandingModals.css";
+import "./DesktopLandingModals.css";
 import DesktopBusinessInterestModal from "./components/DesktopBusinessInterestModal";
 import DesktopCongratsModal from "./components/DesktopCongratsModal";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";

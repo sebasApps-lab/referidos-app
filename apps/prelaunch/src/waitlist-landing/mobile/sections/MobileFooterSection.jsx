@@ -2,7 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";
 
-export default function MobileFooterSection({ onBusinessClick }) {
+export default function MobileFooterSection({
+  onBusinessClick,
+  onPlatformClick,
+  onWhoWeAreClick,
+}) {
   const navigate = useNavigate();
 
   function handleFooterPanelClick(panelKey) {
@@ -13,6 +17,16 @@ export default function MobileFooterSection({ onBusinessClick }) {
 
     if (panelKey === "business") {
       onBusinessClick?.();
+      return;
+    }
+
+    if (panelKey === "platform") {
+      onPlatformClick?.();
+      return;
+    }
+
+    if (panelKey === "team") {
+      onWhoWeAreClick?.();
       return;
     }
 

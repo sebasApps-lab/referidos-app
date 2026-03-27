@@ -1,5 +1,5 @@
-import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
+import MobileLandingModalFrame from "./MobileLandingModalFrame";
+import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
 
 const PLATFORM_FEATURES = [
   "Explora, guarda y canjea promociones a tu conveniencia.",
@@ -7,14 +7,15 @@ const PLATFORM_FEATURES = [
   "Tu participación nos ayuda a mejorar la plataforma antes de su lanzamiento a todo público.",
 ];
 
-export default function DesktopPlatformModal({ isOpen, onClose }) {
+export default function MobilePlatformModal({ isOpen, onClose }) {
   return (
-    <DesktopLandingModalFrame
+    <MobileLandingModalFrame
       isOpen={isOpen}
       onClose={onClose}
       designWidth={1075}
       designHeight={729}
       dialogLabel="Sobre nuestra plataforma"
+      rootClassName="mobile-landing__modal-root--wide"
     >
       <button
         type="button"
@@ -60,13 +61,13 @@ export default function DesktopPlatformModal({ isOpen, onClose }) {
 
           <div className="figma-prototype__landing-modal-footerNote">
             <p>
-              Nuestro objetivo es ofrecer una app más sólida, clara y optimizada para
-              que aproveches tus recompensas al máximo.
+              Nuestro objetivo es ofrecer una app más sólida, clara y optimizada para que
+              aproveches tus recompensas al máximo.
             </p>
           </div>
         </div>
       </div>
-    </DesktopLandingModalFrame>
+    </MobileLandingModalFrame>
   );
 }
 

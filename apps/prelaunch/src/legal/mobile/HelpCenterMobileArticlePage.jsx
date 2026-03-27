@@ -1,10 +1,8 @@
 import { useMemo } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { LEGAL_ARTICLES } from "../helpCenterArticles";
-import { buildSidebarCategories } from "../helpCenterShared";
 import LegalContent from "../blocks/LegalContent";
-import { clientMobileHeaderActions } from "./helpCenterMobileConfig";
-import { HelpCenterMobileLayout } from "./helpCenterMobileShared";
+import MobileConsumerHelpCenterLayout from "./MobileConsumerHelpCenterLayout";
 
 export default function HelpCenterMobileArticlePage() {
   const { doc = "terminos" } = useParams();
@@ -16,13 +14,7 @@ export default function HelpCenterMobileArticlePage() {
   }
 
   return (
-    <HelpCenterMobileLayout
-      basePath={basePath}
-      headerTitle="Centro de ayuda"
-      theme="consumer"
-      headerActions={clientMobileHeaderActions}
-      ctaProps={{ emailLabel: "Email" }}
-      sidebarItems={buildSidebarCategories(basePath)}
+    <MobileConsumerHelpCenterLayout
       content={
         <article className="help-center__article-panel">
           <div className="help-center__article-content">

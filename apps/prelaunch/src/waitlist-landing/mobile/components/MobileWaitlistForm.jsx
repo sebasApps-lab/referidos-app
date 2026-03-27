@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { asset } from "../mobileWaitlistLandingAssets";
 
-export default function MobileWaitlistForm() {
+export default function MobileWaitlistForm({ onAddEmailClick }) {
   const [waitlistEmail, setWaitlistEmail] = useState("");
 
   return (
@@ -22,7 +22,11 @@ export default function MobileWaitlistForm() {
           src={asset("green-button-glow.png")}
           alt=""
         />
-        <button type="button" className="mobile-landing__green-button">
+        <button
+          type="button"
+          className="mobile-landing__green-button"
+          onClick={() => onAddEmailClick?.()}
+        >
           <span>{"A\u00f1adir correo a la lista"}</span>
         </button>
       </div>

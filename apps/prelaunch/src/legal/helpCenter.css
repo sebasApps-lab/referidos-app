@@ -691,7 +691,16 @@ body,
 .help-center-mobile {
   position: relative;
   background: #ffffff;
-  min-width: 360px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.help-center-mobile__body,
+.help-center-mobile__main,
+.help-center-mobile__sidebar,
+.help-center-mobile__content {
+  min-width: 0;
 }
 
 .help-center-mobile__header {

@@ -3,6 +3,17 @@ import { submitWaitlistSignup } from "../../../waitlist/waitlistApi";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
+const MODAL_ASSETS = {
+  briefcase: "/assets/gridicons_briefcase.svg",
+  bellCircle: "/assets/bell-icon-circle.svg",
+  clock: "/assets/clock-yellow-icon.png",
+  check: "/assets/lets-icons_check-fill.svg",
+  divider: "/assets/line-5.png",
+  mail: "/assets/lucide_mail.svg",
+  lock: "/assets/majesticons_lock.svg",
+  notifyBell: "/assets/mdi_bell.svg",
+};
+
 function getErrorMessage(errorCode) {
   if (errorCode === "invalid_email") {
     return "Ingresa un correo electrónico válido para recibir la notificación.";
@@ -27,9 +38,6 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
       return undefined;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     function handleKeyDown(event) {
       if (event.key === "Escape") {
         onClose();
@@ -37,11 +45,23 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+
+    body.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -85,7 +105,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
 
   return (
     <div
-      className="mobile-landing__business-modal-backdrop"
+      className="mobile-landing__business-modal-v2-root figma-prototype__business-modal-backdrop"
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
@@ -94,70 +114,192 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
       }}
     >
       <div
-        className="mobile-landing__business-modal"
+        className="figma-prototype__business-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="mobile-business-interest-title"
+        aria-labelledby="mobile-business-interest-modal-title"
       >
         <button
           type="button"
-          className="mobile-landing__business-modal-close"
+          className="figma-prototype__business-modal-close"
           aria-label="Cerrar mensaje para negocios"
           onClick={onClose}
         >
-          <span />
-          <span />
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M6 6L18 18M18 6L6 18"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
 
-        <div className="mobile-landing__business-modal-kicker">PARA NEGOCIOS</div>
-        <h2 id="mobile-business-interest-title" className="mobile-landing__business-modal-title">
-          El acceso anticipado al panel de promociones comenzará el{" "}
-          <span>{EARLY_ACCESS_DATE}</span>
-        </h2>
-        <p className="mobile-landing__business-modal-copy">
-          Deja tu correo para que te avisemos apenas inicie el acceso anticipado del panel.
-        </p>
+        <div className="figma-prototype__business-modal-scroll">
+          <div className="figma-prototype__business-modal-scale">
+            <div className="figma-prototype__business-modal-stage">
+              <div className="figma-prototype__business-modal-kicker">
+                <img
+                  src={MODAL_ASSETS.briefcase}
+                  alt=""
+                  aria-hidden="true"
+                  className="figma-prototype__business-modal-kicker-icon"
+                />
+                <span>PARA NEGOCIOS</span>
+              </div>
 
-        <form className="mobile-landing__business-modal-form" onSubmit={handleSubmit}>
-          <input
-            type="email"
-            autoComplete="email"
-            className="mobile-landing__business-modal-input"
-            placeholder="tu@empresa.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={status === "loading" || status === "success"}
-          />
+              <img
+                src={MODAL_ASSETS.clock}
+                alt=""
+                aria-hidden="true"
+                className="figma-prototype__business-modal-clock"
+              />
 
-          <button
-            type="submit"
-            className="mobile-landing__business-modal-submit"
-            disabled={status === "loading" || status === "success"}
-          >
-            {status === "loading"
-              ? "Enviando..."
-              : status === "success"
-                ? "Correo registrado"
-                : "Notificarme cuando esté disponible"}
-          </button>
-        </form>
+              <div className="figma-prototype__business-modal-main">
+                <div className="figma-prototype__business-modal-header">
+                  <div className="figma-prototype__business-modal-header-copy">
+                    <h2 id="mobile-business-interest-modal-title">
+                      <span className="figma-prototype__business-modal-title-regular">
+                        El acceso anticipado al panel de promociones para negocios llegará el{" "}
+                      </span>
+                      <span className="figma-prototype__business-modal-title-accent">
+                        {EARLY_ACCESS_DATE}
+                      </span>
+                    </h2>
 
-        <p className="mobile-landing__business-modal-consent">
-          Al enviar tu correo, aceptas recibir una notificación cuando el acceso anticipado
-          comience.
-        </p>
+                    <p className="figma-prototype__business-modal-copy">
+                      <span className="figma-prototype__business-modal-copy-regular">
+                        Estamos preparando una plataforma profesional para que los negocios
+                        puedan{" "}
+                      </span>
+                      <span className="figma-prototype__business-modal-copy-accent">
+                        crear, publicar y gestionar
+                      </span>
+                      <span className="figma-prototype__business-modal-copy-regular"> </span>
+                      <span className="figma-prototype__business-modal-copy-accent">
+                        promociones
+                      </span>
+                      <span className="figma-prototype__business-modal-copy-regular">
+                        {" "}
+                        desde cualquier dispositivo.
+                      </span>
+                    </p>
+                  </div>
 
-        {errorMessage ? (
-          <p className="mobile-landing__business-modal-feedback mobile-landing__business-modal-feedback--error">
-            {errorMessage}
-          </p>
-        ) : null}
+                  <div className="figma-prototype__business-modal-notice">
+                    <img
+                      src={MODAL_ASSETS.bellCircle}
+                      alt=""
+                      aria-hidden="true"
+                      className="figma-prototype__business-modal-notice-icon"
+                    />
+                    <p>Te avisaremos por email.</p>
+                  </div>
+                </div>
 
-        {status === "success" ? (
-          <p className="mobile-landing__business-modal-feedback mobile-landing__business-modal-feedback--success">
-            {successMessage}
-          </p>
-        ) : null}
+                <form className="figma-prototype__business-modal-form" onSubmit={handleSubmit}>
+                  <label
+                    className="figma-prototype__business-modal-field"
+                    htmlFor="mobile-business-interest-email"
+                  >
+                    <img
+                      src={MODAL_ASSETS.mail}
+                      alt=""
+                      aria-hidden="true"
+                      className="figma-prototype__business-modal-field-icon"
+                    />
+                    <input
+                      id="mobile-business-interest-email"
+                      className="figma-prototype__business-modal-input"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="ejemplo@mail.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      disabled={status === "loading" || status === "success"}
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="figma-prototype__business-modal-submit"
+                    disabled={status === "loading" || status === "success"}
+                  >
+                    <img
+                      src={MODAL_ASSETS.notifyBell}
+                      alt=""
+                      aria-hidden="true"
+                      className="figma-prototype__business-modal-submit-icon"
+                    />
+                    <span>
+                      {status === "loading"
+                        ? "Enviando..."
+                        : status === "success"
+                          ? "Correo registrado"
+                          : "Notificarme cuando esté disponible"}
+                    </span>
+                  </button>
+                </form>
+
+                <div className="figma-prototype__business-modal-footer">
+                  <div className="figma-prototype__business-modal-badges">
+                    <div className="figma-prototype__business-modal-badge">
+                      <img
+                        src={MODAL_ASSETS.check}
+                        alt=""
+                        aria-hidden="true"
+                        className="figma-prototype__business-modal-badge-icon"
+                      />
+                      <span>Sin spam.</span>
+                    </div>
+
+                    <div className="figma-prototype__business-modal-badge">
+                      <img
+                        src={MODAL_ASSETS.lock}
+                        alt=""
+                        aria-hidden="true"
+                        className="figma-prototype__business-modal-badge-lock"
+                      />
+                      <span>Solo usaremos tu correo para esta notificación.</span>
+                    </div>
+                  </div>
+
+                  <div className="figma-prototype__business-modal-consentBlock">
+                    <img
+                      src={MODAL_ASSETS.divider}
+                      alt=""
+                      aria-hidden="true"
+                      className="figma-prototype__business-modal-divider"
+                    />
+                    <p className="figma-prototype__business-modal-consent">
+                      Al enviar tu correo, aceptas recibir una notificación cuando esté
+                      listo el panel para negocios.
+                    </p>
+                  </div>
+
+                  {errorMessage ? (
+                    <p className="figma-prototype__business-modal-feedback figma-prototype__business-modal-feedback--error">
+                      {errorMessage}
+                    </p>
+                  ) : null}
+
+                  {status === "success" ? (
+                    <p className="figma-prototype__business-modal-feedback figma-prototype__business-modal-feedback--success">
+                      {successMessage}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

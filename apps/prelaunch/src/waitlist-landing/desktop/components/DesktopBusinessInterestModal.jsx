@@ -200,7 +200,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                       aria-hidden="true"
                       className="figma-prototype__business-modal-notice-icon"
                     />
-                    <p>Activa las notificaciones y te avisaremos por email</p>
+                    <p>Activa esta notificación y te avisaremos por email</p>
                   </div>
                 </div>
 
@@ -220,7 +220,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                       className="figma-prototype__business-modal-input"
                       type="email"
                       autoComplete="email"
-                      placeholder="tu@empresa.com"
+                      placeholder="ejemplo@mail.com"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       disabled={status === "loading" || status === "success"}

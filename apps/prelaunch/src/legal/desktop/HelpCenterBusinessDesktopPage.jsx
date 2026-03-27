@@ -1,19 +1,8 @@
-import {
-  buildDefaultResources,
-  buildSidebarCategories,
-  HelpCenterLayout,
-} from "../helpCenterShared";
+import { buildDefaultResources } from "../helpCenterShared";
+import DesktopBusinessHelpCenterLayout from "./DesktopBusinessHelpCenterLayout";
 
 export default function HelpCenterBusinessDesktopPage() {
-  const basePath = "/ayuda-negocios/es";
-
   return (
-    <HelpCenterLayout
-      basePath={basePath}
-      headerTitle="Centro de Ayuda de Negocios o Empresas"
-      theme="business"
-      sidebarItems={buildSidebarCategories(basePath)}
-      resourceItems={buildDefaultResources()}
-    />
+    <DesktopBusinessHelpCenterLayout resourceItems={buildDefaultResources()} />
   );
 }

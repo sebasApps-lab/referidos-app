@@ -1,5 +1,5 @@
 import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./desktopLandingModalAssets";
+import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
 
 const TEAM_VALUES = [
   "Enfoque centrado en el usuario, sea negocio o cliente.",

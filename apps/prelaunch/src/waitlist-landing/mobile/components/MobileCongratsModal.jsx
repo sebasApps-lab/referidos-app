@@ -1,10 +1,10 @@
 import { useState } from "react";
-import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
+import MobileLandingModalFrame from "./MobileLandingModalFrame";
+import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
 
 const INVITE_LINK = "qrew.es/invite/ABC123XYZ";
 
-export default function DesktopCongratsModal({ isOpen, onClose }) {
+export default function MobileCongratsModal({ isOpen, onClose }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -18,13 +18,14 @@ export default function DesktopCongratsModal({ isOpen, onClose }) {
   }
 
   return (
-    <DesktopLandingModalFrame
+    <MobileLandingModalFrame
       isOpen={isOpen}
       onClose={onClose}
       designWidth={650}
       designHeight={405}
       dialogLabel="Felicitaciones, ya estás en la lista"
       lockHeight
+      rootClassName="mobile-landing__modal-root--congrats"
     >
       <button
         type="button"
@@ -82,7 +83,7 @@ export default function DesktopCongratsModal({ isOpen, onClose }) {
           </p>
         </div>
       </div>
-    </DesktopLandingModalFrame>
+    </MobileLandingModalFrame>
   );
 }
 

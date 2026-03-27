@@ -1,15 +1,10 @@
 import { Navigate, useParams } from "react-router-dom";
-import {
-  buildCategoryResources,
-  buildSidebarCategories,
-} from "../helpCenterShared";
-import { businessMobileHeaderActions } from "./helpCenterMobileConfig";
-import { HelpCenterMobileLayout } from "./helpCenterMobileShared";
+import { buildCategoryResources } from "../helpCenterShared";
+import MobileBusinessHelpCenterLayout from "./MobileBusinessHelpCenterLayout";
 
 export default function HelpCenterBusinessMobileCategoryPage() {
   const { category = "" } = useParams();
   const basePath = "/ayuda-negocios/es";
-  const sidebarItems = buildSidebarCategories(basePath);
   const resourceItems = buildCategoryResources(basePath)[category];
 
   if (!resourceItems) {
@@ -17,13 +12,7 @@ export default function HelpCenterBusinessMobileCategoryPage() {
   }
 
   return (
-    <HelpCenterMobileLayout
-      basePath={basePath}
-      headerTitle="Centro de Ayuda para Negocios"
-      theme="business"
-      headerActions={businessMobileHeaderActions}
-      ctaProps={{ emailLabel: "Email" }}
-      sidebarItems={sidebarItems}
+    <MobileBusinessHelpCenterLayout
       resourceItems={resourceItems}
       activeCategoryKey={category}
     />

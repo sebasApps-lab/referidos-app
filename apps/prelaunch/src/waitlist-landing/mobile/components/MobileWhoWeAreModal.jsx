@@ -1,25 +1,26 @@
-import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
+import MobileLandingModalFrame from "./MobileLandingModalFrame";
+import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
 
-const PLATFORM_FEATURES = [
-  "Explora, guarda y canjea promociones a tu conveniencia.",
-  "Algunas funciones, descuentos o cupones pueden ajustarse durante esta etapa.",
-  "Tu participación nos ayuda a mejorar la plataforma antes de su lanzamiento a todo público.",
+const TEAM_VALUES = [
+  "Enfoque centrado en el usuario, sea negocio o cliente.",
+  "Transparencia e integridad.",
+  "Colaboración y mejora continua.",
 ];
 
-export default function DesktopPlatformModal({ isOpen, onClose }) {
+export default function MobileWhoWeAreModal({ isOpen, onClose }) {
   return (
-    <DesktopLandingModalFrame
+    <MobileLandingModalFrame
       isOpen={isOpen}
       onClose={onClose}
       designWidth={1075}
-      designHeight={729}
-      dialogLabel="Sobre nuestra plataforma"
+      designHeight={756}
+      dialogLabel="Quiénes somos"
+      rootClassName="mobile-landing__modal-root--wide"
     >
       <button
         type="button"
         className="figma-prototype__landing-modal-close figma-prototype__landing-modal-close--wide"
-        aria-label="Cerrar modal de plataforma"
+        aria-label="Cerrar modal de quiénes somos"
         onClick={onClose}
       >
         <CloseIcon />
@@ -28,45 +29,45 @@ export default function DesktopPlatformModal({ isOpen, onClose }) {
       <div className="figma-prototype__landing-modal-stage figma-prototype__landing-modal-stage--wide">
         <img
           className="figma-prototype__landing-modal-heroIcon"
-          src={LANDING_MODAL_ASSETS.platformIcon}
+          src={LANDING_MODAL_ASSETS.teamIcon}
           alt=""
           aria-hidden="true"
         />
 
         <div className="figma-prototype__landing-modal-main figma-prototype__landing-modal-main--wide">
           <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide">
-            <h2>Sobre nuestra plataforma</h2>
+            <h2>Quiénes somos</h2>
             <p>
-              Nuestra plataforma ha sido diseñada para que puedas descubrir, guardar y
-              canjear promociones de manera sencilla y eficiente. El acceso anticipado
-              corresponde a una versión beta funcional, creada para explorar la
-              experiencia de recompensa antes del lanzamiento general.
+              Somos un equipo con una meta clara: ayudar a negocios y clientes a conectar
+              de manera eficaz a través de promociones y recompensas.
+              <br />
+              <br />
+              Con amplia experiencia en tecnología y marketing digital, desarrollamos
+              soluciones que permiten a los negocios aumentar su alcance y a los clientes
+              acceder a beneficios exclusivos de forma simple y segura.
             </p>
           </div>
 
           <div className="figma-prototype__landing-modal-bullets">
-            {PLATFORM_FEATURES.map((feature) => (
-              <div key={feature} className="figma-prototype__landing-modal-bullet">
+            {TEAM_VALUES.map((value) => (
+              <div key={value} className="figma-prototype__landing-modal-bullet">
                 <img
                   src={LANDING_MODAL_ASSETS.checkBullet}
                   alt=""
                   aria-hidden="true"
                   className="figma-prototype__landing-modal-bulletIcon"
                 />
-                <p>{feature}</p>
+                <p>{value}</p>
               </div>
             ))}
           </div>
 
           <div className="figma-prototype__landing-modal-footerNote">
-            <p>
-              Nuestro objetivo es ofrecer una app más sólida, clara y optimizada para
-              que aproveches tus recompensas al máximo.
-            </p>
+            <p>Nos esforzamos por ofrecer una plataforma confiable y beneficios para todos.</p>
           </div>
         </div>
       </div>
-    </DesktopLandingModalFrame>
+    </MobileLandingModalFrame>
   );
 }
 
