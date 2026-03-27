@@ -494,16 +494,16 @@
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal {
   position: relative;
   width: min(100vw, 600px);
-  height: min(100dvh, 1050px);
+  height: auto;
   max-width: 600px;
-  max-height: 1050px;
+  max-height: none;
   margin-top: 0;
   border: 0;
   border-radius: 0;
   isolation: isolate;
   background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
   box-shadow: none;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal::before {
@@ -544,8 +544,8 @@
   justify-content: center;
   align-items: flex-start;
   overflow: visible;
-  min-height: 100%;
-  padding: 20px 18px 30px;
+  min-height: 0;
+  padding: 30px 18px;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
@@ -557,7 +557,7 @@
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-stage {
   position: relative;
   width: 100%;
-  min-height: calc(100dvh - 44px);
+  min-height: 0;
   margin: 0 auto;
   padding-top: clamp(244px, 46vw, 336px);
 }
@@ -675,9 +675,20 @@
   margin-bottom: -4px;
 }
 
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice-iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #044485;
+  flex: 0 0 auto;
+}
+
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice-icon {
-  width: 36px;
-  height: 36px;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
 }
 

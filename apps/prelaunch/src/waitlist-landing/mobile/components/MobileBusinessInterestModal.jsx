@@ -194,12 +194,14 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                   </div>
 
                   <div className="figma-prototype__business-modal-notice">
-                    <img
-                      src={MODAL_ASSETS.bellCircle}
-                      alt=""
-                      aria-hidden="true"
-                      className="figma-prototype__business-modal-notice-icon"
-                    />
+                    <span className="figma-prototype__business-modal-notice-iconWrap">
+                      <img
+                        src={MODAL_ASSETS.notifyBell}
+                        alt=""
+                        aria-hidden="true"
+                        className="figma-prototype__business-modal-notice-icon"
+                      />
+                    </span>
                     <p>Te avisaremos por email.</p>
                   </div>
                 </div>
