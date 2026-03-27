@@ -499,7 +499,7 @@
   max-height: none;
   margin-top: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 16px;
   isolation: isolate;
   background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
   box-shadow: none;
@@ -552,6 +552,10 @@
   width: min(100%, 600px);
   zoom: 1;
   transform-origin: top center;
+  --business-grow-lg: 0px;
+  --business-grow-md: 0px;
+  --business-grow-sm: 0px;
+  --business-grow-top: 0px;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-stage {
@@ -578,7 +582,7 @@
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-kicker span {
   color: #000000;
-  font-size: 16px;
+  font-size: calc(16px + var(--business-grow-sm));
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -601,7 +605,7 @@
   flex-direction: column;
   align-items: center;
   gap: 30px;
-  margin-top: -125px;
+  margin-top: calc(-125px - var(--business-grow-top));
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-header {
@@ -623,7 +627,7 @@
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-header h2 {
   width: 100%;
   color: #000000;
-  font-size: 22px;
+  font-size: calc(22px + var(--business-grow-lg));
   font-weight: 600;
   line-height: 1.08;
   text-align: center;
@@ -646,7 +650,7 @@
   width: 100%;
   padding-inline: 10px;
   color: #000000;
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   font-weight: 400;
   line-height: 1.4;
   text-align: center;
@@ -679,22 +683,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: calc(34px + var(--business-grow-md));
+  height: calc(34px + var(--business-grow-md));
   border-radius: 999px;
   background: #044485;
   flex: 0 0 auto;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice-icon {
-  width: 22px;
-  height: 22px;
+  width: calc(22px + var(--business-grow-sm));
+  height: calc(22px + var(--business-grow-sm));
   flex: 0 0 auto;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice p {
   color: #000000;
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   font-weight: 400;
   line-height: 1.35;
   margin: 0;
@@ -717,7 +721,7 @@
   width: 100%;
   min-height: 0;
   height: auto;
-  padding: 16px 50px;
+  padding: calc(16px + var(--business-grow-sm)) 50px;
   border: 1px solid #000000;
   border-radius: 16px;
   background: #ffffff;
@@ -728,8 +732,8 @@
   position: absolute;
   top: 50%;
   left: 18px;
-  width: 20px;
-  height: 20px;
+  width: calc(20px + var(--business-grow-sm));
+  height: calc(20px + var(--business-grow-sm));
   transform: translateY(-50%);
   display: block;
 }
@@ -742,14 +746,14 @@
   border: 0;
   background: transparent;
   color: #3a3a3a;
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   font-weight: 400;
   line-height: 1.1;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-input::placeholder {
   color: #5a5a5a;
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   font-weight: 400;
 }
 
@@ -762,14 +766,14 @@
   width: 100%;
   min-height: 0;
   height: auto;
-  padding: 16px 16px;
+  padding: calc(16px + var(--business-grow-sm)) 16px;
   border: 0 !important;
   border-radius: 16px;
   background: #030f23 !important;
   background-color: #030f23 !important;
   background-image: none !important;
   color: #ffffff !important;
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
@@ -777,13 +781,13 @@
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit-icon {
-  width: 22px;
-  height: 22px;
+  width: calc(22px + var(--business-grow-sm));
+  height: calc(22px + var(--business-grow-sm));
   flex: 0 0 auto;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit span {
-  font-size: 14px;
+  font-size: calc(14px + var(--business-grow-md));
   line-height: 1;
   white-space: normal;
 }
@@ -815,20 +819,20 @@
   align-items: center;
   gap: 10px;
   color: #000000;
-  font-size: 12px;
+  font-size: calc(12px + var(--business-grow-sm));
   font-weight: 400;
   line-height: 1.35;
   text-align: center;
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badge-icon {
-  width: 20px;
-  height: 20px;
+  width: calc(20px + var(--business-grow-sm));
+  height: calc(20px + var(--business-grow-sm));
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badge-lock {
-  width: 18px;
-  height: 18px;
+  width: calc(18px + var(--business-grow-sm));
+  height: calc(18px + var(--business-grow-sm));
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-consentBlock {
@@ -847,14 +851,28 @@
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-consent {
   width: 100%;
-  max-width: 38ch;
   color: #000000;
-  font-size: 12px;
+  font-size: calc(12px + var(--business-grow-sm));
   font-weight: 300;
   line-height: 1.45;
   text-align: center;
   white-space: normal;
+  text-wrap: pretty;
   margin: 0;
+}
+
+@media (min-width: 401px) {
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
+    --business-grow-lg: clamp(0px, calc((100vw - 400px) * 0.0086), 1.72px);
+    --business-grow-md: clamp(0px, calc((100vw - 400px) * 0.0057), 1.14px);
+    --business-grow-sm: clamp(0px, calc((100vw - 400px) * 0.0028), 0.56px);
+    --business-grow-top: clamp(0px, calc((100vw - 400px) * 0.014), 2.8px);
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-clock {
+    width: clamp(272px, calc(272px + (100vw - 400px) * 0.18), 308px);
+    height: clamp(264px, calc(264px + (100vw - 400px) * 0.17), 298px);
+  }
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-feedback {

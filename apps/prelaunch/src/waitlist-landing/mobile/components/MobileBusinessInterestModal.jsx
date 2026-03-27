@@ -16,10 +16,10 @@ const MODAL_ASSETS = {
 
 function getErrorMessage(errorCode) {
   if (errorCode === "invalid_email") {
-    return "Ingresa un correo electrónico válido para recibir la notificación.";
+    return "Ingresa un correo electr\u00f3nico v\u00e1lido para recibir la notificaci\u00f3n.";
   }
 
-  return "No pudimos registrar tu correo en este momento. Inténtalo nuevamente en unos minutos.";
+  return "No pudimos registrar tu correo en este momento. Int\u00e9ntalo nuevamente en unos minutos.";
 }
 
 export default function MobileBusinessInterestModal({ isOpen, onClose }) {
@@ -167,7 +167,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                   <div className="figma-prototype__business-modal-header-copy">
                     <h2 id="mobile-business-interest-modal-title">
                       <span className="figma-prototype__business-modal-title-regular">
-                        El acceso anticipado al panel de promociones para negocios llegará el{" "}
+                        {"El acceso anticipado al panel de promociones para negocios llegar\u00e1 el "}
                       </span>
                       <span className="figma-prototype__business-modal-title-accent">
                         {EARLY_ACCESS_DATE}
@@ -245,7 +245,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                         ? "Enviando..."
                         : status === "success"
                           ? "Correo registrado"
-                          : "Notificarme cuando esté disponible"}
+                          : "Notificarme cuando est\u00e9 disponible"}
                     </span>
                   </button>
                 </form>
@@ -269,7 +269,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                         aria-hidden="true"
                         className="figma-prototype__business-modal-badge-lock"
                       />
-                      <span>Solo usaremos tu correo para esta notificación.</span>
+                      <span>{"Solo usaremos tu correo para esta notificaci\u00f3n."}</span>
                     </div>
                   </div>
 
@@ -281,8 +281,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                       className="figma-prototype__business-modal-divider"
                     />
                     <p className="figma-prototype__business-modal-consent">
-                      Al enviar tu correo, aceptas recibir una notificación cuando esté
-                      listo el panel para negocios.
+                      {"Al enviar tu correo, aceptas recibir una notificaci\u00f3n cuando est\u00e9 listo el panel para negocios."}
                     </p>
                   </div>
 
