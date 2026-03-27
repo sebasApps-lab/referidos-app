@@ -875,6 +875,27 @@
   }
 }
 
+@media (min-width: 600px) {
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal {
+    width: min(100vw, 700px);
+    max-width: 700px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
+    width: 600px;
+    max-width: 600px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-stage {
+    padding-top: 276px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-clock {
+    width: 308px;
+    height: 298px;
+  }
+}
+
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-feedback {
   margin: 0;
   width: 100%;
