@@ -85,7 +85,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
 
     const response = await submitWaitlistSignup({
       email,
-      role: "negocio_interest",
+      role: "negocio",
       source: "landing_business_modal",
       consentVersion: "business_panel_notify_v1",
     });

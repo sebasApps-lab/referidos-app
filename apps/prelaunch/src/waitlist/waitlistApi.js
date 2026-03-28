@@ -18,8 +18,7 @@ export async function submitWaitlistSignup({
     return { ok: false, error: "invalid_email" };
   }
 
-  const roleIntent =
-    role === "negocio_interest" || role === "negocio" ? "negocio" : "cliente";
+  const roleIntent = role === "negocio" ? "negocio" : "cliente";
 
   const response = await prelaunchClient.waitlist.submit({
     email: normalizedEmail,
