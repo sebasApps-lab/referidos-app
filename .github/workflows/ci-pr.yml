@@ -1,4 +1,4 @@
-name: CI PR Gates
+name: CI PR Gates (Web)
 
 on:
   pull_request:
@@ -28,10 +28,25 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
 
       - name: Run lint
-        run: npm run lint
+        run: |
+          npm run lint:mojibake
+          npm run lint -w @referidos/referidos-app
+          npm run lint -w @referidos/prelaunch
 
   test:
     name: test
@@ -46,10 +61,24 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
 
       - name: Run tests
-        run: npm run test
+        run: |
+          npm run test -w @referidos/referidos-app --if-present
+          npm run test -w @referidos/prelaunch --if-present
 
   build:
     name: build
@@ -64,7 +93,19 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
 
       - name: Build Referidos App
         run: npm run build:app
