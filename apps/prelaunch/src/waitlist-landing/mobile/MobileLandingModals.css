@@ -525,6 +525,45 @@
   text-wrap: pretty;
 }
 
+.mobile-landing__modal-root.mobile-landing__modal-root--congrats
+  .figma-prototype__landing-modal-stage--congrats
+  .figma-prototype__landing-modal-header--congrats
+  h2 {
+  font-size: clamp(18px, calc(-6px + 6vw), 30px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-header h2,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-header h2 {
+  font-size: clamp(18px, calc(-6px + 6vw), 30px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-header p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-header p {
+  font-size: clamp(14px, calc(2px + 3vw), 20px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-bullet p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-bullet p {
+  font-size: clamp(14px, calc(6px + 2vw), 18px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-footerNote p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-footerNote p {
+  font-size: clamp(14px, calc(10px + 1vw), 16px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-header--congrats p {
+  font-size: clamp(14px, calc(-2px + 4vw), 22px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-copyField span {
+  font-size: clamp(14px, calc(2px + 3vw), 20px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-footerCopy {
+  font-size: clamp(14px, calc(10px + 1vw), 16px);
+}
+
 .mobile-landing__modal-root--invitation .figma-prototype__landing-modal-header h2 {
   font-size: clamp(18px, calc(3px + 4.167vw), 30px);
   font-weight: 500;

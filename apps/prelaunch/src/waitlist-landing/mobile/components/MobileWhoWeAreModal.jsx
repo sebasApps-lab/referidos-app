@@ -15,7 +15,7 @@ export default function MobileWhoWeAreModal({ isOpen, onClose }) {
       designWidth={1075}
       designHeight={756}
       dialogLabel="Quiénes somos"
-      rootClassName="mobile-landing__modal-root--wide"
+      rootClassName="mobile-landing__modal-root--wide mobile-landing__modal-root--team"
     >
       <button
         type="button"

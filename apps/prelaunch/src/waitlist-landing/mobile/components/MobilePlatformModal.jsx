@@ -15,7 +15,7 @@ export default function MobilePlatformModal({ isOpen, onClose }) {
       designWidth={1075}
       designHeight={729}
       dialogLabel="Sobre nuestra plataforma"
-      rootClassName="mobile-landing__modal-root--wide"
+      rootClassName="mobile-landing__modal-root--wide mobile-landing__modal-root--platform"
     >
       <button
         type="button"

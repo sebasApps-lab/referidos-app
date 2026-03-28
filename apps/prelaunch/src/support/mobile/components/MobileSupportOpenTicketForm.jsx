@@ -8,31 +8,32 @@ export default function MobileSupportOpenTicketForm({ controller }) {
   return (
     <section className="support-open-ticket__card">
       <form className="support-open-ticket__form" onSubmit={controller.handleSubmit}>
-        <div className="support-open-ticket__field">
-          <label htmlFor="support-name-mobile">Nombre</label>
-          <input
-            id="support-name-mobile"
-            type="text"
-            value={controller.name}
-            onChange={(event) => controller.setName(event.target.value)}
-            placeholder="Ingresa tu nombre..."
-          />
+        <div className="support-open-ticket__field support-open-ticket__field--plain">
+          <div className="support-open-ticket__text-shell">
+            <input
+              id="support-name-mobile"
+              type="text"
+              value={controller.name}
+              onChange={(event) => controller.setName(event.target.value)}
+              placeholder="Nombre.."
+            />
+          </div>
         </div>
 
-        <div className="support-open-ticket__field">
-          <label htmlFor="support-email-mobile">{"Correo electr\u00f3nico"}</label>
-          <input
-            id="support-email-mobile"
-            type="email"
-            autoComplete="email"
-            value={controller.email}
-            onChange={(event) => controller.setEmail(event.target.value)}
-            placeholder={"Ingresa tu correo electr\u00f3nico..."}
-          />
+        <div className="support-open-ticket__field support-open-ticket__field--plain">
+          <div className="support-open-ticket__text-shell">
+            <input
+              id="support-email-mobile"
+              type="email"
+              autoComplete="email"
+              value={controller.email}
+              onChange={(event) => controller.setEmail(event.target.value)}
+              placeholder={"Correo electr\u00f3nico..."}
+            />
+          </div>
         </div>
 
-        <div className="support-open-ticket__field">
-          <label htmlFor="support-phone-mobile">{"N\u00famero de tel\u00e9fono"}</label>
+        <div className="support-open-ticket__field support-open-ticket__field--plain">
           <div className="support-open-ticket__phone-row">
             <div className="support-open-ticket__country-box">
               <img
@@ -51,7 +52,7 @@ export default function MobileSupportOpenTicketForm({ controller }) {
               autoComplete="tel-national"
               value={controller.phone}
               onChange={(event) => controller.setPhone(event.target.value)}
-              placeholder={"Ingresa tu n\u00famero de tel\u00e9fono..."}
+              placeholder={"Tel\u00e9fono..."}
             />
           </div>
         </div>
