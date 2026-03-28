@@ -461,6 +461,13 @@
   font-size: 13px;
 }
 
+.support-open-ticket--mobile-tree .support-open-ticket__submit {
+  width: min(100%, 220px);
+  min-width: 0;
+  height: 50px;
+  padding: 0 20px;
+}
+
 @media (max-width: 520px) {
   .support-open-ticket--mobile-tree .support-open-ticket__phone-row {
     grid-template-columns: max-content 1fr;

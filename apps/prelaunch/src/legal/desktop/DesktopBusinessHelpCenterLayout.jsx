@@ -1,4 +1,5 @@
 import { buildSidebarCategories, HelpCenterLayout } from "../helpCenterShared";
+import { businessDesktopHeaderActions } from "./helpCenterDesktopConfig";
 
 export default function DesktopBusinessHelpCenterLayout({
   resourceItems = [],
@@ -12,6 +13,7 @@ export default function DesktopBusinessHelpCenterLayout({
       basePath={basePath}
       headerTitle="Centro de Ayuda de Negocios o Empresas"
       theme="business"
+      headerActions={businessDesktopHeaderActions}
       sidebarItems={buildSidebarCategories(basePath)}
       resourceItems={resourceItems}
       activeCategoryKey={activeCategoryKey}

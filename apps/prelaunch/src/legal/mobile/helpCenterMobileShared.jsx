@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   HelpCenterCtas,
   HelpCenterThemeProvider,
+  resolveHelpCenterHeaderActions,
 } from "../helpCenterShared";
 import "../helpCenter.css";
 
@@ -99,6 +100,9 @@ export function HelpCenterMobileHeader({
   onToggleMenu,
   onCloseMenu,
 }) {
+  const resolvedHeaderActions = resolveHelpCenterHeaderActions(headerActions);
+  const resolvedDrawerActions = resolveHelpCenterHeaderActions(drawerActions);
+
   return (
     <>
       <header className="help-center-mobile__header">
@@ -116,9 +120,9 @@ export function HelpCenterMobileHeader({
         )}
 
         <div className="help-center-mobile__header-end">
-          {headerActions.length ? (
+          {resolvedHeaderActions.length ? (
             <nav className="help-center-mobile__header-actions" aria-label="Cuenta">
-              {headerActions.map((action) => (
+              {resolvedHeaderActions.map((action) => (
                 <Link
                   key={action.key}
                   className={[
@@ -209,9 +213,9 @@ export function HelpCenterMobileHeader({
               ))}
             </nav>
 
-            {drawerActions.length ? (
+            {resolvedDrawerActions.length ? (
               <div className="help-center-mobile__drawer-actions">
-                {drawerActions.map((action) => (
+                {resolvedDrawerActions.map((action) => (
                   <Link
                     key={action.key}
                     className={[

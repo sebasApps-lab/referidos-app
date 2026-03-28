@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
+const IS_DEV = import.meta.env.DEV;
 
 const HELP_CENTER_ICON_FILES = {
   consumer: {
@@ -195,6 +196,15 @@ export function HelpCenterThemeProvider({ theme, children }) {
   );
 }
 
+export function resolveHelpCenterHeaderActions(actions = []) {
+  return actions
+    .filter((action) => !action.devOnly || IS_DEV)
+    .map((action) => ({
+      ...action,
+      label: action.devOnly ? `${action.label} (Dev)` : action.label,
+    }));
+}
+
 export function HelpCenterLayout({
   sidebarItems,
   resourceItems = [],
@@ -266,22 +276,25 @@ export function HelpCenterLayout({
 }
 
 export function HelpCenterHeader({ basePath, headerTitle, headerActions, titleTo = basePath }) {
-  const actions =
+  const actions = resolveHelpCenterHeaderActions(
     headerActions ??
-    [
-      {
-        key: "signup",
-        label: "Crear cuenta",
-        to: "/",
-        className: "help-center__header-link help-center__header-link--ghost",
-      },
-      {
-        key: "login",
-        label: "Ingresar",
-        to: "/",
-        className: "help-center__header-link help-center__header-link--solid",
-      },
-    ];
+      [
+        {
+          key: "signup",
+          label: "Crear cuenta",
+          to: "/",
+          className: "help-center__header-link help-center__header-link--ghost",
+          devOnly: true,
+        },
+        {
+          key: "login",
+          label: "Ingresar",
+          to: "/",
+          className: "help-center__header-link help-center__header-link--solid",
+          devOnly: true,
+        },
+      ],
+  );
 
   return (
     <header className="help-center__header">
@@ -369,6 +382,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
     theme === "business"
       ? "Ir al Centro de Ayuda para Clientes"
       : "Ir al Centro de Ayuda para Empresas";
+  const businessTarget = theme === "business" ? "/ayuda/es" : "/ayuda-negocios/es";
 
   return (
     <section className="help-center__cta-panel">
@@ -381,14 +395,16 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
           <div className="help-center__business-text">
             <h3>{businessTitle}</h3>
             <div className="help-center__business-action">
-              <span className="help-center__business-link-text">{businessLinkText}</span>
-              <button
-                type="button"
+              <Link className="help-center__business-link-text" to={businessTarget}>
+                {businessLinkText}
+              </Link>
+              <Link
                 className="help-center__business-arrow-button"
+                to={businessTarget}
                 aria-label={businessLinkText}
               >
                 <BusinessArrowIcon />
-              </button>
+              </Link>
             </div>
           </div>
         </div>

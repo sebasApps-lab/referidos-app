@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { asset } from "../mobileWaitlistLandingAssets";
 
 export default function MobileWaitlistForm({ onAddEmailClick }) {
@@ -33,9 +34,9 @@ export default function MobileWaitlistForm({ onAddEmailClick }) {
 
       <p className="mobile-landing__legal-copy">
         {"Al suscribirte, aceptas los "}
-        <span>{"t\u00e9rminos y condiciones,"}</span>
+        <Link to="/ayuda/es/articulo/terminos">{"t\u00e9rminos y condiciones,"}</Link>
         {" adem\u00e1s de las "}
-        <span>{"Pol\u00edticas de Privacidad"}</span>
+        <Link to="/ayuda/es/articulo/privacidad">{"Pol\u00edticas de Privacidad"}</Link>
       </p>
     </div>
   );

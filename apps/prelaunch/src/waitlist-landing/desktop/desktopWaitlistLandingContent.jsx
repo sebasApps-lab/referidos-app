@@ -93,6 +93,19 @@ export const footerColumns = [
   },
   {
     title: "CONTACTO",
-    links: ["Chat de soporte", "Soporte por correo", "Comentarios y sugerencias"],
+    links: [
+      {
+        label: "Chat de soporte",
+        to: "/soporte/abrir-ticket?origin=consumer&channel=whatsapp",
+      },
+      {
+        label: "Soporte por correo",
+        to: "/soporte/abrir-ticket?origin=consumer&channel=email",
+      },
+      {
+        label: "Comentarios y sugerencias",
+        to: "/feedback?origin=consumer",
+      },
+    ],
   },
 ];

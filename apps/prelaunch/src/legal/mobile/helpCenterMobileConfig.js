@@ -13,11 +13,13 @@ export const businessMobileHeaderActions = [
     label: "Crear cuenta",
     to: "/",
     variant: "ghost",
+    devOnly: true,
   },
   {
     key: "login",
     label: "Ingresar",
     to: "/",
     variant: "primary",
+    devOnly: true,
   },
 ];

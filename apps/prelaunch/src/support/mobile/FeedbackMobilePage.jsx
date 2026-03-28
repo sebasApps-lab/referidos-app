@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { HelpCenterMobileFooter } from "../../legal/mobile/helpCenterMobileShared";
 import MobileSupportOpenTicketHeader from "./components/MobileSupportOpenTicketHeader";
 import MobileFeedbackMessageBlock from "./components/MobileFeedbackMessageBlock";
 import { useFeedbackPageController } from "../useFeedbackPageController";
@@ -23,6 +24,8 @@ export default function FeedbackMobilePage() {
       <main className="support-open-ticket__main feedback-page__main">
         <MobileFeedbackMessageBlock controller={controller} />
       </main>
+
+      <HelpCenterMobileFooter basePath={controller.backTo} />
     </div>
   );
 }
