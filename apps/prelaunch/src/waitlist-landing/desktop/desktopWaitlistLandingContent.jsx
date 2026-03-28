@@ -96,15 +96,15 @@ export const footerColumns = [
     links: [
       {
         label: "Chat de soporte",
-        to: "/soporte/abrir-ticket?origin=consumer&channel=whatsapp",
+        to: "/soporte/abrir-ticket?origin=cliente&channel=whatsapp",
       },
       {
         label: "Soporte por correo",
-        to: "/soporte/abrir-ticket?origin=consumer&channel=email",
+        to: "/soporte/abrir-ticket?origin=cliente&channel=email",
       },
       {
         label: "Comentarios y sugerencias",
-        to: "/feedback?origin=consumer",
+        to: "/feedback?origin=cliente",
       },
     ],
   },

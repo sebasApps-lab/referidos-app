@@ -3,7 +3,7 @@ import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
 import DesktopHeroShadowGroup from "../components/DesktopHeroShadowGroup";
 
-export default function DesktopHeroSection() {
+export default function DesktopHeroSection({ onWaitlistClick }) {
   return (
     <section className="figma-prototype__hero">
       <DesktopHeroShadowGroup />
@@ -35,7 +35,13 @@ export default function DesktopHeroSection() {
             <button
               className="figma-prototype__hero-button"
               type="button"
-              onClick={() => scrollToSection("waitlist-bottom")}
+              onClick={() => {
+                if (onWaitlistClick) {
+                  onWaitlistClick();
+                  return;
+                }
+                scrollToSection("waitlist-bottom");
+              }}
             >
               <span>Entrar a la lista de espera</span>
               <span aria-hidden="true">&gt;</span>

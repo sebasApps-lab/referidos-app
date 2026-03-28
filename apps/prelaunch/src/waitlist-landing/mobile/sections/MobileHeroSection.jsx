@@ -10,7 +10,10 @@ export default function MobileHeroSection({
   isTabletHeroLayout,
   phoneGlowFilterId,
   onBusinessClick,
+  onHelpClick,
+  onHowItWorksClick,
   onInvitationClick,
+  onWaitlistClick,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const drawerId = useId();
@@ -108,7 +111,15 @@ export default function MobileHeroSection({
           <button
             type="button"
             className="mobile-landing__drawer-link"
-            onClick={() => handleMenuAction(() => navigate("/ayuda/es"))}
+            onClick={() =>
+              handleMenuAction(() => {
+                if (onHelpClick) {
+                  onHelpClick();
+                  return;
+                }
+                navigate("/ayuda/es");
+              })
+            }
           >
             Ayuda
           </button>
@@ -153,7 +164,13 @@ export default function MobileHeroSection({
             <button
               type="button"
               className="mobile-landing__hero-primary-button"
-              onClick={() => scrollToSection("waitlist-bottom")}
+              onClick={() => {
+                if (onWaitlistClick) {
+                  onWaitlistClick();
+                  return;
+                }
+                scrollToSection("waitlist-bottom");
+              }}
             >
               <span>Entrar a la lista de espera</span>
               <span>&gt;</span>
@@ -162,7 +179,10 @@ export default function MobileHeroSection({
             <button
               type="button"
               className="mobile-landing__hero-link-button"
-              onClick={() => scrollToSection("waitlist-steps")}
+              onClick={() => {
+                onHowItWorksClick?.();
+                scrollToSection("waitlist-steps");
+              }}
             >
               ¿Cómo funciona?
             </button>

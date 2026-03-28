@@ -14,6 +14,17 @@ export default function MobileFeedbackMessageBlock({ controller }) {
         </div>
 
         <div className="feedback-page__contact-fields">
+          <div className="feedback-page__honeypot" aria-hidden="true">
+            <input
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={controller.honeypot}
+              onChange={(event) => controller.setHoneypot(event.target.value)}
+              placeholder="No llenar"
+            />
+          </div>
+
           <div className="feedback-page__contact-input-wrap">
             <input
               type="text"

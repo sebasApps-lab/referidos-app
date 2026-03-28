@@ -47,7 +47,8 @@ const AdminDevErrors = lazy(() => import("./pages/admin/AdminDevErrors"));
 const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
 const AdminApps = lazy(() => import("./pages/admin/AdminApps"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
-const AdminPrelaunchAnalytics = lazy(() => import("./pages/admin/AdminPrelaunchAnalytics"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminDashboardAnalytics = lazy(() => import("./pages/admin/AdminDashboardAnalytics"));
 const AdminVersioningOverview = lazy(() => import("./pages/admin/AdminVersioningOverview"));
 const AdminVersioningReleases = lazy(() => import("./pages/admin/AdminVersioningReleases"));
 const AdminDocumentation = lazy(() => import("./pages/admin/AdminDocumentation"));
@@ -198,6 +199,26 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/dashboard"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDashboard />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/dashboard/analytics"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDashboardAnalytics />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/admin/sistema"
         element={
           <RequireAuth>
@@ -209,13 +230,7 @@ export default function AppRoutes() {
       />
       <Route
         path="/admin/analytics"
-        element={
-          <RequireAuth>
-            <RequireRole role="admin">
-              <AdminPrelaunchAnalytics />
-            </RequireRole>
-          </RequireAuth>
-        }
+        element={<Navigate to="/admin/dashboard/analytics?product=prelaunch_web" replace />}
       />
       <Route
         path="/admin/issues"

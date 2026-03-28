@@ -426,7 +426,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
               <div className="help-center__support-actions">
                 <Link
                   className="help-center__whatsapp-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "business" : "consumer"}&channel=whatsapp`}
+                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=whatsapp`}
                 >
                   <WhatsAppIcon />
                   <span>Whatsapp</span>
@@ -434,7 +434,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
 
                 <Link
                   className="help-center__email-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "business" : "consumer"}&channel=email`}
+                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=email`}
                 >
                   <MailSupportIcon />
                   <span>{emailLabel}</span>

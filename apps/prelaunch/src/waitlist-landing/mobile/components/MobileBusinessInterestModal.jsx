@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { submitWaitlistSignup } from "../../../waitlist/waitlistApi";
+import { useEffect, useMemo } from "react";
+import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
@@ -14,18 +14,27 @@ const MODAL_ASSETS = {
   notifyBell: "/assets/mdi_bell.svg",
 };
 
-function getErrorMessage(errorCode) {
-  if (errorCode === "invalid_email") {
-    return "Ingresa un correo electr\u00f3nico v\u00e1lido para recibir la notificaci\u00f3n.";
-  }
-
-  return "No pudimos registrar tu correo en este momento. Int\u00e9ntalo nuevamente en unos minutos.";
-}
-
 export default function MobileBusinessInterestModal({ isOpen, onClose }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("idle");
-  const [errorMessage, setErrorMessage] = useState("");
+  const {
+    email,
+    setEmail,
+    honeypot,
+    setHoneypot,
+    status,
+    errorMessage,
+    submit,
+    clear,
+  } = useLandingLeadCapture({
+    role: "negocio",
+    source: "landing_business_modal_mobile",
+    consentVersion: "business_panel_notify_v1",
+    path: "/",
+    surface: "business_interest_modal",
+    tree: "mobile",
+    page: "waitlist_landing",
+  });
+
+  const isSubmitted = status === "success" || status === "already";
 
   const successMessage = useMemo(
     () =>
@@ -64,39 +73,14 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
+    if (isOpen) {
+      clear();
     }
-
-    setEmail("");
-    setStatus("idle");
-    setErrorMessage("");
   }, [isOpen]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    if (status === "loading") {
-      return;
-    }
-
-    setStatus("loading");
-    setErrorMessage("");
-
-    const response = await submitWaitlistSignup({
-      email,
-      role: "negocio",
-      source: "landing_business_modal_mobile",
-      consentVersion: "business_panel_notify_v1",
-    });
-
-    if (!response?.ok) {
-      setStatus("idle");
-      setErrorMessage(getErrorMessage(response?.error));
-      return;
-    }
-
-    setStatus("success");
+    await submit();
   }
 
   if (!isOpen) {
@@ -109,7 +93,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
-          onClose();
+          onClose?.("backdrop");
         }
       }}
     >
@@ -123,7 +107,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
           type="button"
           className="figma-prototype__business-modal-close"
           aria-label="Cerrar mensaje para negocios"
-          onClick={onClose}
+          onClick={() => onClose?.("close_button")}
         >
           <svg
             aria-hidden="true"
@@ -167,7 +151,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                   <div className="figma-prototype__business-modal-header-copy">
                     <h2 id="mobile-business-interest-modal-title">
                       <span className="figma-prototype__business-modal-title-regular">
-                        {"El acceso anticipado al panel de promociones para negocios llegar\u00e1 el "}
+                        El acceso anticipado al panel de promociones para negocios llegará el{" "}
                       </span>
                       <span className="figma-prototype__business-modal-title-accent">
                         {EARLY_ACCESS_DATE}
@@ -176,8 +160,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
 
                     <p className="figma-prototype__business-modal-copy">
                       <span className="figma-prototype__business-modal-copy-regular">
-                        Estamos preparando una plataforma profesional para que los negocios
-                        puedan{" "}
+                        Estamos preparando una plataforma profesional para que los negocios puedan{" "}
                       </span>
                       <span className="figma-prototype__business-modal-copy-accent">
                         crear, publicar y gestionar
@@ -208,6 +191,22 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
 
                 <form className="figma-prototype__business-modal-form" onSubmit={handleSubmit}>
                   <label
+                    className="mobile-landing__waitlist-honeypot"
+                    htmlFor="mobile-business-interest-company"
+                  >
+                    Empresa
+                    <input
+                      id="mobile-business-interest-company"
+                      type="text"
+                      name="company"
+                      autoComplete="off"
+                      tabIndex={-1}
+                      value={honeypot}
+                      onChange={(event) => setHoneypot(event.target.value)}
+                    />
+                  </label>
+
+                  <label
                     className="figma-prototype__business-modal-field"
                     htmlFor="mobile-business-interest-email"
                   >
@@ -225,14 +224,14 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                       placeholder="ejemplo@mail.com"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      disabled={status === "loading" || status === "success"}
+                      disabled={status === "loading" || isSubmitted}
                     />
                   </label>
 
                   <button
                     type="submit"
                     className="figma-prototype__business-modal-submit"
-                    disabled={status === "loading" || status === "success"}
+                    disabled={status === "loading" || isSubmitted}
                   >
                     <img
                       src={MODAL_ASSETS.notifyBell}
@@ -243,7 +242,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                     <span>
                       {status === "loading"
                         ? "Enviando..."
-                        : status === "success"
+                        : isSubmitted
                           ? "Correo registrado"
                           : "Notificarme cuando est\u00e9 disponible"}
                     </span>
@@ -269,7 +268,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                         aria-hidden="true"
                         className="figma-prototype__business-modal-badge-lock"
                       />
-                      <span>{"Solo usaremos tu correo para esta notificaci\u00f3n."}</span>
+                      <span>Solo usaremos tu correo para esta notificación.</span>
                     </div>
                   </div>
 
@@ -281,7 +280,8 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                       className="figma-prototype__business-modal-divider"
                     />
                     <p className="figma-prototype__business-modal-consent">
-                      {"Al enviar tu correo, aceptas recibir una notificaci\u00f3n cuando est\u00e9 listo el panel para negocios."}
+                      Al enviar tu correo, aceptas recibir una notificación cuando esté
+                      listo el panel para negocios.
                     </p>
                   </div>
 
@@ -291,7 +291,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                     </p>
                   ) : null}
 
-                  {status === "success" ? (
+                  {isSubmitted ? (
                     <p className="figma-prototype__business-modal-feedback figma-prototype__business-modal-feedback--success">
                       {successMessage}
                     </p>

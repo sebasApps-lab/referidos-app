@@ -1532,6 +1532,14 @@
   width: 100%;
 }
 
+.figma-prototype__waitlist-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .figma-prototype__waitlist-inputRow {
   box-sizing: border-box;
   position: relative;
@@ -1639,6 +1647,19 @@
   text-decoration: underline !important;
   text-decoration-color: #b78ce5 !important;
   text-underline-offset: 1px;
+}
+
+.figma-prototype__waitlist-feedback {
+  margin: 0;
+  color: #ffd8ef;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.figma-prototype__waitlist-feedback--error {
+  color: #ffd8ef;
 }
 
 .figma-prototype__promo-stack {

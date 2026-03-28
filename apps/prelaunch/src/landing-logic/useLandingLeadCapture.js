@@ -4,14 +4,14 @@ import { submitWaitlistSignup } from "../waitlist/waitlistApi";
 
 function getWaitlistErrorMessage(errorCode) {
   if (errorCode === "invalid_email") {
-    return "Ingresa un correo electrónico válido.";
+    return "Ingresa un correo electr\u00f3nico v\u00e1lido.";
   }
 
   if (errorCode === "rate_limited") {
-    return "Hemos recibido demasiados intentos. Inténtalo nuevamente en unos minutos.";
+    return "Hemos recibido demasiados intentos. Int\u00e9ntalo nuevamente en unos minutos.";
   }
 
-  return "No pudimos registrar tu correo en este momento. Inténtalo nuevamente en unos minutos.";
+  return "No pudimos registrar tu correo en este momento. Int\u00e9ntalo nuevamente en unos minutos.";
 }
 
 export default function useLandingLeadCapture({
@@ -37,6 +37,13 @@ export default function useLandingLeadCapture({
   }
 
   function resetStatus() {
+    setStatus("idle");
+    setErrorMessage("");
+  }
+
+  function clear() {
+    setEmailState("");
+    setHoneypot("");
     setStatus("idle");
     setErrorMessage("");
   }
@@ -118,5 +125,6 @@ export default function useLandingLeadCapture({
     errorMessage,
     submit,
     resetStatus,
+    clear,
   };
 }

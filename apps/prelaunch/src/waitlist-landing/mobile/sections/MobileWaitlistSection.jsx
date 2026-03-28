@@ -1,7 +1,15 @@
 import MobileMockupSteps from "../components/MobileMockupSteps";
 import MobileWaitlistForm from "../components/MobileWaitlistForm";
 
-export default function MobileWaitlistSection({ onAddEmailClick }) {
+export default function MobileWaitlistSection({
+  email,
+  honeypot,
+  status,
+  errorMessage,
+  onEmailChange,
+  onHoneypotChange,
+  onSubmit,
+}) {
   return (
     <section className="mobile-landing__waitlist" id="waitlist-bottom">
       <div className="mobile-landing__waitlist-heading">
@@ -11,7 +19,15 @@ export default function MobileWaitlistSection({ onAddEmailClick }) {
             Los puestos son limitados, entra en la lista de espera
           </p>
 
-          <MobileWaitlistForm onAddEmailClick={onAddEmailClick} />
+          <MobileWaitlistForm
+            email={email}
+            honeypot={honeypot}
+            status={status}
+            errorMessage={errorMessage}
+            onEmailChange={onEmailChange}
+            onHoneypotChange={onHoneypotChange}
+            onSubmit={onSubmit}
+          />
         </div>
       </div>
 

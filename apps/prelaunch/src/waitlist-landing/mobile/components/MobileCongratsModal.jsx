@@ -1,20 +1,56 @@
 import { useState } from "react";
 import MobileLandingModalFrame from "./MobileLandingModalFrame";
 import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
+import {
+  buildFacebookShareUrl,
+  buildTwitterShareUrl,
+  buildWhatsAppShareUrl,
+  openInstagramShare,
+} from "../../../waitlist/referralLinks";
 
-const INVITE_LINK = "qrew.es/invite/ABC123XYZ";
-
-export default function MobileCongratsModal({ isOpen, onClose }) {
+export default function MobileCongratsModal({
+  isOpen,
+  onClose,
+  onCopyLink,
+  onShareLink,
+  referralLink = "",
+}) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
+    const inviteLink = String(referralLink || "").trim();
+    if (!inviteLink) {
+      setCopied(false);
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(INVITE_LINK);
+      await navigator.clipboard.writeText(inviteLink);
+      onCopyLink?.();
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
       setCopied(false);
     }
+  }
+
+  function handleShare(channel, url) {
+    if (!url || typeof window === "undefined") {
+      return;
+    }
+
+    onShareLink?.(channel, url);
+    window.location.assign(url);
+  }
+
+  async function handleInstagramShare() {
+    const inviteLink = String(referralLink || "").trim();
+    if (!inviteLink) {
+      return;
+    }
+
+    onShareLink?.("instagram", "instagram://app");
+    await openInstagramShare(inviteLink);
   }
 
   return (
@@ -52,7 +88,7 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
 
           <div className="figma-prototype__landing-modal-copyRow">
             <div className="figma-prototype__landing-modal-copyField">
-              <span>{INVITE_LINK}</span>
+              <span>{referralLink}</span>
             </div>
 
             <button
@@ -76,6 +112,7 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
                 type="button"
                 className="figma-prototype__landing-modal-shareButton"
                 aria-label="Compartir por WhatsApp"
+                onClick={() => handleShare("whatsapp", buildWhatsAppShareUrl(referralLink))}
               >
                 <img
                   src={LANDING_MODAL_ASSETS.whatsappIcon}
@@ -89,6 +126,7 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
                 type="button"
                 className="figma-prototype__landing-modal-shareButton"
                 aria-label="Compartir por Facebook"
+                onClick={() => handleShare("facebook", buildFacebookShareUrl(referralLink))}
               >
                 <img
                   src={LANDING_MODAL_ASSETS.facebookIcon}
@@ -102,6 +140,7 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
                 type="button"
                 className="figma-prototype__landing-modal-shareButton"
                 aria-label="Compartir por Instagram"
+                onClick={handleInstagramShare}
               >
                 <img
                   src={LANDING_MODAL_ASSETS.instagramIcon}
@@ -115,6 +154,7 @@ export default function MobileCongratsModal({ isOpen, onClose }) {
                 type="button"
                 className="figma-prototype__landing-modal-shareButton"
                 aria-label="Compartir por X"
+                onClick={() => handleShare("x", buildTwitterShareUrl(referralLink))}
               >
                 <img
                   src={LANDING_MODAL_ASSETS.twitterXIcon}

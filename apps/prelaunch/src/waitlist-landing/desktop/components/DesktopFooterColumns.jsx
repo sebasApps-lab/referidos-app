@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { footerColumns } from "../desktopWaitlistLandingContent";
 
-export default function DesktopFooterColumns({ onPlatformClick, onWhoWeAreClick }) {
+export default function DesktopFooterColumns({
+  onPlatformClick,
+  onWhoWeAreClick,
+  onLinkClick,
+}) {
   function handleFooterAction(actionId) {
     if (actionId === "platform-modal") {
       onPlatformClick?.();
@@ -30,7 +34,11 @@ export default function DesktopFooterColumns({ onPlatformClick, onWhoWeAreClick 
                   {link.label}
                 </button>
               ) : (
-                <Link key={link.label} to={link.to}>
+                <Link
+                  key={link.label}
+                  to={link.to}
+                  onClick={() => onLinkClick?.(link, column)}
+                >
                   {link.label}
                 </Link>
               ),

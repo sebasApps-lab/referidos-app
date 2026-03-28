@@ -879,6 +879,14 @@
   width: 100%;
 }
 
+.mobile-landing__waitlist-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .mobile-landing__waitlist-email-wrap {
   width: 100%;
   padding: 18px 23px;
@@ -961,9 +969,28 @@
   filter: blur(0.28px);
 }
 
+.mobile-landing__waitlist-feedback {
+  width: 100%;
+  margin: -8px 0 0;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 150%;
+  text-align: center;
+  color: #ffdced;
+}
+
 .mobile-landing__legal-copy span {
-  color: #b78ce5;
-  text-decoration: underline;
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-landing__legal-copy-link,
+.mobile-landing__legal-copy-link:visited {
+  color: #b78ce5 !important;
+  text-decoration: underline !important;
+  text-decoration-color: #b78ce5 !important;
+  text-underline-offset: 1px;
+  -webkit-text-stroke: 0.45px rgba(255, 255, 255, 0.96);
 }
 
 .mobile-landing__promo-section {
@@ -1212,6 +1239,14 @@
 .mobile-landing__contact-copy span {
   font-weight: 600;
   text-decoration: underline;
+}
+
+.mobile-landing button.mobile-landing__contact-help-link {
+  padding: 0;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  background: transparent;
 }
 
 .mobile-landing__contact-fields {

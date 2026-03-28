@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { submitWaitlistSignup } from "../../../waitlist/waitlistApi";
+import { useEffect, useMemo } from "react";
+import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
@@ -14,18 +14,27 @@ const MODAL_ASSETS = {
   notifyBell: "/assets/mdi_bell.svg",
 };
 
-function getErrorMessage(errorCode) {
-  if (errorCode === "invalid_email") {
-    return "Ingresa un correo electrónico válido para recibir la notificación.";
-  }
-
-  return "No pudimos registrar tu correo en este momento. Inténtalo nuevamente en unos minutos.";
-}
-
 export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("idle");
-  const [errorMessage, setErrorMessage] = useState("");
+  const {
+    email,
+    setEmail,
+    honeypot,
+    setHoneypot,
+    status,
+    errorMessage,
+    submit,
+    clear,
+  } = useLandingLeadCapture({
+    role: "negocio",
+    source: "landing_business_modal",
+    consentVersion: "business_panel_notify_v1",
+    path: "/",
+    surface: "business_interest_modal",
+    tree: "desktop",
+    page: "waitlist_landing",
+  });
+
+  const isSubmitted = status === "success" || status === "already";
 
   const successMessage = useMemo(
     () =>
@@ -64,39 +73,14 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
+    if (isOpen) {
+      clear();
     }
-
-    setEmail("");
-    setStatus("idle");
-    setErrorMessage("");
   }, [isOpen]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    if (status === "loading") {
-      return;
-    }
-
-    setStatus("loading");
-    setErrorMessage("");
-
-    const response = await submitWaitlistSignup({
-      email,
-      role: "negocio",
-      source: "landing_business_modal",
-      consentVersion: "business_panel_notify_v1",
-    });
-
-    if (!response?.ok) {
-      setStatus("idle");
-      setErrorMessage(getErrorMessage(response?.error));
-      return;
-    }
-
-    setStatus("success");
+    await submit();
   }
 
   if (!isOpen) {
@@ -109,7 +93,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
-          onClose();
+          onClose?.("backdrop");
         }
       }}
     >
@@ -123,7 +107,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
           type="button"
           className="figma-prototype__business-modal-close"
           aria-label="Cerrar mensaje para negocios"
-          onClick={onClose}
+          onClick={() => onClose?.("close_button")}
         >
           <svg
             aria-hidden="true"
@@ -176,8 +160,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
 
                     <p className="figma-prototype__business-modal-copy">
                       <span className="figma-prototype__business-modal-copy-regular">
-                        Estamos preparando una plataforma profesional para que los negocios
-                        puedan{" "}
+                        Estamos preparando una plataforma profesional para que los negocios puedan{" "}
                       </span>
                       <span className="figma-prototype__business-modal-copy-accent">
                         crear, publicar y gestionar
@@ -206,6 +189,22 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
 
                 <form className="figma-prototype__business-modal-form" onSubmit={handleSubmit}>
                   <label
+                    className="figma-prototype__waitlist-honeypot"
+                    htmlFor="desktop-business-interest-company"
+                  >
+                    Empresa
+                    <input
+                      id="desktop-business-interest-company"
+                      type="text"
+                      name="company"
+                      autoComplete="off"
+                      tabIndex={-1}
+                      value={honeypot}
+                      onChange={(event) => setHoneypot(event.target.value)}
+                    />
+                  </label>
+
+                  <label
                     className="figma-prototype__business-modal-field"
                     htmlFor="business-interest-email"
                   >
@@ -223,14 +222,14 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                       placeholder="ejemplo@mail.com"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      disabled={status === "loading" || status === "success"}
+                      disabled={status === "loading" || isSubmitted}
                     />
                   </label>
 
                   <button
                     type="submit"
                     className="figma-prototype__business-modal-submit"
-                    disabled={status === "loading" || status === "success"}
+                    disabled={status === "loading" || isSubmitted}
                   >
                     <img
                       src={MODAL_ASSETS.notifyBell}
@@ -241,7 +240,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                     <span>
                       {status === "loading"
                         ? "Enviando..."
-                        : status === "success"
+                        : isSubmitted
                           ? "Correo registrado"
                           : "Notificarme cuando esté disponible"}
                     </span>
@@ -290,7 +289,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                     </p>
                   ) : null}
 
-                  {status === "success" ? (
+                  {isSubmitted ? (
                     <p className="figma-prototype__business-modal-feedback figma-prototype__business-modal-feedback--success">
                       {successMessage}
                     </p>

@@ -2,14 +2,24 @@ import { useState } from "react";
 import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
 import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
 
-const INVITE_LINK = "qrew.es/invite/ABC123XYZ";
-
-export default function DesktopCongratsModal({ isOpen, onClose }) {
+export default function DesktopCongratsModal({
+  isOpen,
+  onClose,
+  onCopyLink,
+  referralLink = "",
+}) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
+    const inviteLink = String(referralLink || "").trim();
+    if (!inviteLink) {
+      setCopied(false);
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(INVITE_LINK);
+      await navigator.clipboard.writeText(inviteLink);
+      onCopyLink?.();
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -51,7 +61,7 @@ export default function DesktopCongratsModal({ isOpen, onClose }) {
 
           <div className="figma-prototype__landing-modal-copyRow">
             <div className="figma-prototype__landing-modal-copyField">
-              <span>{INVITE_LINK}</span>
+              <span>{referralLink}</span>
             </div>
 
             <button

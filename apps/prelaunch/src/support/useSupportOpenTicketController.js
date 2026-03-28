@@ -11,11 +11,17 @@ import {
   normalizeSupportWhatsappLocal,
 } from "./supportOpenTicketShared";
 
+function normalizeOriginRole(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "negocio" || normalized === "business") return "negocio";
+  return "cliente";
+}
+
 export function useSupportOpenTicketController() {
   const [searchParams] = useSearchParams();
-  const origin = searchParams.get("origin") === "business" ? "business" : "consumer";
+  const origin = normalizeOriginRole(searchParams.get("origin"));
   const initialChannel = searchParams.get("channel") === "whatsapp" ? "whatsapp" : "email";
-  const backTo = origin === "business" ? "/ayuda-negocios/es" : "/ayuda/es";
+  const backTo = origin === "negocio" ? "/ayuda-negocios/es" : "/ayuda/es";
 
   const desktopHeaderActions = useMemo(
     () => [

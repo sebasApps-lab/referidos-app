@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 
-export default function DesktopNavigationHeader({ onBusinessClick }) {
+export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const headerRef = useRef(null);
 
@@ -56,7 +56,10 @@ export default function DesktopNavigationHeader({ onBusinessClick }) {
           key={link.label}
           to={link.to}
           className={className}
-          onClick={() => setIsMenuOpen(false)}
+          onClick={() => {
+            setIsMenuOpen(false);
+            onLinkClick?.(link);
+          }}
         >
           {link.label}
         </Link>
@@ -69,7 +72,10 @@ export default function DesktopNavigationHeader({ onBusinessClick }) {
           key={link.label}
           href={`#${link.targetId}`}
           className={className}
-          onClick={(event) => handleScroll(event, link.targetId)}
+          onClick={(event) => {
+            onLinkClick?.(link);
+            handleScroll(event, link.targetId);
+          }}
         >
           {link.label}
         </a>

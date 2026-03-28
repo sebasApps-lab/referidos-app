@@ -1,6 +1,10 @@
 import DesktopFooterColumns from "../components/DesktopFooterColumns";
 
-export default function DesktopFooterSection({ onPlatformClick, onWhoWeAreClick }) {
+export default function DesktopFooterSection({
+  onPlatformClick,
+  onWhoWeAreClick,
+  onLinkClick,
+}) {
   return (
     <footer className="figma-prototype__footerSection">
       <div className="figma-prototype__footerBrandScaleWrap">
@@ -29,6 +33,7 @@ export default function DesktopFooterSection({ onPlatformClick, onWhoWeAreClick 
         <DesktopFooterColumns
           onPlatformClick={onPlatformClick}
           onWhoWeAreClick={onWhoWeAreClick}
+          onLinkClick={onLinkClick}
         />
       </div>
     </footer>

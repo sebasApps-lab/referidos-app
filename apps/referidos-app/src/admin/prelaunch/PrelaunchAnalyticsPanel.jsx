@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { BarChart3, Clock3, RefreshCw, ShieldAlert, Ticket, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Clock3, RefreshCw, ShieldAlert } from "lucide-react";
 import Table from "../../components/ui/Table";
+import SvgMetricAverageCard from "./components/SvgMetricAverageCard";
+import SvgMetricCompareCard from "./components/SvgMetricCompareCard";
+import SvgMetricLineCard from "./components/SvgMetricLineCard";
 import { usePrelaunchMetrics } from "./hooks/usePrelaunchMetrics";
 
-// Lint purge (no-unused-vars): `Icon` en StatCard se usa via createElement (bloque de KPIs).
 const RANGE_OPTIONS = [
   { value: 1, label: "24 horas" },
   { value: 7, label: "7 dias" },
@@ -23,6 +25,7 @@ const CHANNEL_OPTIONS = [
 const TABS = [
   { id: "overview", label: "Resumen" },
   { id: "funnel", label: "Funnel" },
+  { id: "engagement", label: "Interacciones" },
   { id: "waitlist", label: "Waitlist" },
   { id: "tickets", label: "Tickets" },
   { id: "risk", label: "Riesgo" },
@@ -71,6 +74,22 @@ const SUPPORT_CATEGORY_LABELS = {
   borrar_correo_waitlist: "Borrar correo waitlist",
 };
 
+const SECTION_LABELS = {
+  hero: "Hero",
+  waitlist_steps: "Pasos",
+  waitlist_form: "Formulario waitlist",
+  contact_block: "Bloque contacto",
+  footer: "Footer",
+};
+
+const MODAL_LABELS = {
+  business_interest: "Modal negocios",
+  platform: "Modal plataforma",
+  team: "Modal quiénes somos",
+  invitation: "Modal invitación",
+  congrats: "Modal felicitaciones",
+};
+
 function formatNumber(value) {
   return Number(value || 0).toLocaleString("es-EC");
 }
@@ -78,6 +97,10 @@ function formatNumber(value) {
 function formatPercent(value) {
   const pct = Number(value || 0) * 100;
   return `${pct.toFixed(1)}%`;
+}
+
+function formatSeconds(value) {
+  return `${Number(value || 0).toFixed(1)} s`;
 }
 
 function formatDateTime(iso) {
@@ -98,28 +121,19 @@ function truncateRiskId(value) {
   return `${safe.slice(0, 6)}...${safe.slice(-6)}`;
 }
 
-function StatCard({ icon: Icon, title, value, helper }) {
-  return (
-    <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        {React.createElement(Icon, { size: 15 })}
-        {title}
-      </div>
-      <div className="mt-3 text-2xl font-bold text-[#2F1A55]">{value}</div>
-      <div className="mt-1 text-xs text-slate-500">{helper}</div>
-    </div>
-  );
+function formatDayLabel(day) {
+  return String(day || "").slice(5);
 }
 
-function BreakdownList({ title, rows, labelResolver }) {
-  const max = rows.reduce((acc, item) => Math.max(acc, Number(item.count || 0)), 1);
+function BreakdownList({ title, rows, labelResolver, valueResolver = (row) => row.count }) {
+  const max = rows.reduce((acc, item) => Math.max(acc, Number(valueResolver(item) || 0)), 1);
 
   return (
     <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
       <div className="text-sm font-semibold text-[#2F1A55]">{title}</div>
       <div className="mt-4 space-y-3">
         {rows.map((row) => {
-          const count = Number(row.count || 0);
+          const count = Number(valueResolver(row) || 0);
           const label = labelResolver(row);
           const pct = Math.max(4, Math.round((count / max) * 100));
           return (
@@ -160,13 +174,55 @@ export default function PrelaunchAnalyticsPanel() {
   const eventBreakdown = metrics?.event_breakdown || {};
   const waitlistBreakdown = metrics?.waitlist_breakdown || {};
   const supportBreakdown = metrics?.support_breakdown || {};
+  const engagement = metrics?.engagement || {};
   const timeline = metrics?.timeline || [];
+  const periodAverages = metrics?.period_averages || {};
+  const comparisons = metrics?.comparisons || {};
   const topIpRisk = metrics?.top_ip_risk || [];
 
   const channelLabel = useMemo(() => {
     const found = CHANNEL_OPTIONS.find((item) => item.value === filters.appChannel);
     return found?.label || "Canal personalizado";
   }, [filters.appChannel]);
+
+  const lineSeries = useMemo(
+    () => ({
+      unique: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.unique_visitors })),
+      newVisitors: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.new_visitors })),
+      recurrent: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.recurrent_visitors })),
+      pageViews: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.page_views })),
+      ctaClicks: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.cta_waitlist_clicks })),
+      waitlist: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.waitlist_submits })),
+      tickets: timeline.map((row) => ({ label: formatDayLabel(row.day), value: row.support_tickets_created })),
+      avgTime: timeline.map((row) => ({
+        label: formatDayLabel(row.day),
+        value: row.avg_time_on_page_seconds,
+      })),
+    }),
+    [timeline],
+  );
+
+  const modalAverageCards = useMemo(
+    () => (periodAverages.modal_daily_unique_viewers || []).slice(0, 4),
+    [periodAverages.modal_daily_unique_viewers],
+  );
+  const maxModalAverage = useMemo(
+    () =>
+      modalAverageCards.reduce(
+        (max, item) => Math.max(max, Number(item.average_daily_unique_viewers || 0)),
+        1,
+      ),
+    [modalAverageCards],
+  );
+
+  const eventRows = useMemo(
+    () =>
+      Object.entries(eventBreakdown).map(([eventType, count]) => ({
+        eventType,
+        count: Number(count || 0),
+      })),
+    [eventBreakdown],
+  );
 
   const handleReload = () => {
     reload({ silent: true });
@@ -175,96 +231,320 @@ export default function PrelaunchAnalyticsPanel() {
   const hasData = !loading && !error;
 
   const renderOverview = () => (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          icon={Users}
-          title="Visitantes unicos"
-          value={formatNumber(summary.unique_visitors)}
-          helper="Con actividad en el rango"
-        />
-        <StatCard
-          icon={Users}
-          title="Visitantes nuevos"
-          value={formatNumber(summary.new_visitors)}
-          helper="Primer contacto en el rango"
-        />
-        <StatCard
-          icon={Users}
-          title="Visitantes recurrentes"
-          value={formatNumber(summary.recurrent_visitors)}
-          helper="Ya habian entrado antes"
-        />
-        <StatCard
-          icon={BarChart3}
-          title="Waitlist submits"
-          value={formatNumber(summary.waitlist_submits)}
-          helper="Registros confirmados por endpoint"
-        />
-        <StatCard
-          icon={BarChart3}
-          title="Conversion waitlist"
-          value={formatPercent(summary.waitlist_conversion)}
-          helper="Waitlist / visitantes unicos"
-        />
-        <StatCard
-          icon={Ticket}
-          title="Tickets anonimos"
-          value={formatNumber(summary.support_tickets_created)}
-          helper="Creados desde prelaunch"
-        />
-      </div>
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[#2F1A55]">Series diarias naturales</h3>
+          <p className="text-xs text-slate-500">
+            Cada gráfico usa el rango seleccionado y ajusta su amplitud según los valores
+            reales del período.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <SvgMetricLineCard
+            title="Visitantes únicos"
+            value={formatNumber(summary.unique_visitors)}
+            helper="Únicos por día en el rango"
+            data={lineSeries.unique}
+          />
+          <SvgMetricLineCard
+            title="Visitantes nuevos"
+            value={formatNumber(summary.new_visitors)}
+            helper="Primer contacto en cada día"
+            data={lineSeries.newVisitors}
+            color="#2D7FF9"
+          />
+          <SvgMetricLineCard
+            title="Visitantes recurrentes"
+            value={formatNumber(summary.recurrent_visitors)}
+            helper="Ya habían aparecido antes del día"
+            data={lineSeries.recurrent}
+            color="#2563EB"
+          />
+          <SvgMetricLineCard
+            title="Page views"
+            value={formatNumber(funnel.page_view || 0)}
+            helper="Carga efectiva de la landing"
+            data={lineSeries.pageViews}
+            color="#7C3AED"
+          />
+          <SvgMetricLineCard
+            title="CTA clicks"
+            value={formatNumber(funnel.cta_waitlist_open || 0)}
+            helper="Clicks que llevan al formulario"
+            data={lineSeries.ctaClicks}
+            color="#0F766E"
+          />
+          <SvgMetricLineCard
+            title="Waitlist submits"
+            value={formatNumber(summary.waitlist_submits)}
+            helper="Submits exitosos del endpoint"
+            data={lineSeries.waitlist}
+            color="#C2410C"
+          />
+          <SvgMetricLineCard
+            title="Tickets soporte"
+            value={formatNumber(summary.support_tickets_created)}
+            helper="Tickets anónimos creados desde prelaunch"
+            data={lineSeries.tickets}
+            color="#B91C1C"
+          />
+          <SvgMetricLineCard
+            title="Tiempo medio en landing"
+            value={formatSeconds(summary.avg_time_on_page_seconds)}
+            helper="Promedio diario calculado desde page leave"
+            data={lineSeries.avgTime}
+            color="#0F172A"
+          />
+        </div>
+      </section>
 
-      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
-        <div className="text-sm font-semibold text-[#2F1A55]">Funnel rapido</div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            ["Page Views", funnel.page_view || 0],
-            ["Abrio waitlist", funnel.cta_waitlist_open || 0],
-            ["Submit waitlist", funnel.waitlist_submit || 0],
-            ["Ticket soporte", funnel.support_ticket_created || 0],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="rounded-xl border border-[#E9E2F7] bg-[#F9F7FF] p-3"
-            >
-              <div className="text-lg font-bold text-[#5E30A5]">{formatNumber(value)}</div>
-              <div className="text-xs text-slate-500">{label}</div>
-            </div>
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[#2F1A55]">Snapshots y comparaciones</h3>
+          <p className="text-xs text-slate-500">
+            Para métricas que no son series diarias naturales, se comparan contra un referente
+            del mismo período.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <SvgMetricCompareCard
+            title="Conectados vs pico"
+            leftLabel={comparisons.connected_vs_peak?.current_label || "Actual"}
+            leftValue={comparisons.connected_vs_peak?.current || 0}
+            rightLabel={comparisons.connected_vs_peak?.reference_label || "Pico"}
+            rightValue={comparisons.connected_vs_peak?.reference || 0}
+            helper={`Ventana activa: últimos ${formatNumber(summary.connected_window_minutes)} min`}
+          />
+          <SvgMetricCompareCard
+            title="Waitlist vs visitantes"
+            leftLabel={comparisons.waitlist_vs_visitors?.current_label || "Waitlist"}
+            leftValue={comparisons.waitlist_vs_visitors?.current || 0}
+            rightLabel={comparisons.waitlist_vs_visitors?.reference_label || "Visitantes"}
+            rightValue={comparisons.waitlist_vs_visitors?.reference || 0}
+            helper={`Conversión del período: ${formatPercent(summary.waitlist_conversion)}`}
+            leftColor="#C2410C"
+            rightColor="#F3D6BF"
+          />
+          <SvgMetricCompareCard
+            title="Feedback vs soporte"
+            leftLabel={comparisons.feedback_vs_support?.current_label || "Feedback"}
+            leftValue={comparisons.feedback_vs_support?.current || 0}
+            rightLabel={comparisons.feedback_vs_support?.reference_label || "Tickets"}
+            rightValue={comparisons.feedback_vs_support?.reference || 0}
+            helper="Compara mensajes voluntarios contra solicitudes de soporte"
+            leftColor="#0F766E"
+            rightColor="#BFE6DE"
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-[#2F1A55]">Promedios del período</h3>
+          <p className="text-xs text-slate-500">
+            Promedios generales del rango seleccionado, no por día.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
+          <SvgMetricAverageCard
+            title="Tiempo promedio en landing"
+            value={summary.avg_time_on_page_seconds}
+            valueLabel={formatSeconds(summary.avg_time_on_page_seconds)}
+            maxValue={Math.max(...lineSeries.avgTime.map((item) => Number(item.value || 0)), 1)}
+            helper="Promedio total sobre todos los eventos de salida"
+          />
+          <SvgMetricAverageCard
+            title="CTA clicks / día"
+            value={periodAverages.avg_cta_clicks_per_day || 0}
+            valueLabel={formatNumber(periodAverages.avg_cta_clicks_per_day || 0)}
+            maxValue={Math.max(...lineSeries.ctaClicks.map((item) => Number(item.value || 0)), 1)}
+            helper="Promedio diario de intención de registro"
+            accentColor="#0F766E"
+          />
+          <SvgMetricAverageCard
+            title="Clicks en enlaces / día"
+            value={periodAverages.avg_link_clicks_per_day || 0}
+            valueLabel={formatNumber(periodAverages.avg_link_clicks_per_day || 0)}
+            maxValue={Math.max(...lineSeries.pageViews.map((item) => Number(item.value || 0)), 1)}
+            helper="Promedio diario de navegación interna y share"
+            accentColor="#2563EB"
+          />
+          <SvgMetricAverageCard
+            title="Vistas de modal / día"
+            value={periodAverages.avg_modal_views_per_day || 0}
+            valueLabel={formatNumber(periodAverages.avg_modal_views_per_day || 0)}
+            maxValue={Math.max(...timeline.map((item) => Number(item.modal_views || 0)), 1)}
+            helper="Promedio diario de aperturas de modal"
+            accentColor="#C2410C"
+          />
+          {modalAverageCards.map((modal) => (
+            <SvgMetricAverageCard
+              key={modal.modal_id}
+              title={`${MODAL_LABELS[modal.modal_id] || modal.modal_id} / día`}
+              value={modal.average_daily_unique_viewers || 0}
+              valueLabel={formatNumber(modal.average_daily_unique_viewers || 0)}
+              maxValue={maxModalAverage}
+              helper={`Usuarios únicos promedio que lo ven por día (${formatNumber(modal.views)} vistas totales)`}
+              accentColor="#7C3AED"
+            />
           ))}
         </div>
+      </section>
+    </div>
+  );
+
+  const renderFunnel = () => {
+    const max = eventRows.reduce((acc, item) => Math.max(acc, item.count), 1);
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-sm">
+          <div className="text-sm font-semibold text-[#2F1A55]">Eventos prelaunch</div>
+          <div className="mt-4 space-y-3">
+            {eventRows.map((row) => (
+              <div key={row.eventType} className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>{row.eventType}</span>
+                  <span className="font-semibold text-[#2F1A55]">{formatNumber(row.count)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-[#F1ECFB]">
+                  <div
+                    className="h-2 rounded-full bg-[#5E30A5]/70"
+                    style={{ width: `${Math.max(4, Math.round((row.count / max) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <SvgMetricLineCard
+            title="Page views"
+            value={formatNumber(funnel.page_view || 0)}
+            helper="Serie diaria de entrada al funnel"
+            data={lineSeries.pageViews}
+          />
+          <SvgMetricLineCard
+            title="CTA clicks"
+            value={formatNumber(funnel.cta_waitlist_open || 0)}
+            helper="Serie diaria de clicks al form"
+            data={lineSeries.ctaClicks}
+            color="#0F766E"
+          />
+          <SvgMetricLineCard
+            title="Waitlist submits"
+            value={formatNumber(funnel.waitlist_submit || 0)}
+            helper="Serie diaria de submit exitoso"
+            data={lineSeries.waitlist}
+            color="#C2410C"
+          />
+          <SvgMetricLineCard
+            title="Tickets soporte"
+            value={formatNumber(funnel.support_ticket_created || 0)}
+            helper="Serie diaria de tickets creados"
+            data={lineSeries.tickets}
+            color="#B91C1C"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderEngagement = () => (
+    <div className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-3">
+        <BreakdownList
+          title="Secciones alcanzadas"
+          rows={engagement.sections || []}
+          labelResolver={(row) => SECTION_LABELS[row.section_id] || row.section_id}
+        />
+        <BreakdownList
+          title="Vistas de modales"
+          rows={engagement.modals || []}
+          labelResolver={(row) => MODAL_LABELS[row.modal_id] || row.modal_id}
+          valueResolver={(row) => row.views}
+        />
+        <BreakdownList
+          title="Usuarios conectados vs promedio diario"
+          rows={[
+            {
+              key: "connected",
+              label: "Conectados ahora",
+              count: summary.connected_visitors,
+            },
+            {
+              key: "average",
+              label: "Promedio diario de visitantes",
+              count: summary.average_daily_unique_visitors,
+            },
+          ]}
+          labelResolver={(row) => row.label}
+        />
       </div>
 
       <Table
         columns={[
-          { key: "day", label: "Dia" },
-          { key: "unique", label: "Visitantes", align: "right" },
-          { key: "page_views", label: "Page views", align: "right" },
-          { key: "waitlist", label: "Waitlist", align: "right" },
-          { key: "tickets", label: "Tickets", align: "right" },
+          { key: "modal", label: "Modal" },
+          { key: "views", label: "Vistas", align: "right" },
+          { key: "unique", label: "Únicos", align: "right" },
+          { key: "avg_daily", label: "Promedio diario", align: "right" },
+          { key: "closes", label: "Cierres", align: "right" },
         ]}
       >
-        {timeline.length === 0 ? (
+        {(engagement.modals || []).length === 0 ? (
           <tr>
             <td colSpan={5} className="px-4 py-6 text-center text-xs text-slate-400">
-              Sin datos de timeline para el rango seleccionado.
+              Sin vistas de modales en el rango.
             </td>
           </tr>
         ) : (
-          timeline.map((row) => (
-            <tr key={row.day} className="hover:bg-[#FAF8FF]">
-              <td className="px-4 py-3 text-slate-700">{row.day}</td>
-              <td className="px-4 py-3 text-right text-slate-600">
-                {formatNumber(row.unique_visitors)}
+          (engagement.modals || []).map((row) => (
+            <tr key={row.modal_id} className="hover:bg-[#FAF8FF]">
+              <td className="px-4 py-3 text-slate-700">
+                {MODAL_LABELS[row.modal_id] || row.modal_id}
               </td>
               <td className="px-4 py-3 text-right text-slate-600">
-                {formatNumber(row.page_views)}
+                {formatNumber(row.views)}
               </td>
               <td className="px-4 py-3 text-right text-slate-600">
-                {formatNumber(row.waitlist_submits)}
+                {formatNumber(row.unique_viewers)}
               </td>
               <td className="px-4 py-3 text-right text-slate-600">
-                {formatNumber(row.support_tickets_created)}
+                {formatNumber(row.average_daily_unique_viewers)}
+              </td>
+              <td className="px-4 py-3 text-right text-slate-600">
+                {formatNumber(row.closes)}
+              </td>
+            </tr>
+          ))
+        )}
+      </Table>
+
+      <Table
+        columns={[
+          { key: "link", label: "Enlace / acción" },
+          { key: "target", label: "Destino" },
+          { key: "kind", label: "Tipo" },
+          { key: "count", label: "Clicks", align: "right" },
+        ]}
+      >
+        {(engagement.links || []).length === 0 ? (
+          <tr>
+            <td colSpan={4} className="px-4 py-6 text-center text-xs text-slate-400">
+              Sin clicks en enlaces en el rango.
+            </td>
+          </tr>
+        ) : (
+          (engagement.links || []).map((row) => (
+            <tr key={row.link_id} className="hover:bg-[#FAF8FF]">
+              <td className="px-4 py-3 text-slate-700">{row.label || row.link_id}</td>
+              <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                {row.target_path || "-"}
+              </td>
+              <td className="px-4 py-3 text-slate-600">{row.target_kind || "-"}</td>
+              <td className="px-4 py-3 text-right font-semibold text-[#2F1A55]">
+                {formatNumber(row.count)}
               </td>
             </tr>
           ))
@@ -272,35 +552,6 @@ export default function PrelaunchAnalyticsPanel() {
       </Table>
     </div>
   );
-
-  const renderFunnel = () => {
-    const rows = Object.entries(eventBreakdown).map(([eventType, count]) => ({
-      eventType,
-      count: Number(count || 0),
-    }));
-    const max = rows.reduce((acc, item) => Math.max(acc, item.count), 1);
-    return (
-      <div className="rounded-2xl border border-[#E9E2F7] bg-white p-5 shadow-sm">
-        <div className="text-sm font-semibold text-[#2F1A55]">Eventos prelaunch</div>
-        <div className="mt-4 space-y-3">
-          {rows.map((row) => (
-            <div key={row.eventType} className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-slate-600">
-                <span>{row.eventType}</span>
-                <span className="font-semibold text-[#2F1A55]">{formatNumber(row.count)}</span>
-              </div>
-              <div className="h-2 rounded-full bg-[#F1ECFB]">
-                <div
-                  className="h-2 rounded-full bg-[#5E30A5]/70"
-                  style={{ width: `${Math.max(4, Math.round((row.count / max) * 100))}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   const renderWaitlist = () => (
     <div className="space-y-6">
@@ -530,10 +781,10 @@ export default function PrelaunchAnalyticsPanel() {
 
       {hasData && activeTab === "overview" ? renderOverview() : null}
       {hasData && activeTab === "funnel" ? renderFunnel() : null}
+      {hasData && activeTab === "engagement" ? renderEngagement() : null}
       {hasData && activeTab === "waitlist" ? renderWaitlist() : null}
       {hasData && activeTab === "tickets" ? renderTickets() : null}
       {hasData && activeTab === "risk" ? renderRisk() : null}
     </div>
   );
 }
-

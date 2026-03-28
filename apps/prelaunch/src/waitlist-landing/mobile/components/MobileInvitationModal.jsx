@@ -1,7 +1,7 @@
 import MobileLandingModalFrame from "./MobileLandingModalFrame";
 import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
 
-export default function MobileInvitationModal({ isOpen, onClose }) {
+export default function MobileInvitationModal({ isOpen, onClose, onPrimaryAction }) {
   return (
     <MobileLandingModalFrame
       isOpen={isOpen}
@@ -52,7 +52,11 @@ export default function MobileInvitationModal({ isOpen, onClose }) {
           </div>
 
           <div className="mobile-landing__invitation-cta-wrap">
-            <button type="button" className="mobile-landing__invitation-submit">
+            <button
+              type="button"
+              className="mobile-landing__invitation-submit"
+              onClick={onPrimaryAction}
+            >
               <img
                 src={LANDING_MODAL_ASSETS.notifyBellIcon}
                 alt=""

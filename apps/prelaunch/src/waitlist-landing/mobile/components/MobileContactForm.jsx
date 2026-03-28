@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { asset } from "../mobileWaitlistLandingAssets";
 
-export default function MobileContactForm() {
+export default function MobileContactForm({ onFeedbackClick, onHelpClick, onLinkClick }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -13,7 +13,24 @@ export default function MobileContactForm() {
           Tus ideas y opiniones son muy valiosas para nosotros, no dudes en escribirnos.
         </p>
         <p className="mobile-landing__contact-copy">
-          Si necesitas ayuda, usa el siguiente <span>enlace</span>.
+          Si necesitas ayuda, usa el siguiente{" "}
+          <button
+            type="button"
+            className="mobile-landing__contact-help-link"
+            onClick={() => {
+              onLinkClick?.({
+                linkId: "contact_help_link",
+                targetPath: "/ayuda/es",
+                targetKind: "internal",
+                surface: "contact_block",
+                label: "enlace",
+              });
+              onHelpClick?.();
+            }}
+          >
+            enlace
+          </button>
+          .
         </p>
       </div>
 
@@ -33,7 +50,7 @@ export default function MobileContactForm() {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder={"Correo electr\u00f3nico"}
+            placeholder="Correo electrónico..."
             className="mobile-landing__contact-input"
           />
         </div>
@@ -60,7 +77,25 @@ export default function MobileContactForm() {
           src={asset("purple-button-glow.png")}
           alt=""
         />
-        <button type="button" className="mobile-landing__purple-button">
+        <button
+          type="button"
+          className="mobile-landing__purple-button"
+          onClick={() => {
+            onLinkClick?.({
+              linkId: "contact_feedback_button",
+              targetPath: "/feedback?origin=cliente",
+              targetKind: "internal",
+              surface: "contact_block",
+              label: "Enviar mensaje",
+            });
+            onFeedbackClick({
+              name,
+              email,
+              message,
+              sourceSurface: "landing_mobile_contact_block",
+            });
+          }}
+        >
           <span>Enviar mensaje</span>
         </button>
       </div>

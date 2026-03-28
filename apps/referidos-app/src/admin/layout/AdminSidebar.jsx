@@ -24,7 +24,10 @@ import Badge from "../../components/ui/Badge";
 const NAV_GROUPS = [
   {
     title: "Dashboard",
-    items: [{ label: "Inicio", to: "/admin/inicio", Icon: LayoutGrid }],
+    items: [
+      { label: "Inicio", to: "/admin/inicio", Icon: LayoutGrid },
+      { label: "Dashboard", to: "/admin/dashboard", Icon: BarChart3 },
+    ],
   },
   {
     title: "Gestion",
@@ -52,7 +55,7 @@ const NAV_GROUPS = [
       { label: "Issues", to: "/admin/issues", Icon: Activity },
       { label: "Catalogo errores", to: "/admin/error-codes", Icon: AlertTriangle },
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
-      { label: "Analytics", to: "/admin/analytics", Icon: BarChart3 },
+      { label: "Analytics", to: "/admin/dashboard/analytics", Icon: BarChart3 },
       { label: "Versionado Global", to: "/admin/versionado/global", Icon: GitBranch },
       { label: "Versionado Detalle", to: "/admin/versionado/detalle", Icon: Layers3 },
       { label: "Documentacion", to: "/admin/documentacion", Icon: BookOpen },

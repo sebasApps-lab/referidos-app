@@ -16,10 +16,17 @@ import {
 } from "../_shared/supportMacroCatalog.ts";
 import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
+import {
+  countIntakeGuardEvents,
+  prepareIntakeGuard,
+  recordIntakeGuardEvent,
+  sha256Hex,
+} from "../../../../packages/intake-guard/src/index.js";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
+const RATE_LIMIT_OUTCOMES = ["accepted", "duplicate", "reused"];
 const ACTIVE_STATUSES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
 const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
 const DEFAULT_APP_CHANNEL = "undetermined";
@@ -70,28 +77,6 @@ function normalizeBuildSnapshot(value: unknown) {
   return hasValue ? snapshot : null;
 }
 
-function getClientIp(req: Request) {
-  return (
-    req.headers.get("cf-connecting-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    ""
-  ).trim();
-}
-
-async function sha256(value: string) {
-  const data = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function buildIpRiskId(ip: string) {
-  const daySalt = new Date().toISOString().slice(0, 10);
-  return sha256(`${IP_RISK_PEPPER}|${daySalt}|${ip}`);
-}
-
 function normalizeWhatsapp(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 16) return null;
@@ -123,7 +108,7 @@ function createTrackingToken() {
 
 async function issueTrackingToken(threadId: string) {
   const token = createTrackingToken();
-  const tokenHash = await sha256(token);
+  const tokenHash = await sha256Hex(token);
   await supabaseAdmin
     .from("support_threads")
     .update({
@@ -267,21 +252,67 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "invalid_contact" }, 400, cors);
   }
 
-  const ip = getClientIp(req);
-  const ipRiskId = ip ? await buildIpRiskId(ip) : null;
-  const uaRaw = req.headers.get("user-agent") || "";
-  const uaHash = uaRaw ? await sha256(`${UA_PEPPER}|${uaRaw}`) : null;
-  const contactHash = await sha256(`${channel}:${contactValue}`);
+  const guard = await prepareIntakeGuard({
+    req,
+    channel,
+    contactValue,
+    message: summary,
+    fingerprintParts: [
+      "support",
+      defaultTenantId || "default",
+      appChannel,
+      channel,
+      contactValue,
+      summary,
+    ],
+    ipPepper: IP_RISK_PEPPER,
+    uaPepper: UA_PEPPER,
+  });
+  const ipRiskId = guard.ipRiskId;
+  const uaHash = guard.uaHash;
+  const contactHash = guard.contactHash;
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const guardBase = {
+    tenantId: defaultTenantId,
+    systemKey: "support",
+    actionKey: "create_anonymous_thread",
+    appChannel,
+    sourceRoute,
+    sourceSurface: "support_open_ticket",
+    anonId,
+    visitSessionId,
+    contactHash,
+    messageHash: guard.messageHash,
+    fingerprint: guard.fingerprint,
+    ipRiskId,
+    uaHash,
+  };
+  const recordGuard = (outcome: string, reason: string, meta: Record<string, unknown> = {}) =>
+    guardBase.tenantId
+      ? recordIntakeGuardEvent(supabaseAdmin, {
+          ...guardBase,
+          outcome,
+          reason,
+          meta: {
+            requested_channel: requestedChannel,
+            category,
+            source_route: sourceRoute,
+            ...meta,
+          },
+        })
+      : Promise.resolve({ error: null });
 
   if (ipRiskId) {
-    const { count: ipCount } = await supabaseAdmin
-      .from("support_threads")
-      .select("id", { count: "exact", head: true })
-      .eq("request_origin", "anonymous")
-      .gte("created_at", since)
-      .contains("context", { ip_risk_id: ipRiskId });
-    if ((ipCount || 0) >= RATE_LIMIT_MAX_IP) {
+    const { count: ipCount } = await countIntakeGuardEvents(supabaseAdmin, {
+      tenantId: defaultTenantId,
+      systemKey: "support",
+      actionKey: "create_anonymous_thread",
+      sinceIso: since,
+      outcomes: RATE_LIMIT_OUTCOMES,
+      ipRiskId,
+    });
+    if (ipCount >= RATE_LIMIT_MAX_IP) {
+      await recordGuard("rate_limited", "ip_window");
       return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
     }
   }
@@ -311,13 +342,18 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "anon_profile_failed" }, 500, cors);
   }
 
-  const { count: recentContactCount } = await supabaseAdmin
-    .from("support_threads")
-    .select("id", { count: "exact", head: true })
-    .eq("request_origin", "anonymous")
-    .eq("anon_profile_id", anonProfile.id)
-    .gte("created_at", since);
-  if ((recentContactCount || 0) >= RATE_LIMIT_MAX_CONTACT) {
+  const { count: recentContactCount } = await countIntakeGuardEvents(supabaseAdmin, {
+    tenantId: defaultTenantId,
+    systemKey: "support",
+    actionKey: "create_anonymous_thread",
+    sinceIso: since,
+    outcomes: RATE_LIMIT_OUTCOMES,
+    contactHash,
+  });
+  if (recentContactCount >= RATE_LIMIT_MAX_CONTACT) {
+    await recordGuard("rate_limited", "contact_window", {
+      anon_public_id: anonProfile.public_id,
+    });
     return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
   }
 
@@ -333,6 +369,10 @@ serve(async (req) => {
       .maybeSingle();
     if (existingByRequest?.id) {
       const trackingToken = await issueTrackingToken(existingByRequest.id);
+      await recordGuard("reused", "client_request_id", {
+        thread_public_id: existingByRequest.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: true,
@@ -363,6 +403,10 @@ serve(async (req) => {
   if (activeThread?.id) {
     if (errorOnActive && !replaceExisting) {
       const trackingToken = await issueTrackingToken(activeThread.id);
+      await recordGuard("duplicate", "active_thread_exists", {
+        thread_public_id: activeThread.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: false,
@@ -381,6 +425,10 @@ serve(async (req) => {
       await cancelAnonymousThread(activeThread.id, "replace_with_new", defaultTenantId);
     } else {
       const trackingToken = await issueTrackingToken(activeThread.id);
+      await recordGuard("reused", "active_thread_reused", {
+        thread_public_id: activeThread.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: true,
@@ -410,6 +458,10 @@ serve(async (req) => {
 
   if (activeAfterReplace?.id) {
     const trackingToken = await issueTrackingToken(activeAfterReplace.id);
+    await recordGuard("duplicate", "active_thread_after_replace", {
+      thread_public_id: activeAfterReplace.public_id,
+      anon_public_id: anonProfile.public_id,
+    });
     return jsonResponse(
       {
         ok: false,
@@ -465,7 +517,7 @@ serve(async (req) => {
   };
 
   const trackingToken = createTrackingToken();
-  const trackingTokenHash = await sha256(trackingToken);
+  const trackingTokenHash = await sha256Hex(trackingToken);
 
   const { data: insertedThread, error: insertErr } = await supabaseAdmin
     .from("support_threads")
@@ -507,6 +559,10 @@ serve(async (req) => {
     .single();
 
   if (insertErr || !insertedThread) {
+    await recordGuard("error", "thread_create_failed", {
+      detail: insertErr?.message || null,
+      anon_public_id: anonProfile.public_id,
+    });
     return jsonResponse(
       {
         ok: false,
@@ -562,6 +618,11 @@ serve(async (req) => {
     tenantId: insertedThread.tenant_id || defaultTenantId,
     actorId: null,
     actorRole: "anonymous",
+  });
+
+  await recordGuard("accepted", "created", {
+    thread_public_id: insertedThread.public_id,
+    anon_public_id: anonProfile.public_id,
   });
 
   return jsonResponse(
