@@ -1,5 +1,7 @@
-import { asset } from "../mobileWaitlistLandingAssets";
+import { rootAsset } from "../mobileWaitlistLandingAssets";
 
 export default function MobileMockupSteps() {
-  return <img className="mobile-landing__promo-mockup" src={asset("mockup-how-to-use.png")} alt="" />;
+  return (
+    <img className="mobile-landing__promo-mockup" src={rootAsset("mockup-how-to-use.png")} alt="" />
+  );
 }

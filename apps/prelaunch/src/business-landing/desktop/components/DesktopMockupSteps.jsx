@@ -1,4 +1,4 @@
-import { mobileAsset } from "../desktopWaitlistLandingAssets";
+import { asset } from "../desktopWaitlistLandingAssets";
 
 export default function DesktopMockupSteps() {
   return (
@@ -6,7 +6,7 @@ export default function DesktopMockupSteps() {
       <img className="business-landing__promo-stack-blur" src="/assets/card-carousel-glow.png" alt="" aria-hidden="true" />
       <img
         className="business-landing__promo-mockup"
-        src={mobileAsset("mockup-how-to-use.png")}
+        src={asset("mockup-how-to-use.png")}
         alt="Mockup de uso de la app Referidos con promociones y recompensas"
         loading="lazy"
       />

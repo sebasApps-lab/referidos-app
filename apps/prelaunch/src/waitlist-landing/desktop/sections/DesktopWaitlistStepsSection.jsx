@@ -5,7 +5,7 @@ export default function DesktopWaitlistStepsSection() {
   return (
     <section className="figma-prototype__benefits" id="waitlist-steps">
       <div className="figma-prototype__benefits-inner">
-        <div className="figma-prototype__benefits-heading">
+        <div className="figma-prototype__benefits-heading figma-prototype__entry-fade-up figma-prototype__entry-delay-2">
           <div className="figma-prototype__benefits-title">
             <span>Así de</span>
             <strong>rápido y simple</strong>
@@ -22,8 +22,8 @@ export default function DesktopWaitlistStepsSection() {
         </div>
 
         <div className="figma-prototype__benefit-grid">
-          {desktopSteps.map((step) => (
-            <DesktopStepCard key={step.key} step={step} />
+          {desktopSteps.map((step, index) => (
+            <DesktopStepCard key={step.key} step={step} index={index} />
           ))}
         </div>
       </div>

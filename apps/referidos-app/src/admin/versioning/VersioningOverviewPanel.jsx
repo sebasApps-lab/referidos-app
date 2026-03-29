@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRightLeft,
@@ -710,7 +710,6 @@ export default function VersioningOverviewPanel() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const autoBackfillAttemptedRef = useRef(new Set());
 
   const selectedProduct = useMemo(
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
@@ -2667,51 +2666,6 @@ export default function VersioningOverviewPanel() {
       setBackfillActionId("");
     }
   }, [activeProductKey]);
-
-  useEffect(() => {
-    if (loading || refreshing) return;
-    if (!activeProductKey || !isActiveProductInitialized) return;
-    if (!Array.isArray(envCards) || !envCards.length) return;
-    if (creatingDevRelease || devReleaseSyncing || backfillActionId) return;
-
-    const devRow = envCards.find((row) => String(row?.env_key || "").toLowerCase() === "dev");
-    if (!devRow) return;
-
-    const releaseId = String(devRow?.id || "").trim();
-    const releaseVersion = String(devRow?.version_label || "").trim();
-    const normalizedStatus = normalizeReleaseStatus("dev", devRow?.status);
-    const hasValidVersion = Boolean(releaseVersion && releaseVersion !== "-");
-    const canBackfill =
-      normalizedStatus === "released" &&
-      hasValidVersion &&
-      !devPreviewHasPendingRelease &&
-      Boolean(releaseId) &&
-      !artifactReleaseIdSet.has(releaseId);
-
-    if (!canBackfill) return;
-
-    const attemptKey = `${activeProductKey}::${releaseId}`;
-    if (autoBackfillAttemptedRef.current.has(attemptKey)) return;
-    autoBackfillAttemptedRef.current.add(attemptKey);
-
-    handleBackfillDevArtifact({
-      releaseId,
-      semver: releaseVersion,
-      sourceCommitSha: String(devRow?.source_commit_sha || ""),
-    });
-  }, [
-    loading,
-    refreshing,
-    activeProductKey,
-    isActiveProductInitialized,
-    envCards,
-    creatingDevRelease,
-    devReleaseSyncing,
-    backfillActionId,
-    devPreviewHasPendingRelease,
-    artifactReleaseIdSet,
-    handleBackfillDevArtifact,
-  ]);
 
   const closeDevReleaseDraft = () => {
     if (creatingDevRelease) return;

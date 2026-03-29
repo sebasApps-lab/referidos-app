@@ -1,5 +1,5 @@
 import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
+import { LANDING_MODAL_ASSETS } from "./desktopLandingModalAssets";
 
 const PLATFORM_FEATURES = [
   "Explora, guarda y canjea promociones a tu conveniencia.",

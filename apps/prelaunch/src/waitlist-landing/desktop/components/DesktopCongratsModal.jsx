@@ -1,6 +1,6 @@
 import { useState } from "react";
 import DesktopLandingModalFrame from "./DesktopLandingModalFrame";
-import { LANDING_MODAL_ASSETS } from "./DesktopLandingModalAssets";
+import { LANDING_MODAL_ASSETS } from "./desktopLandingModalAssets";
 
 export default function DesktopCongratsModal({
   isOpen,

@@ -48,6 +48,93 @@
   margin: 0;
 }
 
+.figma-prototype__entry-fade-up,
+.figma-prototype__entry-edge-left,
+.figma-prototype__entry-edge-right {
+  --figma-entry-delay: 0ms;
+  animation-duration: 0.95s;
+  animation-delay: var(--figma-entry-delay);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.18, 0.7, 0.22, 1);
+  will-change: transform, opacity;
+}
+
+.figma-prototype__entry-fade-up {
+  animation-name: figmaFadeUpEntry;
+}
+
+.figma-prototype__entry-edge-left {
+  animation-name: figmaFadeEdgeLeftEntry;
+}
+
+.figma-prototype__entry-edge-right {
+  animation-name: figmaFadeEdgeRightEntry;
+}
+
+.figma-prototype__entry-delay-1 {
+  --figma-entry-delay: 90ms;
+}
+
+.figma-prototype__entry-delay-2 {
+  --figma-entry-delay: 180ms;
+}
+
+.figma-prototype__entry-delay-3 {
+  --figma-entry-delay: 280ms;
+}
+
+.figma-prototype__entry-delay-4 {
+  --figma-entry-delay: 380ms;
+}
+
+.figma-prototype__entry-delay-5 {
+  --figma-entry-delay: 480ms;
+}
+
+@keyframes figmaFadeUpEntry {
+  0% {
+    opacity: 0;
+    transform: translateY(42px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes figmaFadeEdgeLeftEntry {
+  0% {
+    opacity: 0;
+    transform: translateX(-72px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes figmaFadeEdgeRightEntry {
+  0% {
+    opacity: 0;
+    transform: translateX(72px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figma-prototype__entry-fade-up,
+  .figma-prototype__entry-edge-left,
+  .figma-prototype__entry-edge-right {
+    animation: none;
+  }
+}
+
 .figma-prototype__shell {
   position: relative;
   width: 100%;
@@ -152,6 +239,17 @@
 
 .figma-prototype__nav-link--interactive {
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    text-shadow 160ms ease;
+}
+
+.figma-prototype__nav-link--interactive:hover,
+.figma-prototype__nav-link--interactive:focus-visible {
+  transform: translateY(-1px);
+  opacity: 0.92;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
 }
 
 .figma-prototype__nav-link--placeholder {

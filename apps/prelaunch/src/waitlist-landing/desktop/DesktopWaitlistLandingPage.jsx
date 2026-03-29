@@ -5,7 +5,7 @@ import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "./desktopWaitlistLanding.css";
-import "./DesktopLandingModals.css";
+import "./desktopLandingModals.css";
 import DesktopBusinessInterestModal from "./components/DesktopBusinessInterestModal";
 import DesktopCongratsModal from "./components/DesktopCongratsModal";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";

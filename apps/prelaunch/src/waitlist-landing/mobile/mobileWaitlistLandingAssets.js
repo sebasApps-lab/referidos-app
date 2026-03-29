@@ -1,4 +1,5 @@
 export const asset = (name) => `/assets/mobile/${encodeURIComponent(name)}`;
+export const rootAsset = (name) => `/assets/${encodeURIComponent(name)}`;
 export const sharedAsset = (name) => `/assets/icons/${encodeURIComponent(name)}`;
 export const sharedBgAsset = (name) => `/assets/bg/${encodeURIComponent(name)}`;
 
