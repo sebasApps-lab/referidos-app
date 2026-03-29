@@ -110,7 +110,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       ref={headerRef}
       className={`figma-prototype__nav ${isMenuOpen ? "figma-prototype__nav--menu-open" : ""}`}
     >
-      <div className="figma-prototype__nav-brand">
+      <div className="figma-prototype__nav-brand figma-prototype__entry-edge-left">
         <div className="figma-prototype__nav-brand-row">
           <span className="figma-prototype__nav-brand-main">REFERIDOS</span>
           <span className="figma-prototype__nav-brand-accent">APP</span>
@@ -118,7 +118,10 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
         <span className="figma-prototype__nav-brand-tag">Acceso anticipado</span>
       </div>
 
-      <nav className="figma-prototype__nav-links" aria-label="Principal">
+      <nav
+        className="figma-prototype__nav-links figma-prototype__entry-edge-right figma-prototype__entry-delay-1"
+        aria-label="Principal"
+      >
         {navigationLinks.map((link) =>
           renderNavItem(link, "figma-prototype__nav-link figma-prototype__nav-link--interactive"),
         )}

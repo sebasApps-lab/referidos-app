@@ -10,7 +10,7 @@ export default function DesktopHeroSection({ onWaitlistClick }) {
       <DesktopHeroBackground />
 
       <div className="figma-prototype__hero-content">
-        <div className="figma-prototype__hero-copy">
+        <div className="figma-prototype__hero-copy figma-prototype__entry-edge-left figma-prototype__entry-delay-1">
           <div className="figma-prototype__hero-copy-stack">
             <div className="figma-prototype__hero-copy-body">
               <p className="figma-prototype__hero-title">
@@ -49,7 +49,7 @@ export default function DesktopHeroSection({ onWaitlistClick }) {
           </div>
         </div>
 
-        <DesktopHeroPhoneShowcase />
+        <DesktopHeroPhoneShowcase className="figma-prototype__entry-edge-right figma-prototype__entry-delay-2" />
       </div>
     </section>
   );
