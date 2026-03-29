@@ -6,6 +6,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -42,7 +43,7 @@ serve(async (req) => {
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, status, assigned_agent_id, user_id")
+    .select("id, tenant_id, status, assigned_agent_id, user_id")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
@@ -58,7 +59,7 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "already_assigned" }, 409, cors);
   }
 
-  if (!["new", "queued"].includes(thread.status)) {
+  if (!["new", "starting", "assigned", "in_progress", "waiting_user", "queued"].includes(thread.status)) {
     return jsonResponse({ ok: false, error: "invalid_status" }, 409, cors);
   }
 
@@ -82,6 +83,13 @@ serve(async (req) => {
     actor_role: usuario.role,
     actor_id: usuario.id,
     details: { reason: "user_cancel" },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_cancelled_registered",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "user",
   });
 
   return jsonResponse({ ok: true }, 200, cors);

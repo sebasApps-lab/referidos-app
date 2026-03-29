@@ -10,6 +10,7 @@ export default function WelcomeStep({
   loading,
   oauthLoading,
   oauthProvider,
+  enableApple = false,
   onEmail,
   onGoogle,
   onFacebook,
@@ -57,9 +58,10 @@ export default function WelcomeStep({
             loading={loading}
             oauthLoading={oauthLoading}
             oauthProvider={oauthProvider}
+            enableApple={enableApple}
             onGoogle={onGoogle}
             onFacebook={onFacebook}
-            // onApple={onApple}
+            onApple={onApple}
             onTwitter={onTwitter}
             onDiscord={onDiscord}
           />

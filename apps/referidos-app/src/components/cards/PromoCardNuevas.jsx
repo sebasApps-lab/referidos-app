@@ -1,9 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin } from "lucide-react";
-import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 import { sanitizeText } from "../../utils/sanitize";
 
+// Lint purge (no-unused-vars): se removio `formatDateIsoToDdMmYyyy` del import (cabecera del card de nuevas).
 export default function PromoCardNuevas({ promo, className, wrapperProps }) {
   const navigate = useNavigate();
   if (!promo) return null;

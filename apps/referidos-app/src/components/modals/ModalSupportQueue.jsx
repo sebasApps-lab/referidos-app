@@ -2,8 +2,8 @@ import React from "react";
 import { Loader2, X } from "lucide-react";
 import { useModal } from "../../modals/useModal";
 
+// Lint purge (no-unused-vars): se removio prop `onCancelQueue` no consumida (firma del modal de cola).
 export default function ModalSupportQueue({
-  onCancelQueue,
   onConfirmUnderstand,
   onRequestCancel,
 }) {

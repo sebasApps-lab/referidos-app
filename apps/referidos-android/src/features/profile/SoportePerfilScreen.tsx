@@ -5,20 +5,28 @@ import SectionCard from "@shared/ui/SectionCard";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
+import { fetchSystemFeatureFlags } from "@shared/services/systemFeatureFlags";
 import {
   fetchActiveAgentSession,
   fetchSupportAgentProfile,
 } from "@shared/services/supportDeskQueries";
 import { formatDateTime } from "@shared/services/entityQueries";
+import {
+  LinkedProvidersSection,
+  NotificationsSection,
+  SessionsSection,
+} from "./components/ProfileRuntimePanels";
 
 export default function SoportePerfilScreen() {
   const signOut = useAppStore((state) => state.signOut);
+  const onboarding = useAppStore((state) => state.onboarding);
   const usuarioId = String(useAppStore((state) => state.onboarding?.usuario?.id || "")).trim();
   const openConfirm = useModalStore((state) => state.openConfirm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
+  const [appleEnabled, setAppleEnabled] = useState(false);
 
   const handleSignOut = useCallback(() => {
     openConfirm({
@@ -55,6 +63,26 @@ export default function SoportePerfilScreen() {
   useEffect(() => {
     void loadState();
   }, [loadState]);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchSystemFeatureFlags({ force: true }).then((flags) => {
+      if (mounted) setAppleEnabled(Boolean(flags.oauth_apple_enabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const providers = Array.from(
+    new Set(
+      (Array.isArray(onboarding?.providers) ? onboarding.providers : [])
+        .map((item: any) => String(item || "").trim().toLowerCase())
+        .filter(Boolean)
+        .concat(onboarding?.usuario?.email ? ["email"] : []),
+    ),
+  ) as string[];
+  const primaryProvider = String(onboarding?.provider || "email").trim().toLowerCase();
 
   const handleRequestSession = useCallback(async () => {
     const result = await mobileApi.support.startSession({});
@@ -130,6 +158,13 @@ export default function SoportePerfilScreen() {
             <Text style={styles.buttonText}>Cerrar sesion</Text>
           </Pressable>
         </SectionCard>
+        <LinkedProvidersSection
+          providers={providers}
+          primaryProvider={primaryProvider}
+          appleEnabled={appleEnabled}
+        />
+        <NotificationsSection role="soporte" />
+        <SessionsSection onCurrentSessionRevoked={handleSignOut} />
       </ScrollView>
     </ScreenScaffold>
   );

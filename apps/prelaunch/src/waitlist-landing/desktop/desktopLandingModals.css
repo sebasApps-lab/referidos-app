@@ -1,0 +1,264 @@
+.figma-prototype__landing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px;
+  overflow-y: auto;
+  background: rgba(15, 19, 33, 0.46);
+  backdrop-filter: blur(10px);
+}
+
+.figma-prototype__landing-modal-shell {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__landing-modal-panel {
+  position: relative;
+  transform-origin: top left;
+  border: 1px solid rgba(226, 218, 237, 0.92);
+  border-radius: 28px;
+  background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
+  box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
+  overflow: hidden;
+}
+
+.figma-prototype__landing-modal-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  pointer-events: none;
+}
+
+.figma-prototype__landing-modal-close {
+  appearance: none;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 46px;
+  border: 1px solid #e0e0e6;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #000000;
+  cursor: pointer;
+}
+
+.figma-prototype__landing-modal-close--wide {
+  right: 27px;
+}
+
+.figma-prototype__landing-modal-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 51px 14px 30px;
+}
+
+.figma-prototype__landing-modal-stage--wide {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.figma-prototype__landing-modal-stage--congrats {
+  zoom: 0.7;
+  padding: 36px 0 12px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-main {
+  width: 760px;
+  gap: 24px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats {
+  width: 720px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-copyRow {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-footerCopy {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-heroIcon {
+  width: 468px;
+  height: 465px;
+  margin-top: -175.5px;
+  margin-bottom: -145px;
+}
+
+.figma-prototype__landing-modal-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 27px;
+  width: 896px;
+  margin-top: 0;
+}
+
+.figma-prototype__landing-modal-main--wide {
+  gap: 31px;
+}
+
+.figma-prototype__landing-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 824px;
+}
+
+.figma-prototype__landing-modal-header--wide {
+  width: 896px;
+}
+
+.figma-prototype__landing-modal-header h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 37px;
+  font-weight: 600;
+  line-height: 44.4px;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-header--congrats h2 {
+  width: 696px;
+  font-size: 35px;
+  line-height: 42px;
+}
+
+.figma-prototype__landing-modal-header p {
+  margin: 0;
+  width: 100%;
+  color: #000000;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 33.6px;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-copyRow {
+  display: flex;
+  align-items: stretch;
+  width: 720px;
+}
+
+.figma-prototype__landing-modal-copyField {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 60px;
+  padding: 0 31px;
+  border: 2px solid #cbcbcb;
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.figma-prototype__landing-modal-copyField span {
+  color: #000000;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.figma-prototype__landing-modal-copyButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  min-height: 60px;
+  border: 0 !important;
+  border-radius: 0 10px 10px 0;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  box-shadow: none;
+  flex: 0 0 76px;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.figma-prototype__landing-modal-copyButtonIcon {
+  width: 38px;
+  height: 38px;
+  filter: brightness(0) invert(1);
+}
+
+.figma-prototype__landing-modal-copyFeedback {
+  margin: -10px 0 0;
+  color: #2c6d49;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-divider {
+  width: 100%;
+  height: 1px;
+  background: #d7d9df;
+}
+
+.figma-prototype__landing-modal-footerCopy,
+.figma-prototype__landing-modal-footerNote p {
+  margin: 0;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding-left: 43px;
+}
+
+.figma-prototype__landing-modal-bullet {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+}
+
+.figma-prototype__landing-modal-bulletIcon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__landing-modal-bullet p {
+  margin: 0;
+  color: #000000;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.3;
+}

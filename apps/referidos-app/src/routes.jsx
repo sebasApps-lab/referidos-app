@@ -16,9 +16,13 @@ import NegocioEscanerView from "./negocio/views/NegocioEscanerView";
 import NegocioGestionarView from "./negocio/views/NegocioGestionarView";
 import NegocioPerfilView from "./negocio/views/NegocioPerfilView";
 import SupportLayout from "@referidos/support-sdk/agent/SupportLayout";
+import SupportInicio from "@referidos/support-sdk/agent/SupportInicio";
 import SupportInbox from "@referidos/support-sdk/agent/SupportInbox";
 import SupportTicket from "@referidos/support-sdk/agent/SupportTicket";
 import SupportIrregular from "@referidos/support-sdk/agent/SupportIrregular";
+import SupportJornadas from "@referidos/support-sdk/agent/SupportJornadas";
+import SupportIssues from "@referidos/support-sdk/agent/SupportIssues";
+import SupportErrorCatalog from "@referidos/support-sdk/agent/SupportErrorCatalog";
 import AdminSupportDesk from "./admin/support/AdminSupportDesk";
 import AdminSupportAgents from "./admin/support/AdminSupportAgents";
 import AdminSupportTicket from "./admin/support/AdminSupportTicket";
@@ -41,8 +45,10 @@ const AdminLogs = lazy(() => import("./pages/admin/AdminLogs"));
 const AdminObservability = lazy(() => import("./pages/admin/AdminObservability"));
 const AdminDevErrors = lazy(() => import("./pages/admin/AdminDevErrors"));
 const AdminDatos = lazy(() => import("./pages/admin/AdminDatos"));
+const AdminApps = lazy(() => import("./pages/admin/AdminApps"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
-const AdminPrelaunchAnalytics = lazy(() => import("./pages/admin/AdminPrelaunchAnalytics"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminDashboardAnalytics = lazy(() => import("./pages/admin/AdminDashboardAnalytics"));
 const AdminVersioningOverview = lazy(() => import("./pages/admin/AdminVersioningOverview"));
 const AdminVersioningReleases = lazy(() => import("./pages/admin/AdminVersioningReleases"));
 const AdminDocumentation = lazy(() => import("./pages/admin/AdminDocumentation"));
@@ -183,6 +189,36 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/apps"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminApps />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDashboard />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/dashboard/analytics"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDashboardAnalytics />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/admin/sistema"
         element={
           <RequireAuth>
@@ -194,13 +230,7 @@ export default function AppRoutes() {
       />
       <Route
         path="/admin/analytics"
-        element={
-          <RequireAuth>
-            <RequireRole role="admin">
-              <AdminPrelaunchAnalytics />
-            </RequireRole>
-          </RequireAuth>
-        }
+        element={<Navigate to="/admin/dashboard/analytics?product=prelaunch_web" replace />}
       />
       <Route
         path="/admin/issues"
@@ -297,7 +327,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/panel-tickets"
+        path="/admin/panel-tickets"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -307,7 +337,49 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/admin/soporte/macros"
+        path="/admin/macros"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/macros/categoria/:categoryId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/macros/:macroId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route path="/admin/soporte/panel-tickets" element={<Navigate to="/admin/panel-tickets" replace />} />
+      <Route path="/admin/soporte/macros" element={<Navigate to="/admin/macros" replace />} />
+      <Route
+        path="/admin/soporte/macros/categoria/:categoryId"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminSupportCatalogPanel />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/soporte/macros/:macroId"
         element={
           <RequireAuth>
             <RequireRole role="admin">
@@ -365,8 +437,13 @@ export default function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="inbox" replace />} />
+        <Route index element={<Navigate to="inicio" replace />} />
+        <Route path="inicio" element={<SupportInicio />} />
         <Route path="inbox" element={<SupportInbox />} />
+        <Route path="jornadas" element={<SupportJornadas />} />
+        <Route path="issues" element={<SupportIssues />} />
+        <Route path="catalogo-errores" element={<SupportErrorCatalog />} />
+        <Route path="error-catalog" element={<Navigate to="/soporte/catalogo-errores" replace />} />
         <Route path="ticket/:threadId" element={<SupportTicket />} />
         <Route path="irregulares" element={<SupportIrregular />} />
       </Route>

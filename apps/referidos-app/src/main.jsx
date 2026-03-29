@@ -12,32 +12,20 @@ import "leaflet/dist/leaflet.css";
 import "./index.css"; // si usas Tailwind o estilos globales
 import { registerSW } from "virtual:pwa-register";
 
-registerSW({ immediate: true });
+const isLocalDevHost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname.endsWith(".ngrok-free.dev");
 
-const RELOAD_LOCK_KEY = "migo:reload-lock";
-const RELOAD_LOCK_TTL_MS = 8000;
-const isStandalone =
-  window.matchMedia("(display-mode: standalone)").matches ||
-  window.navigator.standalone === true;
-
-const maybeReloadOnResume = () => {
-  if (!isStandalone) return;
-  const now = Date.now();
-  const lastReload = Number(sessionStorage.getItem(RELOAD_LOCK_KEY) || 0);
-  if (now - lastReload < RELOAD_LOCK_TTL_MS) return;
-  sessionStorage.setItem(RELOAD_LOCK_KEY, String(now));
-  window.location.reload();
-};
-
-window.addEventListener("pageshow", () => {
-  maybeReloadOnResume();
-});
-
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    maybeReloadOnResume();
-  }
-});
+if (import.meta.env.PROD && !isLocalDevHost) {
+  registerSW();
+} else if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
+    });
+  });
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

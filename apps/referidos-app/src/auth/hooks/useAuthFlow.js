@@ -144,8 +144,9 @@ export default function useAuthFlow({ initialStep = AUTH_STEPS.WELCOME } = {}) {
       setSliderHeight(Math.ceil(contentH));
       setCardHeight(Math.ceil(contentH + pt + pb));
     },
-    [getActiveFormRef]
+    [getActiveFormRef, step]
   );
+  
 
   useLayoutEffect(() => {
     measureHeights(step);

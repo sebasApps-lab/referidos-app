@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+body[data-support-modal-open="1"] .support-topbar,
+body[data-support-modal-open="1"] .support-ticket-floating-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Oculta scrollbars sin afectar el scroll */
 .no-scrollbar {
   -ms-overflow-style: none;   /* IE/Edge */

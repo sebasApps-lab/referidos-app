@@ -48,9 +48,16 @@ export function usePrelaunchMetrics(initialFilters = INITIAL_FILTERS) {
       unique_visitors: 0,
       new_visitors: 0,
       recurrent_visitors: 0,
+      connected_visitors: 0,
+      connected_window_minutes: 5,
+      peak_daily_unique_visitors: 0,
+      average_daily_unique_visitors: 0,
       waitlist_submits: 0,
       waitlist_conversion: 0,
       support_tickets_created: 0,
+      feedback_submits: 0,
+      avg_time_on_page_ms: 0,
+      avg_time_on_page_seconds: 0,
     };
   }, [metrics]);
 

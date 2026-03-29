@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useModal } from "../../modals/useModal";
 import { supabase } from "../../lib/supabaseClient";
 
+// Lint purge (no-unused-vars): se purgaron `hasPhone` y `phoneValid` (normalizacion de telefono en cabecera del componente).
 const COUNTRY_CODES = [
   { code: "+593", label: "Ecuador" },
   { code: "+57", label: "Colombia" },
@@ -82,8 +83,6 @@ export default function AccountVerifyStep({
   const normalizedDigits = digits.replace(/\D/g, "");
   const isEcuador = countryCode === "+593";
   const normalizedPhone = `${countryCode}${normalizedDigits}`;
-  const hasPhone = Boolean(phone) || normalizedDigits.length > 0;
-  const phoneValid = isEcuador ? normalizedDigits.length === 9 : normalizedDigits.length >= 6;
 
   const handleDigitsChange = (value) => {
     let next = String(value || "").replace(/\D/g, "");

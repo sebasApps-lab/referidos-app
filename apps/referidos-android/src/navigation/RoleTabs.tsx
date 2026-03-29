@@ -17,8 +17,8 @@ import AdminUsuariosScreen from "@features/admin/AdminUsuariosScreen";
 import AdminSoporteScreen from "@features/admin/AdminSoporteScreen";
 import AdminObservabilidadScreen from "@features/admin/AdminObservabilidadScreen";
 import AdminPerfilScreen from "@features/profile/AdminPerfilScreen";
+import SoporteInicioScreen from "@features/support/SoporteInicioScreen";
 import SoporteInboxScreen from "@features/support/SoporteInboxScreen";
-import SoporteTicketScreen from "@features/support/SoporteTicketScreen";
 import SoporteIrregularScreen from "@features/support/SoporteIrregularScreen";
 import SoportePerfilScreen from "@features/profile/SoportePerfilScreen";
 import { ShellRoleKey, useShellStore } from "@shared/store/shellStore";
@@ -160,10 +160,10 @@ export function SoporteTabs() {
   return (
     <RoleTabNavigator
       role="soporte"
-      fallbackRoute={TAB_ROUTES.SOPORTE.INBOX}
+      fallbackRoute={TAB_ROUTES.SOPORTE.INICIO}
       screens={[
+        { name: TAB_ROUTES.SOPORTE.INICIO, label: "Inicio", component: SoporteInicioScreen },
         { name: TAB_ROUTES.SOPORTE.INBOX, label: "Inbox", component: SoporteInboxScreen },
-        { name: TAB_ROUTES.SOPORTE.TICKET, label: "Ticket", component: SoporteTicketScreen },
         {
           name: TAB_ROUTES.SOPORTE.IRREGULAR,
           label: "Irregular",

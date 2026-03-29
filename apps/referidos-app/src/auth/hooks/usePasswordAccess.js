@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
+// Lint purge (no-unused-vars): se removio `useMemo` del import (cabecera del hook).
 export default function usePasswordAccess({ provider = "email" } = {}) {
   const [passwordMode, setPasswordMode] = useState("add");
   const [passwordValue, setPasswordValue] = useState("");

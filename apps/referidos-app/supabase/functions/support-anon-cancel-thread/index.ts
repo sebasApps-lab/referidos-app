@@ -5,8 +5,9 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
-const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
+const ACTIVE_STATUSES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
 
 async function sha256(value: string) {
   const data = new TextEncoder().encode(value);
@@ -38,7 +39,7 @@ serve(async (req) => {
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, public_id, status, anon_tracking_token_hash")
+    .select("id, tenant_id, public_id, status, anon_tracking_token_hash")
     .eq("public_id", threadPublicId)
     .eq("request_origin", "anonymous")
     .maybeSingle();
@@ -90,6 +91,13 @@ serve(async (req) => {
     actor_role: "anonymous",
     actor_id: null,
     details: { reason },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_cancelled_anonymous",
+    tenantId: thread.tenant_id || null,
+    actorId: null,
+    actorRole: "anonymous",
   });
 
   return jsonResponse(

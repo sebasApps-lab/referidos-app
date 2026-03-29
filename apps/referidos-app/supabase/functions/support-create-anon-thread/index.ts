@@ -1,42 +1,80 @@
 ﻿import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
   CATEGORY_LABELS,
+  SUPPORT_FALLBACK_CATEGORY,
   buildSupportMessage,
   corsHeaders,
   jsonResponse,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import {
+  categoryLabelForCode,
+  listAnonymousMacroCategoriesFromCache,
+  normalizeSupportCategoryCode,
+} from "../_shared/supportMacroCatalog.ts";
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
+import {
+  countIntakeGuardEvents,
+  prepareIntakeGuard,
+  recordIntakeGuardEvent,
+  sha256Hex,
+} from "../../../../packages/intake-guard/src/index.js";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_IP = 6;
 const RATE_LIMIT_MAX_CONTACT = 3;
-const ACTIVE_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
+const RATE_LIMIT_OUTCOMES = ["accepted", "duplicate", "reused"];
+const ACTIVE_STATUSES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
 const ALLOWED_SEVERITIES = new Set(["s0", "s1", "s2", "s3"]);
-const DEFAULT_APP_CHANNEL = "prelaunch_web";
+const DEFAULT_APP_CHANNEL = "undetermined";
 const UA_PEPPER = Deno.env.get("PRELAUNCH_UA_PEPPER") || "prelaunch_ua_pepper_v1";
 const IP_RISK_PEPPER = Deno.env.get("PRELAUNCH_IP_RISK_PEPPER") || "prelaunch_ip_risk_pepper_v1";
 
-function getClientIp(req: Request) {
-  return (
-    req.headers.get("cf-connecting-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    ""
-  ).trim();
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-async function sha256(value: string) {
-  const data = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+function pickText(value: unknown, max = 160) {
+  if (typeof value !== "string") return null;
+  const trimmed = safeTrim(value, max);
+  return trimmed || null;
 }
 
-async function buildIpRiskId(ip: string) {
-  const daySalt = new Date().toISOString().slice(0, 10);
-  return sha256(`${IP_RISK_PEPPER}|${daySalt}|${ip}`);
+function pickBuildNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const num = Math.trunc(value);
+    return num >= 1 ? num : null;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value.trim())) {
+    const num = Number(value.trim());
+    return Number.isFinite(num) && num >= 1 ? Math.trunc(num) : null;
+  }
+  return null;
+}
+
+function normalizeBuildSnapshot(value: unknown) {
+  if (!isRecord(value)) return null;
+  const buildNumber = pickBuildNumber(value.build_number ?? value.buildNumber);
+  const snapshot: Record<string, unknown> = {
+    app_id: pickText(value.app_id ?? value.appId, 80),
+    app_env: pickText(value.app_env ?? value.appEnv ?? value.env, 40),
+    version_label: pickText(value.version_label ?? value.app_version ?? value.appVersion, 120),
+    build_id: pickText(value.build_id ?? value.buildId, 120),
+    release_id: pickText(value.release_id ?? value.releaseId, 120),
+    artifact_id: pickText(value.artifact_id ?? value.artifactId, 160),
+    release_channel: pickText(value.release_channel ?? value.releaseChannel ?? value.channel, 40),
+    source_commit_sha: pickText(
+      value.source_commit_sha ?? value.sourceCommitSha ?? value.commit_sha,
+      64
+    ),
+  };
+  if (buildNumber) snapshot.build_number = buildNumber;
+
+  const hasValue = Object.values(snapshot).some((entry) => entry !== null && entry !== undefined);
+  return hasValue ? snapshot : null;
 }
 
 function normalizeWhatsapp(value: string) {
@@ -70,7 +108,7 @@ function createTrackingToken() {
 
 async function issueTrackingToken(threadId: string) {
   const token = createTrackingToken();
-  const tokenHash = await sha256(token);
+  const tokenHash = await sha256Hex(token);
   await supabaseAdmin
     .from("support_threads")
     .update({
@@ -81,7 +119,7 @@ async function issueTrackingToken(threadId: string) {
   return token;
 }
 
-async function cancelAnonymousThread(threadId: string, reason: string) {
+async function cancelAnonymousThread(threadId: string, reason: string, tenantId: string | null = null) {
   const nowIso = new Date().toISOString();
 
   await supabaseAdmin
@@ -101,6 +139,13 @@ async function cancelAnonymousThread(threadId: string, reason: string) {
     actor_role: "anonymous",
     actor_id: null,
     details: { reason },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_cancelled_anonymous_replace",
+    tenantId,
+    actorId: null,
+    actorRole: "anonymous",
   });
 }
 
@@ -125,21 +170,36 @@ serve(async (req) => {
   const channel = requestedChannel;
   const summary = safeTrim(body.summary, 240);
   const rawContact = safeTrim(body.contact, 120);
-  const category = Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, body.category)
-    ? body.category
-    : "sugerencia";
   const severity = ALLOWED_SEVERITIES.has(body.severity) ? body.severity : "s2";
-  const sourceRoute = safeTrim(body.source_route, 140) || null;
-  const originSource = safeTrim(body.origin_source, 60) || "prelaunch";
-  const appChannel = safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL;
+  const appIdentity = await resolveSupportAppIdentity(
+    safeTrim(body.app_channel, 60) || DEFAULT_APP_CHANNEL,
+    DEFAULT_APP_CHANNEL,
+  );
+  const appChannel = appIdentity.appKey;
+  const { data: defaultTenantIdRaw } = await supabaseAdmin.rpc("resolve_default_tenant_id");
+  const defaultTenantId = typeof defaultTenantIdRaw === "string" ? defaultTenantIdRaw : null;
+  const originSource = "user";
+  const requestedCategory = normalizeSupportCategoryCode(body.category, "");
   const anonId = parseUuid(body.anon_id);
   const visitSessionId = parseUuid(body.visit_session_id);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
   const displayName = safeTrim(body.display_name, 80) || null;
   const errorOnActive = body.error_on_active === true;
   const replaceExisting = body.replace_existing === true;
-  const contextInput =
-    typeof body.context === "object" && body.context ? body.context : {};
+  const contextInput = isRecord(body.context) ? body.context : {};
+
+  const sourceRouteFromPayload = pickText(body.source_route, 140);
+  const sourceRouteFromContext = pickText(contextInput.source_route ?? contextInput.route, 140);
+  const sourceRoute = sourceRouteFromPayload || sourceRouteFromContext;
+  const locale = pickText(body.locale ?? contextInput.locale, 32);
+  const language = pickText(body.language ?? contextInput.language, 24);
+  const timezone = pickText(body.timezone ?? contextInput.timezone, 80);
+  const platform = pickText(body.platform ?? contextInput.platform ?? contextInput.device, 120);
+  const userAgent = pickText(body.user_agent ?? contextInput.user_agent ?? contextInput.browser, 300);
+
+  const payloadBuild = normalizeBuildSnapshot(body.build ?? body.build_snapshot);
+  const contextBuild = normalizeBuildSnapshot(contextInput.build);
+  const buildSnapshot = payloadBuild || contextBuild;
 
   if (!summary) {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
@@ -148,6 +208,43 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "missing_contact" }, 400, cors);
   }
 
+  const {
+    categories: anonymousCategoryCatalog,
+    error: anonymousCategoryCatalogError,
+  } = await listAnonymousMacroCategoriesFromCache({
+    appChannel,
+  });
+  if (anonymousCategoryCatalogError) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "category_catalog_unavailable",
+        detail: anonymousCategoryCatalogError,
+      },
+      500,
+      cors,
+    );
+  }
+  const anonymousCategoryMap = new Map(
+    anonymousCategoryCatalog.map((category) => [category.code, category]),
+  );
+  const requestedCategoryResolution = resolveSupportThreadCategory(
+    requestedCategory,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
+  const category = (() => {
+    if (requestedCategoryResolution.requestedCategory) {
+      return requestedCategoryResolution.category;
+    }
+    if (anonymousCategoryCatalog.length > 0) {
+      return resolveSupportThreadCategory(
+        anonymousCategoryCatalog[0]?.code,
+        SUPPORT_FALLBACK_CATEGORY,
+      ).category;
+    }
+    return SUPPORT_FALLBACK_CATEGORY;
+  })();
+
   const contactValue = channel === "email"
     ? normalizeEmail(rawContact)
     : normalizeWhatsapp(rawContact);
@@ -155,21 +252,67 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "invalid_contact" }, 400, cors);
   }
 
-  const ip = getClientIp(req);
-  const ipRiskId = ip ? await buildIpRiskId(ip) : null;
-  const uaRaw = req.headers.get("user-agent") || "";
-  const uaHash = uaRaw ? await sha256(`${UA_PEPPER}|${uaRaw}`) : null;
-  const contactHash = await sha256(`${channel}:${contactValue}`);
+  const guard = await prepareIntakeGuard({
+    req,
+    channel,
+    contactValue,
+    message: summary,
+    fingerprintParts: [
+      "support",
+      defaultTenantId || "default",
+      appChannel,
+      channel,
+      contactValue,
+      summary,
+    ],
+    ipPepper: IP_RISK_PEPPER,
+    uaPepper: UA_PEPPER,
+  });
+  const ipRiskId = guard.ipRiskId;
+  const uaHash = guard.uaHash;
+  const contactHash = guard.contactHash;
   const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const guardBase = {
+    tenantId: defaultTenantId,
+    systemKey: "support",
+    actionKey: "create_anonymous_thread",
+    appChannel,
+    sourceRoute,
+    sourceSurface: "support_open_ticket",
+    anonId,
+    visitSessionId,
+    contactHash,
+    messageHash: guard.messageHash,
+    fingerprint: guard.fingerprint,
+    ipRiskId,
+    uaHash,
+  };
+  const recordGuard = (outcome: string, reason: string, meta: Record<string, unknown> = {}) =>
+    guardBase.tenantId
+      ? recordIntakeGuardEvent(supabaseAdmin, {
+          ...guardBase,
+          outcome,
+          reason,
+          meta: {
+            requested_channel: requestedChannel,
+            category,
+            source_route: sourceRoute,
+            ...meta,
+          },
+        })
+      : Promise.resolve({ error: null });
 
   if (ipRiskId) {
-    const { count: ipCount } = await supabaseAdmin
-      .from("support_threads")
-      .select("id", { count: "exact", head: true })
-      .eq("request_origin", "anonymous")
-      .gte("created_at", since)
-      .contains("context", { ip_risk_id: ipRiskId });
-    if ((ipCount || 0) >= RATE_LIMIT_MAX_IP) {
+    const { count: ipCount } = await countIntakeGuardEvents(supabaseAdmin, {
+      tenantId: defaultTenantId,
+      systemKey: "support",
+      actionKey: "create_anonymous_thread",
+      sinceIso: since,
+      outcomes: RATE_LIMIT_OUTCOMES,
+      ipRiskId,
+    });
+    if (ipCount >= RATE_LIMIT_MAX_IP) {
+      await recordGuard("rate_limited", "ip_window");
       return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
     }
   }
@@ -199,13 +342,18 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "anon_profile_failed" }, 500, cors);
   }
 
-  const { count: recentContactCount } = await supabaseAdmin
-    .from("support_threads")
-    .select("id", { count: "exact", head: true })
-    .eq("request_origin", "anonymous")
-    .eq("anon_profile_id", anonProfile.id)
-    .gte("created_at", since);
-  if ((recentContactCount || 0) >= RATE_LIMIT_MAX_CONTACT) {
+  const { count: recentContactCount } = await countIntakeGuardEvents(supabaseAdmin, {
+    tenantId: defaultTenantId,
+    systemKey: "support",
+    actionKey: "create_anonymous_thread",
+    sinceIso: since,
+    outcomes: RATE_LIMIT_OUTCOMES,
+    contactHash,
+  });
+  if (recentContactCount >= RATE_LIMIT_MAX_CONTACT) {
+    await recordGuard("rate_limited", "contact_window", {
+      anon_public_id: anonProfile.public_id,
+    });
     return jsonResponse({ ok: false, error: "rate_limited" }, 429, cors);
   }
 
@@ -221,6 +369,10 @@ serve(async (req) => {
       .maybeSingle();
     if (existingByRequest?.id) {
       const trackingToken = await issueTrackingToken(existingByRequest.id);
+      await recordGuard("reused", "client_request_id", {
+        thread_public_id: existingByRequest.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: true,
@@ -251,6 +403,10 @@ serve(async (req) => {
   if (activeThread?.id) {
     if (errorOnActive && !replaceExisting) {
       const trackingToken = await issueTrackingToken(activeThread.id);
+      await recordGuard("duplicate", "active_thread_exists", {
+        thread_public_id: activeThread.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: false,
@@ -266,9 +422,13 @@ serve(async (req) => {
     }
 
     if (replaceExisting) {
-      await cancelAnonymousThread(activeThread.id, "replace_with_new");
+      await cancelAnonymousThread(activeThread.id, "replace_with_new", defaultTenantId);
     } else {
       const trackingToken = await issueTrackingToken(activeThread.id);
+      await recordGuard("reused", "active_thread_reused", {
+        thread_public_id: activeThread.public_id,
+        anon_public_id: anonProfile.public_id,
+      });
       return jsonResponse(
         {
           ok: true,
@@ -286,7 +446,7 @@ serve(async (req) => {
     }
   }
 
-  const { data: activeAfterReplace } = await supabaseAdmin
+    const { data: activeAfterReplace } = await supabaseAdmin
     .from("support_threads")
     .select("id, public_id, status")
     .eq("request_origin", "anonymous")
@@ -298,6 +458,10 @@ serve(async (req) => {
 
   if (activeAfterReplace?.id) {
     const trackingToken = await issueTrackingToken(activeAfterReplace.id);
+    await recordGuard("duplicate", "active_thread_after_replace", {
+      thread_public_id: activeAfterReplace.public_id,
+      anon_public_id: anonProfile.public_id,
+    });
     return jsonResponse(
       {
         ok: false,
@@ -312,9 +476,32 @@ serve(async (req) => {
     );
   }
 
-  const categoryLabel = CATEGORY_LABELS[category] ?? "Soporte";
+  const categoryLabel =
+    anonymousCategoryMap.get(category)?.label ||
+    CATEGORY_LABELS[category] ||
+    categoryLabelForCode(category) ||
+    "Soporte";
+  const runtimeContext: Record<string, unknown> = {
+    ...(isRecord(contextInput.runtime) ? contextInput.runtime : {}),
+    source_route: sourceRoute,
+    locale,
+    language,
+    timezone,
+    platform,
+    user_agent: userAgent,
+  };
+  Object.keys(runtimeContext).forEach((key) => {
+    if (runtimeContext[key] === null || runtimeContext[key] === undefined || runtimeContext[key] === "") {
+      delete runtimeContext[key];
+    }
+  });
+
   const context = {
     ...contextInput,
+    requested_category: requestedCategoryResolution.requestedCategory,
+    requested_category_unsupported: requestedCategoryResolution.usedFallback,
+    requested_category_mapped_other_reason:
+      requestedCategoryResolution.mappedExplicitOtherReason,
     source_route: sourceRoute,
     origin_source: originSource,
     app_channel: appChannel,
@@ -325,14 +512,17 @@ serve(async (req) => {
     contact_hash: contactHash,
     anon_id: anonId,
     visit_session_id: visitSessionId,
+    ...(Object.keys(runtimeContext).length ? { runtime: runtimeContext } : {}),
+    ...(buildSnapshot ? { build: buildSnapshot } : {}),
   };
 
   const trackingToken = createTrackingToken();
-  const trackingTokenHash = await sha256(trackingToken);
+  const trackingTokenHash = await sha256Hex(trackingToken);
 
   const { data: insertedThread, error: insertErr } = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: defaultTenantId,
       user_id: null,
       user_public_id: anonProfile.public_id,
       category,
@@ -365,11 +555,23 @@ serve(async (req) => {
       is_anonymous: true,
       anon_tracking_token_hash: trackingTokenHash,
     })
-    .select("id, public_id, status")
+    .select("id, tenant_id, public_id, status")
     .single();
 
   if (insertErr || !insertedThread) {
-    return jsonResponse({ ok: false, error: "thread_create_failed" }, 500, cors);
+    await recordGuard("error", "thread_create_failed", {
+      detail: insertErr?.message || null,
+      anon_public_id: anonProfile.public_id,
+    });
+    return jsonResponse(
+      {
+        ok: false,
+        error: "thread_create_failed",
+        detail: insertErr?.message || null,
+      },
+      500,
+      cors,
+    );
   }
 
   const finalizedMessage = buildSupportMessage({
@@ -407,7 +609,20 @@ serve(async (req) => {
       channel,
       requested_channel: requestedChannel,
       source_route: sourceRoute,
+      build: buildSnapshot,
     },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_anonymous",
+    tenantId: insertedThread.tenant_id || defaultTenantId,
+    actorId: null,
+    actorRole: "anonymous",
+  });
+
+  await recordGuard("accepted", "created", {
+    thread_public_id: insertedThread.public_id,
+    anon_public_id: anonProfile.public_id,
   });
 
   return jsonResponse(

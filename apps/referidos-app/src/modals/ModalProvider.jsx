@@ -1,5 +1,5 @@
 // src/modals/ModalProvider.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModalStore } from "./modalStore";
 import { modalRegistry } from "./modalRegistry";
@@ -25,7 +25,7 @@ export default function ModalProvider() {
   const disableBackdropClose =
     activeModal === "SplashEmailConfirmation" || activeModal === "ForcePasswordChange";
 
-  const updateViewport = (force = false) => {
+  const updateViewport = useCallback((force = false) => {
     if (!force && viewportLockRef.current) return;
     const vh = window.visualViewport?.height ?? window.innerHeight;
     const base = window.innerHeight;
@@ -46,7 +46,7 @@ export default function ModalProvider() {
       return;
     }
     setViewportH(vh);
-  };
+  }, [activeModal]);
 
   useEffect(() => {
     const update = () => updateViewport();
@@ -57,7 +57,7 @@ export default function ModalProvider() {
       window.visualViewport?.removeEventListener("resize", update);
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [updateViewport]);
 
   useEffect(() => {
     if (activeModal === "AccessMethods") {

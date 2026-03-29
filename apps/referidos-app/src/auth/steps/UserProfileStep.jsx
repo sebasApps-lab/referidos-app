@@ -6,6 +6,7 @@ import {
   normalizeUserName,
 } from "../utils/userProfileUtils";
 
+// Lint purge (no-unused-vars): se removio prop `onGoWelcome` no consumida (firma del componente).
 export default function UserProfileStep({
   error,
   inputClassName,
@@ -23,7 +24,6 @@ export default function UserProfileStep({
   onSubmit,
   onSkip,
   innerRef,
-  onGoWelcome,
   primaryDisabled,
 }) {
   const birthStatus = useMemo(

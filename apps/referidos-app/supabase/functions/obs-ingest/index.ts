@@ -92,6 +92,14 @@ function safeInteger(value: unknown): number | null {
   return Math.trunc(parsed);
 }
 
+function safePositiveInteger(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const normalized = Math.trunc(parsed);
+  if (normalized < 1) return null;
+  return normalized;
+}
+
 function safeBoolean(value: unknown): boolean | null {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
@@ -677,6 +685,11 @@ serve(async (req) => {
       safeString(releasePayload.release_id);
     const releaseSourceCommitFromPayload = safeString(releasePayload.source_commit_sha);
     const buildId = safeString(releasePayload.build_id);
+    const releaseBuildNumber =
+      safePositiveInteger(releasePayload.build_number) ||
+      safePositiveInteger((scrubbedContext as Record<string, unknown>).build_number);
+    const releaseArtifactId = safeString(releasePayload.artifact_id);
+    const releaseChannel = safeString(releasePayload.channel);
     const env =
       safeString(releasePayload.env) ||
       safeString((scrubbedContext as Record<string, unknown>).env) ||
@@ -837,12 +850,18 @@ serve(async (req) => {
           version_release_id: releaseVersionId,
           source_commit_sha: releaseSourceCommitSha,
           build_id: buildId,
+          build_number: releaseBuildNumber,
+          artifact_id: releaseArtifactId,
+          channel: releaseChannel,
           env,
         },
         release_version_label: releaseVersionLabel,
         release_semver: releaseSemver,
         release_version_id: releaseVersionId,
         release_source_commit_sha: releaseSourceCommitSha,
+        release_build_number: releaseBuildNumber,
+        release_artifact_id: releaseArtifactId,
+        release_channel: releaseChannel,
         resolved_component_key: resolvedComponent?.component_key || null,
         resolved_component_type: resolvedComponent?.component_type || null,
         resolved_component_revision_no: resolvedComponent?.revision_no ?? null,

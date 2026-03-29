@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,21 +7,32 @@ import {
   CheckCircle2,
   Clock3,
   Layers3,
+  Pencil,
+  Plus,
   RefreshCw,
   Route,
   Settings2,
   ShieldAlert,
+  Trash2,
   Users,
+  X,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
-import { SUPPORT_CATEGORIES } from "@referidos/support-sdk/data/supportCategories";
-import { SUPPORT_MACROS } from "@referidos/support-sdk/data/supportMacros";
+import {
+  listSupportMacroCatalog,
+  createSupportMacroCategory,
+  deleteSupportMacroCategory,
+  setSupportMacroCategoryStatus,
+  updateSupportMacroCategory,
+} from "./services/supportMacrosOpsService";
 
-const ACTIVE = ["new", "assigned", "in_progress", "waiting_user", "queued"];
-const FLOW = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed"];
+const ACTIVE = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"];
+const FLOW = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed"];
 const STATUS_LABEL = {
   new: "Nuevo",
+  starting: "Starting",
   assigned: "Asignado",
   in_progress: "En progreso",
   waiting_user: "Esperando usuario",
@@ -29,15 +40,22 @@ const STATUS_LABEL = {
   closed: "Cerrado",
   cancelled: "Cancelado",
 };
-const MACRO_STATUS_ORDER = ["new", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
+const MACRO_STATUS_ORDER = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled", "sin_estado"];
 const MACRO_STATUS_LABEL = {
   ...STATUS_LABEL,
   sin_estado: "Sin estado",
 };
 const CATALOG_GROUP_OPTIONS = [
-  { id: "categoria", label: "categoria" },
+  { id: "categoria", label: "categoría" },
   { id: "estado", label: "estado" },
   { id: "rol", label: "rol" },
+];
+const CATEGORY_STATUS_OPTIONS = ["active", "inactive"];
+const CATEGORY_APP_OPTIONS = [
+  { id: "all", label: "Todas" },
+  { id: "referidos_app", label: "PWA" },
+  { id: "prelaunch_web", label: "Prelaunch web" },
+  { id: "android_app", label: "Android app" },
 ];
 const SEV_RANK = { s0: 0, s1: 1, s2: 2, s3: 3 };
 const statusRank = (status) => {
@@ -52,6 +70,164 @@ const roleRank = (role) => {
   const base = ["cliente", "negocio", "soporte", "admin", "sin_rol"];
   const idx = base.indexOf(role);
   return idx === -1 ? base.length + 1 : idx;
+};
+const THREAD_STATUS_VALUES = ["new", "starting", "assigned", "in_progress", "waiting_user", "queued", "closed", "cancelled"];
+const TERMINAL_THREAD_STATUSES = new Set(["closed", "cancelled"]);
+const TIMELINE_DEFAULT_SEQUENCE = ["new", "assigned", "in_progress", "closed"];
+const TIMELINE_RECOVERY_SEQUENCE = ["queued", "assigned", "in_progress", "closed"];
+const TIMELINE_RELEASE_EVENT_TYPES = new Set(["agent_timeout_release", "agent_manual_release"]);
+const TERMINAL_TIMELINE_STATUSES = new Set(["closed", "cancelled", "released"]);
+const TIMELINE_BLOCK_LABELS = {
+  new: "Creado",
+  starting: "Starting",
+  assigned: "Asignado",
+  in_progress: "Resolviendo",
+  waiting_user: "Esperando usuario",
+  queued: "En cola",
+  postponed: "Pospuesto",
+  released: "Liberado",
+  closed: "Cerrado",
+  cancelled: "Cancelado",
+};
+const EVENT_TYPE_LABELS = {
+  created: "created",
+  assigned: "assigned",
+  status_changed: "status_changed",
+  waiting_user: "waiting_user",
+  resumed: "resumed",
+  queued: "queued",
+  closed: "closed",
+  note_added: "note_added",
+  agent_timeout_release: "agent_timeout_release",
+  agent_manual_release: "agent_manual_release",
+  cancelled: "cancelled",
+  linked_to_user: "linked_to_user",
+};
+const TIMELINE_BLOCK_REACHED_CLASSES = {
+  new: "bg-[#1D4ED8] text-white",
+  starting: "bg-[#0E7490] text-white",
+  assigned: "bg-[#7C3AED] text-white",
+  in_progress: "bg-[#0891B2] text-white",
+  waiting_user: "bg-[#EA580C] text-white",
+  queued: "bg-[#4F46E5] text-white",
+  postponed: "bg-[#BE185D] text-white",
+  released: "bg-[#4B5563] text-white",
+  closed: "bg-[#15803D] text-white",
+  cancelled: "bg-[#B91C1C] text-white",
+};
+const normalizeThreadStatusCandidate = (value) => {
+  if (typeof value !== "string") return null;
+  const raw = value.trim().toLowerCase();
+  const compact = raw.replace(/[\s-]+/g, "_");
+  const aliases = {
+    inprogress: "in_progress",
+    en_progreso: "in_progress",
+    resolviendo: "in_progress",
+    waitinguser: "waiting_user",
+    esperando_usuario: "waiting_user",
+    en_espera: "waiting_user",
+    en_cola: "queued",
+    cola: "queued",
+    cerrado: "closed",
+    cancelado: "cancelled",
+    asignado: "assigned",
+    nuevo: "new",
+    starting: "starting",
+    en_inicio: "starting",
+    inicio: "starting",
+  };
+  const normalized = aliases[compact] || compact;
+  return THREAD_STATUS_VALUES.includes(normalized) ? normalized : null;
+};
+const deriveNextThreadStatusFromEvent = (event) => {
+  if (!event || typeof event !== "object") return null;
+  const type = typeof event.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+  if (!type) return null;
+  if (type === "created") return "new";
+  if (type === "resumed") return "in_progress";
+  if (type === "agent_timeout_release" || type === "agent_manual_release") return "queued";
+  const statusFromType = normalizeThreadStatusCandidate(type);
+  if (statusFromType) return statusFromType;
+  if (type !== "status_changed") return null;
+  const details = event.details && typeof event.details === "object" ? event.details : {};
+  const toStatus =
+    normalizeThreadStatusCandidate(details.to) ||
+    normalizeThreadStatusCandidate(details.next_status) ||
+    normalizeThreadStatusCandidate(details.to_status) ||
+    normalizeThreadStatusCandidate(details.status);
+  return toStatus;
+};
+const getEventDetails = (event) => (
+  event && typeof event.details === "object" && !Array.isArray(event.details) ? event.details : {}
+);
+const normalizeQueueKind = (value) => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized) return null;
+  if (["personal", "mine", "propia", "private", "postponed", "pospuesto"].includes(normalized)) return "personal";
+  if (["general", "shared", "public", "global"].includes(normalized)) return "general";
+  return null;
+};
+const deriveQueueKindFromEvent = (event, thread) => {
+  const details = getEventDetails(event);
+  if (typeof details.personal_queue === "boolean") {
+    return details.personal_queue ? "personal" : "general";
+  }
+  const queueKind =
+    normalizeQueueKind(details.queue_kind) ||
+    normalizeQueueKind(details.queue_scope) ||
+    normalizeQueueKind(details.scope) ||
+    normalizeQueueKind(details.queue);
+  if (queueKind) return queueKind;
+  const eventType = typeof event?.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+  if (eventType === "queued" && thread?.status === "queued") {
+    if (thread.personal_queue === true || Boolean(thread.assigned_agent_id)) return "personal";
+  }
+  return "general";
+};
+const statusToTimelineStatus = (status, queueKind = "general") => {
+  if (status !== "queued") return status;
+  return queueKind === "personal" ? "postponed" : "queued";
+};
+const buildCollapsedResolvingLane = (segments) => {
+  const resolvingIndexes = [];
+  segments.forEach((segment, index) => {
+    if (segment.status === "in_progress") resolvingIndexes.push(index);
+  });
+  if (resolvingIndexes.length <= 1) {
+    return {
+      hasCollapsedResolving: false,
+      collapsedSegments: segments,
+      collapsedSegmentId: "",
+    };
+  }
+  const firstIndex = resolvingIndexes[0];
+  const lastIndex = resolvingIndexes[resolvingIndexes.length - 1];
+  if (lastIndex <= firstIndex) {
+    return {
+      hasCollapsedResolving: false,
+      collapsedSegments: segments,
+      collapsedSegmentId: "",
+    };
+  }
+  const groupedSegments = segments.slice(firstIndex, lastIndex + 1);
+  const collapsedId = `${segments[firstIndex].id}:collapsed_resolving:${segments[lastIndex].id}`;
+  const collapsedResolvingSegment = {
+    ...segments[firstIndex],
+    id: collapsedId,
+    endedAt: segments[lastIndex].endedAt || segments[firstIndex].endedAt || null,
+    events: groupedSegments.flatMap((segment) => segment.events || []),
+    isCollapsedResolving: true,
+  };
+  return {
+    hasCollapsedResolving: true,
+    collapsedSegments: [
+      ...segments.slice(0, firstIndex),
+      collapsedResolvingSegment,
+      ...segments.slice(lastIndex + 1),
+    ],
+    collapsedSegmentId: collapsedId,
+  };
 };
 
 const fmt = (v) => {
@@ -97,15 +273,18 @@ function Metric({ title, value, hint, icon: Icon }) {
 }
 
 function Card({ title, subtitle, headerRight, children }) {
+  const hasHeader = Boolean(title || subtitle || headerRight);
   return (
     <div className="rounded-3xl border border-[#E9E2F7] bg-white p-5 space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-[#2F1A55]">{title}</div>
-          {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+      {hasHeader ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            {title ? <div className="text-sm font-semibold text-[#2F1A55]">{title}</div> : null}
+            {subtitle ? <div className="text-xs text-slate-500">{subtitle}</div> : null}
+          </div>
+          {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
         </div>
-        {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
-      </div>
+      ) : null}
       {children}
     </div>
   );
@@ -116,30 +295,58 @@ export default function AdminSupportControlPanel({
   title = "Soporte",
   subtitle = "Panel de control de flujo de tickets",
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [panel, setPanel] = useState(lockedPanel || "tickets");
-  const [viewByPanel, setViewByPanel] = useState({ tickets: "basic", catalogo: "basic" });
+  const [viewByPanel, setViewByPanel] = useState({ tickets: "basic" });
+  const [ticketsTab, setTicketsTab] = useState(() => {
+    if (typeof window === "undefined") return "analytics";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "categorias" ? "categorias" : "analytics";
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+  const [categoryOk, setCategoryOk] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryEditId, setCategoryEditId] = useState("");
+  const [categoryFormMode, setCategoryFormMode] = useState("");
+  const [categoryForm, setCategoryForm] = useState({
+    label: "",
+    description: "",
+    app_targets: ["all"],
+    status: "active",
+  });
   const [threads, setThreads] = useState([]);
   const [events, setEvents] = useState([]);
   const [inbox, setInbox] = useState([]);
   const [macros, setMacros] = useState([]);
+  const [macroCategories, setMacroCategories] = useState([]);
   const [usersById, setUsersById] = useState({});
   const [selectedPublicId, setSelectedPublicId] = useState(null);
   const [catalogGroupBy, setCatalogGroupBy] = useState("categoria");
   const [expandedCatalogGroups, setExpandedCatalogGroups] = useState({});
+  const [expandedTimelineThreadId, setExpandedTimelineThreadId] = useState("");
+  const [expandedTimelineSegmentByThread, setExpandedTimelineSegmentByThread] = useState({});
+  const [expandedResolvingByLane, setExpandedResolvingByLane] = useState({});
+  const collapseResolvingTimersRef = useRef({});
 
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
     else setLoading(true);
     setError("");
     try {
-      const [tRes, eRes, iRes, mRes] = await Promise.all([
+      const opsCatalogPromise = listSupportMacroCatalog({
+        includeArchived: true,
+        includeDraft: true,
+      }).catch(() => null);
+
+      const [tRes, eRes, iRes, mRes, cRes, opsCatalog] = await Promise.all([
         supabase
           .from("support_threads")
           .select(
-            "id, public_id, user_public_id, category, severity, status, summary, request_origin, origin_source, created_at, updated_at, assigned_agent_id, closed_at, cancelled_at, resolution, root_cause, anon_profile_id"
+            "id, public_id, user_public_id, category, severity, status, summary, request_origin, origin_source, app_channel, created_at, updated_at, assigned_agent_id, personal_queue, closed_at, cancelled_at, resolution, root_cause, anon_profile_id"
           )
           .order("created_at", { ascending: false })
           .limit(700),
@@ -154,20 +361,67 @@ export default function AdminSupportControlPanel({
           .order("created_at", { ascending: false })
           .limit(700),
         supabase
-          .from("support_macros")
-          .select("id, title, body, category, status, audience, active, created_at")
+          .from("support_macros_cache")
+          .select(
+            "id, title, body, category_code, thread_status, audience_roles, status, app_targets, env_targets, sort_order, created_at"
+          )
+          .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
           .limit(600),
+        supabase
+          .from("support_macro_categories_cache")
+          .select("id, code, label, description, status, sort_order, app_targets")
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: false })
+          .limit(300),
+        opsCatalogPromise,
       ]);
 
       const nextThreads = (tRes.data || []).map((t) => ({
         ...t,
         request_origin: t.request_origin || "registered",
         origin_source: t.origin_source || "app",
+        app_channel: t.app_channel || "undetermined",
       }));
       const nextEvents = eRes.data || [];
       const nextInbox = iRes.data || [];
-      const nextMacros = mRes.data?.length ? mRes.data : SUPPORT_MACROS.map((m) => ({ ...m, active: true }));
+      const nextMacros = (mRes.data || []).map((macro) => ({
+        id: macro.id,
+        title: macro.title,
+        body: macro.body,
+        category: macro.category_code || "general",
+        status: macro.thread_status || "sin_estado",
+        audience: macro.audience_roles || ["cliente", "negocio"],
+        active: macro.status === "published",
+        app_targets: macro.app_targets || ["all"],
+        env_targets: macro.env_targets || ["all"],
+        created_at: macro.created_at,
+      }));
+      const nextCategoriesFromCache = (cRes.data || []).map((category) => ({
+        id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
+        label: category.label || category.code || "Sin label",
+        description: category.description || "",
+        status: category.status || "active",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      }));
+      const nextCategoriesFromOps = (opsCatalog?.categories || []).map((category) => ({
+        id: category.code || category.id,
+        category_id: category.id,
+        code: category.code || category.id,
+        label: category.label || category.code || "Sin label",
+        description: category.description || "",
+        status: category.status || "active",
+        app_targets: Array.isArray(category.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      }));
+      const nextCategories = nextCategoriesFromOps.length
+        ? nextCategoriesFromOps
+        : nextCategoriesFromCache;
 
       const ids = Array.from(
         new Set(
@@ -189,12 +443,13 @@ export default function AdminSupportControlPanel({
         }, {});
       }
 
-      if (tRes.error || eRes.error || mRes.error || iRes.error) {
+      if (tRes.error || eRes.error || mRes.error || iRes.error || cRes.error) {
         setError(
           tRes.error?.message ||
           eRes.error?.message ||
           mRes.error?.message ||
           iRes.error?.message ||
+          cRes.error?.message ||
           "Error de carga"
         );
       }
@@ -203,6 +458,7 @@ export default function AdminSupportControlPanel({
       setEvents(nextEvents);
       setInbox(nextInbox);
       setMacros(nextMacros);
+      setMacroCategories(nextCategories);
       setUsersById(users);
     } catch (err) {
       setError(err?.message || "Error de carga");
@@ -216,9 +472,65 @@ export default function AdminSupportControlPanel({
     load(false);
   }, [load]);
 
+  useEffect(() => {
+    setExpandedResolvingByLane({});
+    Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
+      if (timerId) clearTimeout(timerId);
+    });
+    collapseResolvingTimersRef.current = {};
+  }, [expandedTimelineThreadId]);
+
+  useEffect(
+    () => () => {
+      Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
+        if (timerId) clearTimeout(timerId);
+      });
+      collapseResolvingTimersRef.current = {};
+    },
+    []
+  );
+
   const activePanel = lockedPanel || panel;
   const view = viewByPanel[activePanel] || "basic";
   const isCatalogLocked = lockedPanel === "catalogo";
+  const isTicketsLocked = lockedPanel === "tickets";
+
+  const resetCategoryForm = useCallback(() => {
+    setCategoryFormMode("");
+    setCategoryEditId("");
+    setCategoryForm({
+      label: "",
+      description: "",
+      app_targets: ["all"],
+      status: "active",
+    });
+  }, []);
+
+  const setTicketsTabWithUrl = useCallback(
+    (nextTab) => {
+      const normalized = nextTab === "categorias" ? "categorias" : "analytics";
+      setTicketsTab(normalized);
+      if (!isTicketsLocked) return;
+      const params = new URLSearchParams(location.search);
+      if (normalized === "categorias") params.set("tab", "categorias");
+      else params.delete("tab");
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true }
+      );
+    },
+    [isTicketsLocked, location.pathname, location.search, navigate]
+  );
+
+  useEffect(() => {
+    if (!isTicketsLocked) return;
+    const tab = new URLSearchParams(location.search).get("tab");
+    setTicketsTab(tab === "categorias" ? "categorias" : "analytics");
+  }, [isTicketsLocked, location.search]);
 
   const inboxByPublic = useMemo(
     () => inbox.reduce((acc, r) => ((acc[r.public_id] = r), acc), {}),
@@ -253,7 +565,191 @@ export default function AdminSupportControlPanel({
   );
 
   const selected = selectedPublicId ? byPublic[selectedPublicId] : null;
-  const selectedTimeline = selected ? eventsByThread[selected.id] || [] : [];
+  const selectedTimeline = useMemo(
+    () => (selected ? eventsByThread[selected.id] || [] : []),
+    [selected, eventsByThread]
+  );
+  const timelineRows = useMemo(() => {
+    const sortedThreads = [...threads].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    return sortedThreads.map((thread) => {
+      const orderedEvents = [...(eventsByThread[thread.id] || [])].sort(
+        (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+      const createSegment = (status, startedAt, isReached = true, queueKind = "general") => ({
+        id: "",
+        status,
+        label: TIMELINE_BLOCK_LABELS[status] || status,
+        startedAt: startedAt || null,
+        endedAt: null,
+        events: [],
+        isReached,
+        queueKind,
+      });
+      const lanes = [];
+      const createLane = (firstStatus, startedAt, queueKind = "general") => {
+        const lane = {
+          initialStatus: firstStatus,
+          queueKind,
+          segments: [createSegment(firstStatus, startedAt, true, queueKind)],
+        };
+        lanes.push(lane);
+        return lane;
+      };
+
+      let currentLane = createLane(
+        "new",
+        thread.created_at || thread.updated_at || new Date().toISOString(),
+        "general"
+      );
+      const getCurrentSegment = () => currentLane.segments[currentLane.segments.length - 1] || null;
+      const splitLaneToQueue = (transitionAt, queueKind = "general", eventForRelease = null) => {
+        const current = getCurrentSegment();
+        if (current) {
+          current.endedAt = current.endedAt || transitionAt;
+        }
+        const releaseSegment = createSegment("released", transitionAt, true, queueKind);
+        if (eventForRelease) {
+          releaseSegment.events.push(eventForRelease);
+        }
+        releaseSegment.endedAt = transitionAt;
+        currentLane.segments.push(releaseSegment);
+        currentLane = createLane(statusToTimelineStatus("queued", queueKind), transitionAt, queueKind);
+      };
+
+      orderedEvents.forEach((event) => {
+        const eventType = typeof event.event_type === "string" ? event.event_type.trim().toLowerCase() : "";
+        const transitionAt = event.created_at || thread.updated_at || thread.created_at || new Date().toISOString();
+        let current = getCurrentSegment();
+        if (!current) {
+          currentLane = createLane("new", thread.created_at || transitionAt, "general");
+          current = getCurrentSegment();
+        }
+
+        if (TIMELINE_RELEASE_EVENT_TYPES.has(eventType)) {
+          splitLaneToQueue(transitionAt, "general", event);
+          return;
+        }
+
+        current.events.push(event);
+
+        const nextStatus = deriveNextThreadStatusFromEvent(event);
+        if (!nextStatus) return;
+
+        const queueKind = nextStatus === "queued" ? deriveQueueKindFromEvent(event, thread) : currentLane.queueKind;
+        const nextTimelineStatus = statusToTimelineStatus(nextStatus, queueKind);
+        if (!nextTimelineStatus || nextTimelineStatus === current.status) return;
+
+        if (nextStatus === "queued") {
+          splitLaneToQueue(transitionAt, queueKind, null);
+          return;
+        }
+
+        current.endedAt = current.endedAt || transitionAt;
+        currentLane.segments.push(createSegment(nextTimelineStatus, transitionAt, true, queueKind));
+      });
+
+      const currentThreadStatus = normalizeThreadStatusCandidate(thread.status);
+      if (currentThreadStatus) {
+        const currentQueueKind =
+          thread.personal_queue === true || Boolean(thread.assigned_agent_id) ? "personal" : "general";
+        const currentTimelineStatus = statusToTimelineStatus(currentThreadStatus, currentQueueKind);
+        const current = getCurrentSegment();
+        if (!current || currentTimelineStatus !== current.status) {
+          const transitionAt = thread.updated_at || thread.created_at || new Date().toISOString();
+          if (currentThreadStatus === "queued") {
+            splitLaneToQueue(transitionAt, currentQueueKind, null);
+          } else {
+            if (current) {
+              current.endedAt = current.endedAt || transitionAt;
+            }
+            currentLane.segments.push(
+              createSegment(
+                currentTimelineStatus,
+                transitionAt,
+                true,
+                currentQueueKind
+              )
+            );
+          }
+        }
+      }
+
+      const finalLanes = lanes.map((lane, laneIndex) => {
+        lane.segments.forEach((segment, index) => {
+          const next = lane.segments[index + 1];
+          if (!segment.endedAt && next?.startedAt) {
+            segment.endedAt = next.startedAt;
+            return;
+          }
+          if (!segment.endedAt && segment.status === "closed") {
+            segment.endedAt = thread.closed_at || thread.updated_at || segment.startedAt;
+            return;
+          }
+          if (!segment.endedAt && segment.status === "cancelled") {
+            segment.endedAt = thread.cancelled_at || thread.updated_at || segment.startedAt;
+            return;
+          }
+          if (!segment.endedAt && segment.status === "released") {
+            segment.endedAt = segment.startedAt || thread.updated_at || thread.created_at;
+          }
+        });
+
+        const reachedSegments = lane.segments.length
+          ? [...lane.segments]
+          : [createSegment("new", thread.created_at || thread.updated_at || new Date().toISOString(), true, "general")];
+
+        const firstTerminalIndex = reachedSegments.findIndex((segment) =>
+          TERMINAL_TIMELINE_STATUSES.has(segment.status)
+        );
+        const trimmedReachedSegments =
+          firstTerminalIndex >= 0 ? reachedSegments.slice(0, firstTerminalIndex + 1) : reachedSegments;
+
+        const displaySegments = trimmedReachedSegments.length
+          ? [...trimmedReachedSegments]
+          : [createSegment("new", thread.created_at || thread.updated_at || new Date().toISOString(), true, "general")];
+
+        const hasTerminal = displaySegments.some((segment) =>
+          TERMINAL_TIMELINE_STATUSES.has(segment.status)
+        );
+        if (!hasTerminal) {
+          const defaultSequence =
+            lane.initialStatus === "queued" || lane.initialStatus === "postponed"
+              ? TIMELINE_RECOVERY_SEQUENCE
+              : TIMELINE_DEFAULT_SEQUENCE;
+          const orderStatus = (status) => (status === "postponed" ? "queued" : status);
+          const reachedDefaultIndexes = displaySegments
+            .map((segment) => defaultSequence.indexOf(orderStatus(segment.status)))
+            .filter((idx) => idx >= 0);
+          const lastDefaultIndex = reachedDefaultIndexes.length ? Math.max(...reachedDefaultIndexes) : -1;
+          defaultSequence.slice(lastDefaultIndex + 1).forEach((status) => {
+            displaySegments.push(
+              createSegment(
+                statusToTimelineStatus(status, lane.queueKind || "general"),
+                null,
+                false,
+                lane.queueKind || "general"
+              )
+            );
+          });
+        }
+
+        return displaySegments.map((segment, segmentIndex) => ({
+          ...segment,
+          id: `${thread.id}:${laneIndex}:${segmentIndex}:${segment.status}:${segment.startedAt || "pending"}`,
+        }));
+      });
+
+      return {
+        threadId: thread.id,
+        threadPublicId: thread.public_id,
+        threadStatus: thread.status,
+        summary: thread.summary,
+        lanes: finalLanes,
+      };
+    });
+  }, [threads, eventsByThread]);
 
   const metrics = useMemo(() => {
     const closed = threads.filter((t) => t.status === "closed" && t.closed_at);
@@ -335,7 +831,7 @@ export default function AdminSupportControlPanel({
         id: "general",
         label: "General",
       },
-      ...SUPPORT_CATEGORIES,
+      ...macroCategories,
     ];
 
     const top = (obj, n = 6) =>
@@ -385,11 +881,11 @@ export default function AdminSupportControlPanel({
         categoriesNoMacro: configCategories.filter((c) => !macrosByCat[c.id]),
       },
     };
-  }, [threads, events, macros, activeTickets, usersById, eventsByThread, inboxByPublic]);
+  }, [threads, events, macros, activeTickets, usersById, eventsByThread, inboxByPublic, macroCategories]);
 
   const catalogMacros = useMemo(
     () =>
-      (macros.length ? macros : SUPPORT_MACROS).map((m) => ({
+      macros.map((m) => ({
         ...m,
         category: m.category || "general",
         status: m.status || "sin_estado",
@@ -433,10 +929,10 @@ export default function AdminSupportControlPanel({
       {
         id: "general",
         label: "General",
-        description: "Consultas generales sin categoria especifica.",
+        description: "Consultas generales sin categoría especifica.",
         roles: ["cliente", "negocio"],
       },
-      ...SUPPORT_CATEGORIES,
+      ...macroCategories,
     ];
     const known = new Set(baseCategories.map((c) => c.id));
     const extraIds = Array.from(
@@ -445,7 +941,7 @@ export default function AdminSupportControlPanel({
     const extraCategories = extraIds.map((id) => ({
       id,
       label: id,
-      description: "Categoria detectada en datos.",
+      description: "Categoría detectada en datos.",
       roles: [],
     }));
 
@@ -458,7 +954,7 @@ export default function AdminSupportControlPanel({
       macrosList: macroListByCategory[c.id] || [],
       rolesWithMacros: Array.from(roleSetByCategory[c.id] || []).sort((a, b) => roleRank(a) - roleRank(b)),
     }));
-  }, [threads, activeTickets, catalogMacros]);
+  }, [threads, activeTickets, catalogMacros, macroCategories]);
 
   const catalogMacroSummary = useMemo(() => {
     const categoriesCovered = new Set(catalogMacros.map((m) => m.category || "general")).size;
@@ -468,6 +964,38 @@ export default function AdminSupportControlPanel({
       covered: categoriesCovered,
     };
   }, [catalogMacros]);
+
+  const ticketCategoryRows = useMemo(() => {
+    const dynamic = [...macroCategories].sort((a, b) => {
+      const statusDiff = (String(a.status || "inactive") === "active" ? 0 : 1) - (String(b.status || "inactive") === "active" ? 0 : 1);
+      if (statusDiff !== 0) return statusDiff;
+      const aSort = Number(a.sort_order || 100);
+      const bSort = Number(b.sort_order || 100);
+      if (aSort !== bSort) return aSort - bSort;
+      return String(a.label || a.code || "").localeCompare(String(b.label || b.code || ""), "es", {
+        sensitivity: "base",
+      });
+    });
+
+    return dynamic.map((category) => ({
+      ...category,
+      readonly: false,
+    }));
+  }, [macroCategories]);
+
+  const editingCategory = useMemo(() => {
+    if (categoryFormMode !== "edit" || !categoryEditId) return null;
+    return ticketCategoryRows.find((category) => {
+      const currentId = String(category?.category_id || category?.id || "").trim();
+      return currentId && currentId === categoryEditId;
+    }) || null;
+  }, [categoryEditId, categoryFormMode, ticketCategoryRows]);
+
+  useEffect(() => {
+    if (categoryFormMode === "edit" && categoryEditId && !editingCategory) {
+      resetCategoryForm();
+    }
+  }, [categoryEditId, categoryFormMode, editingCategory, resetCategoryForm]);
 
   const groupedByStatus = useMemo(() => {
     const groups = {};
@@ -515,6 +1043,172 @@ export default function AdminSupportControlPanel({
     return roles.join(", ");
   }, []);
 
+  const formatCategoryTargets = useCallback((targets) => {
+    const source = Array.isArray(targets) && targets.length ? targets : ["all"];
+    if (source.includes("all")) return "Todas";
+    return source
+      .map((target) => CATEGORY_APP_OPTIONS.find((opt) => opt.id === target)?.label || target)
+      .join(", ");
+  }, []);
+
+  const toggleCategoryTarget = useCallback((targetId) => {
+    setCategoryForm((prev) => {
+      const current = Array.isArray(prev.app_targets) && prev.app_targets.length
+        ? prev.app_targets
+        : ["all"];
+      if (targetId === "all") {
+        return {
+          ...prev,
+          app_targets: current.includes("all") ? ["referidos_app"] : ["all"],
+        };
+      }
+      const withoutAll = current.filter((value) => value !== "all");
+      const hasTarget = withoutAll.includes(targetId);
+      const next = hasTarget
+        ? withoutAll.filter((value) => value !== targetId)
+        : [...withoutAll, targetId];
+      return {
+        ...prev,
+        app_targets: next.length ? next : ["all"],
+      };
+    });
+  }, []);
+
+  const beginEditCategory = useCallback((category) => {
+    const categoryId = String(category?.category_id || category?.id || "").trim();
+    if (!categoryId) return;
+    setCategoryFormMode("edit");
+    setCategoryEditId(categoryId);
+    setCategoryForm({
+      label: String(category?.label || "").trim(),
+      description: String(category?.description || "").trim(),
+      app_targets:
+        Array.isArray(category?.app_targets) && category.app_targets.length
+          ? category.app_targets
+          : ["all"],
+      status: String(category?.status || "active").trim() || "active",
+    });
+    setCategoryError("");
+    setCategoryOk("");
+  }, []);
+
+  const openCreateCategory = useCallback(() => {
+    setCategoryFormMode("create");
+    setCategoryEditId("");
+    setCategoryForm({
+      label: "",
+      description: "",
+      app_targets: ["all"],
+      status: "active",
+    });
+    setCategoryError("");
+    setCategoryOk("");
+  }, []);
+
+  const submitCategory = useCallback(
+    async (event) => {
+      event.preventDefault();
+      const label = String(categoryForm.label || "").trim();
+      if (!label) {
+        setCategoryError("El label de categoría es requerido.");
+        return;
+      }
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        const payload = {
+          label,
+          description: String(categoryForm.description || "").trim(),
+          app_targets:
+            Array.isArray(categoryForm.app_targets) && categoryForm.app_targets.length
+              ? categoryForm.app_targets
+              : ["all"],
+        };
+
+        if (categoryEditId) {
+          await updateSupportMacroCategory({
+            category_id: categoryEditId,
+            ...payload,
+          });
+          setCategoryOk("Categoría actualizada.");
+        } else {
+          await createSupportMacroCategory({
+            ...payload,
+            status: "active",
+          });
+          setCategoryOk("Categoría creada.");
+        }
+        resetCategoryForm();
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo guardar categoría.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, categoryForm, load, resetCategoryForm]
+  );
+
+  const changeCategoryStatus = useCallback(
+    async (category, status) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      if (!CATEGORY_STATUS_OPTIONS.includes(status)) return;
+      if (status === "inactive") {
+        const categoryCode = String(category?.code || category?.id || "").trim();
+        const affectedCount = catalogMacros.filter((macro) => String(macro.category || "general").trim() === categoryCode).length;
+        const confirmed = globalThis.confirm(
+          `Inactivar categoría archivara macros asociados (${affectedCount}). Deseas continuar?`
+        );
+        if (!confirmed) return;
+      }
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await setSupportMacroCategoryStatus({ categoryId, status });
+        setCategoryOk(`Categoría movida a ${status}.`);
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo cambiar estado de categoría.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [catalogMacros, load]
+  );
+
+  const removeCategory = useCallback(
+    async (category) => {
+      const categoryId = String(category?.category_id || category?.id || "").trim();
+      if (!categoryId) return;
+      const label = String(category?.label || category?.code || categoryId).trim();
+      const confirmed = globalThis.confirm(
+        `Eliminar categoría "${label}"? Esta accion elimina tambien sus macros asociados.`
+      );
+      if (!confirmed) return;
+
+      setCategorySaving(true);
+      setCategoryError("");
+      setCategoryOk("");
+      try {
+        await deleteSupportMacroCategory({ categoryId });
+        setCategoryOk("Categoría eliminada.");
+        if (categoryEditId === categoryId) {
+          resetCategoryForm();
+        }
+        await load(true);
+      } catch (err) {
+        setCategoryError(err?.message || "No se pudo eliminar categoría.");
+      } finally {
+        setCategorySaving(false);
+      }
+    },
+    [categoryEditId, load, resetCategoryForm]
+  );
+
   const visitedFlow = useMemo(() => {
     if (!selected) return new Set();
     const v = new Set(["new", selected.status]);
@@ -535,6 +1229,250 @@ export default function AdminSupportControlPanel({
 
   const renderAdvancedTickets = () => (
     <div className="space-y-5">
+      <Card
+        title="Flujo visual de tickets"
+        subtitle="Click en un ticket para expandir su flujo por etapas y eventos."
+      >
+        {timelineRows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-4 text-center text-sm text-slate-500">
+            Sin tickets para mostrar.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {timelineRows.map((row) => {
+              const isRowExpanded = expandedTimelineThreadId === row.threadId;
+              const expandedSegmentId = expandedTimelineSegmentByThread[row.threadId] || "";
+              const collapsedSegments = row.lanes.flatMap(
+                (laneSegments) => buildCollapsedResolvingLane(laneSegments).collapsedSegments
+              );
+              const expandedSegment =
+                row.lanes.flat().find((segment) => segment.id === expandedSegmentId) ||
+                collapsedSegments.find((segment) => segment.id === expandedSegmentId) ||
+                null;
+              const clearAllLaneCollapseTimers = () => {
+                Object.values(collapseResolvingTimersRef.current).forEach((timerId) => {
+                  if (timerId) clearTimeout(timerId);
+                });
+                collapseResolvingTimersRef.current = {};
+              };
+              const setLaneExpanded = (laneKey, value) => {
+                setExpandedResolvingByLane((prev) => {
+                  if (value) {
+                    const currentExpandedLane = Object.keys(prev).find((key) => !!prev[key]);
+                    if (currentExpandedLane === laneKey) return prev;
+                    return { [laneKey]: true };
+                  }
+                  if (!prev[laneKey]) return prev;
+                  const next = { ...prev };
+                  delete next[laneKey];
+                  return next;
+                });
+              };
+              const clearLaneCollapseTimer = (laneKey) => {
+                const timerId = collapseResolvingTimersRef.current[laneKey];
+                if (timerId) {
+                  clearTimeout(timerId);
+                  delete collapseResolvingTimersRef.current[laneKey];
+                }
+              };
+              const scheduleLaneCollapse = (laneKey) => {
+                clearLaneCollapseTimer(laneKey);
+                collapseResolvingTimersRef.current[laneKey] = setTimeout(() => {
+                  setLaneExpanded(laneKey, false);
+                  delete collapseResolvingTimersRef.current[laneKey];
+                }, 1000);
+              };
+              return (
+                <div key={`timeline-${row.threadId}`} className="rounded-2xl border border-[#E9E2F7] bg-[#FCFBFF] p-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedTimelineThreadId((prev) => (prev === row.threadId ? "" : row.threadId));
+                      setExpandedTimelineSegmentByThread((prev) => ({
+                        ...prev,
+                        [row.threadId]: "",
+                      }));
+                    }}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5E30A5]">
+                          Ticket {row.threadPublicId}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">{short(row.summary, 120)}</div>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <span>Estado actual: {STATUS_LABEL[row.threadStatus] || row.threadStatus || "-"}</span>
+                        {isRowExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                      </div>
+                    </div>
+                  </button>
+                  {isRowExpanded ? (
+                    <div className="mt-3 space-y-3">
+                      {row.lanes.map((laneSegments, laneIndex) => (
+                        <div key={`${row.threadId}-lane-${laneIndex}`} className="overflow-x-auto pb-1">
+                          {(() => {
+                            const laneKey = `${row.threadId}:${laneIndex}`;
+                            const compression = buildCollapsedResolvingLane(laneSegments);
+                            const isResolvingExpanded = !!expandedResolvingByLane[laneKey];
+                            const renderSegments =
+                              compression.hasCollapsedResolving && !isResolvingExpanded
+                                ? compression.collapsedSegments
+                                : laneSegments;
+                            return (
+                              <div
+                                className="flex min-w-max items-center"
+                                onMouseEnter={() => {
+                                  if (isResolvingExpanded) clearLaneCollapseTimer(laneKey);
+                                }}
+                                onMouseLeave={() => {
+                                  if (compression.hasCollapsedResolving && isResolvingExpanded) {
+                                    scheduleLaneCollapse(laneKey);
+                                  }
+                                }}
+                              >
+                                {renderSegments.map((segment, segmentIndex) => {
+                                  const isFirstSegmentInLane = segmentIndex === 0;
+                                  const isExpanded = expandedSegmentId === segment.id;
+                                  const blockClipPath =
+                                    "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)";
+                                  const reachedClass =
+                                    TIMELINE_BLOCK_REACHED_CLASSES[segment.status] || "bg-[#1E293B] text-white";
+                                  const colorClass = segment.isReached
+                                    ? reachedClass
+                                    : "bg-[#64748B] text-white";
+                                  const isCollapsedResolving = Boolean(segment.isCollapsedResolving);
+                                  return (
+                                    <div
+                                      key={segment.id}
+                                      className={isFirstSegmentInLane ? "overflow-hidden" : ""}
+                                      style={{
+                                        marginLeft: isFirstSegmentInLane ? 0 : -18,
+                                        zIndex: renderSegments.length - segmentIndex,
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onMouseEnter={() => {
+                                          if (isCollapsedResolving) {
+                                            clearAllLaneCollapseTimers();
+                                            setLaneExpanded(laneKey, true);
+                                          }
+                                        }}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setExpandedTimelineSegmentByThread((prev) => ({
+                                            ...prev,
+                                            [row.threadId]: prev[row.threadId] === segment.id ? "" : segment.id,
+                                          }));
+                                        }}
+                                        className={`relative h-12 min-w-[150px] overflow-hidden px-3 text-[12px] font-semibold transition ${colorClass} ${
+                                          isExpanded
+                                            ? "ring-2 ring-[#5E30A5] ring-offset-1"
+                                            : "hover:brightness-[0.98]"
+                                        }`}
+                                        style={{
+                                          clipPath: blockClipPath,
+                                        }}
+                                      >
+                                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
+                                          {segment.label}
+                                        </span>
+                                        {isCollapsedResolving ? (
+                                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                                            <svg
+                                              width="10"
+                                              height="20"
+                                              viewBox="0 0 10 20"
+                                              fill="none"
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              aria-hidden="true"
+                                            >
+                                              <path
+                                                d="M0.8 2.4L4.2 10L0.8 17.6"
+                                                stroke="white"
+                                                strokeWidth="1.3"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                vectorEffect="non-scaling-stroke"
+                                              />
+                                              <path
+                                                d="M4.8 2.4L8.2 10L4.8 17.6"
+                                                stroke="white"
+                                                strokeWidth="1.3"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                vectorEffect="non-scaling-stroke"
+                                              />
+                                            </svg>
+                                          </span>
+                                        ) : null}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ))}
+
+                      {expandedSegment ? (
+                        <div className="rounded-xl border border-[#E9E2F7] bg-white p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-[11px] text-slate-500">
+                              Inicio: {fmt(expandedSegment.startedAt)} | Fin: {expandedSegment.endedAt ? fmt(expandedSegment.endedAt) : "-"}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedTimelineSegmentByThread((prev) => ({
+                                  ...prev,
+                                  [row.threadId]: "",
+                                }))
+                              }
+                              className="h-6 w-6 rounded-md border border-[#E9E2F7] text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                              aria-label="Cerrar detalle de etapa"
+                            >
+                              x
+                            </button>
+                          </div>
+                          <div className="mt-3 space-y-2">
+                            {expandedSegment.events.length === 0 ? (
+                              <div className="rounded-lg border border-dashed border-[#E9E2F7] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-500">
+                                Sin eventos registrados en esta etapa.
+                              </div>
+                            ) : (
+                              expandedSegment.events.map((event, eventIndex) => (
+                                <div
+                                  key={`${event.id || expandedSegment.id}-event-${eventIndex}`}
+                                  className="rounded-lg border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-600"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="font-semibold text-[#2F1A55]">
+                                      {EVENT_TYPE_LABELS[event.event_type] || event.event_type}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">{fmt(event.created_at)}</div>
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-slate-500">
+                                    Actor: {nameOf(usersById[event.actor_id])}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       <Card title="SLA y tiempos" subtitle="Tiempos de respuesta, cola y resolucion.">
         <div className="grid gap-3 md:grid-cols-4">
           <Metric
@@ -577,7 +1515,7 @@ export default function AdminSupportControlPanel({
         </div>
       </Card>
 
-      <Card title="Salud de cola" subtitle="Backlog por categoria y severidad.">
+      <Card title="Salud de cola" subtitle="Backlog por categoría y severidad.">
         <div className="grid gap-3 md:grid-cols-3">
           <Metric icon={Layers3} title="Backlog activo" value={metrics.queue.active} />
           <Metric
@@ -585,7 +1523,7 @@ export default function AdminSupportControlPanel({
             title="Cola mas antigua"
             value={metrics.queue.oldest == null ? "-" : `${metrics.queue.oldest.toFixed(1)}h`}
           />
-          <Metric icon={Route} title="Categorias con backlog" value={metrics.queue.byCat.length} />
+          <Metric icon={Route} title="Categorías con backlog" value={metrics.queue.byCat.length} />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
@@ -618,15 +1556,25 @@ export default function AdminSupportControlPanel({
         <div className="grid gap-3 md:grid-cols-3">
           <Metric icon={ShieldAlert} title="Anonimos activos" value={metrics.risk.anonActive} />
           <Metric icon={AlertTriangle} title="Cancelados" value={metrics.risk.cancelled} />
-          <Metric icon={Users} title="Top anonimos" value={metrics.risk.repeatedAnon.length} />
+          <Metric
+            icon={Users}
+            title="Top anonimos"
+            value={metrics.risk.repeatedAnon.length === 0 ? "Sin datos" : metrics.risk.repeatedAnon.length}
+          />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            {metrics.risk.repeatedAnon.map((r) => (
-              <div key={`ra-${r.key}`} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
-                {r.key}: <strong>{r.count}</strong>
+            {metrics.risk.repeatedAnon.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-500">
+                Sin datos
               </div>
-            ))}
+            ) : (
+              metrics.risk.repeatedAnon.map((r) => (
+                <div key={`ra-${r.key}`} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-sm text-slate-600">
+                  {r.key}: <strong>{r.count}</strong>
+                </div>
+              ))
+            )}
           </div>
           <div className="space-y-2">
             {metrics.risk.cancelledByUser.map((r) => (
@@ -638,25 +1586,255 @@ export default function AdminSupportControlPanel({
         </div>
       </Card>
 
-      <Card title="Auditoria operativa" subtitle="Eventos recientes del sistema.">
-        <div className="space-y-2">
-          {metrics.audit.map((e) => (
-            <div key={e.id} className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2 text-xs text-slate-600">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-semibold text-[#2F1A55]">
-                  {e.event_type} ({e.actor_role || "-"})
-                </div>
-                <div className="text-slate-400">{fmt(e.created_at)}</div>
-              </div>
-              <div>Actor: {nameOf(usersById[e.actor_id])} | Thread: {e.thread_id}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
     </div>
   );
 
+  const renderTicketCategories = () => {
+    const isCategoryEditMode = categoryFormMode === "edit";
+    const isCategoryCreateMode = categoryFormMode === "create";
+    const isCategoryPanelOpen = isCategoryEditMode || isCategoryCreateMode;
+
+    return (
+      <div className="space-y-5">
+        <Card
+          title="Categorías"
+          subtitle="Gestion centralizada de categorías para tickets y macros."
+          headerRight={
+            !isCategoryPanelOpen ? (
+              <button
+                type="button"
+                onClick={openCreateCategory}
+                className="rounded-2xl border border-dashed border-[#C9B6E8] bg-[#FCFBFF] px-4 py-3 text-left transition hover:bg-[#F9F7FF]"
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#5E30A5]">
+                  <Plus size={14} />
+                  Añadir nueva categoría
+                </div>
+              </button>
+            ) : null
+          }
+        >
+          {categoryError ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+              {categoryError}
+            </div>
+          ) : null}
+          {categoryOk ? (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {categoryOk}
+            </div>
+          ) : null}
+
+          <div className={isCategoryPanelOpen ? "grid gap-4 lg:grid-cols-2" : "space-y-2"}>
+            <div className="space-y-2">
+              {isCategoryCreateMode ? (
+                <div className="rounded-2xl border border-[#C9B6E8] bg-[#FCFBFF] px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-[#2F1A55]">Nueva Categoría</span>
+                      <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
+                        borrador
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">Crea una nueva categoría.</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+
+                  {ticketCategoryRows.map((category) => {
+                    const currentId = String(category?.category_id || category?.id || "").trim();
+                    const isSelected = isCategoryEditMode && currentId === categoryEditId;
+                    const canSelect = isCategoryEditMode && !category.readonly;
+                    return (
+                      <div
+                        key={`category-row-${category.code || category.id}`}
+                        role={canSelect ? "button" : undefined}
+                        tabIndex={canSelect ? 0 : undefined}
+                        onClick={canSelect ? () => beginEditCategory(category) : undefined}
+                        onKeyDown={
+                          canSelect
+                            ? (event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  beginEditCategory(category);
+                                }
+                              }
+                            : undefined
+                        }
+                        className={`rounded-2xl border bg-white px-4 py-3 ${
+                          isSelected ? "border-[#C9B6E8] bg-[#FCFBFF]" : "border-[#E9E2F7]"
+                        } ${canSelect ? "cursor-pointer transition hover:bg-[#F9F7FF]" : ""}`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-[#2F1A55]">{category.label}</span>
+                              <span className="text-xs text-slate-400">({category.code || category.id})</span>
+                              <span className="rounded-full border border-[#E9E2F7] bg-[#FAF8FF] px-2 py-0.5 text-[11px] text-slate-600">
+                                {category.status}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-500">{category.description || "Sin descripcion"}</div>
+                            <div className="mt-1 text-[11px] text-slate-500">Apps: {formatCategoryTargets(category.app_targets)}</div>
+                          </div>
+                          {!category.readonly && !isCategoryPanelOpen ? (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => beginEditCategory(category)}
+                                className="inline-flex items-center justify-center rounded-xl border border-[#E9E2F7] bg-white px-2 py-2 text-[#5E30A5]"
+                                aria-label="Editar categoría"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => changeCategoryStatus(category, category.status === "active" ? "inactive" : "active")}
+                                className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                                  category.status === "active"
+                                    ? "border-slate-300 bg-slate-100 text-slate-700"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                }`}
+                              >
+                                {category.status === "active" ? "Desactivar" : "Activar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeCategory(category)}
+                                className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-red-700"
+                                aria-label="Eliminar categoría"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+
+            {isCategoryPanelOpen ? (
+              <div className="rounded-2xl border border-[#E9E2F7] bg-[#FAF8FF] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-[#2F1A55]">
+                    {isCategoryEditMode ? "Editar categoría" : "Nueva categoría"}
+                    {isCategoryEditMode && editingCategory ? (
+                      <span className="ml-2 text-xs font-medium text-slate-500">({editingCategory.code || editingCategory.id})</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetCategoryForm}
+                    className="inline-flex items-center justify-center rounded-lg border border-[#E9E2F7] bg-white p-1.5 text-[#5E30A5]"
+                    aria-label="Cerrar panel de categoría"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {isCategoryEditMode && !editingCategory ? (
+                  <div className="rounded-xl border border-dashed border-[#E9E2F7] bg-white px-3 py-4 text-center text-xs text-slate-500">
+                    Categoría no encontrada para edicion.
+                  </div>
+                ) : (
+                  <form className="space-y-3" onSubmit={submitCategory}>
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <input
+                        value={categoryForm.label}
+                        onChange={(event) =>
+                          setCategoryForm((prev) => ({
+                            ...prev,
+                            label: event.target.value,
+                          }))
+                        }
+                        placeholder="Label categoría"
+                        className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+                      />
+                      {isCategoryEditMode && editingCategory ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              changeCategoryStatus(
+                                editingCategory,
+                                editingCategory.status === "active" ? "inactive" : "active"
+                              )
+                            }
+                            className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                              editingCategory.status === "active"
+                                ? "border-slate-300 bg-slate-100 text-slate-700"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {editingCategory.status === "active" ? "Desactivar" : "Activar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCategory(editingCategory)}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2 text-red-700"
+                            aria-label="Eliminar categoría"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={categoryForm.description}
+                      onChange={(event) =>
+                        setCategoryForm((prev) => ({
+                          ...prev,
+                          description: event.target.value,
+                        }))
+                      }
+                      placeholder="Descripcion"
+                      className="w-full resize-none rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {CATEGORY_APP_OPTIONS.map((appOption) => {
+                        const active = (categoryForm.app_targets || []).includes(appOption.id);
+                        return (
+                          <button
+                            key={`category-editor-target-${appOption.id}`}
+                            type="button"
+                            onClick={() => toggleCategoryTarget(appOption.id)}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                              active
+                                ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                                : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                            }`}
+                          >
+                            {appOption.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={categorySaving}
+                        className={`rounded-xl px-3 py-2 text-xs font-semibold text-white ${
+                          categorySaving ? "bg-[#C9B6E8]" : "bg-[#5E30A5]"
+                        }`}
+                      >
+                        {isCategoryEditMode ? "Guardar categoría" : "Crear categoría"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      </div>
+    );
+  };
   const renderCatalogMacroCard = (m, key) => (
     <div
       key={key}
@@ -667,7 +1845,7 @@ export default function AdminSupportControlPanel({
         <div className="text-slate-500">{m.active === false ? "Inactiva" : "Activa"}</div>
       </div>
       <div className="mt-1 text-[11px] text-slate-500">
-        Categoria: {m.category || "general"} | Estado: {m.status || "sin_estado"} | Roles: {formatMacroRoles(m.audience)}
+        Categoría: {m.category || "general"} | Estado: {m.status || "sin_estado"} | Roles: {formatMacroRoles(m.audience)}
       </div>
       <div className="mt-1 text-xs text-slate-600">{short(m.body, 220)}</div>
     </div>
@@ -721,38 +1899,60 @@ export default function AdminSupportControlPanel({
           </div>
         ) : (
           <Card
-            title={lockedPanel === "tickets" ? "Panel Tickets" : "Control de tickets"}
+            title={lockedPanel === "tickets" ? null : "Control de tickets"}
             subtitle={
-              lockedPanel
-                ? "Vista basica (default) y avanzada."
-                : "Panel Tickets y Catalogo con vista basica (default) y avanzada."
+              lockedPanel === "tickets"
+                ? null
+                : isTicketsLocked
+                  ? "Vista unica con Analytics y Categorías."
+                  : "Vista basica (default) y avanzada."
             }
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              {lockedPanel ? <div /> : (
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { id: "tickets", label: "Panel Tickets" },
-                    { id: "catalogo", label: "Catalogo" },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setPanel(p.id);
-                        setSelectedPublicId(null);
-                      }}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                        activePanel === p.id
-                          ? "border-[#5E30A5] bg-[#5E30A5] text-white"
-                          : "border-[#E9E2F7] bg-white text-[#5E30A5]"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {lockedPanel ? null : (
+                  <div className="flex flex-wrap gap-2">
+                    {[{ id: "tickets", label: "Panel Tickets" }].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setPanel(p.id);
+                          setSelectedPublicId(null);
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          activePanel === p.id
+                            ? "border-[#5E30A5] bg-[#5E30A5] text-white"
+                            : "border-[#E9E2F7] bg-white text-[#5E30A5]"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {isTicketsLocked ? (
+                  <>
+                    {[
+                      { id: "analytics", label: "Analytics" },
+                      { id: "categorias", label: "Categorías" },
+                    ].map((tabOption) => (
+                      <button
+                        key={tabOption.id}
+                        type="button"
+                        onClick={() => setTicketsTabWithUrl(tabOption.id)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          ticketsTab === tabOption.id
+                            ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                            : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                        }`}
+                      >
+                        {tabOption.label}
+                      </button>
+                    ))}
+                  </>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={() => load(true)}
@@ -763,30 +1963,32 @@ export default function AdminSupportControlPanel({
                 Refrescar
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: "basic", label: "Basica" },
-                { id: "advanced", label: "Avanzada" },
-              ].map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() =>
-                    setViewByPanel((prev) => ({
-                      ...prev,
-                      [activePanel]: v.id,
-                    }))
-                  }
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                    view === v.id
-                      ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                      : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
+            {isTicketsLocked ? null : (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "basic", label: "Basica" },
+                  { id: "advanced", label: "Avanzada" },
+                ].map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() =>
+                      setViewByPanel((prev) => ({
+                        ...prev,
+                        [activePanel]: v.id,
+                      }))
+                    }
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      view === v.id
+                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
+                        : "border-[#E9E2F7] bg-white text-[#2F1A55]"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {error ? (
               <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
                 {error}
@@ -797,6 +1999,8 @@ export default function AdminSupportControlPanel({
 
         {loading ? (
           <Card title="Cargando..." subtitle="Obteniendo datos de soporte." />
+        ) : isTicketsLocked ? (
+          ticketsTab === "categorias" ? renderTicketCategories() : renderAdvancedTickets()
         ) : activePanel === "tickets" ? (
           selected ? (
             <div className="space-y-5">
@@ -815,7 +2019,7 @@ export default function AdminSupportControlPanel({
                 <div className="grid gap-3 md:grid-cols-2 text-xs text-slate-600">
                   <div className="rounded-xl border border-[#EFE9FA] bg-[#FCFBFF] px-3 py-2">
                     <div className="font-semibold text-[#2F1A55]">{short(selected.summary, 160)}</div>
-                    <div>Categoria: {selected.category} | Severidad: {selected.severity}</div>
+                    <div>Categoría: {selected.category} | Severidad: {selected.severity}</div>
                     <div>Estado: {STATUS_LABEL[selected.status] || selected.status}</div>
                     <div>Creado: {fmt(selected.created_at)}</div>
                   </div>
@@ -922,11 +2126,11 @@ export default function AdminSupportControlPanel({
               <div className="grid gap-3 md:grid-cols-3">
                 <Metric icon={Settings2} title="Macros totales" value={catalogMacroSummary.total} />
                 <Metric icon={CheckCircle2} title="Macros activas" value={catalogMacroSummary.active} />
-                <Metric icon={Users} title="Categorias cubiertas" value={catalogMacroSummary.covered} />
+                <Metric icon={Users} title="Categorías cubiertas" value={catalogMacroSummary.covered} />
               </div>
             </Card>
             <Card
-              title="Categorias y catalogo de macros"
+              title="Categorías y catalogo de macros"
               subtitle="Cobertura, volumen y macros agrupadas."
               headerRight={
                 <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
@@ -1018,7 +2222,7 @@ export default function AdminSupportControlPanel({
                                 ))
                               ) : (
                                 <div className="rounded-xl border border-[#EFE9FA] bg-white px-3 py-2 text-xs text-slate-500">
-                                  Sin macros para esta categoria.
+                                  Sin macros para esta categoría.
                                 </div>
                               )}
                             </div>
@@ -1113,7 +2317,7 @@ export default function AdminSupportControlPanel({
           </div>
         )}
 
-        {view === "advanced" && !loading && activePanel === "tickets"
+        {!isTicketsLocked && view === "advanced" && !loading && activePanel === "tickets"
           ? renderAdvancedTickets()
           : null}
       </div>

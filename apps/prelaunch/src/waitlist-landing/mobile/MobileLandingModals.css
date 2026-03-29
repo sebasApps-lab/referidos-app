@@ -1,0 +1,1151 @@
+.figma-prototype__landing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px;
+  overflow-y: auto;
+  background: rgba(15, 19, 33, 0.46);
+  backdrop-filter: blur(10px);
+}
+
+.figma-prototype__landing-modal-shell {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__landing-modal-backdrop--mobile {
+  align-items: stretch;
+  padding: 0;
+}
+
+.figma-prototype__landing-modal-shell--mobile {
+  width: 100vw;
+  height: 100dvh;
+}
+
+.figma-prototype__landing-modal-panel {
+  position: relative;
+  transform-origin: top left;
+  border: 1px solid rgba(226, 218, 237, 0.92);
+  border-radius: 28px;
+  background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
+  box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
+  overflow: hidden;
+}
+
+.figma-prototype__landing-modal-panel--mobile {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.figma-prototype__landing-modal-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  pointer-events: none;
+}
+
+.figma-prototype__landing-modal-canvas--mobile {
+  flex: 0 0 auto;
+  transform-origin: top center;
+}
+
+.figma-prototype__landing-modal-close {
+  appearance: none;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 46px;
+  border: 1px solid #e0e0e6;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #000000;
+  cursor: pointer;
+}
+
+.figma-prototype__landing-modal-close--wide {
+  right: 27px;
+}
+
+.figma-prototype__landing-modal-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 51px 14px 30px;
+}
+
+.figma-prototype__landing-modal-stage--wide {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.figma-prototype__landing-modal-stage--congrats {
+  zoom: 0.7;
+  padding: 36px 0 12px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-main {
+  width: 760px;
+  gap: 24px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats {
+  width: 720px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-copyRow {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-footerCopy {
+  width: 620px;
+}
+
+.figma-prototype__landing-modal-heroIcon {
+  width: 468px;
+  height: 465px;
+  margin-top: -175.5px;
+  margin-bottom: -145px;
+}
+
+.figma-prototype__landing-modal-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 27px;
+  width: 896px;
+  margin-top: 0;
+}
+
+.figma-prototype__landing-modal-main--wide {
+  gap: 31px;
+}
+
+.figma-prototype__landing-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 824px;
+}
+
+.figma-prototype__landing-modal-header--wide {
+  width: 896px;
+}
+
+.figma-prototype__landing-modal-header h2 {
+  margin: 0;
+  color: #000000;
+  font-size: 37px;
+  font-weight: 600;
+  line-height: 44.4px;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-header--congrats h2 {
+  width: 696px;
+  font-size: 35px;
+  line-height: 42px;
+}
+
+.figma-prototype__landing-modal-header p {
+  margin: 0;
+  width: 100%;
+  color: #000000;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 33.6px;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-copyRow {
+  display: flex;
+  align-items: stretch;
+  width: 720px;
+}
+
+.figma-prototype__landing-modal-copyField {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 60px;
+  padding: 0 31px;
+  border: 2px solid #cbcbcb;
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.figma-prototype__landing-modal-copyField span {
+  color: #000000;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.figma-prototype__landing-modal-copyButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  min-height: 60px;
+  border: 0 !important;
+  border-radius: 0 10px 10px 0;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  box-shadow: none;
+  flex: 0 0 76px;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.figma-prototype__landing-modal-copyButtonIcon {
+  width: 38px;
+  height: 38px;
+  filter: brightness(0) invert(1);
+}
+
+.figma-prototype__landing-modal-copyFeedback {
+  margin: -10px 0 0;
+  color: #2c6d49;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-divider {
+  width: 100%;
+  height: 1px;
+  background: #d7d9df;
+}
+
+.figma-prototype__landing-modal-footerCopy,
+.figma-prototype__landing-modal-footerNote p {
+  margin: 0;
+  color: #000000;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.figma-prototype__landing-modal-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding-left: 43px;
+}
+
+.figma-prototype__landing-modal-bullet {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+}
+
+.figma-prototype__landing-modal-bulletIcon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.figma-prototype__landing-modal-bullet p {
+  margin: 0;
+  color: #000000;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.mobile-landing__modal-root.figma-prototype__landing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow-y: auto;
+  background: rgba(15, 19, 33, 0.46);
+  backdrop-filter: blur(10px);
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shell {
+  width: min(100vw, 600px);
+  height: auto;
+  max-width: 600px;
+  max-height: none;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-panel {
+  width: 100%;
+  height: auto;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: none;
+  display: flex;
+  justify-content: center;
+  overflow-y: visible;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-close {
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage {
+  width: min(100%, 600px);
+  min-height: 0;
+  padding: 22px 18px 30px;
+  padding-top: clamp(170px, 34vw, 250px);
+  box-sizing: border-box;
+  --landing-grow-title: 0px;
+  --landing-grow-body: 0px;
+}
+
+.mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage {
+  padding-top: clamp(120px, 24vw, 176px);
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--wide {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats {
+  zoom: 1;
+  padding: 22px 18px 28px;
+  padding-top: clamp(150px, 30vw, 216px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
+  padding-top: 92px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
+  width: clamp(260px, 68vw, 390px);
+  height: auto;
+  margin-top: -120px;
+  margin-bottom: -42px;
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
+  margin-top: -174px;
+  margin-bottom: -82px;
+}
+
+.mobile-landing__modal-root--wide .figma-prototype__landing-modal-heroIcon {
+  margin-top: -200px;
+  margin-bottom: -82px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-main,
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-main {
+  width: 100%;
+  gap: 22px;
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-main {
+  gap: 18px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-main--wide {
+  gap: 24px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-header,
+.mobile-landing__modal-root .figma-prototype__landing-modal-header--wide,
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats {
+  width: 100%;
+  gap: 18px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-header h2,
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
+  width: 100%;
+  font-size: calc(18px + var(--landing-grow-title));
+  font-weight: 600;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-header p {
+  font-size: calc(14px + var(--landing-grow-body));
+  font-weight: 400;
+  line-height: 1.38;
+  text-wrap: pretty;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyRow,
+.mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-copyRow {
+  width: 100%;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyRow--social {
+  display: flex;
+  align-items: stretch;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyField {
+  min-height: clamp(46px, 11vw, 58px);
+  padding: 0 18px;
+  border-radius: 14px 0 0 14px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyField span {
+  font-size: calc(14px + var(--landing-grow-body));
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyButton {
+  width: clamp(74px, 18vw, 94px);
+  min-height: clamp(46px, 11vw, 58px);
+  flex: 0 0 clamp(74px, 18vw, 94px);
+  border-radius: 0 14px 14px 0;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyButtonIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareList {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  width: 100%;
+  min-height: clamp(46px, 11vw, 58px);
+  padding: 0 32px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  flex: 0 0 auto;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareIcon {
+  width: clamp(36px, 8vw, 46px);
+  height: clamp(36px, 8vw, 46px);
+  object-fit: contain;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-shareIcon--large {
+  width: clamp(42px, 9vw, 54px);
+  height: clamp(42px, 9vw, 54px);
+  transform: scale(1.04);
+  transform-origin: center;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-copyFeedback {
+  margin-top: -6px;
+  font-size: calc(14px + var(--landing-grow-body));
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-divider {
+  width: 100%;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-footerCopy,
+.mobile-landing__modal-root .figma-prototype__landing-modal-footerNote p {
+  width: 100%;
+  font-size: calc(14px + var(--landing-grow-body));
+  line-height: 1.42;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-bullets {
+  width: 100%;
+  padding-left: 0;
+  gap: 18px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-bullet {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-bulletIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-landing__modal-root .figma-prototype__landing-modal-bullet p {
+  font-size: calc(14px + var(--landing-grow-body));
+  font-weight: 400;
+  line-height: 1.38;
+  text-wrap: pretty;
+}
+
+.mobile-landing__modal-root.mobile-landing__modal-root--congrats
+  .figma-prototype__landing-modal-stage--congrats
+  .figma-prototype__landing-modal-header--congrats
+  h2 {
+  font-size: clamp(18px, calc(-6px + 6vw), 30px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-header h2,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-header h2 {
+  font-size: clamp(18px, calc(-6px + 6vw), 30px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-header p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-header p {
+  font-size: clamp(14px, calc(2px + 3vw), 20px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-bullet p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-bullet p {
+  font-size: clamp(14px, calc(6px + 2vw), 18px);
+}
+
+.mobile-landing__modal-root--platform .figma-prototype__landing-modal-footerNote p,
+.mobile-landing__modal-root--team .figma-prototype__landing-modal-footerNote p {
+  font-size: clamp(14px, calc(10px + 1vw), 16px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-header--congrats p {
+  font-size: clamp(14px, calc(-2px + 4vw), 22px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-copyField span {
+  font-size: clamp(14px, calc(2px + 3vw), 20px);
+}
+
+.mobile-landing__modal-root--congrats .figma-prototype__landing-modal-footerCopy {
+  font-size: clamp(14px, calc(10px + 1vw), 16px);
+}
+
+.mobile-landing__modal-root--invitation .figma-prototype__landing-modal-header h2 {
+  font-size: clamp(18px, calc(3px + 4.167vw), 30px);
+  font-weight: 500;
+}
+
+.mobile-landing__invitation-title-regular {
+  font-weight: 500;
+}
+
+.mobile-landing__invitation-title-accent {
+  font-weight: 700;
+}
+
+.mobile-landing__modal-root--invitation .figma-prototype__landing-modal-header .mobile-landing__invitation-copy {
+  font-size: clamp(14px, calc(2px + 3.333vw), 22px);
+  font-weight: 400;
+  padding-inline: 30px;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-copy-accent {
+  font-weight: 600;
+}
+
+.mobile-landing__invitation-divider {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 1px;
+  object-fit: fill;
+}
+
+.mobile-landing__invitation-cta-wrap {
+  width: 100%;
+  padding-inline: 50px;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 16px 16px;
+  border: 0 !important;
+  border-radius: 16px;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: clamp(16px, calc(10px + 1.667vw), 20px);
+  font-weight: 500;
+  line-height: 1.25;
+  cursor: pointer;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.mobile-landing__modal-root--invitation .mobile-landing__invitation-submit span {
+  font-size: clamp(16px, calc(10px + 1.667vw), 20px);
+  line-height: 1.25;
+  white-space: normal;
+}
+
+@media (min-width: 401px) {
+  .mobile-landing__modal-root--invitation .figma-prototype__landing-modal-stage {
+    --invitation-grow-title: clamp(0px, calc((100vw - 400px) * 0.01), 2px);
+    --invitation-grow-body: clamp(0px, calc((100vw - 400px) * 0.007), 1.4px);
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
+    --landing-grow-title: clamp(0px, calc((100vw - 400px) * 0.017), 3.4px);
+    --landing-grow-body: clamp(0px, calc((100vw - 400px) * 0.012), 2.4px);
+    padding-top: clamp(170px, calc(170px + (100vw - 400px) * 0.12), 194px);
+  }
+
+  .mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage,
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--wide {
+    padding-top: clamp(120px, calc(120px + (100vw - 400px) * 0.1), 140px);
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats {
+    padding-top: clamp(150px, calc(150px + (100vw - 400px) * 0.08), 166px);
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 92px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
+    margin-top: -174px;
+    margin-bottom: -82px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
+    width: clamp(260px, calc(260px + (100vw - 400px) * 0.22), 304px);
+  }
+}
+
+@media (min-width: 600px) {
+  .mobile-landing__modal-root--invitation .figma-prototype__landing-modal-stage {
+    --invitation-grow-title: 2px;
+    --invitation-grow-body: 1.4px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-shell {
+    width: min(100vw, 700px);
+    max-width: 700px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage {
+    width: 600px;
+    max-width: 600px;
+    padding-top: 194px;
+  }
+
+  .mobile-landing__modal-root--wide .figma-prototype__landing-modal-stage,
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--wide {
+    padding-top: 140px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 166px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-stage--congrats {
+    padding-top: 92px;
+  }
+
+  .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
+    margin-top: -174px;
+    margin-bottom: -82px;
+  }
+
+  .mobile-landing__modal-root .figma-prototype__landing-modal-heroIcon {
+    width: 304px;
+  }
+}
+
+.mobile-landing__business-modal-v2-root.figma-prototype__business-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(15, 19, 33, 0.46);
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal {
+  position: relative;
+  width: min(100vw, 600px);
+  height: auto;
+  max-width: 600px;
+  max-height: none;
+  margin-top: 0;
+  border: 0;
+  border-radius: 16px;
+  isolation: isolate;
+  background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  pointer-events: none;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-close {
+  appearance: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 25px;
+  border: 1px solid #e0e0e6;
+  border-radius: 13px;
+  background: transparent;
+  color: #59526f;
+  cursor: pointer;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scroll {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: visible;
+  min-height: 0;
+  padding: 30px 18px;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
+  width: min(100%, 600px);
+  zoom: 1;
+  transform-origin: top center;
+  --business-grow-lg: 0px;
+  --business-grow-md: 0px;
+  --business-grow-sm: 0px;
+  --business-grow-top: 0px;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-stage {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding-top: clamp(244px, 46vw, 336px);
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-kicker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-kicker-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-kicker span {
+  color: #000000;
+  font-size: calc(16px + var(--business-grow-sm));
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-clock {
+  position: absolute;
+  top: -56px;
+  left: 50%;
+  width: clamp(250px, 68vw, 380px);
+  height: clamp(245px, 66vw, 372px);
+  transform: translateX(-50%);
+  object-fit: contain;
+  object-position: center center;
+  pointer-events: none;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  margin-top: calc(-125px - var(--business-grow-top));
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-header-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-header h2 {
+  width: 100%;
+  color: #000000;
+  font-size: calc(22px + var(--business-grow-lg));
+  font-weight: 600;
+  line-height: 1.08;
+  text-align: center;
+  margin: 0;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-title-regular {
+  color: #000000;
+  font-weight: 600;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-title-accent {
+  color: #0c427c;
+  font-weight: 600;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-copy {
+  width: 100%;
+  padding-inline: 10px;
+  color: #000000;
+  font-size: calc(14px + var(--business-grow-md));
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: center;
+  margin: 0;
+  white-space: normal;
+  text-wrap: pretty;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-copy-regular {
+  font-weight: 400;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-copy-accent {
+  color: #0c427c;
+  font-weight: 600;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  justify-content: center;
+  padding-inline: 10px;
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice-iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(34px + var(--business-grow-md));
+  height: calc(34px + var(--business-grow-md));
+  border-radius: 999px;
+  background: #044485;
+  flex: 0 0 auto;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice-icon {
+  width: calc(22px + var(--business-grow-sm));
+  height: calc(22px + var(--business-grow-sm));
+  flex: 0 0 auto;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-notice p {
+  color: #000000;
+  font-size: calc(14px + var(--business-grow-md));
+  font-weight: 400;
+  line-height: 1.35;
+  margin: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: calc(16px + var(--business-grow-sm)) 50px;
+  border: 1px solid #000000;
+  border-radius: 16px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-field-icon {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  width: calc(20px + var(--business-grow-sm));
+  height: calc(20px + var(--business-grow-sm));
+  transform: translateY(-50%);
+  display: block;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-input {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #3a3a3a;
+  font-size: calc(14px + var(--business-grow-md));
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-input::placeholder {
+  color: #5a5a5a;
+  font-size: calc(14px + var(--business-grow-md));
+  font-weight: 400;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: calc(16px + var(--business-grow-sm)) 16px;
+  border: 0 !important;
+  border-radius: 16px;
+  background: #030f23 !important;
+  background-color: #030f23 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  font-size: calc(14px + var(--business-grow-md));
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  text-align: center;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit-icon {
+  width: calc(22px + var(--business-grow-sm));
+  height: calc(22px + var(--business-grow-sm));
+  flex: 0 0 auto;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit span {
+  font-size: calc(14px + var(--business-grow-md));
+  line-height: 1;
+  white-space: normal;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-submit:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badges {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #000000;
+  font-size: calc(12px + var(--business-grow-sm));
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badge-icon {
+  width: calc(20px + var(--business-grow-sm));
+  height: calc(20px + var(--business-grow-sm));
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-badge-lock {
+  width: calc(18px + var(--business-grow-sm));
+  height: calc(18px + var(--business-grow-sm));
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-consentBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-divider {
+  width: 100%;
+  height: 1px;
+  object-fit: cover;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-consent {
+  width: 100%;
+  color: #000000;
+  font-size: calc(12px + var(--business-grow-sm));
+  font-weight: 300;
+  line-height: 1.45;
+  text-align: center;
+  white-space: normal;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+@media (min-width: 401px) {
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
+    --business-grow-lg: clamp(0px, calc((100vw - 400px) * 0.0086), 1.72px);
+    --business-grow-md: clamp(0px, calc((100vw - 400px) * 0.0057), 1.14px);
+    --business-grow-sm: clamp(0px, calc((100vw - 400px) * 0.0028), 0.56px);
+    --business-grow-top: clamp(0px, calc((100vw - 400px) * 0.014), 2.8px);
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-clock {
+    width: clamp(272px, calc(272px + (100vw - 400px) * 0.18), 308px);
+    height: clamp(264px, calc(264px + (100vw - 400px) * 0.17), 298px);
+  }
+}
+
+@media (min-width: 600px) {
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal {
+    width: min(100vw, 700px);
+    max-width: 700px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-scale {
+    width: 600px;
+    max-width: 600px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-stage {
+    padding-top: 276px;
+  }
+
+  .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-clock {
+    width: 308px;
+    height: 298px;
+  }
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-feedback {
+  margin: 0;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-feedback--error {
+  color: #8e1f52;
+}
+
+.mobile-landing__business-modal-v2-root .figma-prototype__business-modal-feedback--success {
+  color: #2c6d49;
+}

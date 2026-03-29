@@ -7,6 +7,7 @@ import {
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -49,7 +50,7 @@ serve(async (req) => {
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, assigned_agent_id")
+    .select("id, tenant_id, public_id, assigned_agent_id, status, closed_at, resolution, root_cause")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
@@ -59,6 +60,23 @@ serve(async (req) => {
 
   if (usuario.role === "soporte" && thread.assigned_agent_id !== usuario.id) {
     return jsonResponse({ ok: false, error: "not_assigned" }, 403, cors);
+  }
+
+  if (thread.status === "closed") {
+    return jsonResponse(
+      {
+        ok: true,
+        thread: {
+          public_id: thread.public_id,
+          status: thread.status,
+          closed_at: thread.closed_at,
+          resolution: thread.resolution,
+          root_cause: thread.root_cause,
+        },
+      },
+      200,
+      cors,
+    );
   }
 
   const updateResponse = await supabaseAdmin
@@ -71,11 +89,26 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     })
     .eq("id", thread.id)
+    .neq("status", "closed")
     .select("public_id, status, closed_at, resolution, root_cause")
-    .single();
+    .maybeSingle();
 
   if (updateResponse.error) {
     return jsonResponse({ ok: false, error: "close_failed" }, 500, cors);
+  }
+
+  if (!updateResponse.data) {
+    const { data: currentThread, error: currentThreadErr } = await supabaseAdmin
+      .from("support_threads")
+      .select("public_id, status, closed_at, resolution, root_cause")
+      .eq("id", thread.id)
+      .maybeSingle();
+
+    if (currentThreadErr || !currentThread) {
+      return jsonResponse({ ok: false, error: "close_failed" }, 500, cors);
+    }
+
+    return jsonResponse({ ok: true, thread: currentThread }, 200, cors);
   }
 
   await supabaseAdmin.from("support_thread_events").insert({
@@ -84,6 +117,13 @@ serve(async (req) => {
     actor_role: usuario.role,
     actor_id: usuario.id,
     details: { resolution, root_cause: rootCause },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_closed",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
   });
 
   return jsonResponse({ ok: true, thread: updateResponse.data }, 200, cors);

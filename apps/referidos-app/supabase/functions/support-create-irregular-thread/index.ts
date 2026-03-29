@@ -1,12 +1,16 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
+  SUPPORT_FALLBACK_CATEGORY,
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -47,11 +51,22 @@ serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const userPublicId = safeTrim(body.user_public_id, 32);
   const summary = safeTrim(body.summary, 240);
-  const category = body.category ?? "sugerencia";
+  const categoryResolution = resolveSupportThreadCategory(
+    body.category,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
+  const category = categoryResolution.category;
   const severity = body.severity ?? "s2";
+  const appIdentity = await resolveSupportAppIdentity(body.app_channel, "referidos_app");
+  const appChannel = appIdentity.appKey;
+  const originSource = "admin_support";
   const context = typeof body.context === "object" && body.context
     ? body.context
     : {};
+  context.requested_category = categoryResolution.requestedCategory;
+  context.requested_category_unsupported = categoryResolution.usedFallback;
+  context.requested_category_mapped_other_reason =
+    categoryResolution.mappedExplicitOtherReason;
 
   if (!userPublicId || !summary) {
     return jsonResponse({ ok: false, error: "missing_params" }, 400, cors);
@@ -71,16 +86,17 @@ serve(async (req) => {
     .from("support_threads")
     .select("id")
     .eq("assigned_agent_id", usuario.id)
-    .in("status", ["assigned", "in_progress", "waiting_user"])
+    .in("status", ["starting", "assigned", "in_progress", "waiting_user"])
     .limit(1);
 
   const initialStatus = activeAssigned && activeAssigned.length > 0
     ? "queued"
-    : "assigned";
+    : "starting";
 
   const insertResponse = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: usuario.tenant_id || null,
       user_id: targetUser.id,
       user_public_id: targetUser.public_id,
       category,
@@ -91,12 +107,18 @@ serve(async (req) => {
       created_by_agent_id: usuario.id,
       assigned_agent_id: usuario.id,
       assigned_agent_phone: agentProfile?.support_phone ?? null,
+      assigned_at: new Date().toISOString(),
+      starting_at: initialStatus === "starting" ? new Date().toISOString() : null,
+      personal_queue_entered_at: initialStatus === "queued" ? new Date().toISOString() : null,
       irregular: true,
-      personal_queue: true,
+      personal_queue: initialStatus === "queued",
+      assignment_source: "irregular",
       suggested_contact_name: targetUser.public_id,
-      suggested_tags: [category, severity, "irregular"],
+      suggested_tags: [category, severity, "irregular", appChannel],
+      app_channel: appChannel,
+      origin_source: originSource,
     })
-    .select("id, public_id, status")
+    .select("id, tenant_id, public_id, status")
     .single();
 
   if (insertResponse.error) {
@@ -108,7 +130,14 @@ serve(async (req) => {
     event_type: "created",
     actor_role: usuario.role,
     actor_id: usuario.id,
-    details: { irregular: true, status: initialStatus },
+    details: { irregular: true, status: initialStatus, app_channel: appChannel },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_irregular",
+    tenantId: insertResponse.data?.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
   });
 
   return jsonResponse(

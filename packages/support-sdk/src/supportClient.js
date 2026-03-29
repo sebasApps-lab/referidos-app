@@ -39,6 +39,19 @@ export async function getAnonymousSupportThreadStatus(payload) {
   return { ok: true, data };
 }
 
+export async function requestSupportThreadRetake(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-retake-thread",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
 export async function assignSupportThread(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-assign-thread",
@@ -55,6 +68,58 @@ export async function assignSupportThread(payload) {
 export async function updateSupportStatus(payload) {
   const { data, error } = await supabase.functions.invoke(
     "support-update-status",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function markSupportOpeningMessage(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-opening-message-sent",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function markSupportWhatsAppNameChanged(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-whatsapp-name-updated",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function sendSupportWorkflowAction(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-thread-workflow-action",
+    {
+      body: payload,
+    }
+  );
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data };
+}
+
+export async function setSupportAutoAssignMode(payload) {
+  const { data, error } = await supabase.functions.invoke(
+    "support-set-auto-assign-mode",
     {
       body: payload,
     }
@@ -120,7 +185,14 @@ export async function endSupportSession(payload = {}) {
     }
   );
   if (error) {
-    return { ok: false, error: error.message };
+    return { ok: false, error: error.message, data: data || null };
+  }
+  if (data?.ok === false) {
+    return {
+      ok: false,
+      error: data.error || "session_end_failed",
+      data,
+    };
   }
   return { ok: true, data };
 }
@@ -211,4 +283,42 @@ export async function linkAnonymousThreadToUser(payload) {
     return { ok: false, error: error.message };
   }
   return { ok: true, data };
+}
+
+export async function trackSupportMacroEvents({ events = [] } = {}) {
+  if (!Array.isArray(events) || events.length === 0) {
+    return { ok: true, data: { inserted: 0 } };
+  }
+
+  const payload = events
+    .filter((event) => event && typeof event === "object")
+    .map((event) => ({
+      macro_id: event.macro_id,
+      macro_code: event.macro_code,
+      category_code: event.category_code || null,
+      thread_public_id: event.thread_public_id || null,
+      event_type: event.event_type,
+      app_key: event.app_key,
+      env_key: event.env_key,
+      metadata: event.metadata || {},
+    }))
+    .filter(
+      (event) =>
+        typeof event.macro_id === "string" &&
+        typeof event.macro_code === "string" &&
+        typeof event.event_type === "string" &&
+        typeof event.app_key === "string" &&
+        typeof event.env_key === "string"
+    );
+
+  if (!payload.length) {
+    return { ok: true, data: { inserted: 0 } };
+  }
+
+  const { error } = await supabase.from("support_macro_usage_events").insert(payload);
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true, data: { inserted: payload.length } };
 }

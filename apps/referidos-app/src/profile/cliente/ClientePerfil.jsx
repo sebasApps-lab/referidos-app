@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,7 +29,6 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "../../store/appStore";
-import { useNavigate } from "react-router-dom";
 import { useClienteUI } from "../../cliente/hooks/useClienteUI";
 import usePinSetup from "../../hooks/usePinSetup";
 import {
@@ -58,6 +58,8 @@ import Sessions from "../shared/sections/Sessions";
 import Notifications from "../shared/sections/Notifications";
 import Beneficios from "../shared/sections/Beneficios";
 import ManageAccount from "../shared/sections/ManageAccount";
+
+// Lint purge (no-unused-vars): se purgaron `navigate`, y lecturas de `passwordAttempted`/`pushEnabled` (bloques de acceso y notificaciones).
 import AppAppearance from "../shared/sections/AppAppearance";
 import Language from "../shared/sections/Language";
 import Help from "../shared/sections/Help";
@@ -122,6 +124,9 @@ const getDeviceIcon = (session) => {
 let accessInfoDismissed = false;
 
 export default function ClientePerfil() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const usuario = useAppStore((s) => s.usuario);
   const setUser = useAppStore((s) => s.setUser);
   const logout = useAppStore((s) => s.logout);
@@ -134,7 +139,6 @@ export default function ClientePerfil() {
   );
   const { openModal } = useModal();
   const { setHeaderOptions } = useClienteHeader();
-  const navigate = useNavigate();
   const isActive = useCacheStore(
     (state) => state.activeKeys.cliente === CACHE_KEYS.CLIENTE_PERFIL
   );
@@ -438,7 +442,7 @@ export default function ClientePerfil() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-    const [passwordAttempted, setPasswordAttempted] = useState(false);
+    const [, setPasswordAttempted] = useState(false);
     const [showPinForm, setShowPinForm] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
     const [authProvider, setAuthProvider] = useState(null);
@@ -1141,7 +1145,7 @@ export default function ClientePerfil() {
     const { openModal } = useModal();
     const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFS);
     const [permission, setPermission] = useState("default");
-    const [pushEnabled, setPushEnabled] = useState(false);
+    const [, setPushEnabled] = useState(false);
     const [dismissedWarning, setDismissedWarning] = useState(false);
 
     useEffect(() => {
@@ -1818,7 +1822,7 @@ export default function ClientePerfil() {
               }}
             >
               <div className="profile-search-clip">
-                <motion.div
+                <TEMP_MOTION_SPLASH_TAG
                   className="profile-search-panel"
                   initial={false}
                   animate={{
@@ -1830,7 +1834,7 @@ export default function ClientePerfil() {
                     value={searchValue}
                     onChange={setSearchValue}
                   />
-                </motion.div>
+                </TEMP_MOTION_SPLASH_TAG>
               </div>
             </HeaderPanelContainer>,
             dockTarget

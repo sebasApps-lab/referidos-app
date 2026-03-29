@@ -1,0 +1,2 @@
+window.__REFERIDOS_RUNTIME_CONFIG__ = window.__REFERIDOS_RUNTIME_CONFIG__ || {};
+

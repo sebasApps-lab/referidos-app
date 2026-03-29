@@ -3,29 +3,17 @@ import {
   createObservabilityClient,
   createPolicyRuntime,
 } from "@referidos/observability";
+import { runtimeConfig } from "../config/runtimeConfig";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
-const TENANT_HINT = import.meta.env.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
-const APP_ID = import.meta.env.VITE_APP_ID || "prelaunch";
-const APP_ENV = import.meta.env.MODE || import.meta.env.VITE_ENV || "development";
-const APP_VERSION =
-  import.meta.env.VITE_APP_VERSION ||
-  import.meta.env.VITE_VERSION_LABEL ||
-  import.meta.env.VITE_RELEASE ||
-  import.meta.env.VITE_COMMIT_SHA ||
-  "dev";
-const BUILD_ID =
-  import.meta.env.VITE_BUILD_ID ||
-  import.meta.env.VITE_SOURCE_COMMIT_SHA ||
-  import.meta.env.VITE_COMMIT_SHA ||
-  "";
-const RELEASE_ID =
-  import.meta.env.VITE_VERSION_RELEASE_ID || import.meta.env.VITE_RELEASE_ID || "";
-const SOURCE_COMMIT_SHA =
-  import.meta.env.VITE_SOURCE_COMMIT_SHA || import.meta.env.VITE_COMMIT_SHA || "";
+const SUPABASE_URL = runtimeConfig.supabaseUrl;
+const SUPABASE_PUBLISHABLE_KEY = runtimeConfig.supabasePublishableKey;
+const TENANT_HINT = runtimeConfig.defaultTenantId || "ReferidosAPP";
+const APP_ID = runtimeConfig.appId || "prelaunch";
+const APP_ENV = runtimeConfig.appEnv || "development";
+const APP_VERSION = runtimeConfig.appVersion || "dev";
+const BUILD_ID = runtimeConfig.buildId || "";
+const RELEASE_ID = runtimeConfig.releaseId || "";
+const SOURCE_COMMIT_SHA = runtimeConfig.sourceCommitSha || "";
 
 let client = null;
 let runtime = null;
@@ -102,7 +90,12 @@ export function initPrelaunchObservability() {
     tenantHint: TENANT_HINT,
     appId: APP_ID,
     source: "web",
-    env: import.meta.env,
+    env: {
+      MODE: APP_ENV,
+      VITE_APP_ID: APP_ID,
+      VITE_APP_VERSION: APP_VERSION,
+      VITE_BUILD_ID: BUILD_ID,
+    },
   });
   runtime = createErrorRuntime({
     observabilityClient: client,

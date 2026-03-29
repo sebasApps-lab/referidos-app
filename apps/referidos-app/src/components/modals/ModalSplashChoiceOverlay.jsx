@@ -18,6 +18,7 @@ const isPartialFormat = (code) => {
   return /^[0-9]{0,6}$/.test(tail);
 };
 
+// Lint purge (no-unused-vars): se purgo setter `setCodeValid` (validacion legacy comentada en handleCodeChange).
 export default function ModalSplashChoiceOverlay({
   authCreds,
   onCliente,
@@ -30,7 +31,7 @@ export default function ModalSplashChoiceOverlay({
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [code, setCode] = useState("");
   const [codeFormatOk, setCodeFormatOk] = useState(true);
-  const [codeValid, setCodeValid] = useState(false);
+  const [codeValid] = useState(false);
   const [persisting, setPersisting] = useState(false);
   const { closeModal } = useModal();
 

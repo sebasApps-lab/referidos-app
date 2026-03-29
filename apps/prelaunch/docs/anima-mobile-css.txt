@@ -1,0 +1,4256 @@
+/* Mobile - web landing ready */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 246px;
+isolation: isolate;
+
+position: relative;
+width: 430px;
+min-width: 395px;
+max-width: 620px;
+height: 6868.75px;
+
+background: #FFFFFF;
+
+
+/* hero-header-bg */
+
+position: absolute;
+width: 627px;
+height: 918px;
+left: calc(50% - 627px/2 + 0.5px);
+top: 0px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* BG-mask-vector */
+
+position: absolute;
+width: 627px;
+height: 902px;
+left: calc(50% - 627px/2 - 3px);
+top: 0px;
+
+background: #D9D9D9;
+box-shadow: 0px 2.11467px 4.44081px rgba(255, 255, 255, 0.51);
+
+
+/* hero-header-bg-image */
+
+position: absolute;
+width: 627px;
+height: 918px;
+left: calc(50% - 627px/2 - 3px);
+top: 0px;
+
+background: url(landing-hero-2-bg.png);
+border-radius: 0px;
+
+
+/* top-page */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-end;
+padding: 0px;
+gap: 93.75px;
+
+width: 430px;
+height: 3865.75px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+z-index: 1;
+
+
+/* top-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 85px;
+
+width: 430px;
+height: 715px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* header */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 23px 30px 8px;
+gap: 118px;
+
+width: 430px;
+height: 87px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* identidad */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: flex-start;
+padding: 0px;
+
+width: 189px;
+height: 56px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* logo-placeholder */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 4px;
+
+width: 189px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+margin: -4px 0px;
+
+
+/* REFERIDOS */
+
+width: 135px;
+height: 36px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 26px;
+line-height: 140%;
+/* or 36px */
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* APP */
+
+width: 50px;
+height: 36px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 26px;
+line-height: 140%;
+/* or 36px */
+
+color: #B26CF2;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Acceso anticipado */
+
+width: 158px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: italic;
+font-weight: 275;
+font-size: 17px;
+line-height: 140%;
+/* identical to box height, or 24px */
+display: flex;
+align-items: flex-end;
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* hamburguer-menu */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 10px;
+
+width: 29px;
+height: 20px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* t-line */
+
+width: 29px;
+height: 0px;
+
+border: 4px solid #FFFFFF;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* m-line */
+
+width: 29px;
+height: 0px;
+
+border: 4px solid #FFFFFF;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* b-line */
+
+width: 29px;
+height: 0px;
+
+border: 4px solid #FFFFFF;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* hero-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px 28px;
+gap: 62px;
+
+width: 430px;
+height: 543px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* hero-text */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 40px;
+
+width: 374px;
+height: 366px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Descubre y comparte ofertas, gana recompensas fácilmente */
+
+width: 374px;
+height: 236px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 36px;
+line-height: 165%;
+/* or 59px */
+text-align: center;
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Participa en el acceso anticipado de la app y recibe beneficios extra, solo por usar la aplicación. */
+
+width: 374px;
+height: 90px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 18px;
+line-height: 164%;
+/* or 30px */
+text-align: center;
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* buttons-container */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 13px;
+
+width: 374px;
+height: 115px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* button */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 16px 20px 16px 28px;
+gap: 22px;
+
+width: 289px;
+height: 56px;
+
+background: #FFFFFF;
+border: 1px solid rgba(89, 71, 101, 0.35);
+border-radius: 12px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Entrar a la lista de espera */
+
+width: 209px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #24055C;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* > */
+
+width: 10px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #24055C;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* como-funciona-button */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 12px 20px;
+
+width: 181px;
+height: 46px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* button */
+
+width: 141px;
+height: 22px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* ¿Como funciona? */
+
+position: absolute;
+left: 0%;
+right: 0%;
+top: 0%;
+bottom: 0%;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 140%;
+/* or 22px */
+text-decoration-line: underline;
+
+color: #FFFFFF;
+
+
+
+/* second-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 84px;
+
+width: 430px;
+height: 3057px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* mockup-phone-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px 40.5px;
+isolation: isolate;
+
+width: 430px;
+height: 725px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* phone-back-shadow-container */
+
+position: absolute;
+width: 383px;
+height: 689px;
+left: calc(50% - 383px/2 + 7.5px);
+top: 13px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* phone-back-shadow */
+
+position: absolute;
+width: 280px;
+height: 689px;
+right: 0px;
+top: calc(50% - 689px/2 + 1px);
+
+background: linear-gradient(179.66deg, rgba(101, 39, 98, 0.79) 3.08%, rgba(101, 39, 98, 0.5609) 77.72%, rgba(101, 39, 98, 0.3318) 101.97%);
+opacity: 0.52;
+box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.25);
+filter: blur(8.0625px);
+border-radius: 0px 82.5px 38.75px 0px;
+
+
+/* phone-glow */
+
+position: absolute;
+width: 422px;
+height: 325px;
+left: calc(50% - 422px/2 - 28px);
+top: -64px;
+
+background: rgba(255, 255, 255, 0.42);
+opacity: 0.61;
+filter: blur(93.75px);
+border-radius: 52px 52px 0px 0px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Nothing Phone 2a 2 */
+
+width: 410px;
+height: 725px;
+
+background: url(Nothing Phone 2a.png);
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* sign-up-about-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 115px;
+
+width: 430px;
+height: 2248px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* sign-up-card */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 71px 40px 0px;
+gap: 72px;
+isolation: isolate;
+
+width: 430px;
+max-width: 430px;
+height: 737px;
+
+background: #FFFFFF;
+border-top: 1px solid #F3ECEC;
+box-shadow: 0px 5px 9px rgba(0, 0, 0, 0.1);
+border-radius: 0px 0px 24px 24px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* sign-up-card-bg */
+
+position: absolute;
+width: 430px;
+height: 737px;
+left: calc(50% - 430px/2);
+bottom: 0px;
+
+background: #FFFFFF;
+border-radius: 0px 0px 24px 24px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Vector 3 */
+
+position: absolute;
+width: 480.09px;
+height: 383.79px;
+left: -1.39px;
+top: 548.98px;
+
+background: #E5D2F5;
+border: 1.39561px solid #DFC3FA;
+
+
+/* Vector 1 */
+
+position: absolute;
+width: 470.32px;
+height: 300.21px;
+left: 11.86px;
+top: 577.44px;
+
+background: #E5C7FC;
+border: 1.39561px solid #DFC3FA;
+
+
+/* Exclude */
+
+position: absolute;
+width: 484.28px;
+height: 376.12px;
+left: -1.4px;
+top: 557.35px;
+
+background: #F0DDFA;
+
+
+/* Vector 7 */
+
+position: absolute;
+width: 470.32px;
+height: 300.21px;
+left: 11.86px;
+top: 577.44px;
+
+background: #F0DCFC;
+border: 1.39561px solid #FFFFFF;
+
+
+/* Vector 6 */
+
+position: absolute;
+width: 434.73px;
+height: 375.42px;
+left: -0.7px;
+top: 557.35px;
+
+background: #E5C9FD;
+border: 1.39561px solid #FFFFFF;
+
+
+/* Vector 4 */
+
+position: absolute;
+width: 515.68px;
+height: 384.49px;
+left: -27.21px;
+top: 546.89px;
+
+background: #DDBBFF;
+border: 1.39561px solid #DEC2FF;
+
+
+/* Vector 5 */
+
+position: absolute;
+width: 515.68px;
+height: 384.49px;
+left: -71.18px;
+top: 560.15px;
+
+background: #D5AFFF;
+border: 1.39561px solid #D4AEFF;
+
+
+/* Crea tu cuenta gratis */
+
+width: 350px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 600;
+font-size: 32px;
+line-height: 150%;
+/* identical to box height, or 48px */
+text-align: center;
+
+color: #4B0D82;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+z-index: 1;
+
+
+/* body+line */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-end;
+padding: 0px;
+gap: 82px;
+
+width: 350px;
+height: 328px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+z-index: 2;
+
+
+/* body */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 68px;
+
+width: 350px;
+height: 246px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* buttons-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 18px;
+
+width: 270px;
+height: 136px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* button */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 16px 28px;
+gap: 12px;
+
+width: 271px;
+height: 58px;
+
+border: 1px solid #DBD9E6;
+border-radius: 18px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* material-icon-theme:google */
+
+width: 26px;
+height: 26px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Group */
+
+position: absolute;
+left: 7.81%;
+right: 7.74%;
+top: 6.25%;
+bottom: 6.28%;
+
+
+
+/* Vector */
+
+position: absolute;
+left: 12.17%;
+right: 20.05%;
+top: 6.25%;
+bottom: 58.72%;
+
+background: #F44336;
+opacity: 0.99;
+
+
+/* Vector */
+
+position: absolute;
+left: 7.81%;
+right: 73.41%;
+top: 30.73%;
+bottom: 30.52%;
+
+background: #FFC107;
+opacity: 1;
+
+
+/* Vector */
+
+position: absolute;
+left: 50.76%;
+right: 7.74%;
+top: 41.92%;
+bottom: 16.94%;
+
+background: #448AFF;
+opacity: 1;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.5%;
+right: 20.72%;
+top: 58.26%;
+bottom: 6.28%;
+
+background: #43A047;
+opacity: 0.99;
+
+
+/* Continuar con Google */
+
+width: 177px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #636363;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* button */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 16px 30px;
+gap: 12px;
+
+width: 270px;
+height: 60px;
+
+background: #58179A;
+border: 1.36268px solid #440D90;
+border-radius: 18px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* fluent-color:mail-16 */
+
+width: 28px;
+height: 28px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Group */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 18.75%;
+bottom: 18.75%;
+
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 31.25%;
+bottom: 18.75%;
+
+background: #C78005;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 31.25%;
+bottom: 18.75%;
+
+background: linear-gradient(139.93deg, rgba(240, 152, 0, 0) 52%, #F09800 63.31%);
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 31.25%;
+bottom: 18.75%;
+
+background: linear-gradient(218.44deg, rgba(240, 152, 0, 0) 49.27%, #F09800 62.59%);
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 31.25%;
+bottom: 18.75%;
+
+background: linear-gradient(167.34deg, rgba(206, 139, 22, 0) 62.73%, rgba(207, 139, 23, 0.75) 103.98%);
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 31.25%;
+bottom: 18.75%;
+
+background: linear-gradient(168.61deg, rgba(160, 83, 255, 0) 66.65%, rgba(146, 59, 253, 0.7) 106.48%);
+
+
+/* Vector */
+
+position: absolute;
+left: 12.49%;
+right: 12.51%;
+top: 18.75%;
+bottom: 43.73%;
+
+background: linear-gradient(132.16deg, #FFC96C -4.14%, #FFB129 54.18%, #FEBB48 122.1%);
+
+
+/* Continuar con correo */
+
+width: 170px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* BottomText */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+
+width: 350px;
+height: 42px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Si ya tienes una cuenta, ten paciencia recibirás tu invitación pronto. */
+
+width: 350px;
+height: 42px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 14px;
+line-height: 150%;
+/* or 21px */
+text-align: center;
+
+color: rgba(28, 0, 73, 0.7);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 1;
+
+
+/* Inicia sesión */
+
+display: none;
+width: 91px;
+height: 22px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 14.7317px;
+line-height: 150.71%;
+/* or 22px */
+text-decoration-line: underline;
+
+color: #24055C;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* hero-register-card-line */
+
+width: 350px;
+height: 0px;
+
+opacity: 0.1;
+border: 1px solid #000000;
+transform: rotate(180deg);
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* about-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px 28px;
+gap: 82px;
+
+width: 430px;
+height: 1396px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* about-heading */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 60px;
+
+width: 374px;
+height: 204px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Así de rápido y simple */
+
+width: 374px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 32px;
+line-height: 150%;
+/* identical to box height, or 48px */
+text-align: center;
+
+color: #4B0D82;
+
+filter: blur(0.246731px);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 1;
+
+
+/* Entra en la lista de espera para recibir tu invitación. Descarga la app una vez este disponible y recibe beneficios! */
+
+width: 374px;
+height: 96px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: #1C0049;
+
+opacity: 0.86;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* mid-cards */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 120px;
+
+width: 354px;
+height: 1110px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* info-cards */
+
+width: 354px;
+height: 290px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* card-volume */
+
+position: absolute;
+width: 352.59px;
+height: 216.98px;
+left: 0.14px;
+top: 74.72px;
+
+background: #EEDDF7;
+opacity: 0.22;
+border-radius: 35px;
+
+
+/* card-content */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 57px 0px 0px;
+gap: 20px;
+
+position: absolute;
+width: 352.59px;
+height: 221.15px;
+left: 0.14px;
+top: 67.81px;
+
+background: #FCF9FD;
+border: 1px solid rgba(149, 149, 149, 0.13);
+box-shadow: 0px 0px 7.70832px 19.2708px rgba(232, 215, 244, 0.05), 0px 2.89062px 19.2708px 4.8177px rgba(207, 168, 231, 0.08), 0px 6.74478px 4.8177px rgba(215, 181, 234, 0.12), inset 0px -2.89062px 9.63885px rgba(233, 221, 243, 0.16), inset 0px 0.96354px 1.92708px rgba(255, 255, 255, 0.75);
+filter: blur(0.2px);
+border-radius: 35px;
+
+
+/* Añade tu correo a la lista */
+
+width: 184px;
+height: 61px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 600;
+font-size: 23px;
+line-height: 134%;
+/* or 31px */
+text-align: center;
+
+color: #1C0049;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Espera y recibe la invitación para descargar la app. */
+
+width: 352.59px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: #1C0049;
+
+opacity: 0.86;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* card-glow */
+
+position: absolute;
+width: 351.55px;
+height: 216.98px;
+left: 0.14px;
+top: 74.72px;
+
+/* card-glow */
+background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, rgba(241, 231, 247, 0.1) 100%);
+opacity: 0.14;
+border-radius: 35px;
+
+
+/* mail-icon-shadow */
+
+position: absolute;
+width: 163px;
+height: 32px;
+left: 126px;
+top: 43px;
+
+background: rgba(175, 175, 175, 0.59);
+filter: blur(2.30095px);
+transform: rotate(-7.51deg);
+
+
+/* mail-icon */
+
+position: absolute;
+width: 310.84px;
+height: 207.23px;
+left: calc(50% - 310.84px/2 + 0.42px);
+top: -54px;
+
+background: url(icon-mail-blue-shadow-2.png);
+
+
+/* info-cards */
+
+width: 354px;
+height: 290px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* card-volume */
+
+position: absolute;
+width: 352.59px;
+height: 216.98px;
+left: 0px;
+top: 74.72px;
+
+background: #EEDDF7;
+opacity: 0.22;
+border-radius: 35px;
+
+
+/* card-content */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 57px 0px 0px;
+gap: 20px;
+
+position: absolute;
+width: 352.59px;
+height: 221.15px;
+left: 0px;
+top: 67.81px;
+
+background: #FCF9FD;
+border: 1px solid rgba(149, 149, 149, 0.13);
+box-shadow: 0px 0px 7.70832px 19.2708px rgba(232, 215, 244, 0.05), 0px 2.89062px 19.2708px 4.8177px rgba(207, 168, 231, 0.08), 0px 6.74478px 4.8177px rgba(215, 181, 234, 0.12), inset 0px -2.89062px 9.63885px rgba(233, 221, 243, 0.16), inset 0px 0.96354px 1.92708px rgba(255, 255, 255, 0.75);
+filter: blur(0.2px);
+border-radius: 35px;
+
+
+/* Descarga y recibe tu recompensas */
+
+width: 352.59px;
+height: 61px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 600;
+font-size: 23px;
+line-height: 134%;
+/* or 31px */
+text-align: center;
+
+color: #1C0049;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Recibe tus beneficios extra por participar en el acceso anticipado. */
+
+width: 276px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: #1C0049;
+
+opacity: 0.86;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* card-glow */
+
+position: absolute;
+width: 351.55px;
+height: 216.98px;
+left: 0px;
+top: 74.72px;
+
+/* card-glow */
+background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, rgba(241, 231, 247, 0.1) 100%);
+opacity: 0.14;
+border-radius: 35px;
+
+
+/* card-icon */
+
+position: absolute;
+width: 123px;
+height: 121px;
+left: calc(50% - 123px/2 + 0.5px);
+top: -7px;
+
+border-radius: 21.3717px;
+
+
+/* gift-icon-shadow */
+
+position: absolute;
+width: 106px;
+height: 47px;
+left: 35px;
+top: 67px;
+
+background: rgba(175, 175, 175, 0.59);
+filter: blur(2.49337px);
+transform: rotate(-7.22deg);
+
+
+/* gift-icon */
+
+position: absolute;
+width: 161px;
+height: 161px;
+left: calc(50% - 161px/2 + 2px);
+top: calc(50% - 161px/2 + 2px);
+
+background: url(icon2.1.png);
+
+
+/* info-cards */
+
+width: 354px;
+height: 290px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* card-volume */
+
+position: absolute;
+width: 352.59px;
+height: 216.98px;
+left: -0.45px;
+top: 74.72px;
+
+background: #EEDDF7;
+opacity: 0.22;
+border-radius: 35px;
+
+
+/* card-content */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 57px 0px 0px;
+gap: 20px;
+
+position: absolute;
+width: 352.59px;
+height: 221.15px;
+left: -0.45px;
+top: 67.81px;
+
+background: #FCF9FD;
+border: 1px solid rgba(149, 149, 149, 0.13);
+box-shadow: 0px 0px 7.70832px 19.2708px rgba(232, 215, 244, 0.05), 0px 2.89062px 19.2708px 4.8177px rgba(207, 168, 231, 0.08), 0px 6.74478px 4.8177px rgba(215, 181, 234, 0.12), inset 0px -2.89062px 9.63885px rgba(233, 221, 243, 0.16), inset 0px 0.96354px 1.92708px rgba(255, 255, 255, 0.75);
+filter: blur(0.2px);
+border-radius: 35px;
+
+
+/* Gana puntos y recompensas */
+
+width: 170px;
+height: 62px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 600;
+font-size: 23px;
+line-height: 134%;
+/* or 31px */
+text-align: center;
+
+color: #1C0049;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Canjea promociones, suma puntos y obtén más beneficios. */
+
+width: 352.59px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: #1C0049;
+
+opacity: 0.86;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* card-glow */
+
+position: absolute;
+width: 352.59px;
+height: 216.98px;
+left: -0.45px;
+top: 74.72px;
+
+/* card-glow */
+background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, rgba(241, 231, 247, 0.1) 100%);
+opacity: 0.14;
+border-radius: 35px;
+
+
+/* coins-icon-shadow */
+
+position: absolute;
+width: 104px;
+height: 40px;
+left: 168px;
+top: 49px;
+
+background: rgba(175, 175, 175, 0.59);
+filter: blur(2.32074px);
+transform: rotate(-10.59deg);
+
+
+/* coins-icon */
+
+position: absolute;
+width: 255px;
+height: 163px;
+left: calc(50% - 255px/2 + 0.5px);
+top: -29px;
+
+background: url(icon3.png);
+
+
+/* bottom-page */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px 28px;
+gap: 185px;
+
+width: 430px;
+height: 2757px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+z-index: 2;
+
+
+/* bottom-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 182px;
+
+width: 374px;
+max-width: 430px;
+height: 2033px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* bottom-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 156px 0px 0px;
+gap: 175px;
+isolation: isolate;
+
+width: 374px;
+height: 1317px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* bottom-bg-mask */
+
+position: absolute;
+width: 667px;
+height: 1232px;
+left: calc(50% - 667px/2 + 0.5px);
+top: 0px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* landing-bottom-footer-bg 1 */
+
+position: absolute;
+width: 687.67px;
+height: 1229.97px;
+left: calc(50% - 687.67px/2 + 6.34px);
+top: 2px;
+
+background: url(landing-bottom-footer-bg.png);
+box-shadow: 0px 6px 6.7px rgba(0, 0, 0, 0.2), 0px -1px 5.5px rgba(0, 0, 0, 0.45);
+
+
+/* subscribe-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 60px;
+
+width: 374px;
+height: 464px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+z-index: 1;
+
+
+/* No te quedes sin participar */
+
+width: 374px;
+height: 88px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 38px;
+line-height: 115%;
+/* or 44px */
+
+color: #FFFFFF;
+
+/* white-text-stroke */
+border: 1px solid rgba(36, 5, 92, 0.75);
+filter: blur(0.277101px);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* email-input */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 44px;
+
+width: 374px;
+height: 316px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Los puestos son limitados, entra en la lista de espera */
+
+width: 374px;
+height: 60px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 20px;
+line-height: 150%;
+/* or 30px */
+text-align: center;
+
+color: #FFFFFF;
+
+/* white-text-stroke */
+border: 0.5px solid rgba(36, 5, 92, 0.75);
+filter: blur(0.277101px);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* input-block+legal */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 34px;
+
+width: 374px;
+height: 212px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* input+buton */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 22px;
+
+width: 374px;
+height: 142px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* input-texts */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 18px 23px;
+gap: 65px;
+
+width: 374px;
+height: 60px;
+
+background: #FFFFFF;
+border-radius: 12px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Tu correo electrónico... */
+
+width: 178px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150.71%;
+/* or 24px */
+
+color: rgba(26, 6, 81, 0.8);
+
+text-shadow: 0px 0.923669px 1.75497px rgba(184, 138, 230, 0.48);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* button */
+
+width: 271.11px;
+height: 60px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* green-button */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 18px 44px;
+
+position: absolute;
+width: 271px;
+height: 60px;
+left: 0.11px;
+top: 0px;
+
+background: #40C678;
+border: 1px solid #447356;
+border-radius: 16px;
+
+
+/* Añadir correo a la lista */
+
+width: 183px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #FFFFFF;
+
+border: 0.923669px solid rgba(87, 157, 121, 0.5);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* green-button-glow */
+
+position: absolute;
+width: 271px;
+height: 60px;
+left: calc(50% - 271px/2 - 0.05px);
+top: calc(50% - 60px/2);
+
+background: linear-gradient(29.1deg, rgba(255, 255, 255, 0) 17.96%, rgba(255, 255, 255, 0.12) 40.05%, rgba(255, 255, 255, 0.44) 83.09%);
+opacity: 0.7;
+filter: blur(1.15px);
+border-radius: 16px;
+
+
+/* legal-copy */
+
+width: 374px;
+height: 36px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Al suscribirte, aceptas los términos y condiciones, además de las Políticas de Privacidad */
+
+position: absolute;
+left: 0%;
+right: 0%;
+top: 0%;
+bottom: 0%;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 12px;
+line-height: 150%;
+/* or 18px */
+
+color: #FFFFFF;
+
+/* white-text-stroke */
+border: 1px solid rgba(36, 5, 92, 0.75);
+filter: blur(0.277101px);
+
+
+/* cta-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 38px;
+
+width: 370px;
+height: 522px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* ¡Encuentra esto y más! */
+
+width: 370px;
+height: 32px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 28px;
+line-height: 115%;
+/* or 32px */
+text-align: center;
+
+color: #FFFFFF;
+
+/* white-text-stroke */
+border: 1px solid rgba(36, 5, 92, 0.75);
+filter: blur(0.277101px);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* promo-card-carousel */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 10px;
+
+width: 370px;
+height: 452px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* promo-cards */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 12px 10px;
+gap: 10px;
+isolation: isolate;
+
+width: 370px;
+height: 144px;
+
+filter: drop-shadow(0px 6px 15px rgba(0, 0, 0, 0.21));
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* promo-card-bg */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border: 1px solid rgba(206, 206, 206, 0.35);
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Rectangle 104 */
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border-radius: 15.8406px;
+transform: rotate(-90deg);
+
+
+/* Ellipse 1 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: -10.58px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: 133.42px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* promo-card-content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 14px;
+
+width: 350px;
+height: 120px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* promo-card-image */
+
+width: 120px;
+height: 120px;
+
+background: #C7C7C7;
+border-radius: 9px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* gray-scale-bg */
+
+position: absolute;
+width: 129.17px;
+height: 123px;
+left: -4px;
+top: -2px;
+
+background: url(gray-scale-bg.png);
+
+
+/* discount-bomb */
+
+position: absolute;
+width: 120px;
+height: 180px;
+left: 0px;
+top: -24px;
+
+background: url(discount-bomb-icon.png);
+
+
+/* discount-tag */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 10px;
+
+position: absolute;
+width: 35px;
+height: 23px;
+left: 73px;
+top: 0px;
+
+background: #000000;
+border-radius: 0px 0px 3px 3px;
+
+
+/* 20% */
+
+width: 21px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* promo-card-dotted-line */
+
+width: 100px;
+height: 0px;
+
+opacity: 0.41;
+border: 0.633625px dashed #000000;
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* promo-card-body */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 104px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* description */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 65px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* DESCUENTOS */
+
+width: 202px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* En compras de locales de comida y locales de diferentes productos y servicios. */
+
+width: 202px;
+height: 45px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date+qr */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 0px;
+gap: 72px;
+
+width: 202px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 27px;
+
+margin: 0 auto;
+width: 95px;
+height: 15px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Hasta */
+
+width: 30px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* 20 de Sept. */
+
+width: 38px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+text-align: right;
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* qr-code */
+
+margin: 0 auto;
+width: 34px;
+height: 34px;
+
+border-radius: 1px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vaadin:qrcode */
+
+position: absolute;
+width: 34px;
+height: 34px;
+left: calc(50% - 34px/2 + 0.04px);
+top: calc(50% - 34px/2);
+
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 0%;
+bottom: 62.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 12.5%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.5%;
+right: 0%;
+top: 0%;
+bottom: 12.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 0%;
+top: 0%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* promo-cards */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 12px 10px;
+gap: 10px;
+isolation: isolate;
+
+width: 370px;
+height: 144px;
+
+filter: drop-shadow(0px 6px 15px rgba(0, 0, 0, 0.21));
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* promo-card-bg */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border: 1px solid rgba(206, 206, 206, 0.35);
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Rectangle 104 */
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border-radius: 15.8406px;
+transform: rotate(-90deg);
+
+
+/* Ellipse 1 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: -10.58px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: 133.42px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* promo-card-content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 14px;
+
+width: 350px;
+height: 120px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* promo-card-image */
+
+width: 120px;
+height: 120px;
+
+background: #C7C7C7;
+border-radius: 8.88151px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* gray-scale-bg */
+
+position: absolute;
+width: 126px;
+height: 120px;
+left: -3.46px;
+top: 0px;
+
+background: url(gray-scale-bg.png);
+
+
+/* gift-icon-black 1 */
+
+position: absolute;
+width: 114px;
+height: 113px;
+left: 2.54px;
+top: 32px;
+
+background: url(gift-icon-black.png);
+
+
+/* discount-tag */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 10px;
+
+position: absolute;
+width: 35px;
+height: 23px;
+left: 73px;
+top: 0px;
+
+background: #000000;
+border-radius: 0px 0px 3px 3px;
+
+
+/* - 30% */
+
+width: 30px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* promo-card-dotted-line */
+
+width: 100px;
+height: 0px;
+
+opacity: 0.41;
+border: 0.633625px dashed #000000;
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* promo-card-body */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 104px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* description */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 65px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* REGALOS POR COMPRAR */
+
+width: 202px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Regalos por realizar compras de ciertos productos o por superar cierto valor de compra. */
+
+width: 202px;
+height: 45px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date+qr */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 0px;
+gap: 60px;
+
+width: 202px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 27px;
+
+margin: 0 auto;
+width: 112px;
+height: 15px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Hasta */
+
+width: 30px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* 20 de Sept. */
+
+width: 55px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+text-align: right;
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* qr-code */
+
+margin: 0 auto;
+width: 34px;
+height: 34px;
+
+border-radius: 1px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vaadin:qrcode */
+
+position: absolute;
+width: 34px;
+height: 34px;
+left: calc(50% - 34px/2 + 0.04px);
+top: calc(50% - 34px/2);
+
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 0%;
+bottom: 62.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 12.5%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.5%;
+right: 0%;
+top: 0%;
+bottom: 12.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 0%;
+top: 0%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* promo-cards */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 12px 10px;
+gap: 10px;
+isolation: isolate;
+
+width: 370px;
+height: 144px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* promo-card-bg */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border: 1px solid rgba(206, 206, 206, 0.35);
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Rectangle 104 */
+
+position: absolute;
+width: 144px;
+height: 370px;
+left: 0px;
+top: 0px;
+
+background: #FFFFFF;
+border-radius: 15.8406px;
+transform: rotate(-90deg);
+
+
+/* Ellipse 1 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: -10.58px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 21.16px;
+height: 22.95px;
+left: 134.53px;
+top: 133.42px;
+
+background: #FFFFFF;
+transform: rotate(-90deg);
+
+
+/* promo-card-content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 14px;
+
+width: 350px;
+height: 120px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* promo-card-image */
+
+width: 120px;
+height: 120px;
+
+background: #C7C7C7;
+border-radius: 8.88151px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* gray-scale-bg */
+
+position: absolute;
+width: 128px;
+height: 122px;
+left: -4.46px;
+top: -1px;
+
+background: url(gray-scale-bg.png);
+
+
+/* 2x1-icon 2 */
+
+position: absolute;
+width: 107px;
+height: 161px;
+left: 5.54px;
+top: -16px;
+
+background: url(2x1-icon.png);
+
+
+/* discount-tag */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 10px;
+
+position: absolute;
+width: 35px;
+height: 23px;
+left: 73px;
+top: 0px;
+
+background: #000000;
+border-radius: 0px 0px 3px 3px;
+
+
+/* - 30% */
+
+width: 24px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #FFFFFF;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* promo-card-dotted-line */
+
+width: 100px;
+height: 0px;
+
+opacity: 0.41;
+border: 0.633625px dashed #000000;
+transform: rotate(-90deg);
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* promo-card-body */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 104px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* description */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 5px;
+
+width: 202px;
+height: 65px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* 2 X 1 */
+
+width: 202px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 500;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Cada local o negocio oferta sus productos con promociones del tipo 2 x 1, 3 x 1 y más. */
+
+width: 202px;
+height: 45px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date+qr */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: space-between;
+align-items: center;
+padding: 0px;
+gap: 60px;
+
+width: 202px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* date */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 27px;
+
+margin: 0 auto;
+width: 110px;
+height: 15px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Hasta */
+
+width: 30px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* 20 de Sept. */
+
+width: 53px;
+height: 15px;
+
+font-family: 'Roboto';
+font-style: normal;
+font-weight: 400;
+font-size: 11px;
+line-height: 140%;
+/* or 15px */
+text-align: right;
+
+color: #000000;
+
+opacity: 0.55;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* qr-code */
+
+margin: 0 auto;
+width: 34px;
+height: 34px;
+
+border-radius: 1px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vaadin:qrcode */
+
+position: absolute;
+width: 34px;
+height: 34px;
+left: calc(50% - 34px/2 + 0.04px);
+top: calc(50% - 34px/2);
+
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 0%;
+bottom: 62.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 62.5%;
+top: 12.5%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 12.5%;
+right: 0%;
+top: 0%;
+bottom: 12.5%;
+
+background: #000000;
+
+
+/* Vector */
+
+position: absolute;
+left: 0%;
+right: 0%;
+top: 0%;
+bottom: 0%;
+
+background: #000000;
+
+
+/* bottom-glow */
+
+position: absolute;
+width: 669px;
+height: 1299px;
+left: calc(50% - 669px/2 - 0.5px);
+top: 0px;
+
+background: rgba(255, 255, 255, 0.1);
+opacity: 0.8;
+filter: blur(100px);
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+z-index: 3;
+
+
+/* contact-section */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 36px;
+
+width: 374px;
+height: 534px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Dejanos un mensaje */
+
+width: 374px;
+height: 37px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 600;
+font-size: 32px;
+line-height: 115%;
+/* identical to box height, or 37px */
+text-align: center;
+
+color: #4B0D82;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* contact-form */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 36px;
+
+width: 374px;
+height: 461px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* text-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 13px;
+
+width: 374px;
+height: 85px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Tus ideas y opiniones son muy valiosas para nosotros, no dudes en escribirnos. */
+
+width: 374px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: rgba(28, 0, 73, 0.7);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Si necesitas ayuda, usa el siguiente enlace. */
+
+width: 374px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+text-align: center;
+
+color: rgba(28, 0, 73, 0.7);
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* contact-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 24px;
+
+width: 374px;
+height: 340px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* input-text-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 26px;
+
+width: 374px;
+height: 260px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* name-input */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 15px 13px;
+
+width: 374px;
+height: 54px;
+
+background: #FFFFFF;
+border: 1px solid #DBD9E6;
+border-radius: 10px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Nombre... */
+
+width: 73px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150.71%;
+/* or 24px */
+
+color: rgba(26, 6, 81, 0.55);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* email-input */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 15px 13px;
+
+width: 374px;
+height: 54px;
+
+background: #FFFFFF;
+border: 1px solid #DBD9E6;
+border-radius: 10px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Nombre... */
+
+width: 148px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150.71%;
+/* or 24px */
+
+color: rgba(26, 6, 81, 0.55);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* message-input */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 15px 13px;
+isolation: isolate;
+
+width: 374px;
+height: 100px;
+
+background: #FFFFFF;
+border: 1px solid #DBD9E6;
+border-radius: 10px;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Mensaje... */
+
+width: 75px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 16px;
+line-height: 150.71%;
+/* or 24px */
+
+color: rgba(26, 6, 81, 0.55);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* 0 / 200 */
+
+position: absolute;
+width: 49px;
+height: 21px;
+left: 318px;
+top: 73px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 14px;
+line-height: 150%;
+/* identical to box height, or 21px */
+
+color: rgba(26, 6, 81, 0.45);
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* button */
+
+width: 179px;
+height: 56px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* purple-button */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 16px 28px;
+
+position: absolute;
+width: 179px;
+height: 56px;
+left: 0.14px;
+top: 0px;
+
+background: #6A40C6;
+border: 1px solid rgba(74, 49, 127, 0.33);
+border-radius: 14px;
+
+
+/* Enviar mensaje */
+
+width: 123px;
+height: 24px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 150%;
+/* identical to box height, or 24px */
+
+color: #FFFFFF;
+
+border: 0.923669px solid rgba(72, 58, 103, 0.5);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* purple-button-glow */
+
+position: absolute;
+width: 179px;
+height: 56px;
+left: calc(50% - 179px/2);
+top: calc(50% - 56px/2);
+
+background: linear-gradient(29.1deg, rgba(255, 255, 255, 0) 17.96%, rgba(255, 255, 255, 0.12) 40.05%, rgba(255, 255, 255, 0.44) 83.09%);
+opacity: 0.1;
+filter: blur(1.15px);
+border-radius: 14px;
+
+
+/* footer */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px 0px 40px;
+gap: 52px;
+
+width: 430px;
+height: 539px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* footer-panels */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+
+width: 430px;
+height: 260px;
+
+border-top: 1px solid rgba(28, 0, 73, 0.15);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* footer-panel */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 20px 0px;
+
+width: 430px;
+height: 65px;
+
+border-bottom: 1px solid rgba(28, 0, 73, 0.15);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Ayuda */
+
+width: 58px;
+height: 25px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 18px;
+line-height: 140%;
+/* or 25px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* negocio-panel */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 20px 0px;
+
+width: 430px;
+height: 65px;
+
+border-bottom: 1px solid rgba(28, 0, 73, 0.15);
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Ayuda */
+
+width: 129px;
+height: 25px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 18px;
+line-height: 140%;
+/* or 25px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* about-panel */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 20px 0px;
+
+width: 430px;
+height: 65px;
+
+border-bottom: 1px solid rgba(28, 0, 73, 0.15);
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Ayuda */
+
+width: 156px;
+height: 25px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 18px;
+line-height: 140%;
+/* or 25px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* delete-data-panel */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 20px 0px;
+
+width: 430px;
+height: 65px;
+
+border-bottom: 1px solid rgba(28, 0, 73, 0.15);
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Ayuda */
+
+width: 111px;
+height: 25px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 300;
+font-size: 18px;
+line-height: 140%;
+/* or 25px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* footer-info */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px;
+gap: 32px;
+
+width: 430px;
+height: 187px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* about-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 0px 15px;
+gap: 20px;
+
+width: 380px;
+height: 96px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* REFERIDOS APP */
+
+width: 150px;
+height: 28px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 500;
+font-size: 20px;
+line-height: 140%;
+/* identical to box height, or 28px */
+
+color: #B26CF2;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Catálogo de promociones y sistema de recompensas por canjearlas y referir. */
+
+width: 350px;
+height: 48px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 16px;
+line-height: 150%;
+/* or 24px */
+text-align: center;
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* legal-block */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+gap: 16px;
+
+width: 430px;
+height: 59px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* legal-links */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: baseline;
+padding: 0px;
+gap: 12px;
+
+width: 430px;
+height: 22px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Términos */
+
+width: 74px;
+height: 22px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 140%;
+/* or 22px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* - */
+
+width: 9px;
+height: 22px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 140%;
+/* or 22px */
+
+color: #1C0049;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Privacidad */
+
+width: 86px;
+height: 22px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 400;
+font-size: 16px;
+line-height: 140%;
+/* or 22px */
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* © 2026 ReferidosApp */
+
+width: 430px;
+height: 21px;
+
+font-family: 'Poppins';
+font-style: normal;
+font-weight: 275;
+font-size: 14px;
+line-height: 150%;
+/* identical to box height, or 21px */
+text-align: center;
+
+color: rgba(28, 0, 73, 0.75);
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 0;

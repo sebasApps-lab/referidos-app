@@ -36,9 +36,6 @@ export default function Header({
   const bootstrap = useAppStore((s) => s.bootstrap);
   const onboarding = useAppStore((s) => s.onboarding);
 
-  if (bootstrap || typeof usuario === "undefined") return null;
-  if (!usuario || !onboarding?.allowAccess) return null;
-
   const avatarSrc =
     usuario?.genero === "f"
       ? AVATAR_FEMALE
@@ -90,6 +87,8 @@ export default function Header({
   const negocio = onboarding?.negocio || null;
 
   useLayoutEffect(() => {
+    if (bootstrap || typeof usuario === "undefined") return;
+    if (!usuario || !onboarding?.allowAccess) return;
     const currentLocationBarHeight =
       !hideLocationBar && locAllowed === false && locationBarRef.current
         ? locationBarRef.current.offsetHeight
@@ -116,12 +115,18 @@ export default function Header({
       onHeaderHeightChange(totalHeight);
     }
   }, [
+    bootstrap,
+    usuario,
+    onboarding,
     expanded,
     locAllowed,
     hideLocationBar,
     onHeaderHeightChange,
     locationBarHeight,
   ]);
+
+  if (bootstrap || typeof usuario === "undefined") return null;
+  if (!usuario || !onboarding?.allowAccess) return null;
 
   const beginSwipe = (event) => {
     swipeRef.current.startY = event.clientY;

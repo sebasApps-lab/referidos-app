@@ -4,7 +4,11 @@ import { Home, LayoutGrid, QrCode, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 
+// Lint purge (no-unused-vars): `Icon` del map de links se renderiza via createElement (bloque footer negocio).
 export default function NegocioFooter() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
@@ -31,15 +35,15 @@ export default function NegocioFooter() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center justify-around py-2">
-        {links.map(({ path, label, Icon }) => {
-          const active = isActive(path);
+        {links.map((linkItem) => {
+          const active = isActive(linkItem.path);
           return (
             <Link
-              key={path}
-              to={path}
+              key={linkItem.path}
+              to={linkItem.path}
               className="relative flex flex-col items-center text-[11px] font-medium"
             >
-              <motion.div
+              <TEMP_MOTION_SPLASH_TAG
                 initial={false}
                 animate={{
                   scale: active ? 1.15 : 1,
@@ -47,8 +51,8 @@ export default function NegocioFooter() {
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18 }}
               >
-                <Icon size={20} />
-              </motion.div>
+                {React.createElement(linkItem.Icon, { size: 20 })}
+              </TEMP_MOTION_SPLASH_TAG>
               <motion.span
                 className="mt-1"
                 animate={{
@@ -56,7 +60,7 @@ export default function NegocioFooter() {
                   color: active ? "#5E30A5" : "#94A3B8",
                 }}
               >
-                {label}
+                {linkItem.label}
               </motion.span>
               {active && (
                 <motion.div

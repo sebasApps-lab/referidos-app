@@ -19,6 +19,14 @@ function asObject(value: unknown): JsonObject {
   return {};
 }
 
+function asUuid(value: unknown): string | null {
+  const text = asString(value);
+  if (!text) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
+    ? text
+    : null;
+}
+
 function envVarKey(input: string): string {
   return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
 }
@@ -135,6 +143,185 @@ async function runObsReleaseSync({
   };
 }
 
+async function runStorageArtifactGc({
+  tenantId,
+  actor,
+  limit = 25,
+}: {
+  tenantId: string;
+  actor: string;
+  limit?: number;
+}) {
+  const normalizedTenant = asString(tenantId);
+  if (!normalizedTenant) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "missing_tenant_id",
+      detail: "No tenant_id available for artifact gc.",
+    };
+  }
+
+  const { data: artifactRows, error: artifactLookupError } = await supabaseAdmin
+    .from("version_release_artifacts")
+    .select("id, artifact_path, metadata, created_at")
+    .eq("tenant_id", normalizedTenant)
+    .eq("artifact_provider", "supabase_storage")
+    .not("artifact_path", "is", null)
+    .order("created_at", { ascending: true })
+    .limit(Math.max(limit * 6, 60));
+
+  if (artifactLookupError) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: "artifact_lookup_failed",
+      detail: artifactLookupError.message,
+    };
+  }
+
+  const bucketDefault = asString(Deno.env.get("VERSIONING_ARTIFACTS_BUCKET"), "versioning-artifacts");
+  const deleted: Array<{ artifact_id: string; artifact_path: string; bucket: string }> = [];
+  const errors: Array<{ artifact_id: string; detail: string }> = [];
+  let keptByHead = 0;
+  let skippedDeleted = 0;
+
+  for (const row of artifactRows || []) {
+    if (deleted.length >= limit) break;
+
+    const artifactId = asString((row as JsonObject).id);
+    const artifactPath = asString((row as JsonObject).artifact_path);
+    if (!artifactId || !artifactPath) continue;
+
+    const metadata = asObject((row as JsonObject).metadata);
+    if (asString(metadata.storage_deleted_at)) {
+      skippedDeleted += 1;
+      continue;
+    }
+
+    const { data: headRow, error: headError } = await supabaseAdmin
+      .from("version_artifact_env_heads")
+      .select("id")
+      .eq("artifact_id", artifactId)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+
+    if (headError) {
+      errors.push({ artifact_id: artifactId, detail: headError.message });
+      continue;
+    }
+    if (headRow?.id) {
+      keptByHead += 1;
+      continue;
+    }
+
+    const bucket = asString(metadata.storage_bucket, bucketDefault);
+    const { error: removeError } = await supabaseAdmin.storage.from(bucket).remove([artifactPath]);
+    if (removeError) {
+      errors.push({ artifact_id: artifactId, detail: removeError.message });
+      continue;
+    }
+
+    const nextMetadata: JsonObject = {
+      ...metadata,
+      storage_bucket: bucket,
+      storage_deleted_at: new Date().toISOString(),
+      storage_deleted_by: actor,
+      storage_delete_reason: "unreferenced_by_env_heads",
+    };
+    const { error: updateError } = await supabaseAdmin
+      .from("version_release_artifacts")
+      .update({
+        metadata: nextMetadata,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", artifactId);
+
+    if (updateError) {
+      errors.push({ artifact_id: artifactId, detail: updateError.message });
+      continue;
+    }
+
+    deleted.push({
+      artifact_id: artifactId,
+      artifact_path: artifactPath,
+      bucket,
+    });
+  }
+
+  return {
+    ok: errors.length === 0,
+    skipped: false,
+    deleted_count: deleted.length,
+    kept_by_head: keptByHead,
+    skipped_already_deleted: skippedDeleted,
+    errors,
+    deleted,
+  };
+}
+
+async function emitBuildEvent({
+  tenantId,
+  releaseId = "",
+  deployRequestId = "",
+  artifactId = "",
+  eventKey,
+  eventType,
+  status,
+  actor,
+  detail = "",
+  workflowName = "versioning-deploy-artifact.yml",
+  workflowJob = "deploy-artifact",
+  workflowRunId = null,
+  workflowRunNumber = null,
+  metadata = {},
+}: {
+  tenantId: string;
+  releaseId?: string;
+  deployRequestId?: string;
+  artifactId?: string;
+  eventKey: string;
+  eventType: string;
+  status: string;
+  actor: string;
+  detail?: string;
+  workflowName?: string;
+  workflowJob?: string;
+  workflowRunId?: number | null;
+  workflowRunNumber?: number | null;
+  metadata?: JsonObject;
+}) {
+  const payload = {
+    p_tenant_id: asUuid(tenantId),
+    p_release_id: asUuid(releaseId),
+    p_deploy_request_id: asUuid(deployRequestId),
+    p_artifact_id: asUuid(artifactId),
+    p_event_key: eventKey,
+    p_event_type: eventType,
+    p_status: status,
+    p_actor: actor || "system",
+    p_detail: detail || null,
+    p_workflow_name: workflowName || null,
+    p_workflow_job: workflowJob || null,
+    p_workflow_run_id:
+      Number.isFinite(Number(workflowRunId)) && Number(workflowRunId) > 0
+        ? Number(workflowRunId)
+        : null,
+    p_workflow_run_number:
+      Number.isFinite(Number(workflowRunNumber)) && Number(workflowRunNumber) > 0
+        ? Number(workflowRunNumber)
+        : null,
+    p_metadata: metadata,
+  };
+  const { error } = await supabaseAdmin.rpc("versioning_emit_build_event", payload);
+  if (error) {
+    console.error("versioning_emit_build_event_failed", {
+      event_key: eventKey,
+      detail: error.message,
+    });
+  }
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const cors = corsWithCallbackHeader(origin);
@@ -189,11 +376,12 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestLookupError } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, release_id, product_key, env_key, version_label")
+    .select("id, tenant_id, release_id, product_key, env_key, version_label")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<{
       id: string;
+      tenant_id: string;
       release_id: string;
       product_key: string;
       env_key: string;
@@ -213,6 +401,23 @@ serve(async (req) => {
   }
 
   let obsReleaseSyncResult: JsonObject | null = null;
+  const workflowRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
+  const workflowRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
+  await emitBuildEvent({
+    tenantId: asString(requestRow.tenant_id),
+    releaseId: asString(requestRow.release_id),
+    deployRequestId: requestId,
+    artifactId: asString(metadata.artifact_id),
+    eventKey: `deploy-callback:${requestId}:received:${status}`,
+    eventType: "deploy.callback_received",
+    status: status === "success" ? "running" : "failed",
+    actor,
+    detail: `Callback recibido para ${asString(requestRow.env_key)} ${asString(requestRow.version_label)}.`,
+    workflowRunId,
+    workflowRunNumber,
+    metadata,
+  });
+
   if (status === "success") {
     try {
       obsReleaseSyncResult = await runObsReleaseSync({
@@ -263,6 +468,223 @@ serve(async (req) => {
     );
   }
 
+  await emitBuildEvent({
+    tenantId: asString(requestRow.tenant_id),
+    releaseId: asString(requestRow.release_id),
+    deployRequestId: requestId,
+    artifactId: asString(metadata.artifact_id),
+    eventKey: `deploy-callback:${requestId}:finalize:${status}`,
+    eventType: "deploy.request_finalized",
+    status: status === "success" ? "success" : "failed",
+    actor,
+    detail: status === "success" ? "Deploy finalizado correctamente." : "Deploy finalizado con error.",
+    workflowRunId,
+    workflowRunNumber,
+    metadata: finalizeMetadata,
+  });
+
+  let releaseMetadataResult: JsonObject | null = null;
+  let artifactHeadResult: JsonObject | null = null;
+  let artifactGcResult: JsonObject | null = null;
+  let envConfigResult: JsonObject | null = null;
+  if (status === "success") {
+    const prNumber = Number(
+      metadata.pr_number ?? metadata.pull_number ?? metadata.pull_request_number ?? 0
+    );
+    const ciRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
+    const ciRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
+    const tagName = asString(metadata.tag_name);
+    const releaseNotesAuto = asString(metadata.release_notes_auto);
+    const releaseNotesFinal = asString(metadata.release_notes_final);
+
+    const { data: releaseMetadataRows, error: releaseMetadataError } = await supabaseAdmin.rpc(
+      "versioning_finalize_release_metadata",
+      {
+        p_request_id: requestId,
+        p_actor: actor,
+        p_pr_number: Number.isFinite(prNumber) && prNumber > 0 ? prNumber : null,
+        p_tag_name: tagName || null,
+        p_release_notes_auto: releaseNotesAuto || null,
+        p_release_notes_final: releaseNotesFinal || null,
+        p_ci_run_id: Number.isFinite(ciRunId) && ciRunId > 0 ? ciRunId : null,
+        p_ci_run_number: Number.isFinite(ciRunNumber) && ciRunNumber > 0 ? ciRunNumber : null,
+        p_metadata: metadata,
+      }
+    );
+
+    if (releaseMetadataError) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "finalize_release_metadata_failed",
+          detail: releaseMetadataError.message,
+          deployment_row_id: data || null,
+          obs_release_sync: obsReleaseSyncResult,
+        },
+        500,
+        cors
+      );
+    }
+
+    if (Array.isArray(releaseMetadataRows)) {
+      releaseMetadataResult = (releaseMetadataRows[0] as JsonObject) || null;
+    } else {
+      releaseMetadataResult = (releaseMetadataRows as JsonObject) || null;
+    }
+
+    await emitBuildEvent({
+      tenantId: asString(requestRow.tenant_id),
+      releaseId: asString(requestRow.release_id),
+      deployRequestId: requestId,
+      artifactId: asString(metadata.artifact_id),
+      eventKey: `deploy-callback:${requestId}:release-metadata`,
+      eventType: "release.metadata_finalized",
+      status: "success",
+      actor,
+      detail: "Metadata de release finalizada.",
+      workflowRunId: ciRunId,
+      workflowRunNumber: ciRunNumber,
+      metadata: {
+        ...metadata,
+        release_metadata: releaseMetadataResult,
+      },
+    });
+
+    const { data: artifactHeadId, error: artifactHeadError } = await supabaseAdmin.rpc(
+      "versioning_mark_env_artifact_head",
+      {
+        p_release_id: asString(requestRow.release_id),
+        p_actor: actor,
+      }
+    );
+    if (artifactHeadError) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "mark_env_artifact_head_failed",
+          detail: artifactHeadError.message,
+          deployment_row_id: data || null,
+          release_metadata: releaseMetadataResult,
+          obs_release_sync: obsReleaseSyncResult,
+        },
+        500,
+        cors
+      );
+    }
+
+    artifactHeadResult = {
+      ok: true,
+      artifact_id: asString(artifactHeadId),
+      release_id: asString(requestRow.release_id),
+      env_key: asString(requestRow.env_key),
+    };
+
+    await emitBuildEvent({
+      tenantId: asString(requestRow.tenant_id),
+      releaseId: asString(requestRow.release_id),
+      deployRequestId: requestId,
+      artifactId: asString(artifactHeadId || metadata.artifact_id),
+      eventKey: `deploy-callback:${requestId}:artifact-head`,
+      eventType: "artifact.head_marked",
+      status: "success",
+      actor,
+      detail: "Artifact marcado como head del entorno.",
+      workflowRunId: ciRunId,
+      workflowRunNumber: ciRunNumber,
+      metadata: {
+        ...metadata,
+        artifact_head: artifactHeadResult,
+      },
+    });
+
+    const runtimeConfig = asObject(metadata.runtime_config);
+    const runtimeConfigPayload = asObject(runtimeConfig.payload);
+    if (Object.keys(runtimeConfigPayload).length > 0) {
+      const runtimeConfigHash = asString(runtimeConfig.config_hash_sha256);
+      const runtimeConfigKey = asString(runtimeConfig.config_key, "app-config.js");
+      const runtimeConfigFormat = asString(runtimeConfig.config_format, "json");
+      const releaseArtifactId = asUuid(
+        asString(metadata.artifact_id) || asString(artifactHeadId)
+      );
+      const { data: configVersionId, error: configVersionError } = await supabaseAdmin.rpc(
+        "versioning_register_env_config_version",
+        {
+          p_release_id: asString(requestRow.release_id),
+          p_actor: actor,
+          p_config_key: runtimeConfigKey,
+          p_config_format: runtimeConfigFormat,
+          p_config_payload: runtimeConfigPayload,
+          p_config_hash_sha256: runtimeConfigHash || null,
+          p_source_commit_sha: asString(metadata.source_commit_sha) || null,
+          p_artifact_id: releaseArtifactId,
+          p_metadata: {
+            source: "versioning-deploy-artifact",
+            request_id: requestId,
+            env_key: asString(requestRow.env_key),
+            version_label: asString(requestRow.version_label),
+          },
+        }
+      );
+      if (configVersionError) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "register_env_config_version_failed",
+            detail: configVersionError.message,
+            deployment_row_id: data || null,
+            release_metadata: releaseMetadataResult,
+            artifact_head: artifactHeadResult,
+            obs_release_sync: obsReleaseSyncResult,
+          },
+          500,
+          cors
+        );
+      }
+      envConfigResult = {
+        ok: true,
+        id: asString(configVersionId),
+        key: runtimeConfigKey,
+        hash: runtimeConfigHash || null,
+      };
+
+      await emitBuildEvent({
+        tenantId: asString(requestRow.tenant_id),
+        releaseId: asString(requestRow.release_id),
+        deployRequestId: requestId,
+        artifactId: asString(releaseArtifactId || ""),
+        eventKey: `deploy-callback:${requestId}:runtime-config-versioned`,
+        eventType: "config.versioned",
+        status: "success",
+        actor,
+        detail: "Version de configuracion por entorno registrada.",
+        workflowRunId: ciRunId,
+        workflowRunNumber: ciRunNumber,
+        metadata: {
+          ...metadata,
+          runtime_config: {
+            ...runtimeConfig,
+            config_version_id: asString(configVersionId),
+          },
+        },
+      });
+    }
+
+    try {
+      artifactGcResult = await runStorageArtifactGc({
+        tenantId: asString(requestRow.tenant_id),
+        actor,
+        limit: 25,
+      });
+    } catch (error) {
+      artifactGcResult = {
+        ok: false,
+        skipped: false,
+        reason: "artifact_gc_exception",
+        detail: error instanceof Error ? error.message : "unknown_error",
+      };
+    }
+  }
+
   return jsonResponse(
     {
       ok: true,
@@ -270,6 +692,10 @@ serve(async (req) => {
       deployment_row_id: data || null,
       status,
       obs_release_sync: obsReleaseSyncResult,
+      release_metadata: releaseMetadataResult,
+      env_config: envConfigResult,
+      artifact_head: artifactHeadResult,
+      artifact_gc: artifactGcResult,
     },
     200,
     cors

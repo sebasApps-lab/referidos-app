@@ -3,11 +3,11 @@ import {
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
+  loadSupportRuntimeFlags,
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
-
-const DEFAULT_SUPPORT_PHONE = "593995705833";
+import { manualAssignThread } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -35,19 +35,19 @@ serve(async (req) => {
   if (profileErr || !usuario) {
     return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
   }
-  if (!["soporte", "admin"].includes(usuario.role)) {
+  if (!["soporte", "admin"].includes(String(usuario.role || "").toLowerCase())) {
     return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);
   }
 
   const body = await req.json().catch(() => ({}));
   const threadPublicId = body.thread_public_id;
   const agentId = body.agent_id || usuario.id;
-
   if (!threadPublicId) {
     return jsonResponse({ ok: false, error: "missing_thread" }, 400, cors);
   }
 
-  const isAdminSelf = usuario.role === "admin" && agentId === usuario.id;
+  const runtimeFlags = await loadSupportRuntimeFlags();
+  const requireJornadaAuthorization = runtimeFlags.require_jornada_authorization;
   const { data: sessionRow } = await supabaseAdmin
     .from("support_agent_sessions")
     .select("id")
@@ -60,92 +60,78 @@ serve(async (req) => {
   if (!sessionRow?.id) {
     return jsonResponse({ ok: false, error: "agent_session_inactive" }, 409, cors);
   }
+
   const { data: agentProfile, error: agentErr } = await supabaseAdmin
     .from("support_agent_profiles")
     .select("user_id, authorized_for_work, authorized_until, blocked, support_phone")
     .eq("user_id", agentId)
     .maybeSingle();
 
-  if (!isAdminSelf && (agentErr || !agentProfile)) {
+  if (agentErr || !agentProfile) {
     return jsonResponse({ ok: false, error: "agent_not_found" }, 404, cors);
   }
-
-  if (!isAdminSelf && (agentProfile?.blocked || !agentProfile?.authorized_for_work)) {
+  if (agentProfile.blocked || (requireJornadaAuthorization && !agentProfile.authorized_for_work)) {
     return jsonResponse({ ok: false, error: "agent_not_authorized" }, 403, cors);
   }
   if (
-    !isAdminSelf &&
-    agentProfile?.authorized_until &&
+    requireJornadaAuthorization &&
+    agentProfile.authorized_until &&
     new Date(agentProfile.authorized_until).getTime() < Date.now()
   ) {
     return jsonResponse({ ok: false, error: "agent_authorization_expired" }, 403, cors);
   }
 
-  const activeAssigned = await supabaseAdmin
-    .from("support_threads")
-    .select("id")
-    .eq("assigned_agent_id", agentId)
-    .in("status", ["assigned", "in_progress", "waiting_user"])
-    .limit(1);
-
-  if (activeAssigned.data && activeAssigned.data.length > 0) {
-    return jsonResponse({ ok: false, error: "agent_has_active_ticket" }, 409, cors);
-  }
-
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, status, assigned_agent_id, wa_message_text")
+    .select("id, tenant_id, status, personal_queue, assigned_agent_id")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
   if (threadErr || !thread) {
     return jsonResponse({ ok: false, error: "thread_not_found" }, 404, cors);
   }
-
-  const supportPhone = (agentProfile?.support_phone || DEFAULT_SUPPORT_PHONE)
-    .replace(/\D/g, "");
-  const updateResponse = await supabaseAdmin
-    .from("support_threads")
-    .update({
-      assigned_agent_id: agentId,
-      assigned_agent_phone: supportPhone,
-      status: "assigned",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", thread.id)
-    .select("public_id, status, assigned_agent_id")
-    .single();
-
-  if (updateResponse.error) {
-    return jsonResponse({ ok: false, error: "assign_failed" }, 500, cors);
+  if (thread.assigned_agent_id) {
+    return jsonResponse({ ok: false, error: "thread_already_assigned" }, 409, cors);
+  }
+  if (!(thread.status === "new" || (thread.status === "queued" && thread.personal_queue === false))) {
+    return jsonResponse({ ok: false, error: "thread_not_assignable" }, 409, cors);
   }
 
-  if (supportPhone && thread.wa_message_text) {
-    const waLink =
-      "https://wa.me/" +
-      supportPhone.replace(/\D/g, "") +
-      "?text=" +
-      encodeURIComponent(thread.wa_message_text);
-    await supabaseAdmin
-      .from("support_threads")
-      .update({ wa_link: waLink })
-      .eq("id", thread.id);
-  }
-
-  await supabaseAdmin.from("support_thread_events").insert({
-    thread_id: thread.id,
-    event_type: "assigned",
-    actor_role: usuario.role,
-    actor_id: usuario.id,
-    details: { agent_id: agentId },
+  const assignmentResult = await manualAssignThread({
+    threadId: thread.id,
+    agentId,
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
   });
+
+  if (!assignmentResult.ok) {
+    if (assignmentResult.error === "agent_not_eligible") {
+      return jsonResponse({ ok: false, error: "agent_not_authorized" }, 403, cors);
+    }
+    if (assignmentResult.error === "agent_capacity_full") {
+      return jsonResponse({ ok: false, error: "agent_capacity_full" }, 409, cors);
+    }
+    if (assignmentResult.error === "assign_conflict") {
+      return jsonResponse({ ok: false, error: "assign_conflict" }, 409, cors);
+    }
+    return jsonResponse({ ok: false, error: assignmentResult.error || "assign_failed" }, 500, cors);
+  }
+
+  const { data: updatedThread } = await supabaseAdmin
+    .from("support_threads")
+    .select("public_id, status, assigned_agent_id, personal_queue")
+    .eq("id", thread.id)
+    .maybeSingle();
 
   return jsonResponse(
     {
       ok: true,
-      thread: updateResponse.data,
+      thread: updatedThread || null,
+      mode: assignmentResult.mode || null,
+      cycle: assignmentResult.cycle || null,
     },
     200,
-    cors
+    cors,
   );
 });

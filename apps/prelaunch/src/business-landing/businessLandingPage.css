@@ -1,0 +1,28 @@
+html[data-prelaunch-root-entry="mobile"],
+html[data-prelaunch-root-entry="mobile"] body {
+  background: #ffffff;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+html[data-prelaunch-root-entry="desktop"],
+html[data-prelaunch-root-entry="desktop"] body {
+  background: #ffffff;
+  overflow-x: auto;
+  margin: 0;
+  padding: 0;
+  min-width: 700px;
+}
+
+html[data-prelaunch-root-entry="mobile"] #root {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+html[data-prelaunch-root-entry="desktop"] #root {
+  width: 100%;
+  min-width: 700px;
+  max-width: none;
+}

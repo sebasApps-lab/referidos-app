@@ -124,6 +124,29 @@ Pipeline:
 Nota:
 - no se implementa fallback por fecha para logs legacy.
 
+## 4.2) Catalogo de macros de soporte en OPS (aplicado)
+
+Estado final:
+- escritura de catalogo (admin macros) centralizada en `referidos-ops`
+- lectura operativa en soporte/admin desde cache local read-only por entorno
+- sync incremental por delta (`support_macro_change_log.seq`)
+
+Piezas clave:
+- OPS:
+  - `support_macro_categories`
+  - `support_macros`
+  - `support_macro_change_log`
+  - funciones `ops-support-macros-admin` y `ops-support-macros-sync`
+- Runtime:
+  - `support_macro_categories_cache`
+  - `support_macros_cache`
+  - `support_macro_sync_state`
+  - funciones `support-ops-proxy` y `ops-support-macros-sync-dispatch`
+
+Regla operativa:
+- `all` aplica a todas las apps
+- target específico solo aparece en tickets de esa app
+
 ## 5) Mensajes de commit (sin PR labels)
 
 `major`:
@@ -220,6 +243,8 @@ npm run versioning:bootstrap -- --product referidos_app --product prelaunch_web
 
 - `docs/referidos-system/entornos-y-secrets.md`
 - `docs/referidos-system/ops-telemetry-cold-dispatch.md`
+- `docs/referidos-system/support-macros-ops-cache.md`
+- `docs/referidos-system/android-support-cleanup-pending.md`
 - `docs/referidos-system/operacion-sin-pr-netlify.md`
 - `docs/versioning-system.md`
 - `apps/referidos-ops/README.md`

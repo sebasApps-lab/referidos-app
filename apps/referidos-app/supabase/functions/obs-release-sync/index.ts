@@ -34,7 +34,9 @@ function asArray(value: unknown): unknown[] {
 function parseInteger(value: unknown): number | null {
   const next = Number(value);
   if (!Number.isFinite(next)) return null;
-  return Math.trunc(next);
+  const normalized = Math.trunc(next);
+  if (normalized < 1) return null;
+  return normalized;
 }
 
 function parseBoolean(value: unknown, fallback = false): boolean {
@@ -121,6 +123,8 @@ async function fetchReleaseSnapshotFromOps({
         "version_label",
         "status",
         "source_commit_sha",
+        "build_number",
+        "channel",
         "created_at",
         "updated_at",
       ].join(", ")
@@ -203,8 +207,22 @@ async function fetchReleaseSnapshotFromOps({
     }
   }
 
+  let artifactId = "";
+  const { data: artifactRow, error: artifactError } = await opsAdmin
+    .from("version_release_artifacts_labeled")
+    .select("id")
+    .eq("release_id", releaseIdResolved)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (artifactError) {
+    throw new Error(`release_artifact_query_failed: ${artifactError.message}`);
+  }
+  artifactId = asString((artifactRow as JsonObject | null)?.id);
+
   return {
     release: release as JsonObject,
+    artifact_id: artifactId || null,
     components: components.map((component) => {
       const componentId = asString(component.component_id);
       return {
@@ -301,6 +319,9 @@ serve(async (req) => {
     const envKeyResolved = asString(release.env_key).toLowerCase();
     const versionLabel = asString(release.version_label);
     const sourceCommitSha = asString(release.source_commit_sha);
+    const buildNumber = parseInteger(release.build_number);
+    const channel = asString(release.channel || envKeyResolved || "unknown").toLowerCase();
+    const artifactId = asString(snapshot.artifact_id);
     const productKeyResolved = asString(release.product_key).toLowerCase();
 
     if (!releaseIdResolved || !envKeyResolved || !versionLabel || !productKeyResolved) {
@@ -337,6 +358,9 @@ serve(async (req) => {
           semver_patch: parseInteger(release.semver_patch),
           prerelease_tag: asString(release.prerelease_tag) || null,
           prerelease_no: parseInteger(release.prerelease_no),
+          build_number: buildNumber,
+          channel: channel || null,
+          artifact_id: artifactId || null,
           created_at: asString(release.created_at) || null,
           updated_at: asString(release.updated_at) || null,
         },
@@ -410,7 +434,7 @@ serve(async (req) => {
       }
     }
 
-    const buildId = sourceCommitSha || "";
+    const buildId = buildNumber ? String(buildNumber) : sourceCommitSha || "";
     const { data: existingRelease } = await supabaseAdmin
       .from("obs_releases")
       .select("id, meta")
@@ -429,6 +453,9 @@ serve(async (req) => {
         env_key: envKeyResolved,
         version_label: versionLabel,
         source_commit_sha: sourceCommitSha || null,
+        build_number: buildNumber,
+        channel: channel || null,
+        artifact_id: artifactId || null,
         snapshot_hash: snapshotHash,
         snapshot_id: snapshotId || null,
       },
@@ -440,6 +467,9 @@ serve(async (req) => {
         app_id: appId,
         app_version: versionLabel,
         build_id: buildId,
+        build_number: buildNumber,
+        version_release_id: releaseIdResolved,
+        artifact_id: artifactId || null,
         env: envKeyResolved,
         meta: mergeMeta(asObject(existingRelease?.meta), versioningMeta),
       },

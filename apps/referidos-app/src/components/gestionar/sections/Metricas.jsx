@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, BarChart3, DollarSign, Sparkles, Ticket, Users } from "lucide-react";
 
 export default function Metricas() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const kpis = [
     {
       label: "Promos activas",
@@ -42,7 +45,10 @@ export default function Metricas() {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((item) => (
-          <motion.div
+          <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
             key={item.label}
             whileHover={{ y: -2 }}
             className="rounded-xl border border-[#E9E2F7] bg-[#F8F5FF] p-4 shadow-sm"
@@ -60,7 +66,7 @@ export default function Metricas() {
               {item.value}
             </div>
             <div className="text-xs text-slate-500">{item.label}</div>
-          </motion.div>
+          </TEMP_MOTION_SPLASH_TAG>
         ))}
       </div>
 

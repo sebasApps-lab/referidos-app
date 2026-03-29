@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
 import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
@@ -58,14 +60,25 @@ type CountResult = {
 const RN_INCLUDED_MODULES = [
   "Inicio",
   "Usuarios",
+  "Soporte / desk",
   "Soporte / asesores",
+  "Soporte / panel tickets",
+  "Soporte / ticket detalle",
   "Negocios",
   "Promos",
   "QRs",
   "Reportes",
-  "Logs/Sistema",
-  "Observabilidad",
-  "Sistema (perfil/sesion y eventos)",
+  "Logs",
+  "Datos",
+  "Analytics",
+  "Issues / eventos / detalle",
+  "Catalogo errores",
+  "Apps",
+  "Sistema",
+  "Versioning",
+  "Documentacion",
+  "Legal",
+  "Catalogo soporte",
 ];
 
 const RN_DEFERRED_MODULES: string[] = [];
@@ -114,6 +127,7 @@ async function countRows(table: string): Promise<CountResult> {
 }
 
 export default function AdminInicioScreen() {
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -305,6 +319,111 @@ export default function AdminInicioScreen() {
           {!loading && !hasErrors ? (
             <Text style={styles.okText}>Lectura de KPIs completada sin errores.</Text>
           ) : null}
+        </SectionCard>
+
+        <SectionCard title="Paneles admin" subtitle="Acceso directo al alcance actual en Android">
+          <View style={styles.quickLinks}>
+            <NavCard
+              title="Usuarios"
+              description="Panel actual de usuarios."
+              onPress={() => navigation.navigate(TAB_ROUTES.ADMIN.USUARIOS)}
+            />
+            <NavCard
+              title="Soporte"
+              description="Sesiones, agentes y tickets."
+              onPress={() => navigation.navigate(TAB_ROUTES.ADMIN.SOPORTE)}
+            />
+            <NavCard
+              title="Observabilidad"
+              description="Feed de eventos y errores."
+              onPress={() => navigation.navigate(TAB_ROUTES.ADMIN.OBSERVABILIDAD)}
+            />
+            <NavCard
+              title="Negocios"
+              description="Supervision de locales y sucursales."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.NEGOCIOS)}
+            />
+            <NavCard
+              title="Promos"
+              description="Moderacion y control de promociones."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.PROMOS)}
+            />
+            <NavCard
+              title="QRs"
+              description="Auditoria de codigos y canjes."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.QRS)}
+            />
+            <NavCard
+              title="Reportes"
+              description="Quejas y casos pendientes."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.REPORTES)}
+            />
+            <NavCard
+              title="Logs"
+              description="Auditoria de eventos soporte/obs."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.LOGS)}
+            />
+            <NavCard
+              title="Datos"
+              description="Analisis avanzado y tendencias."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.DATOS)}
+            />
+            <NavCard
+              title="Analytics"
+              description="Prelaunch metrics y riesgo."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ANALYTICS)}
+            />
+            <NavCard
+              title="Issues"
+              description="Listado de issues y eventos."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ISSUES)}
+            />
+            <NavCard
+              title="Error codes"
+              description="Catalogo de errores observados."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ERROR_CODES)}
+            />
+            <NavCard
+              title="Asesores"
+              description="Autorizacion, sesiones e historial."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_AGENTS)}
+            />
+            <NavCard
+              title="Panel tickets"
+              description="Control operativo de tickets."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL)}
+            />
+            <NavCard
+              title="Apps"
+              description="Support apps y aliases runtime."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.APPS)}
+            />
+            <NavCard
+              title="Sistema"
+              description="Flags, runtime support y registration codes."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SISTEMA)}
+            />
+            <NavCard
+              title="Versioning"
+              description="Releases, drift y artifacts."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.VERSIONING)}
+            />
+            <NavCard
+              title="Catalogo soporte"
+              description="Categorias y macros OPS."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_CATALOG)}
+            />
+            <NavCard
+              title="Docs"
+              description="Indice documental del repo."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.DOCUMENTATION)}
+            />
+            <NavCard
+              title="Legal"
+              description="Indice legal y policy snapshot."
+              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.LEGAL)}
+            />
+          </View>
         </SectionCard>
 
         <SectionCard title="Plataforma">
@@ -508,7 +627,7 @@ export default function AdminInicioScreen() {
             : null}
         </SectionCard>
 
-        <SectionCard title="Alcance RN Fase 8">
+        <SectionCard title="Cobertura Android">
           <Text style={styles.scopeTitle}>Incluido en RN</Text>
           {RN_INCLUDED_MODULES.map((item) => (
             <Text key={item} style={styles.scopeText}>
@@ -528,6 +647,24 @@ export default function AdminInicioScreen() {
         </SectionCard>
       </ScrollView>
     </ScreenScaffold>
+  );
+}
+
+function NavCard({
+  title,
+  description,
+  onPress,
+}: {
+  title: string;
+  description: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.navCard}>
+      <Text style={styles.navTitle}>{title}</Text>
+      <Text style={styles.navText}>{description}</Text>
+      <Text style={styles.navLink}>Abrir</Text>
+    </Pressable>
   );
 }
 
@@ -552,6 +689,9 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8,
+  },
+  quickLinks: {
     gap: 8,
   },
   metricCard: {
@@ -621,5 +761,28 @@ const styles = StyleSheet.create({
   listMeta: {
     fontSize: 11,
     color: "#475569",
+  },
+  navCard: {
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    backgroundColor: "#F9F7FF",
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  navTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2F1A55",
+  },
+  navText: {
+    fontSize: 12,
+    color: "#475569",
+  },
+  navLink: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#5B21B6",
   },
 });

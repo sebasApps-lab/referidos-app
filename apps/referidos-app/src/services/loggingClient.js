@@ -5,26 +5,20 @@ import {
   createPolicyRuntime,
 } from "@referidos/observability";
 import { supabase } from "../lib/supabaseClient";
+import { runtimeConfig } from "../config/runtimeConfig";
 
+// Lint purge (no-unused-vars): se removio alias `observabilityClient` del singleton (bloque de bootstrap).
 const importEnv = import.meta.env || {};
-const DEFAULT_TENANT_HINT = importEnv.VITE_DEFAULT_TENANT_ID || "ReferidosAPP";
-const DEFAULT_APP_ID = importEnv.VITE_APP_ID || "referidos-app";
-const DEFAULT_ENV = importEnv.MODE || importEnv.VITE_ENV || "development";
-const DEFAULT_VERSION =
-  importEnv.VITE_APP_VERSION ||
-  importEnv.VITE_VERSION_LABEL ||
-  importEnv.VITE_RELEASE ||
-  importEnv.VITE_COMMIT_SHA ||
-  "dev";
-const DEFAULT_BUILD_ID =
-  importEnv.VITE_BUILD_ID ||
-  importEnv.VITE_SOURCE_COMMIT_SHA ||
-  importEnv.VITE_COMMIT_SHA ||
-  "";
-const DEFAULT_RELEASE_ID =
-  importEnv.VITE_VERSION_RELEASE_ID || importEnv.VITE_RELEASE_ID || "";
-const DEFAULT_SOURCE_COMMIT_SHA =
-  importEnv.VITE_SOURCE_COMMIT_SHA || importEnv.VITE_COMMIT_SHA || "";
+const DEFAULT_TENANT_HINT = runtimeConfig.defaultTenantId || "ReferidosAPP";
+const DEFAULT_APP_ID = runtimeConfig.appId || "referidos-app";
+const DEFAULT_ENV = runtimeConfig.appEnv || importEnv.MODE || "development";
+const DEFAULT_VERSION = runtimeConfig.appVersion || "dev";
+const DEFAULT_BUILD_ID = runtimeConfig.buildId || "";
+const DEFAULT_BUILD_NUMBER = runtimeConfig.buildNumber || "";
+const DEFAULT_RELEASE_ID = runtimeConfig.releaseId || "";
+const DEFAULT_ARTIFACT_ID = runtimeConfig.artifactId || "";
+const DEFAULT_RELEASE_CHANNEL = runtimeConfig.releaseChannel || DEFAULT_ENV;
+const DEFAULT_SOURCE_COMMIT_SHA = runtimeConfig.sourceCommitSha || "";
 
 const LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug"]);
 const LOG_CATEGORIES = new Set([
@@ -59,6 +53,7 @@ if (!globalScope[OBS_SINGLETON_KEY]) {
       VITE_APP_ID: DEFAULT_APP_ID,
       VITE_APP_VERSION: DEFAULT_VERSION,
       VITE_BUILD_ID: DEFAULT_BUILD_ID,
+      VITE_BUILD_NUMBER: DEFAULT_BUILD_NUMBER,
       MODE: DEFAULT_ENV,
     },
   });
@@ -78,7 +73,6 @@ if (!globalScope[RUNTIME_SINGLETON_KEY]) {
   });
 }
 
-const observabilityClient = globalScope[OBS_SINGLETON_KEY];
 const runtime = globalScope[RUNTIME_SINGLETON_KEY];
 
 let initialized = false;
@@ -95,12 +89,18 @@ const registerReleaseOnce = async () => {
         app_id: DEFAULT_APP_ID,
         app_version: DEFAULT_VERSION,
         build_id: DEFAULT_BUILD_ID,
+        build_number: DEFAULT_BUILD_NUMBER ? Number(DEFAULT_BUILD_NUMBER) : null,
+        version_release_id: DEFAULT_RELEASE_ID || null,
+        artifact_id: DEFAULT_ARTIFACT_ID || null,
         env: DEFAULT_ENV,
         meta: {
           versioning: {
             release_id: DEFAULT_RELEASE_ID || null,
             source_commit_sha: DEFAULT_SOURCE_COMMIT_SHA || null,
             version_label: DEFAULT_VERSION,
+            build_number: DEFAULT_BUILD_NUMBER ? Number(DEFAULT_BUILD_NUMBER) : null,
+            artifact_id: DEFAULT_ARTIFACT_ID || null,
+            channel: DEFAULT_RELEASE_CHANNEL || null,
             env_key: DEFAULT_ENV,
             app_id: DEFAULT_APP_ID,
           },
