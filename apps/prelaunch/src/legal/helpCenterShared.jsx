@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
+import { getRuntimeConfig } from "../config/runtimeConfig";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
 import "./helpCenter.css";
 
@@ -33,7 +34,9 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 function helpCenterAsset(relativePath) {
-  return `/assets/shared/help-center/${relativePath}`;
+  const assetBaseUrl = getRuntimeConfig().helpCenterAssetBaseUrl.replace(/\/+$/, "");
+  const assetPath = `/assets/shared/help-center/${relativePath}`;
+  return assetBaseUrl ? `${assetBaseUrl}${assetPath}` : assetPath;
 }
 
 function useThemedHelpCenterAsset(key) {
@@ -46,6 +49,10 @@ function useThemedHelpCenterAsset(key) {
 function HelpCenterAssetIcon({ assetKey }) {
   const src = useThemedHelpCenterAsset(assetKey);
   return <img src={src} alt="" aria-hidden="true" />;
+}
+
+export function HelpCenterThemedAssetIcon({ assetKey }) {
+  return <HelpCenterAssetIcon assetKey={assetKey} />;
 }
 
 export function HelpCenterThemeProvider({ theme, children }) {
@@ -82,7 +89,7 @@ export function HelpCenterLayout({
         <section className="help-center__body">
           <div className="help-center__layout">
             <aside className="help-center__sidebar">
-              <h1 className="help-center__sidebar-title">Categor\u00edas</h1>
+              <h1 className="help-center__sidebar-title">Categorías</h1>
 
               <div className="help-center__sidebar-panel">
                 {sidebarItems.map((category) => (
@@ -266,7 +273,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
           </div>
 
           <div className="help-center__support-text">
-            <h3>\u00bfNo encontraste lo que buscabas?</h3>
+            <h3>¿No encontraste lo que buscabas?</h3>
             <div className="help-center__support-line">
               <p>
                 Ve al <strong>Chat de Soporte</strong> por
