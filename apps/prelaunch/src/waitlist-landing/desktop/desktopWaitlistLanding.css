@@ -152,6 +152,17 @@
 
 .figma-prototype__nav-link--interactive {
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    text-shadow 160ms ease;
+}
+
+.figma-prototype__nav-link--interactive:hover,
+.figma-prototype__nav-link--interactive:focus-visible {
+  transform: translateY(-1px);
+  opacity: 0.92;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
 }
 
 .figma-prototype__nav-link--placeholder {
