@@ -2,40 +2,100 @@
   "schemaVersion": 1,
   "baselineVersion": "0.1.0",
   "globalIgnore": [
+    ".gitignore",
+    ".vscode/**",
     "**/node_modules/**",
     "**/dist/**",
     "**/build/**",
     "**/.git/**",
+    "**/.gitignore",
     "**/.gradle-local/**",
     "**/.android-local/**",
     "**/.npm-cache-local/**",
     "**/.vscode/**",
     "**/.temp/**",
-    "**/*.log"
+    "**/*.log",
+    "**/*.old",
+    ".tmp-*",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.webp",
+    "*.txt",
+    "audit.json"
   ],
   "docOnlyGlobs": [
     "docs/**",
+    "**/docs/**",
+    "*.md",
     "**/*.md",
-    ".github/**",
     "README.md",
-    "contexto.ai.codex.md"
+    "contexto.ai.codex.md",
+    "triggers en auth"
+  ],
+  "specialGroups": [
+    {
+      "groupKey": "versioning_system",
+      "displayName": "Versioning y detector",
+      "globs": [
+        "versioning/**",
+        "tooling/versioning/**"
+      ]
+    },
+    {
+      "groupKey": "ops_control_plane",
+      "displayName": "Control plane OPS",
+      "globs": [
+        "apps/referidos-ops/**"
+      ]
+    },
+    {
+      "groupKey": "repo_infra",
+      "displayName": "Infraestructura del repo y CI",
+      "globs": [
+        ".editorconfig",
+        ".github/**",
+        ".npmrc",
+        "eslint.config.js",
+        "package.json",
+        "scripts/**",
+        "tooling/guardrails/**",
+        "tooling/observability/**",
+        "tooling/scripts/**"
+      ]
+    },
+    {
+      "groupKey": "android_tooling",
+      "displayName": "Tooling Android",
+      "globs": [
+        "tooling/android/**"
+      ]
+    },
+    {
+      "groupKey": "legacy_unversioned_surfaces",
+      "displayName": "Superficies legacy no versionadas",
+      "globs": [
+        "apps/referidos-pwa/**"
+      ]
+    }
   ],
   "products": [
     {
       "productKey": "referidos_app",
       "displayName": "Referidos App",
       "roots": [
-        "apps/referidos-app/src",
-        "apps/referidos-app/supabase/functions",
-        "apps/referidos-app/supabase/migrations",
+        "apps/referidos-app",
         "package-lock.json",
-        "packages/support-sdk/src",
-        "packages/observability/src",
-        "packages/legal-content/src",
-        "packages/platform-web/src",
-        "packages/security-core/src",
-        "packages/domain/src",
-        "packages/api-client/src"
+        "packages/support-sdk",
+        "packages/observability",
+        "packages/legal-content",
+        "packages/platform-web",
+        "packages/security-core",
+        "packages/domain",
+        "packages/api-client",
+        "packages/notifications-sdk",
+        "packages/feedback-sdk",
+        "packages/intake-guard"
       ],
       "contractGlobs": [
         "packages/support-sdk/src/**",
@@ -103,13 +163,14 @@
       "productKey": "prelaunch_web",
       "displayName": "Prelaunch Web",
       "roots": [
-        "apps/prelaunch/src",
-        "apps/prelaunch/public",
+        "apps/prelaunch",
         "assets",
+        "vite.prelaunch.config.js",
         "package-lock.json",
-        "packages/api-client/src",
-        "packages/legal-content/src",
-        "packages/observability/src"
+        "packages/api-client",
+        "packages/legal-content",
+        "packages/observability",
+        "packages/feedback-sdk"
       ],
       "contractGlobs": [
         "packages/api-client/src/**"
@@ -161,16 +222,13 @@
       "productKey": "android_app",
       "displayName": "Android App",
       "roots": [
-        "apps/referidos-android/src",
-        "apps/referidos-android/android",
-        "apps/referidos-android/index.js",
-        "apps/referidos-android/App.tsx",
+        "apps/referidos-android",
         "package-lock.json",
-        "packages/api-client/src",
-        "packages/observability-sdk/src",
-        "packages/platform-rn/src",
-        "packages/domain/src",
-        "packages/security-core/src"
+        "packages/api-client",
+        "packages/observability-sdk",
+        "packages/platform-rn",
+        "packages/domain",
+        "packages/security-core"
       ],
       "contractGlobs": [
         "packages/api-client/src/**",
