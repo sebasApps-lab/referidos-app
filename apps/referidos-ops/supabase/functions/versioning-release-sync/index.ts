@@ -581,6 +581,66 @@ async function waitForRequiredChecksGreen({
   };
 }
 
+async function waitForBranchRequiredChecksGreen({
+  owner,
+  repo,
+  token,
+  branch,
+  retries = 20,
+  delayMs = 3000,
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  branch: string;
+  retries?: number;
+  delayMs?: number;
+}) {
+  const head = await fetchBranchHeadSha({
+    owner,
+    repo,
+    token,
+    branch,
+  });
+
+  if (!head.ok) {
+    return {
+      ok: false,
+      error: "workflow_pack_source_head_failed",
+      detail: head.detail,
+      payload: head.payload,
+      head_sha: "",
+      checks: null as ChecksSummary | null,
+      attempts: 0,
+      timed_out: false,
+    };
+  }
+
+  const checksWait = await waitForRequiredChecksGreen({
+    owner,
+    repo,
+    token,
+    headSha: head.sha,
+    retries,
+    delayMs,
+  });
+
+  return {
+    ok: true,
+    error: "",
+    detail: checksWait.checks.required_green
+      ? "source_checks_green"
+      : checksWait.timed_out
+        ? "source_checks_timeout"
+        : "source_checks_failed",
+    payload: null,
+    head_sha: head.sha,
+    checks: checksWait.checks,
+    attempts: checksWait.attempts,
+    timed_out: checksWait.timed_out,
+  };
+}
+
 async function mergePullRequest({
   owner,
   repo,
@@ -1731,6 +1791,64 @@ serve(async (req) => {
     }
 
     const targetResults: Record<string, unknown> = {};
+    const sourceChecks = await waitForBranchRequiredChecksGreen({
+      owner: githubOwner,
+      repo: githubRepo,
+      token: githubToken,
+      branch: sourceRef,
+      retries: 30,
+      delayMs: 3000,
+    });
+
+    if (!sourceChecks.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: sourceChecks.error || "workflow_pack_source_head_failed",
+          detail: sourceChecks.detail || `No se pudo resolver checks de ${sourceRef}.`,
+          payload: {
+            source_ref: sourceRef,
+            source_head_sha: sourceChecks.head_sha,
+            checks: sourceChecks.checks,
+            checks_wait: {
+              attempts: sourceChecks.attempts,
+              timed_out: sourceChecks.timed_out,
+              timeout_seconds: 90,
+            },
+            workflow_pack: baseStatus.data,
+          },
+          github_auth_mode: githubAuthMode,
+        },
+        409,
+        cors
+      );
+    }
+
+    if (!sourceChecks.checks?.required_green) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "workflow_pack_source_checks_not_green",
+          detail: sourceChecks.timed_out
+            ? `Checks obligatorios (lint/test/build) del source ref ${sourceRef} no quedaron en verde antes del timeout.`
+            : `Checks obligatorios (lint/test/build) del source ref ${sourceRef} no estan en verde.`,
+          payload: {
+            source_ref: sourceRef,
+            source_head_sha: sourceChecks.head_sha,
+            checks: sourceChecks.checks,
+            checks_wait: {
+              attempts: sourceChecks.attempts,
+              timed_out: sourceChecks.timed_out,
+              timeout_seconds: 90,
+            },
+            workflow_pack: baseStatus.data,
+          },
+          github_auth_mode: githubAuthMode,
+        },
+        409,
+        cors
+      );
+    }
 
     if (syncStaging) {
       const stagingResult = await syncWorkflowPackTarget({
@@ -1848,6 +1966,15 @@ serve(async (req) => {
         ok: true,
         operation,
         source_ref: sourceRef,
+        source_checks: {
+          head_sha: sourceChecks.head_sha,
+          checks: sourceChecks.checks,
+          checks_wait: {
+            attempts: sourceChecks.attempts,
+            timed_out: sourceChecks.timed_out,
+            timeout_seconds: 90,
+          },
+        },
         targets: targetResults,
         status: finalStatus.data,
         github_auth_mode: githubAuthMode,
