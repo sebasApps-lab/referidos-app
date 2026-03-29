@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRightLeft,
@@ -212,6 +212,13 @@ function checkBadgeLabel(state) {
   return "MISSING";
 }
 
+const REQUIRED_PIPELINE_CHECKS = ["detect", "lint", "test", "build"];
+
+function formatPipelineChecksSummary(checks) {
+  if (!checks) return "";
+  return REQUIRED_PIPELINE_CHECKS.map((key) => `${key}=${checks?.[key] || "-"}`).join(", ");
+}
+
 const DEV_RELEASE_STEPS = [
   { key: "dispatch", label: "Encolar workflow de release" },
   { key: "workflow", label: "Workflow versioning-release-dev.yml" },
@@ -326,6 +333,7 @@ function buildPromoteProgress({
   releaseSynced = false,
   mergeAttempted = false,
 }) {
+  const detect = checkStateToProgress(checks?.detect);
   const lint = checkStateToProgress(checks?.lint);
   const test = checkStateToProgress(checks?.test);
   const build = checkStateToProgress(checks?.build);
@@ -348,6 +356,7 @@ function buildPromoteProgress({
     steps: [
       { key: "promote", label: "Promover release en OPS", status: "success" },
       { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prState },
+      { key: "detect", label: "Check detect", status: detect },
       { key: "lint", label: "Check lint", status: lint },
       { key: "test", label: "Check test", status: test },
       { key: "build", label: "Check build", status: build },
@@ -365,6 +374,7 @@ function buildMergeProgress({
   releaseSynced = false,
   mergeAttempted = false,
 }) {
+  const detect = checkStateToProgress(checks?.detect);
   const lint = checkStateToProgress(checks?.lint);
   const test = checkStateToProgress(checks?.test);
   const build = checkStateToProgress(checks?.build);
@@ -386,6 +396,7 @@ function buildMergeProgress({
     detail,
     steps: [
       { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: prState },
+      { key: "detect", label: "Check detect", status: detect },
       { key: "lint", label: "Check lint", status: lint },
       { key: "test", label: "Check test", status: test },
       { key: "build", label: "Check build", status: build },
@@ -710,7 +721,6 @@ export default function VersioningOverviewPanel() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const autoBackfillAttemptedRef = useRef(new Set());
 
   const selectedProduct = useMemo(
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
@@ -1600,7 +1610,7 @@ export default function VersioningOverviewPanel() {
         mergeAttempted: false,
       });
       setPromoteMessage(
-        `Checks actualizados. lint=${result?.checks?.lint || "-"}, test=${result?.checks?.test || "-"}, build=${result?.checks?.build || "-"}.`
+        `Checks actualizados. ${formatPipelineChecksSummary(result?.checks)}.`
       );
     } catch (err) {
       setSyncPipelineFromPayload(err?.payload || null, syncPipelineState, true);
@@ -1818,6 +1828,7 @@ export default function VersioningOverviewPanel() {
         steps: [
           { key: "promote", label: "Promover release en OPS", status: "running" },
           { key: "pr", label: "Crear / actualizar PR de sincronizacion", status: "pending" },
+          { key: "detect", label: "Check detect", status: "pending" },
           { key: "lint", label: "Check lint", status: "pending" },
           { key: "test", label: "Check test", status: "pending" },
           { key: "build", label: "Check build", status: "pending" },
@@ -1928,9 +1939,7 @@ export default function VersioningOverviewPanel() {
             mergeAttempted: true,
           });
           const checks = syncErr?.payload?.checks || null;
-          const checksText = checks
-            ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
-            : "";
+          const checksText = checks ? ` Checks: ${formatPipelineChecksSummary(checks)}.` : "";
           const prNumber = syncErr?.payload?.pr?.number || null;
           const prText = prNumber ? ` PR #${prNumber}.` : "";
           setPromoteMessage(
@@ -2221,16 +2230,16 @@ export default function VersioningOverviewPanel() {
         syncOnly: false,
       });
 
-      deployStepStatus.pipeline = "success";
-      deployStepStatus.verify = "success";
+      deployStepStatus.pipeline = "running";
+      deployStepStatus.verify = "pending";
       updateDeployProgress(
-        "success",
-        `Deploy ejecutado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
+        "running",
+        `Pipeline despachado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
       );
       setDeploySyncRequired(null);
-      setActiveDeployRequestId("");
+      setActiveDeployRequestId(normalizedRequestId);
       setDeployMessage(
-        `Deploy ejecutado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}`
+        `Pipeline de deploy despachado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}. Espera la finalizacion del workflow y el callback para ver el resultado real.${result?.logs_url ? ` Logs: ${result.logs_url}` : ""}`
       );
       await load(true);
     } catch (err) {
@@ -2312,9 +2321,7 @@ export default function VersioningOverviewPanel() {
       );
       setDeploySyncRequired(null);
       const checks = result?.checks || null;
-      const checksText = checks
-        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
-        : "";
+      const checksText = checks ? ` Checks: ${formatPipelineChecksSummary(checks)}.` : "";
       const prNumber = result?.pr?.number || null;
       const prText = prNumber ? ` PR #${prNumber}.` : "";
       setDeployMessage(`Release sincronizada por PR a ${result?.branches?.target || "rama destino"}.${prText}${checksText} Ahora puedes hacer deploy.`);
@@ -2331,9 +2338,7 @@ export default function VersioningOverviewPanel() {
         true
       );
       const checks = err?.payload?.checks || null;
-      const checksText = checks
-        ? ` Checks: lint=${checks.lint || "-"}, test=${checks.test || "-"}, build=${checks.build || "-"}.`
-        : "";
+      const checksText = checks ? ` Checks: ${formatPipelineChecksSummary(checks)}.` : "";
       const prNumber = err?.payload?.pr?.number || null;
       const prText = prNumber ? ` PR #${prNumber}.` : "";
       setDeployMessage(`${err?.message || "No se pudo sincronizar release por PR a la rama destino."}.${prText}${checksText}`);
@@ -2667,51 +2672,6 @@ export default function VersioningOverviewPanel() {
       setBackfillActionId("");
     }
   }, [activeProductKey]);
-
-  useEffect(() => {
-    if (loading || refreshing) return;
-    if (!activeProductKey || !isActiveProductInitialized) return;
-    if (!Array.isArray(envCards) || !envCards.length) return;
-    if (creatingDevRelease || devReleaseSyncing || backfillActionId) return;
-
-    const devRow = envCards.find((row) => String(row?.env_key || "").toLowerCase() === "dev");
-    if (!devRow) return;
-
-    const releaseId = String(devRow?.id || "").trim();
-    const releaseVersion = String(devRow?.version_label || "").trim();
-    const normalizedStatus = normalizeReleaseStatus("dev", devRow?.status);
-    const hasValidVersion = Boolean(releaseVersion && releaseVersion !== "-");
-    const canBackfill =
-      normalizedStatus === "released" &&
-      hasValidVersion &&
-      !devPreviewHasPendingRelease &&
-      Boolean(releaseId) &&
-      !artifactReleaseIdSet.has(releaseId);
-
-    if (!canBackfill) return;
-
-    const attemptKey = `${activeProductKey}::${releaseId}`;
-    if (autoBackfillAttemptedRef.current.has(attemptKey)) return;
-    autoBackfillAttemptedRef.current.add(attemptKey);
-
-    handleBackfillDevArtifact({
-      releaseId,
-      semver: releaseVersion,
-      sourceCommitSha: String(devRow?.source_commit_sha || ""),
-    });
-  }, [
-    loading,
-    refreshing,
-    activeProductKey,
-    isActiveProductInitialized,
-    envCards,
-    creatingDevRelease,
-    devReleaseSyncing,
-    backfillActionId,
-    devPreviewHasPendingRelease,
-    artifactReleaseIdSet,
-    handleBackfillDevArtifact,
-  ]);
 
   const closeDevReleaseDraft = () => {
     if (creatingDevRelease) return;
@@ -3539,7 +3499,7 @@ export default function VersioningOverviewPanel() {
                   </div>
                 </div>
 
-                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
                   <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
                     PR creado:{" "}
                     <span className={syncPipelineState?.pr ? "text-emerald-700 font-semibold" : "text-red-700 font-semibold"}>
@@ -3552,7 +3512,13 @@ export default function VersioningOverviewPanel() {
                       {pipelineHasConflicts ? "SI" : "NO"}
                     </span>
                   </div>
-                  {["lint", "test", "build"].map((checkKey) => {
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    Required green:{" "}
+                    <span className={pipelineChecksGreen ? "text-emerald-700 font-semibold" : "text-amber-700 font-semibold"}>
+                      {pipelineChecksGreen ? "SI" : "NO"}
+                    </span>
+                  </div>
+                  {REQUIRED_PIPELINE_CHECKS.map((checkKey) => {
                     const state = normalizeCheckState(pipelineChecks?.[checkKey]);
                     return (
                       <div key={`pipeline-check-${checkKey}`} className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
@@ -3567,6 +3533,67 @@ export default function VersioningOverviewPanel() {
 
                 {syncPipelineState?.detail ? (
                   <div className="mt-2 text-[11px] text-slate-600">{syncPipelineState.detail}</div>
+                ) : null}
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    <span className="font-semibold text-slate-700">Ramas:</span>{" "}
+                    {`${syncPipelineState?.branches?.source || "-"} -> ${syncPipelineState?.branches?.target || "-"}`}
+                  </div>
+                  <div className="rounded-lg border border-[#E9E2F7] bg-white px-2 py-1 text-[11px] text-slate-600">
+                    <span className="font-semibold text-slate-700">Resumen checks:</span>{" "}
+                    {pipelineChecks?.summary_state || "-"}
+                  </div>
+                </div>
+
+                {syncPipelineState?.pr?.html_url ? (
+                  <div className="mt-2 text-[11px]">
+                    <a
+                      href={syncPipelineState.pr.html_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-[#5E30A5] underline"
+                    >
+                      Abrir PR en GitHub
+                    </a>
+                  </div>
+                ) : null}
+
+                {Array.isArray(pipelineChecks?.items) && pipelineChecks.items.length ? (
+                  <div className="mt-2 rounded-lg border border-[#E9E2F7] bg-white p-2">
+                    <div className="text-[11px] font-semibold text-slate-700">Checks reportados por GitHub</div>
+                    <div className="mt-2 space-y-1">
+                      {pipelineChecks.items.map((item, index) => {
+                        const itemState = normalizeCheckState(item.state);
+                        return (
+                          <div
+                            key={`${item.name}-${item.source}-${index}`}
+                            className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600"
+                          >
+                            <div className="min-w-0">
+                              <span className="font-medium text-slate-700">{item.name}</span>
+                              <span className="ml-1 text-slate-400">({item.source})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${checkBadgeClass(itemState)}`}>
+                                {checkBadgeLabel(itemState)}
+                              </span>
+                              {item.url ? (
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-semibold text-[#5E30A5] underline"
+                                >
+                                  Ver
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : null}
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -3601,7 +3628,7 @@ export default function VersioningOverviewPanel() {
                     {syncPipelineActionId === "cancel" ? "Cancelando..." : "Cancelar PR"}
                   </button>
                   <div className="text-[11px] text-slate-500">
-                    {pipelineChecksGreen ? "Checks obligatorios en verde." : "Checks pendientes/fallando."}
+                    {pipelineChecksGreen ? "Checks obligatorios en verde." : "Checks pendientes, fallando o faltantes."}
                   </div>
                 </div>
               </div>

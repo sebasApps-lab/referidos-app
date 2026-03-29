@@ -7,13 +7,66 @@ on:
       - develop
 
 jobs:
-  detect-dev:
+  detect:
+    name: detect
     runs-on: ubuntu-latest
+    outputs:
+      workflow_pack_only: ${{ steps.classify.outputs.workflow_pack_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Classify push scope
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_sha="HEAD~1"
+          head_sha="HEAD"
+
+          mapfile -t changed_files < <(git diff --name-only "$base_sha" "$head_sha")
+
+          allowed_files=(
+            ".github/workflows/ci-pr.yml"
+            ".github/workflows/versioning-apply-migrations.yml"
+            ".github/workflows/versioning-deploy-artifact.yml"
+            ".github/workflows/versioning-detect-dev.yml"
+            ".github/workflows/versioning-detect-pr.yml"
+            ".github/workflows/versioning-local-artifact-sync.yml"
+            ".github/workflows/versioning-promote.yml"
+            ".github/workflows/versioning-record-deployment.yml"
+            ".github/workflows/versioning-release-dev.yml"
+            "tooling/versioning/apply-changeset.mjs"
+            "tooling/versioning/detect-changes.mjs"
+            "tooling/versioning/promote-release.mjs"
+            "tooling/versioning/record-deployment.mjs"
+            "tooling/observability/upload-sourcemaps.mjs"
+          )
+
+          workflow_pack_only=true
+          if [[ ${#changed_files[@]} -eq 0 ]]; then
+            workflow_pack_only=false
+          fi
+
+          for file in "${changed_files[@]}"; do
+            [[ -z "$file" ]] && continue
+            allowed=false
+            for allowed_file in "${allowed_files[@]}"; do
+              if [[ "$file" == "$allowed_file" ]]; then
+                allowed=true
+                break
+              fi
+            done
+            if [[ "$allowed" != true ]]; then
+              workflow_pack_only=false
+              break
+            fi
+          done
+
+          echo "workflow_pack_only=${workflow_pack_only}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,3 +87,126 @@ jobs:
         with:
           name: versioning-changeset-dev-${{ github.sha }}
           path: versioning/out/changeset.json
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    needs: detect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Workflow pack lint gate
+        if: ${{ needs.detect.outputs.workflow_pack_only == 'true' }}
+        run: echo "Workflow-pack-only push detected. App lint gate omitted by design."
+
+      - name: Setup Node
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
+
+      - name: Run lint
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: |
+          npm run lint:mojibake
+          npm run lint -w @referidos/referidos-app
+          npm run lint -w @referidos/prelaunch
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    needs: detect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Workflow pack test gate
+        if: ${{ needs.detect.outputs.workflow_pack_only == 'true' }}
+        run: echo "Workflow-pack-only push detected. App test gate omitted by design."
+
+      - name: Setup Node
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
+
+      - name: Run tests
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: |
+          npm run test -w @referidos/referidos-app --if-present
+          npm run test -w @referidos/prelaunch --if-present
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: detect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Workflow pack build gate
+        if: ${{ needs.detect.outputs.workflow_pack_only == 'true' }}
+        run: echo "Workflow-pack-only push detected. App build gate omitted by design."
+
+      - name: Setup Node
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: |
+          npm ci \
+            --workspace @referidos/referidos-app \
+            --workspace @referidos/prelaunch \
+            --workspace @referidos/support-sdk \
+            --workspace @referidos/notifications-sdk \
+            --workspace @referidos/observability \
+            --workspace @referidos/legal-content \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/platform-web \
+            --workspace @referidos/security-core \
+            --include-workspace-root
+
+      - name: Build Referidos App
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: npm run build:app
+
+      - name: Build Prelaunch
+        if: ${{ needs.detect.outputs.workflow_pack_only != 'true' }}
+        run: npm run build:prelaunch

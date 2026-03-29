@@ -45,13 +45,42 @@ async function invokeVersioningOps(action, payload = {}) {
       errorData?.detail || errorData?.error || error.message || "No se pudo contactar versioning-ops-proxy."
     );
     proxyError.code = errorData?.error || "versioning_proxy_failed";
-    proxyError.payload = errorData?.payload || errorData || null;
+    const nestedPayload =
+      errorData?.payload && typeof errorData.payload === "object" ? errorData.payload : null;
+    proxyError.payload =
+      nestedPayload || errorData
+        ? {
+            ...(nestedPayload || (errorData && typeof errorData === "object" ? errorData : {})),
+            error: errorData?.error || proxyError.code,
+            detail: errorData?.detail || proxyError.message,
+            action,
+          }
+        : null;
     throw proxyError;
   }
   if (!data?.ok) {
     const proxyError = new Error(data?.detail || data?.error || "versioning-ops-proxy failed");
     proxyError.code = data?.error || "versioning_proxy_failed";
-    proxyError.payload = data?.payload || null;
+    proxyError.payload =
+      data?.payload && typeof data.payload === "object"
+        ? {
+            ...data.payload,
+            error: data?.error || proxyError.code,
+            detail: data?.detail || proxyError.message,
+            action,
+          }
+        : data?.payload
+          ? {
+              raw_payload: data.payload,
+              error: data?.error || proxyError.code,
+              detail: data?.detail || proxyError.message,
+              action,
+            }
+          : {
+              error: data?.error || proxyError.code,
+              detail: data?.detail || proxyError.message,
+              action,
+            };
     throw proxyError;
   }
 

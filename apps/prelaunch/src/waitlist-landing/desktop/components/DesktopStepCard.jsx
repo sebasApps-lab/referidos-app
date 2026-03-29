@@ -1,6 +1,9 @@
-export default function DesktopStepCard({ step }) {
+export default function DesktopStepCard({ step, index = 0 }) {
   return (
-    <article className={`figma-prototype__benefit-card figma-prototype__benefit-card--${step.key}`}>
+    <article
+      className={`figma-prototype__benefit-card figma-prototype__benefit-card--${step.key} figma-prototype__entry-fade-up`}
+      style={{ "--figma-entry-delay": `${240 + index * 90}ms` }}
+    >
       <img className="figma-prototype__step-number-badge" src={step.numberSrc} alt="" />
 
       <div className="figma-prototype__step-card-body">
