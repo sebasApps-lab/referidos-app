@@ -1,58 +1,95 @@
-import React from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { MessageSquare, List, Users, LogOut } from "lucide-react";
-import { useAppStore } from "../../store/appStore";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import SupportSidebar from "./SupportSidebar";
+import SupportTopbar from "./SupportTopbar";
+import SupportWorkQueueDock from "./SupportWorkQueueDock";
 
-const NAV_ITEMS = [
-  { to: "/soporte/inbox", label: "Inbox", Icon: List },
-  { to: "/soporte/irregulares", label: "Irregulares", Icon: MessageSquare },
-  { to: "/admin/asesores", label: "Asesores", Icon: Users, adminOnly: true },
-];
+const SUPPORT_SIDEBAR_COLLAPSED_KEY = "support.sidebar.collapsed";
 
-export default function SupportLayout({ isAdmin = false }) {
+function resolveRouteMeta(pathname) {
+  if (pathname.startsWith("/soporte/inicio")) {
+    return { title: "Inicio", subtitle: "Resumen operativo del asesor" };
+  }
+  if (pathname.startsWith("/soporte/inbox")) {
+    return { title: "Inbox", subtitle: "Tickets disponibles, asignados y resueltos" };
+  }
+  if (pathname.startsWith("/soporte/ticket/")) {
+    return { title: "Detalle de ticket", subtitle: "Seguimiento operativo del caso" };
+  }
+  if (pathname.startsWith("/soporte/jornadas")) {
+    return { title: "Jornadas", subtitle: "Historial unificado de jornadas y sesiones" };
+  }
+  if (pathname.startsWith("/soporte/issues")) {
+    return { title: "Issues", subtitle: "Listado de issues y eventos observability" };
+  }
+  if (pathname.startsWith("/soporte/catalogo-errores")) {
+    return { title: "Catalogo errores", subtitle: "Referencia de codigos observability" };
+  }
+  return { title: "Soporte", subtitle: "Panel operativo de soporte" };
+}
+
+export default function SupportLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SUPPORT_SIDEBAR_COLLAPSED_KEY) === "1";
+  });
   const location = useLocation();
-  const logout = useAppStore((s) => s.logout);
-  const items = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  const navigate = useNavigate();
+
+  const routeMeta = useMemo(
+    () => resolveRouteMeta(location.pathname || ""),
+    [location.pathname],
+  );
+
+  const handleRefreshPanel = useCallback(() => {
+    const params = new URLSearchParams(location.search || "");
+    params.set("__pr", String(Date.now()));
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      SUPPORT_SIDEBAR_COLLAPSED_KEY,
+      sidebarCollapsed ? "1" : "0",
+    );
+  }, [sidebarCollapsed]);
 
   return (
     <div className="min-h-screen bg-[#F6F2FB] text-slate-700">
-      <div className="lg:pl-64">
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-[#E9E2F7] bg-white px-4 pb-6 pt-6 lg:block">
-          <div className="text-lg font-extrabold text-[#5E30A5]">
-            Soporte
-          </div>
-          <div className="mt-6 space-y-2">
-            {items.map((item) => {
-              const active = location.pathname.startsWith(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                    active
-                      ? "bg-[#F0EBFF] text-[#5E30A5]"
-                      : "text-slate-600 hover:bg-[#F7F4FF]"
-                  }`}
-                >
-                  <item.Icon size={18} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => logout?.()}
-            className="mt-6 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#F7F4FF]"
-          >
-            <LogOut size={18} />
-            <span>Cerrar sesion</span>
-          </button>
-        </aside>
+      <SupportSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+      />
+
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}>
+        <SupportTopbar
+          title={routeMeta.title}
+          subtitle={routeMeta.subtitle}
+          onOpenMenu={() => setSidebarOpen(true)}
+          onRefreshPanel={handleRefreshPanel}
+        />
 
         <main className="px-4 pb-16 pt-6">
-          <Outlet />
+          <div className="mx-auto max-w-7xl">
+            <Outlet />
+          </div>
         </main>
+        {!location.pathname.startsWith("/soporte/ticket/") ? <SupportWorkQueueDock /> : null}
       </div>
     </div>
   );

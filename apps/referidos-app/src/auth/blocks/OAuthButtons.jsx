@@ -4,6 +4,7 @@ export default function OAuthButtons({
   onGoogle,
   onFacebook,
   onApple,
+  enableApple = false,
   onTwitter,
   onDiscord,
   loading,
@@ -16,38 +17,37 @@ export default function OAuthButtons({
       key: "google",
       label: "Continuar con Google",
       onClick: onGoogle,
-      Icon: GoogleIcon,
+      iconNode: <GoogleIcon />,
     },
     {
       key: "facebook",
       label: "Continuar con Facebook",
       onClick: onFacebook,
-      Icon: FacebookIcon,
+      iconNode: <FacebookIcon />,
     },
-    // Apple OAuth se habilitara en futuras versiones.
-    // {
-    //   key: "apple",
-    //   label: "Continuar con Apple",
-    //   onClick: onApple,
-    //   Icon: AppleIcon,
-    // },
+    {
+      key: "apple",
+      label: "Continuar con Apple",
+      onClick: enableApple ? onApple : null,
+      iconNode: <AppleIcon />,
+    },
     {
       key: "x",
       label: "Continuar con X",
       onClick: onTwitter,
-      Icon: XIcon,
+      iconNode: <XIcon />,
     },
     {
       key: "discord",
       label: "Continuar con Discord",
       onClick: onDiscord,
-      Icon: DiscordIcon,
+      iconNode: <DiscordIcon />,
     },
   ].filter((btn) => Boolean(btn.onClick));
 
   return (
     <div className="flex items-center justify-center gap-3 flex-nowrap overflow-x-auto py-1">
-      {buttons.map(({ key, label, onClick, Icon }) => {
+      {buttons.map(({ key, label, onClick, iconNode }) => {
         const isBusy =
           (key === "google" && loading) ||
           (oauthLoading && oauthProvider === key);
@@ -66,7 +66,7 @@ export default function OAuthButtons({
                 : "active:scale-[0.98]"
             }`}
           >
-            <Icon />
+            {iconNode}
           </button>
         );
       })}

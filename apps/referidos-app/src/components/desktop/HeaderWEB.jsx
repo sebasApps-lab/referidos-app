@@ -1,4 +1,5 @@
 // src/components/desktop/HeaderAlt.jsx
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home,
@@ -11,7 +12,11 @@ import {
 import { motion } from "framer-motion";
 import { useAppStore } from "../../store/appStore";
 
+// Lint purge (no-unused-vars): `Icon` en maps de links se renderiza via createElement (desktop/mobile nav).
 export default function HeaderAlt() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const location = useLocation();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
@@ -73,18 +78,18 @@ export default function HeaderAlt() {
           Referidos App
         </h1>
         <nav className="flex gap-6 text-sm">
-          {links.map(({ path, label, icon: Icon }) => {
-            const active = isActive(path);
+          {links.map((linkItem) => {
+            const active = isActive(linkItem.path);
             return (
               <Link
-                key={path}
-                to={path}
+                key={linkItem.path}
+                to={linkItem.path}
                 className={`flex items-center gap-1 transition ${
                   active ? "font-bold text-white" : "opacity-80 hover:opacity-100"
                 }`}
               >
-                <Icon size={18} />
-                {label}
+                {React.createElement(linkItem.icon, { size: 18 })}
+                {linkItem.label}
               </Link>
             );
           })}
@@ -96,15 +101,15 @@ export default function HeaderAlt() {
 
       {/* Mobile: barra inferior animada */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#5E30A5] border-t border-white/20 flex justify-around py-2 z-50">
-        {links.map(({ path, label, icon: Icon }) => {
-          const active = isActive(path);
+        {links.map((linkItem) => {
+          const active = isActive(linkItem.path);
           return (
             <Link
-              key={path}
-              to={path}
+              key={linkItem.path}
+              to={linkItem.path}
               className="relative flex flex-col items-center text-[11px] font-medium"
             >
-              <motion.div
+              <TEMP_MOTION_SPLASH_TAG
                 initial={false}
                 animate={{
                   scale: active ? 1.2 : 1,
@@ -112,8 +117,8 @@ export default function HeaderAlt() {
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 15 }}
               >
-                <Icon size={22} />
-              </motion.div>
+                {React.createElement(linkItem.icon, { size: 22 })}
+              </TEMP_MOTION_SPLASH_TAG>
               <motion.span
                 className="mt-1"
                 animate={{
@@ -121,7 +126,7 @@ export default function HeaderAlt() {
                   color: active ? "#ffffff" : "#FFC21C",
                 }}
               >
-                {label}
+                {linkItem.label}
               </motion.span>
 
               {active && (

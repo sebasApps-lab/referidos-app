@@ -1,0 +1,78 @@
+name: CI PR Gates (Android)
+
+on:
+  pull_request:
+    branches:
+      - staging
+      - main
+    paths:
+      - "apps/referidos-android/**"
+      - "packages/platform-rn/**"
+      - "packages/api-client/**"
+      - "packages/domain/**"
+      - "packages/observability-sdk/**"
+      - "packages/security-core/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ci-android-pr.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  android-lint:
+    name: android-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm ci \
+            --workspace @apps/referidos-android \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/observability-sdk \
+            --workspace @referidos/platform-rn \
+            --workspace @referidos/security-core \
+            --include-workspace-root
+
+      - name: Run Android lint
+        run: npm run lint -w @apps/referidos-android
+
+  android-typecheck:
+    name: android-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm ci \
+            --workspace @apps/referidos-android \
+            --workspace @referidos/api-client \
+            --workspace @referidos/domain \
+            --workspace @referidos/observability-sdk \
+            --workspace @referidos/platform-rn \
+            --workspace @referidos/security-core \
+            --include-workspace-root
+
+      - name: Run Android typecheck
+        run: npm run typecheck -w @apps/referidos-android

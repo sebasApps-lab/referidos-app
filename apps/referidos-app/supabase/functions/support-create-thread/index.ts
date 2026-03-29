@@ -1,16 +1,64 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import {
   CATEGORY_LABELS,
+  SUPPORT_FALLBACK_CATEGORY,
   buildSupportMessage,
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveSupportThreadCategory,
   safeTrim,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
+import { resolveSupportAppIdentity } from "../_shared/supportAppIdentity.ts";
 
 const SUPPORT_PHONE = "593995705833";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickText(value: unknown, max = 160) {
+  if (typeof value !== "string") return null;
+  const trimmed = safeTrim(value, max);
+  return trimmed || null;
+}
+
+function pickBuildNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const num = Math.trunc(value);
+    return num >= 1 ? num : null;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value.trim())) {
+    const num = Number(value.trim());
+    return Number.isFinite(num) && num >= 1 ? Math.trunc(num) : null;
+  }
+  return null;
+}
+
+function normalizeBuildSnapshot(value: unknown) {
+  if (!isRecord(value)) return null;
+  const buildNumber = pickBuildNumber(value.build_number ?? value.buildNumber);
+  const snapshot: Record<string, unknown> = {
+    app_id: pickText(value.app_id ?? value.appId, 80),
+    app_env: pickText(value.app_env ?? value.appEnv ?? value.env, 40),
+    version_label: pickText(value.version_label ?? value.app_version ?? value.appVersion, 120),
+    build_id: pickText(value.build_id ?? value.buildId, 120),
+    release_id: pickText(value.release_id ?? value.releaseId, 120),
+    artifact_id: pickText(value.artifact_id ?? value.artifactId, 160),
+    release_channel: pickText(value.release_channel ?? value.releaseChannel ?? value.channel, 40),
+    source_commit_sha: pickText(
+      value.source_commit_sha ?? value.sourceCommitSha ?? value.commit_sha,
+      64
+    ),
+  };
+  if (buildNumber) snapshot.build_number = buildNumber;
+
+  const hasValue = Object.values(snapshot).some((entry) => entry !== null && entry !== undefined);
+  return hasValue ? snapshot : null;
+}
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -35,13 +83,54 @@ serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const category = body.category ?? "sugerencia";
+  const categoryResolution = resolveSupportThreadCategory(
+    body.category,
+    SUPPORT_FALLBACK_CATEGORY,
+  );
+  const category = categoryResolution.category;
   const severity = body.severity ?? "s2";
   const summary = safeTrim(body.summary, 240);
   const clientRequestId = safeTrim(body.client_request_id, 64) || null;
-  const context = typeof body.context === "object" && body.context
-    ? body.context
-    : {};
+  const appIdentity = await resolveSupportAppIdentity(body.app_channel, "referidos_app");
+  const appChannel = appIdentity.appKey;
+  const requestedOriginSource = safeTrim(body.origin_source, 60).toLowerCase();
+  const baseContext = isRecord(body.context) ? body.context : {};
+
+  const sourceRoute = pickText(body.source_route ?? baseContext.source_route ?? baseContext.route, 140);
+  const locale = pickText(body.locale ?? baseContext.locale, 32);
+  const language = pickText(body.language ?? baseContext.language, 24);
+  const timezone = pickText(body.timezone ?? baseContext.timezone, 80);
+  const platform = pickText(body.platform ?? baseContext.platform ?? baseContext.device, 120);
+  const userAgent = pickText(body.user_agent ?? baseContext.user_agent ?? baseContext.browser, 300);
+
+  const payloadBuild = normalizeBuildSnapshot(body.build ?? body.build_snapshot);
+  const contextBuild = normalizeBuildSnapshot(baseContext.build);
+  const buildSnapshot = payloadBuild || contextBuild;
+
+  const runtimeContext: Record<string, unknown> = {
+    ...(isRecord(baseContext.runtime) ? baseContext.runtime : {}),
+    source_route: sourceRoute,
+    locale,
+    language,
+    timezone,
+    platform,
+    user_agent: userAgent,
+  };
+  Object.keys(runtimeContext).forEach((key) => {
+    if (runtimeContext[key] === null || runtimeContext[key] === undefined || runtimeContext[key] === "") {
+      delete runtimeContext[key];
+    }
+  });
+
+  const context = {
+    ...baseContext,
+    requested_category: categoryResolution.requestedCategory,
+    requested_category_unsupported: categoryResolution.usedFallback,
+    requested_category_mapped_other_reason: categoryResolution.mappedExplicitOtherReason,
+    app_channel: appChannel,
+    ...(Object.keys(runtimeContext).length ? { runtime: runtimeContext } : {}),
+    ...(buildSnapshot ? { build: buildSnapshot } : {}),
+  };
 
   if (!summary) {
     return jsonResponse({ ok: false, error: "missing_summary" }, 400, cors);
@@ -51,12 +140,18 @@ serve(async (req) => {
   if (profileErr || !usuario) {
     return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
   }
+  const originSource = (
+    ["admin", "soporte"].includes(String(usuario.role || "").toLowerCase()) &&
+    requestedOriginSource === "admin_support"
+  )
+    ? "admin_support"
+    : "user";
 
   const activeQuery = await supabaseAdmin
     .from("support_threads")
     .select("id, public_id, wa_link, wa_message_text, status")
     .eq("user_id", usuario.id)
-    .in("status", ["new", "assigned", "in_progress", "waiting_user", "queued"])
+    .in("status", ["new", "starting", "assigned", "in_progress", "waiting_user", "queued"])
     .order("created_at", { ascending: false })
     .limit(1);
 
@@ -120,6 +215,7 @@ serve(async (req) => {
   const insertResponse = await supabaseAdmin
     .from("support_threads")
     .insert({
+      tenant_id: usuario.tenant_id || null,
       user_id: usuario.id,
       user_public_id: usuario.public_id,
       category,
@@ -130,10 +226,12 @@ serve(async (req) => {
       created_by_user_id: usuario.id,
       client_request_id: clientRequestId,
       suggested_contact_name: usuario.public_id,
-      suggested_tags: [category, severity, "new"],
+      suggested_tags: [category, severity, "new", appChannel],
+      app_channel: appChannel,
+      origin_source: originSource,
     })
     .select(
-      "id, public_id, user_id, user_public_id, category, severity, status"
+      "id, tenant_id, public_id, user_id, user_public_id, category, severity, status"
     )
     .single();
 
@@ -172,12 +270,22 @@ serve(async (req) => {
     event_type: "created",
     actor_role: usuario.role,
     actor_id: usuario.id,
-    details: {
-      category,
-      severity,
-      wa_link: waLink,
-      wa_message_text: messageText,
-    },
+      details: {
+        category,
+        severity,
+        app_channel: appChannel,
+        origin_source: originSource,
+        wa_link: waLink,
+        wa_message_text: messageText,
+        build: buildSnapshot,
+      },
+  });
+
+  await runSupportAutoAssignCycle({
+    reason: "thread_created_registered",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "user",
   });
 
   return jsonResponse(

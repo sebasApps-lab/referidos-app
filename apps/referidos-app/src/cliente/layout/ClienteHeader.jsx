@@ -19,10 +19,10 @@ import {
   getUserShortName,
 } from "../services/clienteUI";
 
+// Lint purge (no-unused-vars): se removio prop `onOpenMenu` no consumida (firma del header cliente).
 export default function ClienteHeader({
   usuario,
   avatarSrc,
-  onOpenMenu,
   onOpenNotifications,
   onLogout,
   isElevated = false,

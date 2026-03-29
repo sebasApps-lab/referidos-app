@@ -16,6 +16,8 @@ Estructura en repo:
 Funciones clave:
 - `versioning-dev-release-preview`
 - `versioning-dev-release-create`
+- `versioning-release-sync`
+- `versioning-release-gate`
 - `versioning-deploy-execute`
 - `versioning-deploy-callback`
 
@@ -32,8 +34,12 @@ Funciones clave:
 - `VERSIONING_DEV_RELEASE_ALLOWED_REFS`
 - `VERSIONING_DEPLOY_WORKFLOW`
 - `VERSIONING_DEPLOY_WORKFLOW_REF`
+- `VERSIONING_APPLY_MIGRATIONS_WORKFLOW`
+- `VERSIONING_APPLY_MIGRATIONS_WORKFLOW_REF`
 - `VERSIONING_DEPLOY_CALLBACK_TOKEN`
 - `VERSIONING_PROXY_SHARED_TOKEN`
+- `VERSIONING_RUNTIME_URL_STAGING`
+- `VERSIONING_RUNTIME_URL_PROD`
 
 ## Aplicar migraciones al control plane
 
@@ -47,9 +53,11 @@ supabase db push --project-ref ymhaveuksdzlfuecvkmx
 ```powershell
 cd apps/referidos-ops
 supabase functions deploy versioning-deploy-execute --project-ref ymhaveuksdzlfuecvkmx
+supabase functions deploy versioning-release-sync --project-ref ymhaveuksdzlfuecvkmx
+supabase functions deploy versioning-release-gate --project-ref ymhaveuksdzlfuecvkmx
 supabase functions deploy versioning-dev-release-preview --project-ref ymhaveuksdzlfuecvkmx
 supabase functions deploy versioning-dev-release-create --project-ref ymhaveuksdzlfuecvkmx
-supabase functions deploy versioning-deploy-callback --project-ref ymhaveuksdzlfuecvkmx --no-verify-jwt
+supabase functions deploy versioning-deploy-callback --project-ref ymhaveuksdzlfuecvkmx
 ```
 
 ## Integracion con panel admin

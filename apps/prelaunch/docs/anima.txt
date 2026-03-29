@@ -1,0 +1,532 @@
+index.tsx:
+import { AppIntroductionSection } from "./AppIntroductionSection";
+import { FeaturesHighlightSection } from "./FeaturesHighlightSection";
+import { SubscriptionCallToActionSection } from "./SubscriptionCallToActionSection";
+
+export const WireframeReady = (): JSX.Element => {
+  return (
+    <div className="flex flex-col items-start justify-center relative bg-[linear-gradient(180deg,rgba(252,243,254,1)_0%,rgba(252,244,254,1)_25%,rgba(252,244,254,1)_69%,rgba(252,243,254,1)_100%)]">
+      <div className="relative self-stretch w-full h-[50px] bg-white" />
+
+      <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
+        <AppIntroductionSection />
+        <FeaturesHighlightSection />
+        <SubscriptionCallToActionSection />
+      </div>
+
+      <div className="relative w-[1440px] h-[200px] bg-white" />
+    </div>
+  );
+};
+
+
+AppIntroductionSection.tsx:
+import BGVector from "./BG-vector.svg";
+import fluentColorMail16 from "./fluent-color-mail-16.svg";
+import line5 from "./line-5.svg";
+import materialIconThemeGoogle from "./material-icon-theme-google.svg";
+import signUpCardBg from "./sign-up-card-BG.svg";
+
+export const AppIntroductionSection = (): JSX.Element => {
+  return (
+    <div className="flex flex-col items-start justify-end relative self-stretch w-full flex-[0_0_auto] overflow-hidden">
+      <img
+        className="relative self-stretch w-full h-[574px]"
+        alt="Bg vector"
+        src={BGVector}
+      />
+
+      <div className="flex max-w-[1225.62px] w-[1109px] h-[557px] items-start justify-between absolute left-[calc(50.00%_-_565px)] bottom-[-3px]">
+        <div className="flex flex-col w-[574px] items-start gap-[7px] relative">
+          <div className="relative w-fit mt-[-0.93px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[31px] tracking-[0] leading-[43.4px] whitespace-nowrap">
+            REFERIDOS APP
+          </div>
+
+          <div className="flex flex-col items-start gap-[33px] relative self-stretch w-full flex-[0_0_auto]">
+            <div className="flex flex-col items-start gap-[11px] relative self-stretch w-full flex-[0_0_auto]">
+              <p className="relative self-stretch mt-[-0.93px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[45px] tracking-[0] leading-[63.0px]">
+                Descubre y comparte <br />
+                ofertas, gana <br />
+                recompensas facilmente
+              </p>
+
+              <p className="relative w-fit [font-family:'Poppins-Light',Helvetica] font-light text-white text-[19px] tracking-[0] leading-[31.1px]">
+                Aprovecha promociones exclusivas, invita a tus <br />
+                amigos y canda puntos por cada canje.
+              </p>
+            </div>
+
+            <div className="flex w-[195.85px] h-[58.85px] items-center justify-center gap-[9px] relative mb-[-0.93px] ml-[-0.93px] bg-white rounded-[18px] border-[0.93px] border-solid border-[#00000059]">
+              <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-[22px] tracking-[0] leading-[33.2px] whitespace-nowrap">
+                Descargar
+              </div>
+
+              <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-[22px] tracking-[0] leading-[33.2px] whitespace-nowrap">
+                &gt;
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="inline-flex items-start pt-[18px] pb-0 px-0 relative flex-[0_0_auto] mb-[-1.00px]">
+          <div className="inline-flex items-center gap-[9.25px] relative flex-[0_0_auto] z-[1]">
+            <div className="relative w-[280px] h-[540px] bg-[#d9d9d9] rounded-[46.25px]" />
+          </div>
+
+          <div className="inline-flex items-center pt-[50px] pb-0 px-0 relative flex-[0_0_auto] -ml-6 z-0">
+            <div className="flex flex-col w-[261.85px] h-[382.85px] items-center gap-8 px-0 py-[38px] relative mt-[-0.93px] mb-[-0.93px] ml-[-0.93px] mr-[-0.93px] bg-white rounded-[0px_44px_44px_0px] overflow-hidden border-[0.93px] border-solid border-[#ffffff38]">
+              <img
+                className="absolute top-[calc(50.00%_-_191px)] left-[calc(50.00%_-_131px)] w-[260px] h-[381px]"
+                alt="Sign up card BG"
+                src={signUpCardBg}
+              />
+
+              <div className="relative w-fit [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-[#24055c] text-lg tracking-[0] leading-[27.1px] whitespace-nowrap">
+                Crea tu cuenta gratis
+              </div>
+
+              <div className="flex flex-col items-end gap-[22px] relative self-stretch w-full flex-[0_0_auto]">
+                <div className="flex flex-col items-center gap-3.5 relative self-stretch w-full flex-[0_0_auto]">
+                  <div className="flex flex-col w-[205px] items-start gap-3.5 relative flex-[0_0_auto]">
+                    <div className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full rounded-[12.95px] border-[0.93px] border-solid border-[#d5d2e5]">
+                      <img
+                        className="relative w-[22.2px] h-[22.2px] aspect-[1]"
+                        alt="Material icon theme"
+                        src={materialIconThemeGoogle}
+                      />
+
+                      <div className="text-[#24055c] relative w-fit [font-family:'Poppins-Regular',Helvetica] font-normal text-[13px] tracking-[0] leading-[19.6px] whitespace-nowrap">
+                        Continuar con Google
+                      </div>
+                    </div>
+
+                    <div className="flex h-[43px] items-center justify-center gap-[7px] p-[9px] relative self-stretch w-full bg-[#58179a] rounded-[12.95px] border-[0.93px] border-solid border-[#440d90]">
+                      <img
+                        className="relative w-[24.05px] h-[24.05px] aspect-[1]"
+                        alt="Fluent color mail"
+                        src={fluentColorMail16}
+                      />
+
+                      <div className="text-white relative w-fit [font-family:'Poppins-Regular',Helvetica] font-normal text-[13px] tracking-[0] leading-[19.6px] whitespace-nowrap">
+                        Continuar con correo
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="inline-flex items-center gap-[3px] relative flex-[0_0_auto]">
+                    <div className="relative w-fit mt-[-0.93px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#24055c] text-[10px] tracking-[0] leading-[15.1px] whitespace-nowrap">
+                      Ya tienes cuenta?
+                    </div>
+
+                    <div className="relative w-fit mt-[-0.93px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#24055c] text-[10px] tracking-[0] leading-[15.1px] underline whitespace-nowrap">
+                      Inicia sesión
+                    </div>
+                  </div>
+                </div>
+
+                <img
+                  className="relative self-stretch w-full h-px mb-[-1.00px]"
+                  alt="Line"
+                  src={line5}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+FeaturesHighlightSection.tsx:
+import image from "./image.svg";
+import line32 from "./line-3-2.svg";
+import line3 from "./line-3.svg";
+import line42 from "./line-4-2.svg";
+import line43 from "./line-4-3.svg";
+import line4 from "./line-4.svg";
+
+const featuresData = [
+  {
+    id: 1,
+    iconLeft: line32,
+    iconRight: line43,
+    iconLeftAlt: "Line",
+    iconRightAlt: "Line",
+    iconContainerLeft: "left-[113px]",
+    title: (
+      <p className="relative self-stretch [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-2xl text-center tracking-[0] leading-[32.2px]">
+        <span className="font-bold">Explora</span>
+        <span className="[font-family:'Poppins-Regular',Helvetica] text-[23.1px] leading-[30.9px]">
+          &nbsp;
+        </span>
+        <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-[23px] leading-[30.8px]">
+          promociones <br />
+          exclusivas
+        </span>
+      </p>
+    ),
+    description: (
+      <p className="relative w-fit opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[15px] text-center tracking-[0] leading-[22.6px]">
+        Descubre regalos, descuentos, 2x1,
+        <br />y todo tipo de promociones
+      </p>
+    ),
+    shadowLeft: "top-[72px] left-0",
+    cardLeft: "top-[65px] left-0",
+    gradientLeft: "top-[72px] left-0",
+  },
+  {
+    id: 2,
+    iconLeft: image,
+    iconRight: line42,
+    iconLeftAlt: "Line",
+    iconRightAlt: "Line",
+    iconContainerLeft: "left-[111px]",
+    title: (
+      <p className="relative w-fit [font-family:'Poppins-Bold',Helvetica] font-normal text-[#1b0048] text-2xl text-center tracking-[0] leading-[32.2px]">
+        <span className="font-bold">Gana puntos </span>
+        <span className="[font-family:'Poppins-Regular',Helvetica] text-[23.1px] leading-[30.9px]">
+          {" "}
+          <br />
+        </span>
+        <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-[23px] leading-[30.8px]">
+          y recompensas
+        </span>
+      </p>
+    ),
+    description: (
+      <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[15px] text-center tracking-[0] leading-[22.6px]">
+        Guarda promos cerca de ti, para <br />
+        canjearlas y acumular puntos.
+      </p>
+    ),
+    shadowLeft: "top-[72px] left-0",
+    cardLeft: "top-[65px] left-0",
+    gradientLeft: "top-[72px] left-0",
+  },
+  {
+    id: 3,
+    iconLeft: line3,
+    iconRight: line4,
+    iconLeftAlt: "Line",
+    iconRightAlt: "Line",
+    iconContainerLeft: "left-[105px]",
+    title: (
+      <p className="relative w-fit [font-family:'Poppins-Medium',Helvetica] font-medium text-[#1b0048] text-[23px] text-center tracking-[0] leading-[30.8px]">
+        Sigue tu progreso <br />
+        en tiempo real
+      </p>
+    ),
+    description: (
+      <p className="relative self-stretch opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-light text-[#1b0048] text-[15px] text-center tracking-[0] leading-[22.6px]">
+        Puedes ver todo los beneficios
+        <br />
+        que vas a alcanzar con tus puntos.
+      </p>
+    ),
+    shadowLeft: "top-[72px] left-px",
+    cardLeft: "top-[65px] left-px",
+    gradientLeft: "top-[72px] left-px",
+  },
+];
+
+export const FeaturesHighlightSection = (): JSX.Element => {
+  return (
+    <div className="h-[590px] pl-0 pr-11 pt-[60px] pb-[70px] flex flex-col items-center relative self-stretch w-full">
+      <div className="max-h-[503px] h-[465px] justify-between px-[198px] py-0 mb-[-5.00px] flex flex-col items-center relative self-stretch w-full">
+        <div className="inline-flex flex-col items-center gap-3 relative flex-[0_0_auto]">
+          <div className="inline-flex items-center gap-[11px] relative flex-[0_0_auto]">
+            <div className="relative w-fit mt-[-0.92px] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-[#4b0d82] text-[43px] tracking-[0] leading-[64.8px] whitespace-nowrap">
+              Así de
+            </div>
+            <div className="relative w-fit mt-[-0.92px] blur-[0.28px] [font-family:'Poppins-Bold',Helvetica] font-bold text-[#4b0d82] text-[43px] tracking-[0] leading-[64.8px] whitespace-nowrap">
+              fácil y divertido
+            </div>
+          </div>
+
+          <p className="relative w-[678px] h-[66px] blur-[0.28px] opacity-[0.86] [font-family:'Poppins-Light',Helvetica] font-normal text-[#1b0048] text-[22px] text-center tracking-[0] leading-[33.2px]">
+            <span className="font-light">
+              Encuentra promociones exclusivas gana puntos y haz un <br />
+              seguimiento de tus recopensas, ¡todo desde una misma{" "}
+            </span>
+            <span className="[font-family:'Poppins-Medium',Helvetica] font-medium">
+              app!
+            </span>
+          </p>
+        </div>
+
+        <div className="flex w-[1048px] items-start justify-between relative flex-[0_0_auto] ml-[-24.00px] mr-[-24.00px]">
+          {featuresData.map((feature) => (
+            <div key={feature.id} className="relative w-[338px] h-[278px]">
+              <div
+                className={`${feature.shadowLeft} w-[338px] h-52 bg-[#eeddf7] opacity-[0.42] absolute rounded-[34px]`}
+              />
+
+              <div
+                className={`flex flex-col w-[338px] h-[212px] items-center justify-center gap-4 absolute ${feature.cardLeft} bg-[#fcf9fd] rounded-[34px] overflow-hidden border border-solid border-[#ffffff85] shadow-[0px_6.47px_4.62px_#d7b5ea2e,0px_2.77px_18.47px_4.62px_#cfa8e71f,0px_0px_7.39px_18.47px_#e8d7f433,inset_0px_0.92px_1.85px_#ffffffbf,inset_0px_-2.77px_9.24px_#e9ddf329] blur-[0.37px]`}
+              >
+                {feature.title}
+                {feature.description}
+              </div>
+
+              <div
+                className={`${feature.gradientLeft} w-[337px] absolute h-52 rounded-[34px] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(255,255,255,1)_50%,rgba(241,231,247,0.1)_100%)] opacity-[0.14]`}
+              />
+
+              <div
+                className={`${feature.iconContainerLeft} absolute top-2 w-28 h-[86px] bg-[#fcf8fe] rounded-[15px] border-[0.5px] border-solid border-black`}
+              >
+                <div className="absolute top-[57px] left-[43px] [font-family:'Roboto-Light',Helvetica] font-light text-black text-[14.8px] text-center tracking-[0] leading-[22.3px] whitespace-nowrap">
+                  ICON
+                </div>
+                <img
+                  className="absolute top-1.5 left-[3px] w-[106px] h-[73px]"
+                  alt={feature.iconLeftAlt}
+                  src={feature.iconLeft}
+                />
+                <img
+                  className="absolute top-[7px] left-1 w-[106px] h-[72px]"
+                  alt={feature.iconRightAlt}
+                  src={feature.iconRight}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+SubscriptionCallToActionSection.tsx:
+import { useState } from "react";
+
+export const SubscriptionCallToActionSection = (): JSX.Element => {
+  const [email, setEmail] = useState("");
+
+  return (
+    <div className="flex flex-col min-h-[600px] items-center pt-[50px] pb-40 px-[188px] relative self-stretch w-full flex-[0_0_auto] bg-[#150444]">
+      <div className="flex min-w-[1057.6px] max-w-[1158.28px] max-h-[424px] h-[390px] items-end justify-between relative w-full">
+        <div className="flex flex-col w-[532px] items-start justify-end gap-[26px] pt-0 pb-[100px] px-0 relative self-stretch overflow-hidden">
+          <p className="relative w-fit ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[44px] tracking-[0] leading-[51.5px] border-white-text-stroke">
+            <span className="[font-family:'Poppins-Medium',Helvetica] font-medium text-white text-[44px] tracking-[0] leading-[51.5px]">
+              P
+            </span>
+
+            <span className="text-[40px] leading-[46.8px]">
+              romociones irresistibles,
+              <br />
+              al alcance de tu mano
+            </span>
+          </p>
+
+          <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
+            <p className="relative self-stretch mt-[-1.42px] ml-[-0.50px] [-webkit-text-stroke:0.5px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-lg tracking-[0] leading-[27.1px] border-white-text-stroke">
+              Descubre y canjea las ofertas que mas te gusten!
+            </p>
+
+            <div className="flex flex-col items-start gap-[17px] relative self-stretch w-full flex-[0_0_auto]">
+              <div className="flex items-center gap-[65px] pl-[30px] pr-[18px] py-[15px] relative self-stretch w-full flex-[0_0_auto] bg-white rounded-[38px] overflow-hidden">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Tu correo electrónico"
+                  className="relative w-full bg-transparent outline-none [text-shadow:0px_0.92px_1.75px_#b88ae67a] [font-family:'Poppins-Light',Helvetica] font-light text-[#20066ab5] text-xl tracking-[0.60px] leading-[30.1px] whitespace-nowrap placeholder:text-[#20066ab5]"
+                />
+
+                <button
+                  type="button"
+                  className="flex w-[206px] h-[43px] items-center justify-center relative mr-[-10.00px] bg-[#40c678] rounded-3xl overflow-hidden border border-solid border-[#43be73] flex-shrink-0 cursor-pointer"
+                >
+                  <span className="relative w-fit [-webkit-text-stroke:0.92px_#569c7980] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[15px] tracking-[0] leading-[22.5px] whitespace-nowrap">
+                    Crear cuenta gratuita
+                  </span>
+                </button>
+
+                <div className="absolute top-[15px] left-[313px] w-[206px] h-[43px] bg-[linear-gradient(1deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.13)_50%,rgba(255,255,255,0.35)_100%)] opacity-[0.68] pointer-events-none" />
+              </div>
+
+              <p className="relative self-stretch ml-[-1.00px] [-webkit-text-stroke:1px_#24055cbf] blur-[0.28px] [font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[11px] tracking-[0] leading-[16.6px] border-white-text-stroke">
+                <span className="[font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[11px] tracking-[0] leading-[16.6px]">
+                  Al suscribirte, aceptas los{" "}
+                </span>
+
+                <span className="underline cursor-pointer">
+                  términos y condiciones
+                </span>
+
+                <span className="[font-family:'Poppins-Regular',Helvetica] font-normal text-white text-[11px] tracking-[0] leading-[16.6px]">
+                  {" "}
+                  ademas de las{" "}
+                </span>
+
+                <span className="underline cursor-pointer">
+                  Políticas de Privacidad
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative w-[428px] h-[390px] bg-[#d9d9d9] rounded-3xl" />
+      </div>
+    </div>
+  );
+};
+
+
+tailwind.config.js:
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        "mid-block-text": "var(--mid-block-text)",
+        "vector-stroke": "var(--vector-stroke)",
+        "white-text-stroke": "var(--white-text-stroke)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+tailwind.css:
+ @tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --mid-block-text: rgba(28, 0, 73, 1);
+  --vector-stroke: rgba(223, 195, 250, 1);
+  --white-text-stroke: rgba(36, 5, 92, 0.75);
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}

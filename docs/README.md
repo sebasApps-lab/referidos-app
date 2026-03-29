@@ -15,6 +15,8 @@ Incluye:
 - troubleshooting para evitar romper versionado
 - guia detallada para flujo sin PR y despliegue con Netlify (`operacion-sin-pr-netlify.md`)
 - guia de entornos y secretos por proyecto (`entornos-y-secrets.md`)
+- guia de macros de soporte en OPS con cache runtime read-only (`support-macros-ops-cache.md`)
+- pendientes Android para limpieza de macros legacy (`android-support-cleanup-pending.md`)
 - arquitectura de aislamiento del panel de versionado hacia `referidos-ops` via `versioning-ops-proxy`
 - runbook de activacion por fases (dev -> staging -> prod) y troubleshooting real
 
@@ -42,3 +44,15 @@ Control plane de versionado:
 - `docs/android-parity-checklist.md`
 - `docs/android-phase-playbook.md`
 - `docs/versioning-system.md` (resumen/atajo)
+
+## 4) Nuevas notas por audiencia
+
+Revision documental adicional creada desde el codigo actual del monorepo:
+
+- `docs/notas-usuarios/README.md`
+- `docs/notas-desarrolladores/README.md`
+
+Organizacion:
+
+- `docs/notas-usuarios/**`: explica que hace cada app y cada seccion desde uso funcional.
+- `docs/notas-desarrolladores/**`: explica arquitectura, rutas, stores, servicios y dependencias por app.

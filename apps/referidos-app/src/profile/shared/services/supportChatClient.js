@@ -30,7 +30,7 @@ export async function fetchSupportChatTickets() {
   const { data, error } = await supabase
     .from("support_threads_public")
     .select(
-      "public_id, category, severity, status, summary, created_at, closed_at, resolution, assigned_agent_phone, wa_message_text, wa_link"
+      "public_id, category, severity, status, summary, created_at, closed_at, resolution, assigned_agent_phone, wa_message_text, wa_link, personal_queue, app_channel, retake_requested_at, released_to_general_at, general_queue_entered_at"
     )
     .order("created_at", { ascending: false });
   if (error) {
@@ -43,4 +43,25 @@ export async function fetchSupportChatTickets() {
     count: Array.isArray(data) ? data.length : 0,
   });
   return { ok: true, data: data || [] };
+}
+
+export async function requestSupportChatRetake(payload = {}) {
+  logCatalogBreadcrumb("support.ticket.retake.start", {
+    thread_public_id: payload?.thread_public_id || null,
+  });
+  const { data, error } = await supabase.functions.invoke("support-retake-thread", {
+    body: payload,
+  });
+  if (error) {
+    logCatalogBreadcrumb("support.ticket.retake.error", {
+      thread_public_id: payload?.thread_public_id || null,
+      error: error.message || "support_retake_failed",
+    });
+    return { ok: false, error: error.message };
+  }
+  logCatalogBreadcrumb("support.ticket.retake.ok", {
+    thread_public_id: payload?.thread_public_id || null,
+    estimated_delay_seconds: data?.estimated_delay_seconds || null,
+  });
+  return { ok: true, data };
 }

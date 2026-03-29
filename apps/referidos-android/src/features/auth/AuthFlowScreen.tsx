@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { AUTH_ROLES, AUTH_STEPS, BUSINESS_CATEGORIES } from "@referidos/domain";
 import ScreenScaffold from "@shared/ui/ScreenScaffold";
+import { fetchSystemFeatureFlags } from "@shared/services/systemFeatureFlags";
 import { useAuthEngine } from "./hooks/useAuthEngine";
 import AddressStepBlock from "./blocks/AddressStepBlock";
 import OwnerProfileStepBlock from "./blocks/OwnerProfileStepBlock";
@@ -22,10 +23,22 @@ export default function AuthFlowScreen() {
   const engine = useAuthEngine();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [appleEnabled, setAppleEnabled] = useState(false);
 
   const providers = useMemo(
     () => (Array.isArray(engine.onboarding?.providers) ? engine.onboarding.providers : []),
     [engine.onboarding?.providers],
+  );
+  const oauthButtons = useMemo(
+    () =>
+      [
+        { id: "google", label: "Continuar con Google" },
+        { id: "facebook", label: "Continuar con Facebook" },
+        appleEnabled ? { id: "apple", label: "Continuar con Apple" } : null,
+        { id: "twitter", label: "Continuar con X" },
+        { id: "discord", label: "Continuar con Discord" },
+      ].filter(Boolean) as Array<{ id: "google" | "apple" | "facebook" | "discord" | "twitter"; label: string }>,
+    [appleEnabled],
   );
   const provider = engine.onboarding?.provider || "email";
   const emailConfirmed = Boolean(engine.onboarding?.email_confirmed);
@@ -41,6 +54,16 @@ export default function AuthFlowScreen() {
   const showPasswordSetup = isOauthPrimary;
   const showEmailVerification = !isOauthPrimary && hasEmailProvider;
 
+  useEffect(() => {
+    let mounted = true;
+    void fetchSystemFeatureFlags({ force: true }).then((flags) => {
+      if (mounted) setAppleEnabled(Boolean(flags.oauth_apple_enabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <ScreenScaffold
       title="Referidos Android Auth"
@@ -54,13 +77,16 @@ export default function AuthFlowScreen() {
             <Text style={styles.helper}>
               Inicia sesion o crea cuenta para continuar.
             </Text>
+            {oauthButtons.map((item) => (
+              <PrimaryButton
+                key={item.id}
+                label={item.label}
+                onPress={() => engine.startOAuth(item.id)}
+                loading={engine.loading}
+              />
+            ))}
             <PrimaryButton
-              label="Continuar con Google"
-              onPress={() => engine.startOAuth("google")}
-              loading={engine.loading}
-            />
-            <PrimaryButton
-              label="Iniciar sesion"
+              label="Continuar con correo"
               onPress={() => engine.setStep(AUTH_STEPS.EMAIL_LOGIN)}
             />
             <SecondaryButton

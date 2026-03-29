@@ -42,6 +42,14 @@ export function createMobileApi(supabase) {
       denyAdminSession: (payload) => support.denyAdminSupportSession(supabase, payload),
       createAdminUser: (payload) => support.createSupportAdminUser(supabase, payload),
       cancelThread: (payload) => support.cancelSupportThread(supabase, payload),
+      requestRetake: (payload) => support.requestSupportThreadRetake(supabase, payload),
+      markOpeningMessageSent: (payload) =>
+        support.markSupportOpeningMessageSent(supabase, payload),
+      markWhatsAppNameChanged: (payload) =>
+        support.markSupportWhatsAppNameChanged(supabase, payload),
+      workflowAction: (payload) => support.sendSupportWorkflowAction(supabase, payload),
+      setAutoAssignMode: (payload) => support.setSupportAutoAssignMode(supabase, payload),
+      trackMacroEvents: (payload) => support.trackSupportMacroEvents(supabase, payload),
       anonymous: {
         createThread: (payload) => support.createAnonymousSupportThread(supabase, payload),
         getThreadStatus: (payload) => support.getAnonymousSupportThreadStatus(supabase, payload),

@@ -15,7 +15,18 @@ import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
+import { fetchSystemFeatureFlags } from "@shared/services/systemFeatureFlags";
 import AccessSecurityPanel from "./components/AccessSecurityPanel";
+import {
+  LinkedProvidersSection,
+  NotificationsSection,
+  SessionsSection,
+} from "./components/ProfileRuntimePanels";
+import {
+  ProfileBenefitsSection,
+  ProfileFaqSection,
+  ProfilePreferencesSection,
+} from "./components/ProfileExtendedSections";
 import {
   fetchCurrentUserRow,
   fetchSupportTicketsByUserPublicId,
@@ -23,8 +34,9 @@ import {
   readFirst,
   toDisplayStatus,
 } from "@shared/services/entityQueries";
+import { deleteCurrentUserAccount } from "@shared/services/accountLifecycle";
 
-type ProfileTab = "cuenta" | "seguridad" | "ayuda";
+type ProfileTab = "cuenta" | "seguridad" | "preferencias" | "ayuda";
 
 function generateClientRequestId() {
   return `rn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -42,6 +54,11 @@ export default function ClientePerfilScreen() {
   const [summary, setSummary] = useState("");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<any | null>(null);
+  const [profileDraft, setProfileDraft] = useState({
+    nombre: "",
+    telefono: "",
+    direccion: "",
+  });
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [tickets, setTickets] = useState<any[]>([]);
   const [error, setError] = useState("");
@@ -53,6 +70,18 @@ export default function ClientePerfilScreen() {
     () => SUPPORT_CHAT_CATEGORIES.filter((item) => item.roles.includes("cliente")),
     [],
   );
+  const linkedProviders = useMemo(() => {
+    const unique = new Set(
+      (Array.isArray(onboarding?.providers) ? onboarding.providers : [])
+        .map((item: any) => String(item || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    if (usuario?.email) unique.add("email");
+    return Array.from(unique) as string[];
+  }, [onboarding?.providers, usuario?.email]);
+  const primaryProvider = String(onboarding?.provider || "email").trim().toLowerCase();
+  const [appleEnabled, setAppleEnabled] = useState(false);
+  const userAuthId = String(readFirst(usuario, ["id_auth", "id"], "")).trim();
 
   useEffect(() => {
     if (!visibleCategories.length) return;
@@ -60,6 +89,14 @@ export default function ClientePerfilScreen() {
       setCategory(visibleCategories[0].id);
     }
   }, [category, visibleCategories]);
+
+  useEffect(() => {
+    setProfileDraft({
+      nombre: String(readFirst(usuario, ["nombre"], "")).trim(),
+      telefono: String(readFirst(usuario, ["telefono", "phone"], "")).trim(),
+      direccion: String(readFirst(usuario, ["direccion", "ubicacion"], "")).trim(),
+    });
+  }, [usuario]);
 
   const loadTickets = useCallback(async () => {
     setTicketsLoading(true);
@@ -100,6 +137,16 @@ export default function ClientePerfilScreen() {
     loadTickets();
   }, [loadTickets]);
 
+  useEffect(() => {
+    let mounted = true;
+    void fetchSystemFeatureFlags({ force: true }).then((flags) => {
+      if (mounted) setAppleEnabled(Boolean(flags.oauth_apple_enabled));
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleCreateTicket = useCallback(async () => {
     setError("");
     if (summary.trim().length < 5) {
@@ -116,6 +163,8 @@ export default function ClientePerfilScreen() {
     const payload = {
       category,
       summary: summary.trim(),
+      app_channel: "android-app",
+      origin_source: "user",
       context: {
         route: "/cliente/perfil",
         role: "cliente",
@@ -182,24 +231,121 @@ export default function ClientePerfilScreen() {
     }
   }, [openAlert]);
 
-  const handleOpenFaq = useCallback(() => {
-    openAlert({
-      title: "Preguntas frecuentes",
-      message: "La seccion FAQ completa se incorpora en una fase posterior. Ya puedes usar soporte por chat o correo.",
-      tone: "warning",
-    });
-  }, [openAlert]);
-
   const verificationStatus = String(
     readFirst(onboarding, ["verification_status"], "sin_verificacion"),
   );
   const emailConfirmed = Boolean(readFirst(onboarding, ["email_confirmed"], false));
 
+  const handleOpenTicketWhatsapp = useCallback(
+    async (ticket: any) => {
+      const link = String(readFirst(ticket, ["wa_link"], "")).trim();
+      if (!link) return;
+      try {
+        await Linking.openURL(link);
+      } catch {
+        openAlert({
+          title: "No se pudo abrir WhatsApp",
+          message: "Intenta abrir el ticket nuevamente o desde otra app.",
+          tone: "warning",
+        });
+      }
+    },
+    [openAlert],
+  );
+
+  const handleRequestRetake = useCallback(
+    (ticket: any) => {
+      const threadPublicId = String(readFirst(ticket, ["public_id"], "")).trim();
+      if (!threadPublicId) return;
+      openConfirm({
+        title: `Retomar ${threadPublicId}`,
+        message: "El ticket volvera a cola general para reasignacion de soporte.",
+        tone: "warning",
+        confirmLabel: "Confirmar retomar",
+        cancelLabel: "Cancelar",
+        onConfirm: async () => {
+          const result = await mobileApi.support.requestRetake({
+            thread_public_id: threadPublicId,
+          });
+          if (!result?.ok || result?.data?.ok === false) {
+            openAlert({
+              title: "No se pudo retomar",
+              message: result?.error || result?.data?.error || "No se pudo retomar el ticket.",
+              tone: "warning",
+            });
+            return;
+          }
+          setTickets((current) =>
+            current.map((row) =>
+              String(readFirst(row, ["public_id"], "")) === threadPublicId
+                ? {
+                    ...row,
+                    retake_requested_at:
+                      result?.data?.retake_requested_at || new Date().toISOString(),
+                  }
+                : row,
+            ),
+          );
+        },
+      });
+    },
+    [openAlert, openConfirm],
+  );
+
+  const handleDeleteAccount = useCallback(() => {
+    openConfirm({
+      title: "Eliminar cuenta",
+      message: "La eliminacion es permanente y cerrara tu sesion actual.",
+      tone: "danger",
+      confirmLabel: "Eliminar cuenta",
+      cancelLabel: "Cancelar",
+      onConfirm: async () => {
+        const result = await deleteCurrentUserAccount(userAuthId);
+        if (!result.ok) {
+          openAlert({
+            title: "No se pudo eliminar",
+            message: result.error || "No se pudo eliminar la cuenta.",
+            tone: "warning",
+          });
+          return;
+        }
+        await signOut();
+      },
+    });
+  }, [openAlert, openConfirm, signOut, userAuthId]);
+
+  const handleSaveProfile = useCallback(async () => {
+    if (!userAuthId) return;
+    const { error: updateError } = await supabase
+      .from("usuarios")
+      .update({
+        nombre: profileDraft.nombre.trim() || null,
+        telefono: profileDraft.telefono.trim() || null,
+        direccion: profileDraft.direccion.trim() || null,
+      })
+      .eq("id_auth", userAuthId);
+
+    if (updateError) {
+      openAlert({
+        title: "No se pudo guardar",
+        message: updateError.message || "No se pudo actualizar el perfil.",
+        tone: "warning",
+      });
+      return;
+    }
+    await bootstrapAuth();
+    openAlert({
+      title: "Perfil actualizado",
+      message: "Los datos basicos del perfil se actualizaron.",
+      tone: "default",
+    });
+  }, [bootstrapAuth, openAlert, profileDraft.direccion, profileDraft.nombre, profileDraft.telefono, userAuthId]);
+
   return (
     <ScreenScaffold title="Perfil cliente" subtitle="Cuenta, seguridad y ayuda">
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.tabRow}>
-          {(["cuenta", "seguridad", "ayuda"] as ProfileTab[]).map((tab) => (
+          {(["cuenta", "seguridad", "preferencias", "ayuda"] as ProfileTab[]).map((tab) => (
             <Pressable
               key={tab}
               onPress={() => setProfileTab(tab)}
@@ -213,76 +359,139 @@ export default function ClientePerfilScreen() {
         </View>
 
         {profileTab === "cuenta" ? (
-          <SectionCard title="Cuenta">
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre:</Text>
-              <Text style={styles.infoValue}>
-                {readFirst(usuario, ["nombre", "apodo", "alias"], "sin nombre")}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Correo:</Text>
-              <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Estado:</Text>
-              <Text style={styles.infoValue}>
-                {onboarding?.allowAccess ? "activo" : "pendiente"}
-              </Text>
-            </View>
-            <View style={styles.actionsRow}>
-              <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryBtnText}>Refrescar</Text>
-              </Pressable>
-              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-              </Pressable>
-            </View>
-          </SectionCard>
+          <>
+            <SectionCard title="Cuenta">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Nombre:</Text>
+                <TextInput
+                  value={profileDraft.nombre}
+                  onChangeText={(value) => setProfileDraft((prev) => ({ ...prev, nombre: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Nombre"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Correo:</Text>
+                <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Telefono:</Text>
+                <TextInput
+                  value={profileDraft.telefono}
+                  onChangeText={(value) => setProfileDraft((prev) => ({ ...prev, telefono: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Telefono"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Direccion:</Text>
+                <TextInput
+                  value={profileDraft.direccion}
+                  onChangeText={(value) => setProfileDraft((prev) => ({ ...prev, direccion: value }))}
+                  style={styles.inlineInput}
+                  placeholder="Direccion"
+                />
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Estado:</Text>
+                <Text style={styles.infoValue}>
+                  {onboarding?.allowAccess ? "activo" : "pendiente"}
+                </Text>
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={() => void handleSaveProfile()} style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>Guardar perfil</Text>
+                </Pressable>
+                <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Refrescar</Text>
+                </Pressable>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+            </SectionCard>
+            <ProfileBenefitsSection
+              role="cliente"
+              accountLabel={`Estado ${onboarding?.allowAccess ? "activo" : "pendiente"}`}
+              accountHelper="Completar perfil y verificar correo habilita mejores beneficios, referidos y progreso."
+            />
+            <SectionCard title="Gestionar cuenta" subtitle="Acciones sensibles y estado general">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Verificacion:</Text>
+                <Text style={styles.infoValue}>{verificationStatus}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+                <Pressable onPress={handleDeleteAccount} style={styles.dangerBtn}>
+                  <Text style={styles.dangerBtnText}>Eliminar cuenta</Text>
+                </Pressable>
+              </View>
+            </SectionCard>
+          </>
         ) : null}
 
         {profileTab === "seguridad" ? (
-          <SectionCard title="Acceso y seguridad" subtitle="Estado de acceso aplicable en RN">
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Rol:</Text>
-              <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "cliente"))}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Verificacion:</Text>
-              <Text style={styles.infoValue}>{verificationStatus}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email:</Text>
-              <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Acceso:</Text>
-              <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
-            </View>
-            <View style={styles.actionsRow}>
-              <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
-              </Pressable>
-              <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-              </Pressable>
-            </View>
-            <AccessSecurityPanel
-              usuario={usuario}
-              onReload={async () => {
-                await bootstrapAuth();
-              }}
+          <>
+            <SectionCard title="Acceso y seguridad" subtitle="Estado de acceso aplicable en RN">
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Rol:</Text>
+                <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "cliente"))}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Verificacion:</Text>
+                <Text style={styles.infoValue}>{verificationStatus}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Acceso:</Text>
+                <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
+              </View>
+              <View style={styles.actionsRow}>
+                <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
+                  <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
+                </Pressable>
+                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
+                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
+                </Pressable>
+              </View>
+              <AccessSecurityPanel
+                usuario={usuario}
+                onReload={async () => {
+                  await bootstrapAuth();
+                }}
+              />
+            </SectionCard>
+            <LinkedProvidersSection
+              providers={linkedProviders}
+              primaryProvider={primaryProvider}
+              appleEnabled={appleEnabled}
             />
-          </SectionCard>
+            <SessionsSection onCurrentSessionRevoked={handleSignOut} />
+          </>
+        ) : null}
+
+        {profileTab === "preferencias" ? (
+          <>
+            <NotificationsSection role="cliente" />
+            <ProfilePreferencesSection role="cliente" />
+          </>
         ) : null}
 
         {profileTab === "ayuda" ? (
           <>
+            <ProfileFaqSection audience="cliente" />
+
             <SectionCard title="Ayuda">
               <View style={styles.actionsRow}>
-                <Pressable onPress={handleOpenFaq} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Preguntas frecuentes</Text>
-                </Pressable>
                 <Pressable onPress={handleOpenSupportEmail} style={styles.outlineBtn}>
                   <Text style={styles.outlineBtnText}>Soporte por correo</Text>
                 </Pressable>
@@ -379,6 +588,34 @@ export default function ClientePerfilScreen() {
                       <Text style={styles.ticketDate}>
                         {formatDateTime(readFirst(ticket, ["created_at"], null))}
                       </Text>
+                      <View style={styles.actionsRow}>
+                        {readFirst(ticket, ["wa_link"], "") ? (
+                          <Pressable
+                            onPress={() => void handleOpenTicketWhatsapp(ticket)}
+                            style={styles.secondaryBtn}
+                          >
+                            <Text style={styles.secondaryBtnText}>Abrir WhatsApp</Text>
+                          </Pressable>
+                        ) : null}
+                        {readFirst(ticket, ["status"], "") === "queued" &&
+                        readFirst(ticket, ["personal_queue"], true) === false ? (
+                          <Pressable
+                            onPress={() => handleRequestRetake(ticket)}
+                            disabled={Boolean(readFirst(ticket, ["retake_requested_at"], null))}
+                            style={[
+                              styles.outlineBtn,
+                              Boolean(readFirst(ticket, ["retake_requested_at"], null)) &&
+                                styles.primaryBtnDisabled,
+                            ]}
+                          >
+                            <Text style={styles.outlineBtnText}>
+                              {readFirst(ticket, ["retake_requested_at"], null)
+                                ? "Retomar solicitado"
+                                : "Retomar ticket"}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                   ))
                 : null}
@@ -447,6 +684,17 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 12,
   },
+  inlineInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
+    fontSize: 12,
+  },
   actionsRow: {
     flexDirection: "row",
     gap: 8,
@@ -491,6 +739,21 @@ const styles = StyleSheet.create({
   outlineBtnText: {
     color: "#374151",
     fontWeight: "600",
+    fontSize: 12,
+  },
+  dangerBtn: {
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF1F2",
+  },
+  dangerBtnText: {
+    color: "#BE123C",
+    fontWeight: "700",
     fontSize: 12,
   },
   chipWrap: {

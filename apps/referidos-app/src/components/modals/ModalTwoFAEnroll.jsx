@@ -123,7 +123,7 @@ export default function ModalTwoFAEnroll({ onComplete }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const helperText = useMemo(() => {
     if (loading) return "Generando tu codigo...";

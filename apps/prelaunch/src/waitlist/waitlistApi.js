@@ -1,12 +1,23 @@
 // src/waitlist/waitlistApi.js
 import { getDefaultUtm, getPrelaunchClient } from "../services/prelaunchSystem";
 
+function getReferralCodeFromLocation() {
+  if (typeof window === "undefined") return "";
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    return String(params.get("ref") || "").trim().toUpperCase();
+  } catch {
+    return "";
+  }
+}
+
 export async function submitWaitlistSignup({
   email,
   role = "cliente",
   source = "landing",
   consentVersion = "privacy_v1",
   honeypot = "",
+  referralCode = "",
 } = {}) {
   const prelaunchClient = getPrelaunchClient();
   if (!prelaunchClient) {
@@ -18,8 +29,7 @@ export async function submitWaitlistSignup({
     return { ok: false, error: "invalid_email" };
   }
 
-  const roleIntent =
-    role === "negocio_interest" || role === "negocio" ? "negocio" : "cliente";
+  const roleIntent = role === "negocio" ? "negocio" : "cliente";
 
   const response = await prelaunchClient.waitlist.submit({
     email: normalizedEmail,
@@ -27,6 +37,7 @@ export async function submitWaitlistSignup({
     source,
     consent_version: consentVersion,
     honeypot,
+    referral_code: String(referralCode || getReferralCodeFromLocation()).trim().toUpperCase(),
     utm: getDefaultUtm(),
   });
 

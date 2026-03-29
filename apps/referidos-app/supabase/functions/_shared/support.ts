@@ -21,6 +21,16 @@ if (!supabaseUrl || !publishableKey || !secretKey) {
 export const supabasePublic = createClient(supabaseUrl, publishableKey);
 export const supabaseAdmin = createClient(supabaseUrl, secretKey);
 
+export type SupportRuntimeFlags = {
+  require_session_authorization: boolean;
+  require_jornada_authorization: boolean;
+};
+
+export const DEFAULT_SUPPORT_RUNTIME_FLAGS: SupportRuntimeFlags = {
+  require_session_authorization: false,
+  require_jornada_authorization: true,
+};
+
 export function corsHeaders(origin: string | null) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
@@ -64,6 +74,25 @@ export async function getUsuarioByAuthId(authId: string) {
     return { usuario: null, error: error.message };
   }
   return { usuario: data, error: null };
+}
+
+export async function loadSupportRuntimeFlags(): Promise<SupportRuntimeFlags> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("support_runtime_flags")
+      .select("require_session_authorization, require_jornada_authorization")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (error || !data) return { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+
+    return {
+      require_session_authorization: Boolean(data.require_session_authorization),
+      require_jornada_authorization: Boolean(data.require_jornada_authorization),
+    };
+  } catch {
+    return { ...DEFAULT_SUPPORT_RUNTIME_FLAGS };
+  }
 }
 
 export function safeTrim(value: string | null | undefined, limit = 500) {
@@ -118,4 +147,58 @@ export const CATEGORY_LABELS: Record<string, string> = {
   sugerencia: "Sugerencia",
   borrar_correo_waitlist: "Borrar correo de lista de espera",
   tier_beneficios: "Tier / beneficios",
+  indefinida: "Indefinida / Otra razon",
 };
+
+export const SUPPORT_FALLBACK_CATEGORY = "indefinida";
+
+function normalizeCategoryToken(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+export type SupportCategoryResolution = {
+  category: string;
+  requestedCategory: string | null;
+  usedFallback: boolean;
+  mappedExplicitOtherReason: boolean;
+};
+
+export function resolveSupportThreadCategory(
+  inputCategory: unknown,
+  fallbackCategory = SUPPORT_FALLBACK_CATEGORY,
+): SupportCategoryResolution {
+  const requestedCategory = normalizeCategoryToken(inputCategory);
+  const explicitOtherReason = requestedCategory === SUPPORT_FALLBACK_CATEGORY;
+
+  if (!requestedCategory) {
+    return {
+      category: fallbackCategory,
+      requestedCategory: null,
+      usedFallback: true,
+      mappedExplicitOtherReason: false,
+    };
+  }
+
+  if (Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, requestedCategory)) {
+    return {
+      category: requestedCategory,
+      requestedCategory,
+      usedFallback: false,
+      mappedExplicitOtherReason: explicitOtherReason,
+    };
+  }
+
+  return {
+    category: fallbackCategory,
+    requestedCategory,
+    usedFallback: true,
+    mappedExplicitOtherReason: false,
+  };
+}

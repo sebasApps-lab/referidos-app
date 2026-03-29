@@ -1,22 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   cancelAnonymousSupportThread,
   createAnonymousSupportThread,
+  getAnonymousSupportThreadStatus,
+  listAnonymousSupportCategories,
+  requestAnonymousSupportThreadRetake,
 } from "./supportApi";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
-
-const CATEGORIES = [
-  { id: "acceso", label: "Pregunta o inquietud" },
-  { id: "bug_performance", label: "Ayuda o soporte" },
-  { id: "sugerencia", label: "Sugerencia" },
-  { id: "borrar_correo_waitlist", label: "Borrar correo de lista de espera" },
-];
-
-const DEFAULT_CATEGORY = "acceso";
+import { runtimeConfig } from "../config/runtimeConfig";
 const SUMMARY_MAX = 240;
 const ECUADOR_PREFIX = "593";
 const ECUADOR_FLAG_SVG_URL = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
+const DELETE_WAITLIST_CATEGORY_CODES = new Set(["borrar_correo_waitlist"]);
+const OTHER_REASON_CATEGORY_CODES = new Set(["otra", "otro", "otra_razon", "other", "indefinida"]);
+const DEFAULT_SUPPORT_CATEGORY_CODE = "indefinida";
 
 function normalizeWhatsappLocal(value) {
   let digits = (value || "").replace(/\D/g, "");
@@ -31,6 +29,24 @@ function normalizeEmail(value) {
   const normalized = (value || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   return normalized;
+}
+
+function normalizeCategoryOption(item) {
+  const id = String(item?.code || item?.id || "").trim().toLowerCase();
+  if (!id) return null;
+  const rawLabel = String(item?.label || item?.code || id).trim() || id;
+  const normalizedLabel = rawLabel.toLowerCase();
+  const label = normalizedLabel === "borrar correo"
+    ? "Borrar correo de la lista de espera"
+    : rawLabel;
+  return { id, label };
+}
+
+function isDeleteWaitlistCategory(categoryCode) {
+  const normalized = String(categoryCode || "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (DELETE_WAITLIST_CATEGORY_CODES.has(normalized)) return true;
+  return normalized.startsWith("borrar_correo");
 }
 
 function SupportModal({
@@ -86,13 +102,14 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   const path = location.pathname.toLowerCase();
   const activeTab = path === "/soporte-correo" ? "email" : isChatRoute ? "chat" : "email";
   const requestedCategory = (searchParams.get("tipo") || "").trim().toLowerCase();
-  const categoryFromQuery = CATEGORIES.some((item) => item.id === requestedCategory)
-    ? requestedCategory
-    : DEFAULT_CATEGORY;
 
   const [contact, setContact] = useState("");
   const [summary, setSummary] = useState("");
-  const [category, setCategory] = useState(categoryFromQuery);
+  const [category, setCategory] = useState("");
+  const [deleteTargetEmail, setDeleteTargetEmail] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdTicket, setCreatedTicket] = useState(null);
@@ -100,6 +117,8 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   const [saveTicketModalOpen, setSaveTicketModalOpen] = useState(false);
   const [replacePrompt, setReplacePrompt] = useState(null);
   const [replaceLoading, setReplaceLoading] = useState(false);
+  const [retakeLoading, setRetakeLoading] = useState(false);
+  const [retakeFeedback, setRetakeFeedback] = useState("");
   const summaryRef = useRef(null);
 
   const isChatTab = activeTab === "chat";
@@ -114,14 +133,45 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     [normalizedWhatsappLocal],
   );
   const normalizedEmail = useMemo(() => normalizeEmail(contact), [contact]);
+  const normalizedDeleteTargetEmail = useMemo(
+    () => normalizeEmail(deleteTargetEmail),
+    [deleteTargetEmail],
+  );
   const normalizedContact = useMemo(
     () => (selectedChannel === "email" ? normalizedEmail : normalizedWhatsapp),
     [normalizedEmail, normalizedWhatsapp, selectedChannel],
   );
+  const requiresDeleteTargetEmail = useMemo(
+    () => isDeleteWaitlistCategory(category),
+    [category],
+  );
+  const hasCategorySelection = useMemo(
+    () => categoryOptions.some((item) => item.id === category),
+    [category, categoryOptions],
+  );
+  const submitCategoryCode = useMemo(() => {
+    const normalized = String(category || "").trim().toLowerCase();
+    if (!normalized) return DEFAULT_SUPPORT_CATEGORY_CODE;
+    if (OTHER_REASON_CATEGORY_CODES.has(normalized)) return DEFAULT_SUPPORT_CATEGORY_CODE;
+    return normalized;
+  }, [category]);
 
   const canSubmit = useMemo(
-    () => Boolean(normalizedContact) && !submitting,
-    [normalizedContact, submitting],
+    () => (
+      Boolean(normalizedContact)
+      && hasCategorySelection
+      && (!requiresDeleteTargetEmail || Boolean(normalizedDeleteTargetEmail))
+      && !submitting
+      && !categoriesLoading
+    ),
+    [
+      normalizedContact,
+      hasCategorySelection,
+      requiresDeleteTargetEmail,
+      normalizedDeleteTargetEmail,
+      submitting,
+      categoriesLoading,
+    ],
   );
 
   const subtitle = isChatTab
@@ -136,8 +186,66 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
   }, []);
 
   useEffect(() => {
-    setCategory(categoryFromQuery);
-  }, [categoryFromQuery]);
+    let cancelled = false;
+
+    async function loadAnonymousCategories() {
+      setCategoriesLoading(true);
+      setCategoriesError("");
+
+      const response = await listAnonymousSupportCategories({
+        requested_channel: selectedChannel,
+      });
+      if (cancelled) return;
+
+      if (!response.ok || !response.data?.ok) {
+        setCategoryOptions([]);
+        setCategoriesLoading(false);
+        setCategoriesError(
+          response.error ||
+            response.data?.detail ||
+            response.data?.error ||
+            "No se pudieron cargar las categorias de soporte.",
+        );
+        return;
+      }
+
+      const seen = new Set();
+      const nextOptions = (response.data?.categories || [])
+        .map((item) => normalizeCategoryOption(item))
+        .filter((item) => {
+          if (!item) return false;
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+
+      setCategoryOptions(nextOptions);
+      setCategoriesLoading(false);
+      if (nextOptions.length === 0) {
+        setCategoriesError("No hay categorias de soporte disponibles para anonimos.");
+      }
+    }
+
+    void loadAnonymousCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChannel]);
+
+  useEffect(() => {
+    if (!categoryOptions.length) {
+      setCategory("");
+      return;
+    }
+
+    const available = new Set(categoryOptions.map((item) => item.id));
+    setCategory((previous) => {
+      if (requestedCategory && available.has(requestedCategory)) return requestedCategory;
+      if (previous && available.has(previous)) return previous;
+      return categoryOptions[0].id;
+    });
+  }, [categoryOptions, requestedCategory]);
 
   useEffect(() => {
     void ingestPrelaunchEvent("page_view", {
@@ -177,21 +285,58 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
 
     setSubmitting(true);
     setError("");
+    const locale = navigator.language || null;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    const runtimeSnapshot = {
+      app_id: runtimeConfig.appId || "prelaunch",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      app_version: runtimeConfig.appVersion || null,
+      source_route: window.location.pathname,
+      locale,
+      language: locale,
+      timezone,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      online: typeof navigator.onLine === "boolean" ? navigator.onLine : null,
+    };
+    const buildSnapshot = {
+      app_id: runtimeConfig.appId || "prelaunch",
+      app_env: runtimeConfig.appEnv || runtimeConfig.mode || "dev",
+      version_label: runtimeConfig.appVersion || null,
+      build_id: runtimeConfig.buildId || null,
+      build_number: runtimeConfig.buildNumber || null,
+      release_id: runtimeConfig.releaseId || null,
+      artifact_id: runtimeConfig.artifactId || null,
+      release_channel: runtimeConfig.releaseChannel || runtimeConfig.appEnv || null,
+      source_commit_sha: runtimeConfig.sourceCommitSha || null,
+    };
 
     const payload = {
       channel: selectedChannel,
       contact: normalizedContact,
       summary: summary.trim() || "Sin descripcion adicional.",
-      category,
+      category: submitCategoryCode,
       severity: "s2",
-      origin_source: "prelaunch",
+      origin_source: "user",
+      app_channel: runtimeConfig.appChannel || "prelaunch",
       source_route: window.location.pathname,
+      locale,
+      language: locale,
+      timezone,
+      platform: navigator.platform || null,
+      user_agent: navigator.userAgent || null,
+      build: buildSnapshot,
       client_request_id: crypto.randomUUID(),
       error_on_active: true,
       context: {
         flow: "prelaunch",
         page: selectedChannel === "whatsapp" ? "soporte-chat" : "soporte-correo",
         requested_channel: selectedChannel,
+        waitlist_delete_requested: requiresDeleteTargetEmail,
+        waitlist_delete_email: requiresDeleteTargetEmail ? normalizedDeleteTargetEmail : null,
+        runtime: runtimeSnapshot,
+        build: buildSnapshot,
       },
     };
 
@@ -204,10 +349,21 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         response.data?.thread_public_id &&
         response.data?.tracking_token
       ) {
-        setReplacePrompt({
+        let canRetake = false;
+        const statusResult = await getAnonymousSupportThreadStatus({
           thread_public_id: response.data.thread_public_id,
           tracking_token: response.data.tracking_token,
         });
+        if (statusResult.ok && statusResult.data?.ok) {
+          const statusThread = statusResult.data.thread || {};
+          canRetake = statusThread.status === "queued" && statusThread.personal_queue === false;
+        }
+        setReplacePrompt({
+          thread_public_id: response.data.thread_public_id,
+          tracking_token: response.data.tracking_token,
+          can_retake: canRetake,
+        });
+        setRetakeFeedback("");
         return;
       }
       setError(response.error || response.data?.error || "No se pudo iniciar la conversacion.");
@@ -254,6 +410,24 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
     setReplacePrompt(null);
     setReplaceLoading(false);
     await submitConversation();
+  }
+
+  async function handleRetakeTicket() {
+    if (!replacePrompt?.thread_public_id || !replacePrompt?.tracking_token) return;
+    setRetakeLoading(true);
+    setRetakeFeedback("");
+    const result = await requestAnonymousSupportThreadRetake({
+      thread_public_id: replacePrompt.thread_public_id,
+      tracking_token: replacePrompt.tracking_token,
+    });
+    setRetakeLoading(false);
+    if (!result.ok || !result.data?.ok) {
+      setRetakeFeedback(result.error || result.data?.error || "No se pudo solicitar retomar ticket.");
+      return;
+    }
+    const estimated = Number(result.data.estimated_delay_seconds || 0);
+    const estimateLabel = estimated > 0 ? `${Math.max(1, Math.ceil(estimated / 60))} min` : "5-10 min";
+    setRetakeFeedback(`Solicitud enviada. Tiempo aproximado de reasignacion: ${estimateLabel}.`);
   }
 
   return (
@@ -364,15 +538,46 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value)}
+                  disabled={categoriesLoading || categoryOptions.length === 0}
                   className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
                 >
-                  {CATEGORIES.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
+                  {categoriesLoading ? (
+                    <option value="">Cargando categorias...</option>
+                  ) : categoryOptions.length ? (
+                    categoryOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Sin categorias disponibles</option>
+                  )}
                 </select>
+                {categoriesError ? (
+                  <div className="text-[11px] text-red-600">{categoriesError}</div>
+                ) : null}
               </div>
+
+              {requiresDeleteTargetEmail ? (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[#2F1A55]">
+                    ¿Cual es la dirrección de correo que deseas borrar?
+                  </label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={deleteTargetEmail}
+                    onChange={(event) => setDeleteTargetEmail(event.target.value)}
+                    placeholder="tu@email.com"
+                    className="w-full rounded-2xl border border-[#E9E2F7] px-4 py-3 text-sm outline-none focus:border-[#5E30A5]"
+                  />
+                  {!normalizedDeleteTargetEmail ? (
+                    <div className="text-[11px] text-red-600">
+                      Debes ingresar un correo valido para continuar.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#2F1A55]">
@@ -390,7 +595,6 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 <div className="text-[11px] text-slate-400 text-right">
                   {summary.length}/{SUMMARY_MAX}
                 </div>
-                <p className="text-xs text-slate-500">El tiempo de respuesta es de 6-48h.</p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -437,17 +641,17 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Información</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <a href="/guide" className="transition-colors hover:text-[var(--brand-yellow)]">Guía de uso</a>
-                <a href="/about" className="transition-colors hover:text-[var(--brand-yellow)]">Quienes somos</a>
+                <a href="/#platform" className="transition-colors hover:text-[var(--brand-yellow)]">Plataforma</a>
+                <a href="/#about" className="transition-colors hover:text-[var(--brand-yellow)]">Quiénes somos</a>
               </div>
             </div>
 
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90">Legal</h4>
               <div className="mt-3 flex flex-col gap-2 text-sm text-white/75">
-                <Link to="/legal/es/privacidad" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Privacidad</Link>
-                <Link to="/legal/es/terminos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Terminos</Link>
-                <Link to="/legal/es/borrar-datos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</Link>
+                <Link to="/ayuda/es/articulo/privacidad" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Privacidad</Link>
+                <Link to="/ayuda/es/articulo/terminos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Terminos</Link>
+                <Link to="/ayuda/es/articulo/borrar-datos" className="text-left transition-colors hover:text-[var(--brand-yellow)]">Borrar datos</Link>
               </div>
             </div>
 
@@ -498,8 +702,31 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
         confirmDisabled={replaceLoading}
         onConfirm={() => void handleReplaceTicket()}
         onCancel={() => setReplacePrompt(null)}
-      />
+      >
+        {replacePrompt?.can_retake ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => void handleRetakeTicket()}
+              disabled={retakeLoading}
+              className="w-full rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5] disabled:opacity-60"
+            >
+              {retakeLoading ? "Solicitando retomar..." : "Retomar ticket actual"}
+            </button>
+            {retakeFeedback ? (
+              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
+                {retakeFeedback}
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500">
+                Si deseas continuar con tu ticket actual, pulsa Retomar ticket.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </SupportModal>
     </div>
   );
 }
+
 

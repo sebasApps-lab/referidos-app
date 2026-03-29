@@ -1,12 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { buildAnonymousIdentity, extractUtmFromSearch } from "./anonIdentity.js";
+import { invokePublicFeedbackSubmit } from "../../../feedback-sdk/src/publicClient.js";
+import { normalizeFeedbackOriginRole } from "../../../feedback-sdk/src/shared.js";
 
 const DEFAULT_TENANT_HINT = "ReferidosAPP";
 const DEFAULT_APP_CHANNEL = "prelaunch_web";
 
 function normalizeRoleIntent(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "negocio" || normalized === "negocio_interest") return "negocio";
+  if (normalized === "negocio") return "negocio";
   return "cliente";
 }
 
@@ -110,6 +112,7 @@ export function createPrelaunchClient({
         source = "landing",
         consent_version = "privacy_v1",
         honeypot = "",
+        referral_code = "",
         utm = null,
       } = {}) =>
         invokePublic(
@@ -120,17 +123,51 @@ export function createPrelaunchClient({
             source,
             consent_version,
             honeypot,
+            referral_code,
             utm: resolveUtmPayload(utm),
           }),
         ),
     },
     support: {
+      listAnonymousCategories: async (payload = {}) =>
+        invokePublic("support-anon-categories", withSharedPayload(payload)),
       createAnonymousThread: async (payload = {}) =>
         invokePublic("support-create-anon-thread", withSharedPayload(payload)),
       cancelAnonymousThread: async (payload = {}) =>
         invokePublic("support-anon-cancel-thread", payload),
+      requestThreadRetake: async (payload = {}) =>
+        invokePublic("support-retake-thread", payload),
       getAnonymousThreadStatus: async (payload = {}) =>
         invokePublic("support-anon-thread-status", payload),
+    },
+    feedback: {
+      submit: async ({
+        name,
+        email,
+        message,
+        origin_role = "cliente",
+        origin_source = "prelaunch",
+        source_route = "/feedback",
+        source_surface = "feedback_page",
+        honeypot = "",
+        context = {},
+        utm = null,
+      } = {}) =>
+        invokePublicFeedbackSubmit(
+          invokePublic,
+          withSharedPayload({
+            name,
+            email,
+            message,
+            origin_role: normalizeFeedbackOriginRole(origin_role),
+            origin_source,
+            source_route: normalizePath(source_route),
+            source_surface,
+            honeypot,
+            context,
+            utm: resolveUtmPayload(utm),
+          }),
+        ),
     },
   };
 }

@@ -39,7 +39,7 @@ export default function LegalDocPage() {
 
           <nav className="flex flex-wrap items-center text-sm font-semibold">
             <Link
-              to="/legal/es/privacidad"
+              to="/ayuda/es/articulo/privacidad"
               className={`px-2 py-1.5 transition-colors ${
                 doc === "privacidad" ? activeDocClass : inactiveDocClass
               }`}
@@ -48,7 +48,7 @@ export default function LegalDocPage() {
             </Link>
             <span aria-hidden="true" className={separatorClass} />
             <Link
-              to="/legal/es/terminos"
+              to="/ayuda/es/articulo/terminos"
               className={`px-2 py-1.5 transition-colors ${
                 doc === "terminos" ? activeDocClass : inactiveDocClass
               }`}
@@ -57,7 +57,7 @@ export default function LegalDocPage() {
             </Link>
             <span aria-hidden="true" className={separatorClass} />
             <Link
-              to="/legal/es/borrar-datos"
+              to="/ayuda/es/articulo/borrar-datos"
               className={`px-2 py-1.5 transition-colors ${
                 doc === "borrar-datos" ? activeDocClass : inactiveDocClass
               }`}

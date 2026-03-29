@@ -4,6 +4,7 @@ import docsVersioningQuick from "../../../../../docs/versioning-system.md?raw";
 import docsVersioningCore from "../../../../../docs/referidos-system/README.md?raw";
 import docsVersioningNoPrNetlify from "../../../../../docs/referidos-system/operacion-sin-pr-netlify.md?raw";
 import docsEnvsSecrets from "../../../../../docs/referidos-system/entornos-y-secrets.md?raw";
+import docsSupportMacrosOpsCache from "../../../../../docs/referidos-system/support-macros-ops-cache.md?raw";
 import pwaDocsReadme from "../../../docs/README.md?raw";
 import prelaunchDocsReadme from "../../../../../apps/prelaunch/docs/README.md?raw";
 import androidDocsReadme from "../../../../../apps/referidos-android/docs/README.md?raw";
@@ -11,6 +12,7 @@ import androidAppReadme from "../../../../../apps/referidos-android/README.md?ra
 import androidMigrationPlan from "../../../../../docs/android-migration-plan.md?raw";
 import androidParityChecklist from "../../../../../docs/android-parity-checklist.md?raw";
 import androidPhasePlaybook from "../../../../../docs/android-phase-playbook.md?raw";
+import androidSupportCleanupPending from "../../../../../docs/referidos-system/android-support-cleanup-pending.md?raw";
 
 export const DOC_GROUPS = [
   { key: "general", label: "General del repo" },
@@ -63,6 +65,13 @@ export const DOCS_REGISTRY = [
     markdown: docsEnvsSecrets,
   },
   {
+    id: "docs-support-macros-ops-cache",
+    group: "general",
+    title: "Soporte macros OPS + cache runtime",
+    pathLabel: "docs/referidos-system/support-macros-ops-cache.md",
+    markdown: docsSupportMacrosOpsCache,
+  },
+  {
     id: "pwa-docs-readme",
     group: "referidos_app",
     title: "PWA: guia de la app",
@@ -110,5 +119,12 @@ export const DOCS_REGISTRY = [
     title: "Android phase playbook",
     pathLabel: "docs/android-phase-playbook.md",
     markdown: androidPhasePlaybook,
+  },
+  {
+    id: "android-support-cleanup-pending",
+    group: "android_app",
+    title: "Android support cleanup pending",
+    pathLabel: "docs/referidos-system/android-support-cleanup-pending.md",
+    markdown: androidSupportCleanupPending,
   },
 ];

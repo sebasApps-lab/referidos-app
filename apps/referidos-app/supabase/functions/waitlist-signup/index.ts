@@ -70,11 +70,11 @@ serve(async (req) => {
     return json({ ok: false, message: "tenant_not_found" }, 400, corsHeaders);
   }
 
-  const roleIntentRaw = cleanText(payload.role_intent ?? payload.role, 40);
+  const roleIntentRaw = cleanText(payload.role_intent, 40);
   const roleIntent = normalizeRoleIntent(roleIntentRaw);
-  const legacyRole = roleIntent === "negocio" ? "negocio_interest" : "cliente";
   const source = cleanText(payload.source, 80) || "landing";
   const consentVersion = cleanText(payload.consent_version, 40) || "privacy_v1";
+  const referralCode = cleanText(payload.referral_code, 64).toUpperCase();
   const anonId = parseUuid(payload.anon_id);
   const visitSessionId = parseUuid(payload.visit_session_id);
   const utm = sanitizeUtm(payload.utm);
@@ -118,21 +118,27 @@ serve(async (req) => {
     .select("id")
     .eq("tenant_id", tenantId)
     .eq("email_hash", emailHash)
+    .eq("role_intent", roleIntent)
     .limit(1)
     .maybeSingle();
 
   if (existingByHash?.id) {
-    return json({ ok: true, already: true }, 200, corsHeaders);
+    const payload = await buildWaitlistSuccessPayload({
+      signupId: existingByHash.id,
+      roleIntent,
+      referralCode,
+      isNewSignup: false,
+    });
+    return json(payload, 200, corsHeaders);
   }
 
-  const { error } = await supabaseAdmin
+  const { data: insertedRow, error } = await supabaseAdmin
     .from("waitlist_signups")
     .insert({
       tenant_id: tenantId,
       app_channel: appChannel,
       email,
       email_hash: emailHash,
-      role: legacyRole,
       role_intent: roleIntent,
       source,
       consent_version: consentVersion,
@@ -145,16 +151,49 @@ serve(async (req) => {
       user_agent: null,
       utm,
       risk_flags: {},
-    });
+    })
+    .select("id")
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     if (isDuplicate(error)) {
+      const { data: duplicateRow } = await supabaseAdmin
+        .from("waitlist_signups")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("email_hash", emailHash)
+        .eq("role_intent", roleIntent)
+        .limit(1)
+        .maybeSingle();
+
+      if (duplicateRow?.id) {
+        const payload = await buildWaitlistSuccessPayload({
+          signupId: duplicateRow.id,
+          roleIntent,
+          referralCode,
+          isNewSignup: false,
+        });
+        return json(payload, 200, corsHeaders);
+      }
+
       return json({ ok: true, already: true }, 200, corsHeaders);
     }
     return json({ ok: false, message: "insert_failed" }, 500, corsHeaders);
   }
 
-  return json({ ok: true, already: false }, 200, corsHeaders);
+  if (!insertedRow?.id) {
+    return json({ ok: false, message: "insert_failed" }, 500, corsHeaders);
+  }
+
+  const payloadResult = await buildWaitlistSuccessPayload({
+    signupId: insertedRow.id,
+    roleIntent,
+    referralCode,
+    isNewSignup: true,
+  });
+
+  return json(payloadResult, 200, corsHeaders);
 });
 
 function isValidEmail(email: string) {
@@ -168,8 +207,16 @@ function cleanText(value: unknown, maxLength: number) {
 
 function normalizeRoleIntent(value: string) {
   const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "negocio" || normalized === "negocio_interest") return "negocio";
+  if (normalized === "negocio") return "negocio";
   return "cliente";
+}
+
+function buildReferralLinkPath(code: string | null, roleIntent: string) {
+  if (!code) return null;
+  if (roleIntent === "negocio") {
+    return `/negocios?ref=${encodeURIComponent(code)}`;
+  }
+  return `/?ref=${encodeURIComponent(code)}`;
 }
 
 function parseUuid(value: unknown): string | null {
@@ -290,6 +337,70 @@ function isDuplicate(error: { code?: string; message?: string; details?: string 
   if (error.code === "23505") return true;
   const message = `${error.message || ""} ${error.details || ""}`.toLowerCase();
   return message.includes("duplicate") || message.includes("already exists");
+}
+
+async function buildWaitlistSuccessPayload({
+  signupId,
+  roleIntent,
+  referralCode,
+  isNewSignup,
+}: {
+  signupId: string;
+  roleIntent: string;
+  referralCode: string;
+  isNewSignup: boolean;
+}) {
+  const { data: ensuredCode } = await supabaseAdmin.rpc("ensure_waitlist_referral_code", {
+    p_waitlist_signup_id: signupId,
+  });
+
+  await supabaseAdmin.rpc("link_waitlist_signup_by_signup_id", {
+    p_waitlist_signup_id: signupId,
+  });
+
+  let referralApplication = { applied: false, reason: isNewSignup ? "missing_code" : "already_registered" };
+  if (isNewSignup && referralCode) {
+    const { data } = await supabaseAdmin.rpc("attach_waitlist_referral", {
+      p_referred_signup_id: signupId,
+      p_referral_code: referralCode,
+    });
+    if (data && typeof data === "object") {
+      referralApplication = {
+        applied: Boolean((data as Record<string, unknown>).applied),
+        reason: String((data as Record<string, unknown>).reason || "unknown"),
+      };
+    }
+  }
+
+  const { data: summary } = await supabaseAdmin.rpc("get_waitlist_referral_summary", {
+    p_waitlist_signup_id: signupId,
+  });
+
+  const summaryRecord =
+    summary && typeof summary === "object" && !Array.isArray(summary)
+      ? summary as Record<string, unknown>
+      : {};
+  const finalCode =
+    (typeof summaryRecord.code === "string" && summaryRecord.code) ||
+    (typeof ensuredCode === "string" && ensuredCode) ||
+    null;
+
+  return {
+    ok: true,
+    already: !isNewSignup,
+    waitlist_signup_id: signupId,
+    role_intent: roleIntent,
+    referral_code: finalCode,
+    referral_link_path: buildReferralLinkPath(finalCode, roleIntent),
+    referral_summary: {
+      code: finalCode,
+      total_count: Number(summaryRecord.total_count || 0),
+      attributed_count: Number(summaryRecord.attributed_count || 0),
+      qualified_count: Number(summaryRecord.qualified_count || 0),
+      rewarded_count: Number(summaryRecord.rewarded_count || 0),
+    },
+    referral_application: referralApplication,
+  };
 }
 
 function json(

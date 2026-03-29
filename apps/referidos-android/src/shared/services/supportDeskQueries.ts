@@ -24,9 +24,20 @@ function normalizeInboxRow(row: any) {
   return {
     ...row,
     request_origin: row?.request_origin || "registered",
-    origin_source: row?.origin_source || "app",
+    origin_source: row?.origin_source || "user",
+    app_channel: row?.app_channel || "undetermined",
     contact_display: row?.contact_display || null,
     anon_public_id: row?.anon_public_id || null,
+    personal_queue: Boolean(row?.personal_queue),
+    assigned_at: row?.assigned_at || null,
+    released_to_general_at: row?.released_to_general_at || null,
+    retake_requested_at: row?.retake_requested_at || null,
+    handoff_required: Boolean(row?.handoff_required),
+    handoff_reason: row?.handoff_reason || null,
+    handoff_at: row?.handoff_at || null,
+    handoff_message_confirmed_at: row?.handoff_message_confirmed_at || null,
+    opening_message_sent_at: row?.opening_message_sent_at || null,
+    opening_message_actor_id: row?.opening_message_actor_id || null,
   };
 }
 
@@ -54,14 +65,14 @@ export async function fetchSupportInboxRows(
   let inboxQuery = supabase
     .from("support_threads_inbox")
     .select(
-      "public_id, category, severity, status, summary, created_at, updated_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, contact_display, anon_public_id",
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id, personal_queue, released_to_general_at, retake_requested_at, handoff_required, handoff_reason, handoff_at, handoff_message_confirmed_at, opening_message_sent_at, opening_message_actor_id",
     )
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
   if (!options.isAdmin) {
     inboxQuery = inboxQuery.or(
-      `assigned_agent_id.eq.${safeUserId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${safeUserId}`,
+      `and(status.eq.starting,assigned_agent_id.eq.${safeUserId}),and(status.eq.assigned,assigned_agent_id.eq.${safeUserId}),and(status.eq.in_progress,assigned_agent_id.eq.${safeUserId}),and(status.eq.waiting_user,assigned_agent_id.eq.${safeUserId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${safeUserId}),created_by_agent_id.eq.${safeUserId}`,
     );
   }
 
@@ -73,14 +84,14 @@ export async function fetchSupportInboxRows(
   let legacyQuery = supabase
     .from("support_threads")
     .select(
-      "public_id, category, severity, status, summary, created_at, updated_at, assigned_agent_id, created_by_agent_id, user_public_id",
+      "public_id, category, severity, status, summary, created_at, updated_at, assigned_at, assigned_agent_id, created_by_agent_id, user_public_id, request_origin, origin_source, app_channel, contact_display, anon_public_id, personal_queue, released_to_general_at, retake_requested_at, handoff_required, handoff_reason, handoff_at, handoff_message_confirmed_at, opening_message_sent_at, opening_message_actor_id",
     )
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
   if (!options.isAdmin) {
     legacyQuery = legacyQuery.or(
-      `assigned_agent_id.eq.${safeUserId},and(status.eq.new,assigned_agent_id.is.null),created_by_agent_id.eq.${safeUserId}`,
+      `and(status.eq.starting,assigned_agent_id.eq.${safeUserId}),and(status.eq.assigned,assigned_agent_id.eq.${safeUserId}),and(status.eq.in_progress,assigned_agent_id.eq.${safeUserId}),and(status.eq.waiting_user,assigned_agent_id.eq.${safeUserId}),and(status.eq.new,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.is.null),and(status.eq.queued,assigned_agent_id.eq.${safeUserId}),created_by_agent_id.eq.${safeUserId}`,
     );
   }
 
@@ -139,6 +150,22 @@ export async function fetchSupportThreadEvents(
     .eq("thread_id", safeThreadId)
     .order("created_at", { ascending: false })
     .limit(120);
+  if (error) return { ok: false, data: [], error: getErrorMessage(error) };
+  return { ok: true, data: data || [] };
+}
+
+export async function fetchSupportAgentEventsHistory(
+  supabase: any,
+  agentId: string,
+): Promise<Result<any[]>> {
+  const safeAgentId = String(agentId || "").trim();
+  if (!safeAgentId) return { ok: false, data: [], error: "missing_agent_id" };
+  const { data, error } = await supabase
+    .from("support_agent_events")
+    .select("id, event_type, actor_id, details, created_at")
+    .eq("agent_id", safeAgentId)
+    .order("created_at", { ascending: false })
+    .limit(200);
   if (error) return { ok: false, data: [], error: getErrorMessage(error) };
   return { ok: true, data: data || [] };
 }
@@ -380,6 +407,51 @@ export async function fetchSupportStatusSummary(
       bySeverity,
     },
   };
+}
+
+export async function fetchSupportIssuesContext(
+  supabase: any,
+  limit = 150,
+): Promise<Result<any[]>> {
+  const { data, error } = await supabase
+    .from("obs_issues_context")
+    .select(
+      "id, title, level, status, count_total, count_24h, first_seen_at, last_seen_at, last_release, last_user_display_name, last_user_email",
+    )
+    .order("last_seen_at", { ascending: false })
+    .limit(Math.max(10, Math.min(Number(limit) || 150, 300)));
+  if (error) return { ok: false, data: [], error: getErrorMessage(error) };
+  return { ok: true, data: data || [] };
+}
+
+export async function fetchSupportIssueEventsContext(
+  supabase: any,
+  limit = 200,
+): Promise<Result<any[]>> {
+  const { data, error } = await supabase
+    .from("obs_events_context")
+    .select(
+      "id, issue_id, occurred_at, level, event_type, message, error_code, app_id, release_version_label, user_display_name, user_email",
+    )
+    .order("occurred_at", { ascending: false })
+    .limit(Math.max(20, Math.min(Number(limit) || 200, 400)));
+  if (error) return { ok: false, data: [], error: getErrorMessage(error) };
+  return { ok: true, data: data || [] };
+}
+
+export async function fetchSupportErrorCatalog(
+  supabase: any,
+  limit = 300,
+): Promise<Result<any[]>> {
+  const { data, error } = await supabase
+    .from("obs_error_catalog")
+    .select(
+      "id, error_code, status, count_total, source_hint, sample_message, sample_route, sample_context, first_seen_at, last_seen_at",
+    )
+    .order("last_seen_at", { ascending: false })
+    .limit(Math.max(20, Math.min(Number(limit) || 300, 500)));
+  if (error) return { ok: false, data: [], error: getErrorMessage(error) };
+  return { ok: true, data: data || [] };
 }
 
 export function toSupportThreadSubtitle(thread: any) {

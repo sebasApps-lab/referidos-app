@@ -29,6 +29,16 @@ type BranchCheckResult = {
   payload?: Record<string, unknown>;
 };
 
+type MigrationGateResult = {
+  ok: boolean;
+  status: number;
+  error: string;
+  detail: string;
+  payload: Record<string, unknown>;
+};
+
+const INTERNAL_PROXY_HEADER = "x-versioning-proxy-token";
+
 function asString(value: unknown, fallback = ""): string {
   if (typeof value !== "string") return fallback;
   return value.trim() || fallback;
@@ -42,7 +52,7 @@ function asBoolean(value: unknown, fallback = false): boolean {
 function isInternalProxyAuthorized(req: Request) {
   const expected = asString(Deno.env.get("VERSIONING_PROXY_SHARED_TOKEN"));
   if (!expected) return false;
-  const received = asString(req.headers.get("x-versioning-proxy-token"));
+  const received = asString(req.headers.get(INTERNAL_PROXY_HEADER));
   return Boolean(received) && received === expected;
 }
 
@@ -57,6 +67,10 @@ function resolveWorkflowCallbackUrl() {
   const supabaseUrl = asString(Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL"));
   if (!supabaseUrl) return "";
   return `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/versioning-deploy-callback`;
+}
+
+function resolveOpsBaseUrl() {
+  return asString(Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL"));
 }
 
 function resolveBranchForEnv({
@@ -128,64 +142,6 @@ function getNestedString(input: Record<string, unknown>, path: string[]): string
 function asNumber(value: unknown, fallback = 0): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
-}
-
-async function mergeBranches({
-  owner,
-  repo,
-  token,
-  base,
-  head,
-  actor,
-  requestId,
-}: {
-  owner: string;
-  repo: string;
-  token: string;
-  base: string;
-  head: string;
-  actor: string;
-  requestId: string;
-}) {
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/merges`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "User-Agent": "referidos-versioning-edge",
-    },
-    body: JSON.stringify({
-      base,
-      head,
-      commit_message: `[deploy-gate] merge ${head} -> ${base} (request ${requestId}) by ${actor}`,
-    }),
-  });
-
-  const text = await response.text();
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    parsed = { raw: text };
-  }
-
-  if (response.status === 201 || response.status === 204) {
-    return {
-      ok: true,
-      status: response.status,
-      mergedSha: asString(parsed.sha),
-      message: asString(parsed.message, "merge_executed"),
-      payload: parsed,
-    };
-  }
-
-  return {
-    ok: false,
-    status: response.status,
-    message: asString(parsed.message, "github_merge_failed"),
-    payload: parsed,
-  };
 }
 
 async function dispatchGithubWorkflow({
@@ -311,6 +267,81 @@ async function checkCommitInBranch({
       behind_by: asNumber(parsed.behind_by),
       merge_base_sha: mergeBaseSha,
     },
+  };
+}
+
+async function checkReleaseMigrationGate({
+  productKey,
+  envKey,
+  semver,
+  actor,
+}: {
+  productKey: string;
+  envKey: string;
+  semver: string;
+  actor: string;
+}): Promise<MigrationGateResult> {
+  const baseUrl = resolveOpsBaseUrl();
+  const sharedToken = asString(Deno.env.get("VERSIONING_PROXY_SHARED_TOKEN"));
+  if (!baseUrl) {
+    return {
+      ok: false,
+      status: 500,
+      error: "missing_ops_base_url",
+      detail: "Missing SUPABASE_URL/URL for internal release gate call.",
+      payload: {},
+    };
+  }
+  if (!sharedToken) {
+    return {
+      ok: false,
+      status: 500,
+      error: "missing_proxy_shared_token",
+      detail: "Missing VERSIONING_PROXY_SHARED_TOKEN for internal release gate call.",
+      payload: {},
+    };
+  }
+
+  const endpoint = `${baseUrl.replace(/\/+$/, "")}/functions/v1/versioning-release-gate`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      [INTERNAL_PROXY_HEADER]: sharedToken,
+    },
+    body: JSON.stringify({
+      operation: "check_release_migrations",
+      product_key: productKey,
+      to_env: envKey,
+      semver,
+      actor,
+    }),
+  });
+
+  const raw = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    parsed = { raw };
+  }
+
+  if (!response.ok || parsed.ok === false) {
+    return {
+      ok: false,
+      status: response.status,
+      error: asString(parsed.error, "migration_gate_failed"),
+      detail: asString(parsed.detail, "Migration gate call failed."),
+      payload: parsed,
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    error: "",
+    detail: "ok",
+    payload: parsed,
   };
 }
 
@@ -459,6 +490,47 @@ serve(async (req) => {
     );
   }
 
+  const migrationGate = await checkReleaseMigrationGate({
+    productKey: requestRow.product_key,
+    envKey: requestRow.env_key,
+    semver: requestRow.version_label,
+    actor,
+  });
+
+  if (!migrationGate.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "migration_gate_check_failed",
+        detail: migrationGate.detail,
+        gate_error: migrationGate.error,
+        gate_status: migrationGate.status,
+        gate_payload: migrationGate.payload,
+      },
+      migrationGate.status >= 400 ? migrationGate.status : 502,
+      cors
+    );
+  }
+
+  const gatePassed = asBoolean(migrationGate.payload.gate_passed, false);
+  if (!gatePassed) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "release_migration_gate_failed",
+        detail:
+          "Faltan migraciones requeridas en entorno destino. Ejecuta apply migrations antes del deploy.",
+        request_id: requestId,
+        product_key: requestRow.product_key,
+        env_key: requestRow.env_key,
+        semver: requestRow.version_label,
+        gate: migrationGate.payload,
+      },
+      409,
+      cors
+    );
+  }
+
   const { data: promotionRow } = await supabaseAdmin
     .from("version_promotions")
     .select("from_release_id, created_at")
@@ -514,102 +586,34 @@ serve(async (req) => {
     source_commit_sha: sourceCommitSha,
     sync_requested: syncRelease,
     sync_only: syncOnly,
+    migration_gate: migrationGate.payload,
     branch_check_before: branchCheckBefore,
   };
 
   if (!branchCheckBefore.inBranch) {
-    if (!syncRelease) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "release_sync_required",
-          detail: `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}).`,
-          request_id: requestId,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          branch_check: branchCheckBefore,
+    return jsonResponse(
+      {
+        ok: false,
+        error: "release_sync_required",
+        detail:
+          `La release ${requestRow.version_label} aun no esta subida a la rama destino (${targetBranch}). ` +
+          "Debes sincronizar release por PR (versioning-release-sync) antes de desplegar.",
+        request_id: requestId,
+        source_commit_sha: sourceCommitSha,
+        branches: {
+          source: sourceBranch,
+          target: targetBranch,
         },
-        409,
-        cors
-      );
-    }
+        sync_requested: syncRelease,
+        sync_only: syncOnly,
+        branch_check: branchCheckBefore,
+      },
+      409,
+      cors
+    );
+  }
 
-    const mergeResult = await mergeBranches({
-      owner: githubOwner,
-      repo: githubRepo,
-      token: githubToken,
-      base: targetBranch,
-      head: sourceBranch,
-      actor,
-      requestId,
-    });
-
-    mergeSummary = {
-      ...mergeSummary,
-      merge: mergeResult,
-    };
-
-    if (!mergeResult.ok) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "github_merge_failed",
-          detail: mergeResult.message,
-          merge: mergeSummary,
-        },
-        409,
-        cors
-      );
-    }
-
-    const branchCheckAfter = await checkCommitInBranch({
-      owner: githubOwner,
-      repo: githubRepo,
-      token: githubToken,
-      commitSha: sourceCommitSha,
-      branch: targetBranch,
-    });
-
-    mergeSummary = {
-      ...mergeSummary,
-      branch_check_after: branchCheckAfter,
-    };
-
-    if (!branchCheckAfter.ok || !branchCheckAfter.inBranch) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "release_sync_failed",
-          detail: "No se pudo verificar la release en la rama destino despues del merge.",
-          merge: mergeSummary,
-        },
-        409,
-        cors
-      );
-    }
-
-    if (syncOnly) {
-      return jsonResponse(
-        {
-          ok: true,
-          request_id: requestId,
-          release_synced: true,
-          sync_only: true,
-          source_commit_sha: sourceCommitSha,
-          branches: {
-            source: sourceBranch,
-            target: targetBranch,
-          },
-          merge: mergeSummary,
-        },
-        200,
-        cors
-      );
-    }
-  } else if (syncOnly) {
+  if (syncOnly) {
     return jsonResponse(
       {
         ok: true,

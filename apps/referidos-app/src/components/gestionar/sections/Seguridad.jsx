@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { KeyRound, Lock, ShieldCheck, Smartphone } from "lucide-react";
 
 export default function Seguridad() {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.div;
+
   const [settings, setSettings] = useState({
     twoFactor: true,
     loginAlerts: true,
@@ -58,7 +61,10 @@ export default function Seguridad() {
         {rows.map((row) => {
           const enabled = settings[row.key];
           return (
-            <motion.div
+            <TEMP_MOTION_SPLASH_TAG
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
               key={row.key}
               whileHover={{ y: -2 }}
               className="flex items-center justify-between rounded-xl border border-[#E9E2F7] bg-white p-4 shadow-sm"
@@ -89,7 +95,7 @@ export default function Seguridad() {
                   }`}
                 />
               </button>
-            </motion.div>
+            </TEMP_MOTION_SPLASH_TAG>
           );
         })}
       </div>

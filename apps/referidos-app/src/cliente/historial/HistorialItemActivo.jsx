@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { sanitizeText } from "../../utils/sanitize";
-import { formatDateIsoToDdMmYyyy } from "../../utils/dateUtils";
 
+// Lint purge (no-unused-vars): se removio `formatDateIsoToDdMmYyyy` del import (cabecera del card activo).
 const VALID_WINDOW_MS = 5 * 60 * 1000;
 
 const createSeededRng = (seed) => {

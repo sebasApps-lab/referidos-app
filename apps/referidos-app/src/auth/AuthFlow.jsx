@@ -32,6 +32,10 @@ import {
   BUSINESS_SUBCATEGORIES,
   getBusinessCategoryPath,
 } from "./constants/businessCategories";
+import {
+  getSystemFeatureFlags,
+  subscribeSystemFeatureFlags,
+} from "@referidos/support-sdk/runtime/systemFeatureFlags";
 
 const BUSINESS_STEP_COPY = {
   [AUTH_STEPS.USER_PROFILE]: {
@@ -157,6 +161,11 @@ export default function AuthFlow() {
         : AUTH_STEPS.WELCOME,
     [location.pathname]
   );
+  const [systemFlags, setSystemFlags] = React.useState(() =>
+    getSystemFeatureFlags()
+  );
+  useEffect(() => subscribeSystemFeatureFlags(setSystemFlags), []);
+
   const flow = useAuthFlow({ initialStep });
   const isVerificationFlowStep = [
     AUTH_STEPS.BUSINESS_VERIFY,
@@ -239,38 +248,7 @@ export default function AuthFlow() {
     flow.setShowPassword(false);
     flow.setShowPasswordConfirm(false);
     flow.setStep(AUTH_STEPS.WELCOME);
-  }, [
-    flow.setApellidoDueno,
-    flow.setCalle1,
-    flow.setCalle2,
-    flow.setCodigo,
-    flow.setEmail,
-    flow.setEmailError,
-    flow.setLoginLoading,
-    flow.setNombreDueno,
-    flow.setFechaNacimiento,
-    flow.setOwnerPrefill,
-    flow.setGenero,
-    flow.setBusinessPrefill,
-    flow.setNombreNegocio,
-    flow.setCategoriaNegocio,
-    flow.setIsSucursalPrincipal,
-    flow.setOauthLoading,
-    flow.setOauthProvider,
-    flow.setPassword,
-    flow.setPasswordConfirm,
-    flow.setSectorNegocio,
-    flow.setTelefono,
-    flow.setWelcomeError,
-    flow.setWelcomeLoading,
-    flow.setIsAddressSearchModeOpen,
-    flow.setIsAddressPrefillReady,
-    flow.setHorarios,
-    flow.setDireccionPayload,
-    flow.setShowPassword,
-    flow.setShowPasswordConfirm,
-    flow.setStep,
-  ]);
+  }, [flow]);
 
   const actions = useAuthActions({
     email: flow.email,
@@ -358,14 +336,17 @@ export default function AuthFlow() {
     isClient &&
     ((!clientProfileCompleted && !clientProfileSkipped) ||
       (!clientAddressCompleted && !clientAddressSkipped));
-  const verificationSteps = [
-    AUTH_STEPS.BUSINESS_VERIFY,
-    AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
-    AUTH_STEPS.VERIFY_EMAIL,
-    AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
-    AUTH_STEPS.ADD_PASSWORD,
-    AUTH_STEPS.ADD_MFA,
-  ];
+  const verificationSteps = useMemo(
+    () => [
+      AUTH_STEPS.BUSINESS_VERIFY,
+      AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
+      AUTH_STEPS.VERIFY_EMAIL,
+      AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
+      AUTH_STEPS.ADD_PASSWORD,
+      AUTH_STEPS.ADD_MFA,
+    ],
+    []
+  );
   useEffect(() => {
     if (!onboarding?.allowAccess) return;
     if (clientStepsPending) return;
@@ -400,6 +381,7 @@ export default function AuthFlow() {
     verificationStatus,
     emailConfirmed,
     isBusiness,
+    verificationSteps,
   ]);
   const showBackButton = flow.step !== AUTH_STEPS.WELCOME;
   const hasMinLength = flow.password.length >= 8;
@@ -502,7 +484,7 @@ export default function AuthFlow() {
     setShowExitConfirm(false);
     await logout?.();
     flow.setStep(AUTH_STEPS.EMAIL_REGISTER);
-  }, [logout, flow.setStep]);
+  }, [logout, flow]);
 
   const handleBack = () => {
     if (
@@ -530,7 +512,7 @@ export default function AuthFlow() {
     if (flow.step !== AUTH_STEPS.USER_ADDRESS && flow.isAddressSearchModeOpen) {
       flow.setIsAddressSearchModeOpen(false);
     }
-  }, [flow.isAddressSearchModeOpen, flow.setIsAddressSearchModeOpen, flow.step]);
+  }, [flow, flow.isAddressSearchModeOpen, flow.setIsAddressSearchModeOpen, flow.step]);
 
   return (
     <AuthView
@@ -570,13 +552,14 @@ export default function AuthFlow() {
           loading={flow.welcomeLoading}
           oauthLoading={flow.oauthLoading}
           oauthProvider={flow.oauthProvider}
+          enableApple={Boolean(systemFlags?.oauth_apple_enabled)}
           onEmail={() => {
             flow.setWelcomeError("");
             flow.setStep(AUTH_STEPS.EMAIL_LOGIN);
           }}
           onGoogle={actions.startGoogleOneTap}
           onFacebook={actions.startFacebookOAuth}
-          // onApple={actions.startAppleOAuth}
+          onApple={actions.startAppleOAuth}
           onTwitter={actions.startTwitterOAuth}
           onDiscord={actions.startDiscordOAuth}
         />

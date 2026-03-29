@@ -6,6 +6,7 @@ import {
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -78,7 +79,7 @@ serve(async (req) => {
     .from("support_threads")
     .select("id")
     .eq("assigned_agent_id", agentId)
-    .in("status", ["assigned", "in_progress", "waiting_user", "queued"]);
+    .in("status", ["starting", "assigned", "in_progress", "waiting_user", "queued"]);
 
   if (activeThreads && activeThreads.length > 0) {
     for (const thread of activeThreads) {
@@ -88,6 +89,15 @@ serve(async (req) => {
           status: "queued",
           assigned_agent_id: null,
           personal_queue: false,
+          assignment_source: "system",
+          retake_requested_at: null,
+          handoff_required: false,
+          handoff_reason: null,
+          handoff_at: null,
+          handoff_by_agent_id: null,
+          handoff_message_confirmed_at: null,
+          released_to_general_at: new Date().toISOString(),
+          general_queue_entered_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", thread.id);
@@ -101,6 +111,13 @@ serve(async (req) => {
       });
     }
   }
+
+  await runSupportAutoAssignCycle({
+    reason: "admin_end_session",
+    tenantId: usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "admin",
+  });
 
   await supabaseAdmin.from("support_agent_events").insert({
     agent_id: agentId,

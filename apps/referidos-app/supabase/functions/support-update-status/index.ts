@@ -3,18 +3,34 @@ import {
   corsHeaders,
   getUsuarioByAuthId,
   jsonResponse,
+  loadSupportRuntimeFlags,
   requireAuthUser,
   supabaseAdmin,
 } from "../_shared/support.ts";
+import { runSupportAutoAssignCycle } from "../_shared/supportAutoAssign.ts";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  new: ["assigned", "queued"],
-  assigned: ["in_progress", "queued"],
-  in_progress: ["waiting_user", "queued", "closed"],
-  waiting_user: ["in_progress", "queued", "closed"],
-  queued: ["assigned", "in_progress"],
+  new: ["starting", "assigned", "queued", "cancelled"],
+  starting: ["in_progress", "queued", "closing", "closed", "cancelled"],
+  assigned: ["starting", "in_progress", "queued", "closing", "closed", "cancelled"],
+  in_progress: ["waiting_user", "queued", "closing", "closed", "cancelled"],
+  waiting_user: ["in_progress", "queued", "closing", "closed", "cancelled"],
+  queued: ["starting", "assigned", "in_progress", "closing", "closed", "cancelled"],
+  closing: ["in_progress", "queued", "closed", "cancelled"],
   closed: [],
+  cancelled: [],
 };
+
+function normalizeQueueKind(value: unknown) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (["personal", "mine", "propia", "private", "postponed", "pospuesto"].includes(normalized)) {
+    return "personal";
+  }
+  return "general";
+}
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -45,14 +61,15 @@ serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const threadPublicId = body.thread_public_id;
-  const nextStatus = body.status;
+  const nextStatus = String(body.status || "").trim().toLowerCase();
+  const queueKind = normalizeQueueKind(body.queue_kind);
   if (!threadPublicId || !nextStatus) {
     return jsonResponse({ ok: false, error: "missing_params" }, 400, cors);
   }
 
   const { data: thread, error: threadErr } = await supabaseAdmin
     .from("support_threads")
-    .select("id, status, assigned_agent_id, personal_queue")
+    .select("id, tenant_id, status, assigned_agent_id, personal_queue")
     .eq("public_id", threadPublicId)
     .maybeSingle();
 
@@ -73,22 +90,64 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "invalid_transition" }, 409, cors);
   }
 
+  if (
+    ["starting", "in_progress"].includes(nextStatus) &&
+    thread.assigned_agent_id
+  ) {
+    const runtimeFlags = await loadSupportRuntimeFlags();
+    const maxProcessing = Math.max(1, Number(runtimeFlags.max_processing_tickets || 1));
+    const { count: processingCount } = await supabaseAdmin
+      .from("support_threads")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_agent_id", thread.assigned_agent_id)
+      .neq("id", thread.id)
+      .in("status", ["starting", "in_progress", "waiting_user"]);
+
+    if ((processingCount || 0) >= maxProcessing) {
+      return jsonResponse({ ok: false, error: "processing_slot_busy" }, 409, cors);
+    }
+  }
+
+  const nowIso = new Date().toISOString();
   const updatePayload: Record<string, unknown> = {
     status: nextStatus,
-    updated_at: new Date().toISOString(),
+    updated_at: nowIso,
   };
-  if (nextStatus === "queued" && !thread.personal_queue) {
-    updatePayload.assigned_agent_id = null;
-  }
-  if (nextStatus === "closed") {
-    updatePayload.closed_at = new Date().toISOString();
+
+  if (nextStatus === "starting") {
+    updatePayload.personal_queue = false;
+    updatePayload.starting_at = nowIso;
+  } else if (nextStatus === "in_progress") {
+    updatePayload.personal_queue = false;
+    updatePayload.in_progress_at = nowIso;
+  } else if (nextStatus === "closing") {
+    updatePayload.personal_queue = false;
+  } else if (nextStatus === "waiting_user") {
+    updatePayload.waiting_user_at = nowIso;
+  } else if (nextStatus === "queued") {
+    if (queueKind === "personal") {
+      updatePayload.personal_queue = true;
+      updatePayload.personal_queue_entered_at = nowIso;
+    } else {
+      updatePayload.personal_queue = false;
+      updatePayload.assigned_agent_id = null;
+      updatePayload.assignment_source = "manual";
+      updatePayload.retake_requested_at = null;
+      updatePayload.released_to_general_at = nowIso;
+      updatePayload.general_queue_entered_at = nowIso;
+    }
+  } else if (nextStatus === "closed") {
+    updatePayload.closed_at = nowIso;
+  } else if (nextStatus === "cancelled") {
+    updatePayload.cancelled_at = nowIso;
+    updatePayload.cancelled_by = usuario.id;
   }
 
   const updateResponse = await supabaseAdmin
     .from("support_threads")
     .update(updatePayload)
     .eq("id", thread.id)
-    .select("public_id, status, assigned_agent_id, closed_at")
+    .select("public_id, status, assigned_agent_id, personal_queue, closed_at, cancelled_at")
     .single();
 
   if (updateResponse.error) {
@@ -96,12 +155,15 @@ serve(async (req) => {
   }
 
   let eventType = "status_changed";
+  if (nextStatus === "starting") eventType = "starting";
   if (nextStatus === "waiting_user") eventType = "waiting_user";
-  if (nextStatus === "queued") eventType = "queued";
+  if (nextStatus === "queued" && queueKind === "personal") eventType = "queued";
+  if (nextStatus === "queued" && queueKind === "general") eventType = "agent_manual_release";
   if (thread.status === "waiting_user" && nextStatus === "in_progress") {
     eventType = "resumed";
   }
   if (nextStatus === "closed") eventType = "closed";
+  if (nextStatus === "cancelled") eventType = "cancelled";
 
   await supabaseAdmin.from("support_thread_events").insert({
     thread_id: thread.id,
@@ -111,8 +173,16 @@ serve(async (req) => {
     details: {
       from: thread.status,
       to: nextStatus,
+      queue_kind: nextStatus === "queued" ? queueKind : null,
     },
   });
 
-  return jsonResponse({ ok: true, thread: updateResponse.data }, 200, cors);
+  const cycle = await runSupportAutoAssignCycle({
+    reason: "status_updated",
+    tenantId: thread.tenant_id || usuario.tenant_id || null,
+    actorId: usuario.id,
+    actorRole: usuario.role || "soporte",
+  });
+
+  return jsonResponse({ ok: true, thread: updateResponse.data, cycle }, 200, cors);
 });

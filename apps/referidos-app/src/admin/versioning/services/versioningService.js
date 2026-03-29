@@ -28,7 +28,25 @@ async function invokeVersioningOps(action, payload = {}) {
   });
 
   if (error) {
-    throw new Error(error.message || "No se pudo contactar versioning-ops-proxy.");
+    let errorData = data && typeof data === "object" ? data : null;
+    if (!errorData && error?.context) {
+      try {
+        if (typeof error.context.clone === "function" && typeof error.context.clone().json === "function") {
+          errorData = await error.context.clone().json();
+        } else if (typeof error.context.json === "function") {
+          errorData = await error.context.json();
+        }
+      } catch {
+        errorData = null;
+      }
+    }
+
+    const proxyError = new Error(
+      errorData?.detail || errorData?.error || error.message || "No se pudo contactar versioning-ops-proxy."
+    );
+    proxyError.code = errorData?.error || "versioning_proxy_failed";
+    proxyError.payload = errorData?.payload || errorData || null;
+    throw proxyError;
   }
   if (!data?.ok) {
     const proxyError = new Error(data?.detail || data?.error || "versioning-ops-proxy failed");
@@ -220,8 +238,13 @@ export async function syncReleaseBranch({
   toEnv,
   semver,
   checkOnly = false,
+  autoMerge = !checkOnly,
+  createPr = true,
   sourceBranch = "",
   targetBranch = "",
+  operation = "sync",
+  pullNumber = 0,
+  commentBody = "",
 }) {
   return invokeVersioningOps("sync_release_branch", {
     productKey,
@@ -229,8 +252,33 @@ export async function syncReleaseBranch({
     toEnv,
     semver,
     checkOnly,
+    autoMerge,
+    createPr,
     sourceBranch,
     targetBranch,
+    operation,
+    pullNumber,
+    commentBody,
+  });
+}
+
+export async function fetchWorkflowPackStatus({
+  sourceRef = "dev",
+} = {}) {
+  return invokeVersioningOps("fetch_workflow_pack_status", {
+    sourceRef,
+  });
+}
+
+export async function syncWorkflowPack({
+  sourceRef = "dev",
+  syncStaging = true,
+  syncProd = true,
+} = {}) {
+  return invokeVersioningOps("sync_workflow_pack", {
+    sourceRef,
+    syncStaging,
+    syncProd,
   });
 }
 
@@ -255,5 +303,197 @@ export async function createDevRelease({
     ref,
     overrideSemver,
     releaseNotes,
+  });
+}
+
+export async function backfillReleaseArtifact({
+  releaseId = "",
+  productKey = "",
+  ref = "dev",
+  sourceCommitSha = "",
+  releaseNotes = "",
+} = {}) {
+  return invokeVersioningOps("backfill_release_artifact", {
+    releaseId,
+    productKey,
+    ref,
+    sourceCommitSha,
+    releaseNotes,
+  });
+}
+
+export async function fetchDevReleaseStatus({
+  productKey = "",
+  ref = "dev",
+  runId = 0,
+  dispatchStartedAt = "",
+} = {}) {
+  return invokeVersioningOps("dev_release_status", {
+    productKey,
+    ref,
+    runId,
+    dispatchStartedAt,
+  });
+}
+
+export async function checkReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+}) {
+  return invokeVersioningOps("check_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+  });
+}
+
+export async function applyReleaseMigrations({
+  productKey,
+  envKey,
+  semver,
+  sourceBranch = "",
+  targetBranch = "",
+}) {
+  return invokeVersioningOps("apply_release_migrations", {
+    productKey,
+    envKey,
+    semver,
+    sourceBranch,
+    targetBranch,
+  });
+}
+
+export async function validateEnvironmentContract({
+  productKey,
+  envKey,
+}) {
+  return invokeVersioningOps("validate_environment", {
+    productKey,
+    envKey,
+  });
+}
+
+export async function fetchReleaseArtifacts({
+  productKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_release_artifacts", {
+    productKey,
+    limit,
+  });
+}
+
+export async function fetchLocalArtifactNodes({
+  onlyActive = false,
+  limit = 200,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_nodes", {
+    onlyActive,
+    limit,
+  });
+}
+
+export async function upsertLocalArtifactNode({
+  nodeKey,
+  displayName,
+  runnerLabel,
+  osName = "",
+  active = true,
+  metadata = {},
+}) {
+  return invokeVersioningOps("upsert_local_artifact_node", {
+    nodeKey,
+    displayName,
+    runnerLabel,
+    osName,
+    active,
+    metadata,
+  });
+}
+
+export async function fetchLocalArtifactSyncRequests({
+  productKey = "",
+  envKey = "",
+  status = "",
+  nodeKey = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_local_artifact_sync_requests", {
+    productKey,
+    envKey,
+    status,
+    nodeKey,
+    limit,
+  });
+}
+
+export async function requestLocalArtifactSync({
+  releaseId = "",
+  productKey = "",
+  envKey = "",
+  semver = "",
+  nodeKey,
+  notes = "",
+  metadata = {},
+}) {
+  return invokeVersioningOps("request_local_artifact_sync", {
+    releaseId,
+    productKey,
+    envKey,
+    semver,
+    nodeKey,
+    notes,
+    metadata,
+  });
+}
+
+export async function fetchBuildTimeline({
+  productKey = "",
+  envKey = "",
+  semver = "",
+  releaseId = "",
+  eventType = "",
+  status = "",
+  limit = 120,
+} = {}) {
+  return invokeVersioningOps("fetch_build_timeline", {
+    productKey,
+    envKey,
+    semver,
+    releaseId,
+    eventType,
+    status,
+    limit,
+  });
+}
+
+export async function fetchEnvConfigVersions({
+  productKey = "",
+  envKey = "",
+  semver = "",
+  releaseId = "",
+  configKey = "",
+  limit = 80,
+} = {}) {
+  return invokeVersioningOps("fetch_env_config_versions", {
+    productKey,
+    envKey,
+    semver,
+    releaseId,
+    configKey,
+    limit,
+  });
+}
+
+export async function cancelLocalArtifactSyncRequest({
+  requestId,
+  errorDetail = "cancelled_by_user",
+  metadata = {},
+}) {
+  return invokeVersioningOps("cancel_local_artifact_sync", {
+    requestId,
+    errorDetail,
+    metadata,
   });
 }

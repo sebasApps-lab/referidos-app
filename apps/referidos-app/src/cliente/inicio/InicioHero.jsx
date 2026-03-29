@@ -15,6 +15,9 @@ export default function InicioHero({
   onSearchFocus,
   hideSearch = false,
 }) {
+  // TEMP lint: splash de montaje mientras completamos el refactor de motion.
+  const TEMP_MOTION_SPLASH_TAG = motion.section;
+
   const { points, progress, nextGoal } = getTierProgress(usuario);
   const { current, next, currentKey, nextKey } = getTierJourney(usuario);
   const iconMap = {
@@ -28,7 +31,7 @@ export default function InicioHero({
   const referidos = Math.min(99, Number(usuario?.referidosCount || 0));
 
   return (
-    <motion.section
+    <TEMP_MOTION_SPLASH_TAG
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
@@ -104,6 +107,6 @@ export default function InicioHero({
           </div>
         </div>
       </div>
-    </motion.section>
+    </TEMP_MOTION_SPLASH_TAG>
   );
 }

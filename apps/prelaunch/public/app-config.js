@@ -1,0 +1,2 @@
+window.__PRELAUNCH_RUNTIME_CONFIG__ = window.__PRELAUNCH_RUNTIME_CONFIG__ || {};
+
