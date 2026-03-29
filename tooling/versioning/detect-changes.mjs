@@ -66,6 +66,18 @@ function componentFromLogical(logical, files) {
   };
 }
 
+function buildSpecialGroup(group, changedFiles, statusByPath) {
+  return {
+    groupKey: group.groupKey,
+    displayName: group.displayName || group.groupKey,
+    changedFiles,
+    changeKind: classifyLogicalChange(
+      changedFiles.map((file) => statusByPath.get(file)).filter(Boolean)
+    ),
+    contentHash: hashFiles(changedFiles),
+  };
+}
+
 function classifyFileChange(status) {
   if (status === "A") return "added";
   if (status === "D") return "deleted";
@@ -107,9 +119,21 @@ function main() {
   const selectedProducts = args.productFilter
     ? (map.products || []).filter((product) => product.productKey === args.productFilter)
     : (map.products || []);
+  const specialGroupResults = [];
 
   if (args.productFilter && selectedProducts.length === 0) {
     throw new Error(`Invalid --product filter "${args.productFilter}" for component map`);
+  }
+
+  for (const group of map.specialGroups || []) {
+    const groupChangedFiles = changedFiles.filter((file) =>
+      matchesAnyGlob(file, group.globs || [])
+    );
+    if (groupChangedFiles.length === 0) continue;
+    groupChangedFiles.forEach((file) => mappedFiles.add(file));
+    specialGroupResults.push(
+      buildSpecialGroup(group, groupChangedFiles, changedStatusByPath)
+    );
   }
 
   for (const product of selectedProducts) {
@@ -240,6 +264,7 @@ function main() {
     productFilter: args.productFilter || null,
     changedFiles: unique(changedFiles),
     unmappedFiles,
+    specialGroups: specialGroupResults,
     products: productResults,
   };
 
@@ -250,6 +275,7 @@ function main() {
   console.log("VERSIONING_CHANGESET_WRITTEN");
   console.log(`output=${toPosixPath(path.relative(REPO_ROOT, outAbs))}`);
   console.log(`products=${productResults.length}`);
+  console.log(`special_groups=${specialGroupResults.length}`);
   console.log(`product_filter=${args.productFilter || "-"}`);
   console.log(`changed_files=${changedFiles.length}`);
   console.log(`unmapped_files=${unmappedFiles.length}`);
