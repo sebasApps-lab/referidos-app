@@ -40,11 +40,14 @@ type CheckItem = {
 type ChecksSummary = {
   required_green: boolean;
   summary_state: "success" | "pending" | "failed";
+  detect: "success" | "pending" | "failed" | "missing";
   lint: "success" | "pending" | "failed" | "missing";
   test: "success" | "pending" | "failed" | "missing";
   build: "success" | "pending" | "failed" | "missing";
   items: CheckItem[];
 };
+
+const REQUIRED_CHECKS_LABEL = "detect/lint/test/build";
 
 function asString(value: unknown, fallback = ""): string {
   if (typeof value !== "string") return fallback;
@@ -517,8 +520,9 @@ async function fetchChecksSummary({
   const lint = inferGateState(items, ["lint", "eslint"]);
   const test = inferGateState(items, ["test", "jest", "vitest"]);
   const build = inferGateState(items, ["build", "compile", "typecheck"]);
+  const detect = inferGateState(items, ["detect", "changeset"]);
 
-  const gateStates = [lint, test, build];
+  const gateStates = [detect, lint, test, build];
   const requiredGreen = gateStates.every((state) => state === "success");
   const summaryState = gateStates.includes("failed")
     ? "failed"
@@ -529,6 +533,7 @@ async function fetchChecksSummary({
   const summary: ChecksSummary = {
     required_green: requiredGreen,
     summary_state: summaryState,
+    detect,
     lint,
     test,
     build,
@@ -1529,8 +1534,8 @@ async function syncWorkflowPackTarget({
         ok: false,
         error: "workflow_pack_checks_not_green",
         detail: checksWait.timed_out
-          ? "Checks obligatorios (lint/test/build) no quedaron en verde antes del timeout para workflow pack."
-          : "Checks obligatorios (lint/test/build) no estan en verde para workflow pack.",
+          ? `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no quedaron en verde antes del timeout para workflow pack.`
+          : `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no estan en verde para workflow pack.`,
         payload: {
           target_branch: targetBranch,
           temp_branch: tempBranch,
@@ -1830,8 +1835,8 @@ serve(async (req) => {
           ok: false,
           error: "workflow_pack_source_checks_not_green",
           detail: sourceChecks.timed_out
-            ? `Checks obligatorios (lint/test/build) del source ref ${sourceRef} no quedaron en verde antes del timeout.`
-            : `Checks obligatorios (lint/test/build) del source ref ${sourceRef} no estan en verde.`,
+            ? `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) del source ref ${sourceRef} no quedaron en verde antes del timeout.`
+            : `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) del source ref ${sourceRef} no estan en verde.`,
           payload: {
             source_ref: sourceRef,
             source_head_sha: sourceChecks.head_sha,
@@ -2407,7 +2412,7 @@ serve(async (req) => {
       {
         ok: false,
         error: "pr_checks_not_green",
-        detail: "Checks obligatorios (lint/test/build) aun no estan en verde.",
+        detail: `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) aun no estan en verde.`,
         pr,
         checks,
         ...responseBase,
