@@ -1,4 +1,4 @@
-import { buildSidebarCategories } from "../helpCenterShared";
+import { buildSidebarCategories } from "../helpCenterData";
 import { businessMobileHeaderActions } from "./helpCenterMobileConfig";
 import { HelpCenterMobileLayout } from "./helpCenterMobileShared";
 

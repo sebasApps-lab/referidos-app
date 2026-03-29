@@ -67,14 +67,13 @@ export default function MobileWaitlistLandingPage() {
     [],
   );
 
-  const { trackEvent, trackLinkClick, trackModalClose, trackModalView } =
-    usePrelaunchPageTracking({
-      path: "/",
-      page: "waitlist_landing",
-      tree: "mobile",
-      route: "/",
-      sections: trackedSections,
-    });
+  const { trackLinkClick, trackModalClose, trackModalView } = usePrelaunchPageTracking({
+    path: "/",
+    page: "waitlist_landing",
+    tree: "mobile",
+    route: "/",
+    sections: trackedSections,
+  });
 
   const waitlistCapture = useLandingLeadCapture({
     role: "cliente",

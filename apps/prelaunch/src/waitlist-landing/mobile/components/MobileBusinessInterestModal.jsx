@@ -76,7 +76,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
     if (isOpen) {
       clear();
     }
-  }, [isOpen]);
+  }, [clear, isOpen]);
 
   async function handleSubmit(event) {
     event.preventDefault();

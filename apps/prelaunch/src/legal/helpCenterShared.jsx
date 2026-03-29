@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
+import { resolveHelpCenterHeaderActions } from "./helpCenterData";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
-const IS_DEV = import.meta.env.DEV;
 
 const HELP_CENTER_ICON_FILES = {
   consumer: {
@@ -43,166 +43,15 @@ function useThemedHelpCenterAsset(key) {
   return helpCenterAsset(relativePath);
 }
 
-const SIDEBAR_CATEGORY_DEFS = [
-  { key: "legal", title: "Legal", slug: "legal" },
-  { key: "signin", title: "Cómo iniciar sesión", slug: "signin" },
-  { key: "verify", title: "Verificar cuenta", slug: "verify" },
-  { key: "redeem", title: "Canjear promos", slug: "redeem" },
-  { key: "benefits", title: "Beneficios", slug: "benefits" },
-  { key: "points", title: "Sistema de puntos", slug: "points" },
-  { key: "levels", title: "Beneficios por nivel", slug: "levels" },
-];
-
-const DEFAULT_RESOURCE_DEFS = [
-  {
-    key: "signin",
-    title: "Cómo iniciar sesión",
-    description: "Guía para iniciar sesión en la app.",
-    Icon: SignInIcon,
-  },
-  {
-    key: "verify",
-    title: "Verificar cuenta",
-    description: "Cómo verificar tu identidad y activar beneficios.",
-    Icon: VerifyAccountIcon,
-  },
-  {
-    key: "redeem",
-    title: "Canjear promos",
-    description: "Descubre cómo canjear ofertas y recompensas.",
-    Icon: RedeemIcon,
-  },
-  {
-    key: "points",
-    title: "Sistema de puntos",
-    description: "Cómo funcionan los puntos y cómo acumularlos.",
-    Icon: PointsIcon,
-  },
-];
-
-const CATEGORY_RESOURCE_DEFS = {
-  signin: [
-    {
-      key: "signin-main",
-      title: "Cómo iniciar sesión",
-      description: "Guía para iniciar sesión en la app.",
-      Icon: SignInIcon,
-    },
-  ],
-  verify: [
-    {
-      key: "verify-main",
-      title: "Verificar cuenta",
-      description: "Cómo verificar tu identidad y activar beneficios.",
-      Icon: VerifyAccountIcon,
-    },
-  ],
-  redeem: [
-    {
-      key: "redeem-main",
-      title: "Canjear promos",
-      description: "Descubre cómo canjear ofertas y recompensas.",
-      Icon: RedeemIcon,
-    },
-  ],
-  benefits: [
-    {
-      key: "benefits-main",
-      title: "Beneficios",
-      description: "Conoce los beneficios disponibles según tu actividad.",
-      Icon: RedeemIcon,
-    },
-  ],
-  points: [
-    {
-      key: "points-main",
-      title: "Sistema de puntos",
-      description: "Cómo funcionan los puntos y cómo acumularlos.",
-      Icon: PointsIcon,
-    },
-  ],
-  levels: [
-    {
-      key: "levels-main",
-      title: "Beneficios por nivel",
-      description: "Descubre cómo subir de nivel y desbloquear más ventajas.",
-      Icon: PointsIcon,
-    },
-  ],
-};
-
-function cloneItems(items) {
-  return items.map((item) => ({ ...item }));
+function HelpCenterAssetIcon({ assetKey }) {
+  const src = useThemedHelpCenterAsset(assetKey);
+  return <img src={src} alt="" aria-hidden="true" />;
 }
-
-export function buildSidebarCategories(basePath = "/ayuda/es") {
-  return SIDEBAR_CATEGORY_DEFS.map((category) => ({
-    key: category.key,
-    title: category.title,
-    to: `${basePath}/categoria/${category.slug}`,
-  }));
-}
-
-export function buildDefaultResources() {
-  return cloneItems(DEFAULT_RESOURCE_DEFS);
-}
-
-export function buildLegalResources(basePath = "/ayuda/es") {
-  return [
-    {
-      key: "terms",
-      title: "Términos y Condiciones",
-      description: "Consulta nuestras normas y reglas.",
-      to: `${basePath}/articulo/terminos`,
-      Icon: TermsIcon,
-    },
-    {
-      key: "privacy",
-      title: "Política de Privacidad",
-      description: "Lee cómo protegemos tu privacidad.",
-      to: `${basePath}/articulo/privacidad`,
-      Icon: PrivacyIcon,
-    },
-    {
-      key: "delete",
-      title: "Borrar mis datos",
-      description: "Solicita la eliminación de tu información.",
-      to: `${basePath}/articulo/borrar-datos`,
-      Icon: DeleteIcon,
-    },
-  ];
-}
-
-export function buildCategoryResources(basePath = "/ayuda/es") {
-  return {
-    legal: buildLegalResources(basePath),
-    signin: cloneItems(CATEGORY_RESOURCE_DEFS.signin),
-    verify: cloneItems(CATEGORY_RESOURCE_DEFS.verify),
-    redeem: cloneItems(CATEGORY_RESOURCE_DEFS.redeem),
-    benefits: cloneItems(CATEGORY_RESOURCE_DEFS.benefits),
-    points: cloneItems(CATEGORY_RESOURCE_DEFS.points),
-    levels: cloneItems(CATEGORY_RESOURCE_DEFS.levels),
-  };
-}
-
-export const sidebarCategories = buildSidebarCategories();
-export const defaultResources = buildDefaultResources();
-export const legalResources = buildLegalResources();
-export const categoryResources = buildCategoryResources();
 
 export function HelpCenterThemeProvider({ theme, children }) {
   return (
     <HelpCenterThemeContext.Provider value={theme}>{children}</HelpCenterThemeContext.Provider>
   );
-}
-
-export function resolveHelpCenterHeaderActions(actions = []) {
-  return actions
-    .filter((action) => !action.devOnly || IS_DEV)
-    .map((action) => ({
-      ...action,
-      label: action.devOnly ? `${action.label} (Dev)` : action.label,
-    }));
 }
 
 export function HelpCenterLayout({
@@ -233,7 +82,7 @@ export function HelpCenterLayout({
         <section className="help-center__body">
           <div className="help-center__layout">
             <aside className="help-center__sidebar">
-              <h1 className="help-center__sidebar-title">Categorías</h1>
+              <h1 className="help-center__sidebar-title">Categor\u00edas</h1>
 
               <div className="help-center__sidebar-panel">
                 {sidebarItems.map((category) => (
@@ -251,19 +100,19 @@ export function HelpCenterLayout({
                 <h2 className="help-center__content-title">{activeCategory.title}</h2>
               ) : null}
 
-            {content ?? (
-              <div
-                className={[
-                  "help-center__resource-list",
-                  isDefaultScreen ? "help-center__resource-list--overview" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {resourceItems.map((resource) => (
-                  <HelpResourceCard key={resource.key} resource={resource} />
-                ))}
-              </div>
+              {content ?? (
+                <div
+                  className={[
+                    "help-center__resource-list",
+                    isDefaultScreen ? "help-center__resource-list--overview" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {resourceItems.map((resource) => (
+                    <HelpResourceCard key={resource.key} resource={resource} />
+                  ))}
+                </div>
               )}
 
               {showCtas ? <HelpCenterCtas /> : null}
@@ -353,7 +202,7 @@ function HelpResourceCard({ resource }) {
   const content = (
     <>
       <div className="help-center__resource-icon">
-        <resource.Icon />
+        {resource.Icon ? <resource.Icon /> : <HelpCenterAssetIcon assetKey={resource.iconKey} />}
       </div>
 
       <div className="help-center__resource-copy">
@@ -374,10 +223,10 @@ function HelpResourceCard({ resource }) {
   return <article className={cardClassName}>{content}</article>;
 }
 
-export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
+export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) {
   const theme = useContext(HelpCenterThemeContext);
   const businessTitle =
-    theme === "business" ? "¿Eres un cliente?" : "¿Eres un Negocio o Empresa?";
+    theme === "business" ? "\u00bfEres un cliente?" : "\u00bfEres un Negocio o Empresa?";
   const businessLinkText =
     theme === "business"
       ? "Ir al Centro de Ayuda para Clientes"
@@ -417,7 +266,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
           </div>
 
           <div className="help-center__support-text">
-            <h3>¿No encontraste lo que buscabas?</h3>
+            <h3>\u00bfNo encontraste lo que buscabas?</h3>
             <div className="help-center__support-line">
               <p>
                 Ve al <strong>Chat de Soporte</strong> por
@@ -448,58 +297,20 @@ export function HelpCenterCtas({ emailLabel = "Correo electrónico" } = {}) {
   );
 }
 
-function SignInIcon() {
-  const src = useThemedHelpCenterAsset("signin");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
-function TermsIcon() {
-  const src = useThemedHelpCenterAsset("terms");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
-function PrivacyIcon() {
-  const src = useThemedHelpCenterAsset("privacy");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
-function VerifyAccountIcon() {
-  const src = useThemedHelpCenterAsset("verify");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
-function RedeemIcon() {
-  const src = useThemedHelpCenterAsset("redeem");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
-function DeleteIcon() {
-  const src = useThemedHelpCenterAsset("delete");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
 function MailSupportIcon() {
   return <img src="/assets/fluent-color-mail-16.svg" alt="" aria-hidden="true" />;
 }
 
-function PointsIcon() {
-  const src = useThemedHelpCenterAsset("points");
-  return <img src={src} alt="" aria-hidden="true" />;
-}
-
 function BriefcaseIcon() {
-  const src = useThemedHelpCenterAsset("business");
-  return <img src={src} alt="" aria-hidden="true" />;
+  return <HelpCenterAssetIcon assetKey="business" />;
 }
 
 function ChatBubbleIcon() {
-  const src = useThemedHelpCenterAsset("support");
-  return <img src={src} alt="" aria-hidden="true" />;
+  return <HelpCenterAssetIcon assetKey="support" />;
 }
 
 function BusinessArrowIcon() {
-  const src = useThemedHelpCenterAsset("arrow");
-  return <img src={src} alt="" aria-hidden="true" />;
+  return <HelpCenterAssetIcon assetKey="arrow" />;
 }
 
 function WhatsAppIcon() {

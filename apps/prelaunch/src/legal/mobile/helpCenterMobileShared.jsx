@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import {
   HelpCenterCtas,
   HelpCenterThemeProvider,
-  resolveHelpCenterHeaderActions,
 } from "../helpCenterShared";
+import { resolveHelpCenterHeaderActions } from "../helpCenterData";
 import "../helpCenter.css";
 
 export function HelpCenterMobileLayout({

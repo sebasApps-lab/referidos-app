@@ -3,10 +3,7 @@ import { useEffect } from "react";
 export default function MobileLandingModalFrame({
   isOpen,
   onClose,
-  designWidth,
-  designHeight,
   dialogLabel,
-  lockHeight = false,
   rootClassName = "",
   children,
 }) {

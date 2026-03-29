@@ -1,4 +1,4 @@
-import { buildDefaultResources } from "../helpCenterShared";
+import { buildDefaultResources } from "../helpCenterData";
 import MobileConsumerHelpCenterLayout from "./MobileConsumerHelpCenterLayout";
 
 export default function HelpCenterMobilePage() {

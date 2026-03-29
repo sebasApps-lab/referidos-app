@@ -76,7 +76,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
     if (isOpen) {
       clear();
     }
-  }, [isOpen]);
+  }, [clear, isOpen]);
 
   async function handleSubmit(event) {
     event.preventDefault();

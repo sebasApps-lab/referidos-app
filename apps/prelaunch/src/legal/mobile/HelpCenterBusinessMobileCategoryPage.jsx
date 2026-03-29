@@ -1,5 +1,5 @@
 import { Navigate, useParams } from "react-router-dom";
-import { buildCategoryResources } from "../helpCenterShared";
+import { buildCategoryResources } from "../helpCenterData";
 import MobileBusinessHelpCenterLayout from "./MobileBusinessHelpCenterLayout";
 
 export default function HelpCenterBusinessMobileCategoryPage() {

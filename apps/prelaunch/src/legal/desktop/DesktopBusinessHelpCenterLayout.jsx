@@ -1,4 +1,5 @@
-import { buildSidebarCategories, HelpCenterLayout } from "../helpCenterShared";
+import { buildSidebarCategories } from "../helpCenterData";
+import { HelpCenterLayout } from "../helpCenterShared";
 import { businessDesktopHeaderActions } from "./helpCenterDesktopConfig";
 
 export default function DesktopBusinessHelpCenterLayout({

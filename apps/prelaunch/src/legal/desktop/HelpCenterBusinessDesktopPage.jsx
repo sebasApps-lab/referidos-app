@@ -1,4 +1,4 @@
-import { buildDefaultResources } from "../helpCenterShared";
+import { buildDefaultResources } from "../helpCenterData";
 import DesktopBusinessHelpCenterLayout from "./DesktopBusinessHelpCenterLayout";
 
 export default function HelpCenterBusinessDesktopPage() {

@@ -1,5 +1,5 @@
 import { Navigate, useParams } from "react-router-dom";
-import { buildCategoryResources } from "../helpCenterShared";
+import { buildCategoryResources } from "../helpCenterData";
 import DesktopConsumerHelpCenterLayout from "./DesktopConsumerHelpCenterLayout";
 
 export default function HelpCenterDesktopCategoryPage() {

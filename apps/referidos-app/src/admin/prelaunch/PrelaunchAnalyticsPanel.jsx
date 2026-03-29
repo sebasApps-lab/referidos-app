@@ -170,15 +170,15 @@ export default function PrelaunchAnalyticsPanel() {
     reload,
   } = usePrelaunchMetrics();
 
-  const funnel = metrics?.funnel || {};
-  const eventBreakdown = metrics?.event_breakdown || {};
-  const waitlistBreakdown = metrics?.waitlist_breakdown || {};
-  const supportBreakdown = metrics?.support_breakdown || {};
-  const engagement = metrics?.engagement || {};
-  const timeline = metrics?.timeline || [];
-  const periodAverages = metrics?.period_averages || {};
-  const comparisons = metrics?.comparisons || {};
-  const topIpRisk = metrics?.top_ip_risk || [];
+  const funnel = useMemo(() => metrics?.funnel || {}, [metrics]);
+  const eventBreakdown = useMemo(() => metrics?.event_breakdown || {}, [metrics]);
+  const waitlistBreakdown = useMemo(() => metrics?.waitlist_breakdown || {}, [metrics]);
+  const supportBreakdown = useMemo(() => metrics?.support_breakdown || {}, [metrics]);
+  const engagement = useMemo(() => metrics?.engagement || {}, [metrics]);
+  const timeline = useMemo(() => metrics?.timeline || [], [metrics]);
+  const periodAverages = useMemo(() => metrics?.period_averages || {}, [metrics]);
+  const comparisons = useMemo(() => metrics?.comparisons || {}, [metrics]);
+  const topIpRisk = useMemo(() => metrics?.top_ip_risk || [], [metrics]);
 
   const channelLabel = useMemo(() => {
     const found = CHANNEL_OPTIONS.find((item) => item.value === filters.appChannel);
