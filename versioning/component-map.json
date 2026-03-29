@@ -28,6 +28,7 @@
         "apps/referidos-app/src",
         "apps/referidos-app/supabase/functions",
         "apps/referidos-app/supabase/migrations",
+        "package-lock.json",
         "packages/support-sdk/src",
         "packages/observability/src",
         "packages/legal-content/src",
@@ -103,6 +104,9 @@
       "displayName": "Prelaunch Web",
       "roots": [
         "apps/prelaunch/src",
+        "apps/prelaunch/public",
+        "assets",
+        "package-lock.json",
         "packages/api-client/src",
         "packages/legal-content/src",
         "packages/observability/src"
@@ -161,6 +165,7 @@
         "apps/referidos-android/android",
         "apps/referidos-android/index.js",
         "apps/referidos-android/App.tsx",
+        "package-lock.json",
         "packages/api-client/src",
         "packages/observability-sdk/src",
         "packages/platform-rn/src",
