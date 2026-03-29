@@ -1,9 +1,9 @@
 import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopInfoCard from "./DesktopInfoCard";
 
-export default function DesktopHeroPhoneShowcase() {
+export default function DesktopHeroPhoneShowcase({ className = "" }) {
   return (
-    <div className="figma-prototype__hero-visual">
+    <div className={`figma-prototype__hero-visual ${className}`.trim()}>
       <div className="figma-prototype__hero-phone">
         <img
           className="figma-prototype__hero-phone-glow"

@@ -1,4 +1,4 @@
-import { asset } from "../mobileWaitlistLandingAssets";
+import { asset, rootAsset } from "../mobileWaitlistLandingAssets";
 
 export default function MobilePhoneSection({ isHeroLayout = false, phoneGlowFilterId }) {
   return (
@@ -44,7 +44,7 @@ export default function MobilePhoneSection({ isHeroLayout = false, phoneGlowFilt
         </svg>
         <img
           className="mobile-landing__phone-image"
-          src={asset("Nothing Phone 2a 2.png")}
+          src={rootAsset("Nothing Phone 2a 2.png")}
           alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
         />
       </div>

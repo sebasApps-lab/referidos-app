@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   HelpCenterCtas,
   HelpCenterThemeProvider,
+  HelpCenterThemedAssetIcon,
 } from "../helpCenterShared";
 import { resolveHelpCenterHeaderActions } from "../helpCenterData";
 import "../helpCenter.css";
@@ -38,7 +39,7 @@ export function HelpCenterMobileLayout({
           titleTo={basePath}
           headerActions={headerActions}
           drawerId={drawerId}
-          drawerTitle={"Categor\u00EDas"}
+          drawerTitle={"Categorías"}
           drawerItems={sidebarItems}
           activeItemKey={activeCategoryKey}
           isMenuOpen={isMenuOpen}
@@ -93,7 +94,7 @@ export function HelpCenterMobileHeader({
   headerActions = [],
   drawerActions = headerActions,
   drawerId,
-  drawerTitle = "Men\u00fa",
+  drawerTitle = "Menú",
   drawerItems = [],
   activeItemKey = null,
   isMenuOpen = false,
@@ -145,7 +146,7 @@ export function HelpCenterMobileHeader({
             <button
               type="button"
               className="help-center-mobile__menu-button"
-              aria-label="Abrir men\u00fa"
+              aria-label="Abrir menú"
               aria-expanded={isMenuOpen}
               aria-controls={drawerId}
               onClick={onToggleMenu}
@@ -162,7 +163,7 @@ export function HelpCenterMobileHeader({
         <>
           <button
             type="button"
-            aria-label="Cerrar men\u00fa"
+            aria-label="Cerrar menú"
             className={[
               "help-center-mobile__drawer-backdrop",
               isMenuOpen ? "help-center-mobile__drawer-backdrop--open" : "",
@@ -187,7 +188,7 @@ export function HelpCenterMobileHeader({
               <button
                 type="button"
                 className="help-center-mobile__drawer-close"
-                aria-label="Cerrar men\u00fa"
+                aria-label="Cerrar menú"
                 onClick={onCloseMenu}
               >
                 <span />
@@ -254,7 +255,11 @@ function MobileHelpResourceCard({ resource }) {
   const content = (
     <>
       <div className="help-center-mobile__resource-icon">
-        <resource.Icon />
+        {resource.Icon ? (
+          <resource.Icon />
+        ) : (
+          <HelpCenterThemedAssetIcon assetKey={resource.iconKey} />
+        )}
       </div>
 
       <div className="help-center-mobile__resource-copy">
