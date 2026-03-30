@@ -5,7 +5,7 @@ export default function DesktopWaitlistStepsSection() {
   return (
     <section className="figma-prototype__benefits" id="waitlist-steps">
       <div className="figma-prototype__benefits-inner">
-        <div className="figma-prototype__benefits-heading figma-prototype__entry-fade-up figma-prototype__entry-delay-2">
+        <div className="figma-prototype__benefits-heading figma-prototype__reveal-up">
           <div className="figma-prototype__benefits-title">
             <span>Así de</span>
             <strong>rápido y simple</strong>

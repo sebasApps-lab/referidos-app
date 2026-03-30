@@ -7,13 +7,14 @@ export default function DesktopFooterSection({
 }) {
   return (
     <footer className="figma-prototype__footerSection">
-      <div className="figma-prototype__footerBrandScaleWrap figma-prototype__entry-edge-left figma-prototype__entry-delay-4">
+      <div className="figma-prototype__footerBrandScaleWrap figma-prototype__reveal-left">
         <div className="figma-prototype__footerBrand">
           <div className="figma-prototype__footerBrandTop">
-            <h3>
-              <span>REFERIDOS </span>
-              <span className="figma-prototype__footerBrandAccent">APP</span>
-            </h3>
+            <img
+              src="/assets/logo/blanco-lila-1.svg"
+              alt="Referidos App"
+              className="figma-prototype__footerBrandLogo"
+            />
             <p>
               Catálogo de promociones y
               <br />
@@ -24,12 +25,12 @@ export default function DesktopFooterSection({
           </div>
 
           <p className="figma-prototype__footerBrandBottom">
-            {"\u00a9 2026 Referidos App. Todos los derechos reservados."}
+            {"© 2026 Qrew. Todos los derechos reservados."}
           </p>
         </div>
       </div>
 
-      <div className="figma-prototype__footerColumnsScaleWrap figma-prototype__entry-edge-right figma-prototype__entry-delay-5">
+      <div className="figma-prototype__footerColumnsScaleWrap figma-prototype__reveal-right figma-prototype__reveal-delay-1">
         <DesktopFooterColumns
           onPlatformClick={onPlatformClick}
           onWhoWeAreClick={onWhoWeAreClick}

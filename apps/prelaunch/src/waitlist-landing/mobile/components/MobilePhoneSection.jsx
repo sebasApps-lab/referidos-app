@@ -1,11 +1,15 @@
 import { asset, rootAsset } from "../mobileWaitlistLandingAssets";
 
-export default function MobilePhoneSection({ isHeroLayout = false, phoneGlowFilterId }) {
+export default function MobilePhoneSection({
+  isHeroLayout = false,
+  phoneGlowFilterId,
+  className = "",
+}) {
   return (
     <section
-      className={`mobile-landing__phone-section${
+      className={`${className} mobile-landing__phone-section${
         isHeroLayout ? " mobile-landing__phone-section--hero" : ""
-      }`}
+      }`.trim()}
     >
       <div className="mobile-landing__phone-stack">
         <img
@@ -45,7 +49,7 @@ export default function MobilePhoneSection({ isHeroLayout = false, phoneGlowFilt
         <img
           className="mobile-landing__phone-image"
           src={rootAsset("Nothing Phone 2a 2.png")}
-          alt={"Aplicaci\u00f3n Referidos App en un tel\u00e9fono"}
+          alt={"Aplicación Referidos App en un teléfono"}
         />
       </div>
     </section>

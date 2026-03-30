@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  HelpCenterBrandLogo,
   HelpCenterCtas,
   HelpCenterThemeProvider,
   HelpCenterThemedAssetIcon,
@@ -18,6 +19,7 @@ export function HelpCenterMobileLayout({
   theme = "consumer",
   headerActions = [],
   ctaProps = undefined,
+  brandVariant = theme,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const drawerId = useId();
@@ -38,8 +40,9 @@ export function HelpCenterMobileLayout({
           headerTitle={headerTitle}
           titleTo={basePath}
           headerActions={headerActions}
+          brandVariant={brandVariant}
           drawerId={drawerId}
-          drawerTitle={"Categorías"}
+          drawerTitle={"Categor\u00edas"}
           drawerItems={sidebarItems}
           activeItemKey={activeCategoryKey}
           isMenuOpen={isMenuOpen}
@@ -50,7 +53,7 @@ export function HelpCenterMobileLayout({
         <section className="help-center-mobile__body">
           <div className="help-center-mobile__main">
             <aside className="help-center-mobile__sidebar">
-              <h2 className="help-center-mobile__sidebar-title">Categorías</h2>
+              <h2 className="help-center-mobile__sidebar-title">Categor\u00edas</h2>
 
               <div className="help-center-mobile__sidebar-panel">
                 {sidebarItems.map((category) => (
@@ -81,7 +84,7 @@ export function HelpCenterMobileLayout({
           </div>
         </section>
 
-        <HelpCenterMobileFooter basePath={basePath} />
+        <HelpCenterMobileFooter basePath={basePath} brandVariant={brandVariant} />
       </main>
     </HelpCenterThemeProvider>
   );
@@ -93,8 +96,9 @@ export function HelpCenterMobileHeader({
   titleTo = basePath,
   headerActions = [],
   drawerActions = headerActions,
+  brandVariant = "consumer",
   drawerId,
-  drawerTitle = "Menú",
+  drawerTitle = "Men\u00fa",
   drawerItems = [],
   activeItemKey = null,
   isMenuOpen = false,
@@ -108,8 +112,10 @@ export function HelpCenterMobileHeader({
     <>
       <header className="help-center-mobile__header">
         <Link className="help-center-mobile__brand" to="/">
-          <span className="help-center-mobile__brand-main">REFERIDOS</span>
-          <span className="help-center-mobile__brand-accent">APP</span>
+          <HelpCenterBrandLogo
+            variant={brandVariant}
+            className="help-center-mobile__brand-logo"
+          />
         </Link>
 
         {titleTo ? (
@@ -146,7 +152,7 @@ export function HelpCenterMobileHeader({
             <button
               type="button"
               className="help-center-mobile__menu-button"
-              aria-label="Abrir menú"
+              aria-label="Abrir men\u00fa"
               aria-expanded={isMenuOpen}
               aria-controls={drawerId}
               onClick={onToggleMenu}
@@ -163,7 +169,7 @@ export function HelpCenterMobileHeader({
         <>
           <button
             type="button"
-            aria-label="Cerrar menú"
+            aria-label="Cerrar men\u00fa"
             className={[
               "help-center-mobile__drawer-backdrop",
               isMenuOpen ? "help-center-mobile__drawer-backdrop--open" : "",
@@ -188,7 +194,7 @@ export function HelpCenterMobileHeader({
               <button
                 type="button"
                 className="help-center-mobile__drawer-close"
-                aria-label="Cerrar menú"
+                aria-label="Cerrar men\u00fa"
                 onClick={onCloseMenu}
               >
                 <span />
@@ -296,29 +302,29 @@ function MobileSidebarCategoryRow({ category, isActive }) {
   );
 }
 
-export function HelpCenterMobileFooter({ basePath }) {
+export function HelpCenterMobileFooter({ basePath, brandVariant = "consumer" }) {
   return (
     <footer className="help-center-mobile__footer">
       <div className="help-center-mobile__footer-about">
-        <div className="help-center-mobile__footer-brand">
-          <span className="help-center-mobile__footer-brand-main">REFERIDOS</span>
-          <span className="help-center-mobile__footer-brand-accent">APP</span>
-        </div>
+        <HelpCenterBrandLogo
+          variant={brandVariant}
+          className="help-center-mobile__footer-logo"
+        />
 
         <p className="help-center-mobile__footer-about-copy">
-          {"Catálogo de promociones y sistema de recompensas por canjearlas y referir."}
+          {"Cat\u00e1logo de promociones y sistema de recompensas por canjearlas y referir."}
         </p>
       </div>
 
       <div className="help-center-mobile__footer-legal">
         <div className="help-center-mobile__footer-legal-links">
-          <Link to={`${basePath}/articulo/terminos`}>{"Términos"}</Link>
+          <Link to={`${basePath}/articulo/terminos`}>{"T\u00e9rminos"}</Link>
           <span>-</span>
           <Link to={`${basePath}/articulo/privacidad`}>Privacidad</Link>
         </div>
 
         <div className="help-center-mobile__footer-copyright">
-          {"© 2026 Referidos App. Todos los derechos reservados."}
+          {"\u00a9 2026 Qrew. Todos los derechos reservados."}
         </div>
       </div>
     </footer>

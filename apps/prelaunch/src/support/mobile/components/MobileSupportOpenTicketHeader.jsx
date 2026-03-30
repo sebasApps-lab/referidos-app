@@ -3,6 +3,7 @@ import { HelpCenterMobileHeader } from "../../../legal/mobile/helpCenterMobileSh
 export default function MobileSupportOpenTicketHeader({
   backTo,
   headerActions,
+  brandVariant = "business",
   drawerId,
   drawerItems,
   isMenuOpen,
@@ -15,6 +16,7 @@ export default function MobileSupportOpenTicketHeader({
       headerTitle="Recibir ayuda o soporte"
       titleTo={null}
       headerActions={headerActions}
+      brandVariant={brandVariant}
       drawerActions={[]}
       drawerId={drawerId}
       drawerTitle="Men\u00fa"

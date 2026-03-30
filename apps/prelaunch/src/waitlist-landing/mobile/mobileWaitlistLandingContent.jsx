@@ -80,7 +80,7 @@ export const steps = [
 export const footerPanels = [
   { key: "help", label: "Ayuda" },
   { key: "platform", label: "Plataforma" },
-  { key: "team", label: "Qui\u00e9nes somos" },
+  { key: "team", label: "Quiénes somos" },
   { key: "business", label: "Para negocios" },
   { key: "delete-data", label: "Borrar datos" },
 ];

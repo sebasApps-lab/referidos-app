@@ -168,6 +168,9 @@ export default function usePrelaunchPageTracking({
             entry.target.getAttribute("data-prelaunch-section-surface") || sectionId;
 
           seenSectionsRef.current.add(sectionId);
+          if (entry.target.getAttribute("data-prelaunch-reveal") === "once") {
+            entry.target.setAttribute("data-prelaunch-revealed", "true");
+          }
           if (sectionOrder >= lastSectionOrderRef.current) {
             lastSectionOrderRef.current = sectionOrder;
             lastSectionIdRef.current = sectionId;
@@ -201,6 +204,9 @@ export default function usePrelaunchPageTracking({
         "data-prelaunch-section-surface",
         String(section.surface || section.id),
       );
+      if (section.reveal === true) {
+        node.setAttribute("data-prelaunch-reveal", "once");
+      }
       observer.observe(node);
       observedNodes.push(node);
     });

@@ -28,7 +28,7 @@ export default function DesktopInfoCard() {
 
           <div className="figma-prototype__info-copy-block">
             <p className="figma-prototype__info-heading">
-              {"El acceso anticipado a la aplicaci\u00f3n llegar\u00e1 "}
+              {"El acceso anticipado a la aplicación llegará "}
               <span>muy pronto</span>
             </p>
 
@@ -40,7 +40,7 @@ export default function DesktopInfoCard() {
             />
 
             <p className="figma-prototype__info-copy">
-              {"Deja tu correo en la lista para recibir tu invitaci\u00f3n, recibe "}
+              {"Deja tu correo en la lista para recibir tu invitación, recibe "}
               <span>beneficios extra</span> por participar.
             </p>
           </div>
@@ -48,7 +48,7 @@ export default function DesktopInfoCard() {
           <DesktopSignupProviderButton
             className="figma-prototype__info-button figma-prototype__info-button--notify"
             Icon={NotifyBellIcon}
-            label={"Recibir invitaci\u00f3n"}
+            label={"Recibir invitación"}
           />
         </div>
       </aside>

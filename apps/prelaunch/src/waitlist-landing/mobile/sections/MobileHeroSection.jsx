@@ -50,12 +50,12 @@ export default function MobileHeroSection({
       <MobileHeroBackground heroClipId={heroClipId} heroFilterId={heroFilterId} />
 
       <header className="mobile-landing__header">
-        <div className="mobile-landing__brand">
-          <div className="mobile-landing__brand-row">
-            <span className="mobile-landing__brand-referidos">REFERIDOS</span>
-            <span className="mobile-landing__brand-app">APP</span>
-          </div>
-          <div className="mobile-landing__brand-subtitle">Acceso anticipado</div>
+        <div className="mobile-landing__brand mobile-landing__reveal-up">
+          <img
+            src="/assets/logo/blanco-lila-1.svg"
+            alt="Referidos App"
+            className="mobile-landing__brand-logo"
+          />
         </div>
 
         <button
@@ -140,11 +140,19 @@ export default function MobileHeroSection({
             Para negocios
           </button>
         </nav>
+
+        <div className="mobile-landing__drawer-brand">
+          <img
+            src="/assets/logo/morado.svg"
+            alt="Referidos App"
+            className="mobile-landing__drawer-logo"
+          />
+        </div>
       </aside>
 
       <div className="mobile-landing__hero-layout">
         <section className="mobile-landing__hero-section">
-          <div className="mobile-landing__hero-text">
+          <div className="mobile-landing__hero-text mobile-landing__reveal-up mobile-landing__reveal-delay-1">
             <h1 className="mobile-landing__hero-title">
               Descubre y
               <br />
@@ -155,12 +163,12 @@ export default function MobileHeroSection({
               fácilmente
             </h1>
             <p className="mobile-landing__hero-copy">
-              Participa en el <strong>acceso anticipado</strong> de la app y recibe
-              beneficios extra, solo por usar la aplicación.
+              Participa en el <strong>acceso anticipado</strong> de la app y recibe beneficios
+              extra, solo por usar la aplicación.
             </p>
           </div>
 
-          <div className="mobile-landing__hero-actions">
+          <div className="mobile-landing__hero-actions mobile-landing__reveal-up mobile-landing__reveal-delay-2">
             <button
               type="button"
               className="mobile-landing__hero-primary-button"
@@ -190,7 +198,11 @@ export default function MobileHeroSection({
         </section>
 
         {isTabletHeroLayout ? (
-          <MobilePhoneSection isHeroLayout phoneGlowFilterId={phoneGlowFilterId} />
+          <MobilePhoneSection
+            isHeroLayout
+            phoneGlowFilterId={phoneGlowFilterId}
+            className="mobile-landing__reveal-up mobile-landing__reveal-delay-3"
+          />
         ) : null}
       </div>
     </div>

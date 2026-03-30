@@ -10,12 +10,7 @@ export default function MobileFooterSection({
 }) {
   const navigate = useNavigate();
 
-  function trackAndNavigate({
-    linkId,
-    targetPath,
-    surface,
-    label,
-  }) {
+  function trackAndNavigate({ linkId, targetPath, surface, label }) {
     onLinkClick?.({
       linkId,
       targetPath,
@@ -64,17 +59,25 @@ export default function MobileFooterSection({
 
   return (
     <footer className="mobile-landing__footer">
-      <MobileFooterPanels panels={footerPanels} onPanelClick={handleFooterPanelClick} />
+      <MobileFooterPanels
+        panels={footerPanels}
+        onPanelClick={handleFooterPanelClick}
+        className="mobile-landing__reveal-up"
+      />
 
       <div className="mobile-landing__footer-info">
-        <div className="mobile-landing__footer-about">
-          <div className="mobile-landing__footer-brand">REFERIDOS APP</div>
+        <div className="mobile-landing__footer-about mobile-landing__reveal-up mobile-landing__reveal-delay-1">
+          <img
+            src="/assets/logo/morado.svg"
+            alt="Referidos App"
+            className="mobile-landing__footer-logo"
+          />
           <p className="mobile-landing__footer-about-copy">
             {"Catálogo de promociones y sistema de recompensas por canjearlas y referir."}
           </p>
         </div>
 
-        <div className="mobile-landing__footer-legal">
+        <div className="mobile-landing__footer-legal mobile-landing__reveal-up mobile-landing__reveal-delay-2">
           <div className="mobile-landing__footer-legal-links">
             <button
               type="button"
@@ -103,7 +106,7 @@ export default function MobileFooterSection({
             </button>
           </div>
           <div className="mobile-landing__footer-copyright">
-            {"© 2026 Referidos App. Todos los derechos reservados."}
+            {"© 2026 Qrew. Todos los derechos reservados."}
           </div>
         </div>
       </div>

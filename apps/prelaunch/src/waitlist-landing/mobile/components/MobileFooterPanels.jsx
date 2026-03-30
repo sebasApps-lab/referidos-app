@@ -1,6 +1,6 @@
-export default function MobileFooterPanels({ panels, onPanelClick }) {
+export default function MobileFooterPanels({ panels, onPanelClick, className = "" }) {
   return (
-    <div className="mobile-landing__footer-panels">
+    <div className={`mobile-landing__footer-panels ${className}`.trim()}>
       {panels.map((panel) => (
         <button
           key={panel.key}

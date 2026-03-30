@@ -14,6 +14,7 @@ export default function FeedbackMobilePage() {
       <MobileSupportOpenTicketHeader
         backTo={controller.backTo}
         headerActions={controller.mobileHeaderActions}
+        brandVariant="feedback"
         drawerId={drawerId}
         drawerItems={controller.mobileDrawerItems}
         isMenuOpen={isMenuOpen}
@@ -25,7 +26,7 @@ export default function FeedbackMobilePage() {
         <MobileFeedbackMessageBlock controller={controller} />
       </main>
 
-      <HelpCenterMobileFooter basePath={controller.backTo} />
+      <HelpCenterMobileFooter basePath={controller.backTo} brandVariant="feedback" />
     </div>
   );
 }

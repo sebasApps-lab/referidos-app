@@ -1,8 +1,8 @@
 export default function DesktopStepCard({ step, index = 0 }) {
   return (
     <article
-      className={`figma-prototype__benefit-card figma-prototype__benefit-card--${step.key} figma-prototype__entry-fade-up`}
-      style={{ "--figma-entry-delay": `${240 + index * 90}ms` }}
+      className={`figma-prototype__benefit-card figma-prototype__benefit-card--${step.key} figma-prototype__reveal-up`}
+      style={{ "--figma-reveal-delay": `${120 + index * 90}ms` }}
     >
       <img className="figma-prototype__step-number-badge" src={step.numberSrc} alt="" />
 
@@ -16,9 +16,17 @@ export default function DesktopStepCard({ step, index = 0 }) {
 
         <div className="figma-prototype__benefit-gloss" aria-hidden="true" />
 
-        <div className={`figma-prototype__benefit-icon figma-prototype__benefit-icon--${step.key}`} aria-hidden="true">
+        <div
+          className={`figma-prototype__benefit-icon figma-prototype__benefit-icon--${step.key}`}
+          aria-hidden="true"
+        >
           <img className="figma-prototype__benefit-icon-shadow" src={step.shadowSrc} alt="" />
-          <img className="figma-prototype__benefit-icon-image" src={step.iconSrc} alt="" loading="lazy" />
+          <img
+            className="figma-prototype__benefit-icon-image"
+            src={step.iconSrc}
+            alt=""
+            loading="lazy"
+          />
         </div>
       </div>
     </article>
