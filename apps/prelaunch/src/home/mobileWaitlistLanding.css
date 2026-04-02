@@ -682,12 +682,15 @@
 .mobile-landing__steps {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 96px;
-  width: 354px;
+  width: min(100%, 354px);
 }
 
 .mobile-landing__step-card-shell {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   width: calc(354px * var(--mobile-step-card-scale, 1));
   height: calc(543px * var(--mobile-step-card-scale, 1));
 }
@@ -696,6 +699,8 @@
   position: relative;
   width: 354px;
   height: 543px;
+  transform: scale(var(--mobile-step-card-scale, 1));
+  transform-origin: top center;
 }
 
 .mobile-landing__step-number-badge {
@@ -1683,8 +1688,7 @@
   }
 
   .mobile-landing__step-card {
-    transform: scale(var(--mobile-step-card-scale, 1));
-    transform-origin: top left;
+    transform-origin: top center;
   }
 }
 

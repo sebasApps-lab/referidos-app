@@ -149,46 +149,46 @@ export default function usePrelaunchPageTracking({
       return undefined;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
+    const handleEntries = (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
 
-          const sectionId = entry.target.getAttribute("data-prelaunch-section-id");
-          if (!sectionId || seenSectionsRef.current.has(sectionId)) {
-            return;
-          }
+        const sectionId = entry.target.getAttribute("data-prelaunch-section-id");
+        if (!sectionId) {
+          return;
+        }
 
-          const sectionOrder = Number(
-            entry.target.getAttribute("data-prelaunch-section-order") || 0,
-          );
-          const sectionSurface =
-            entry.target.getAttribute("data-prelaunch-section-surface") || sectionId;
+        if (entry.target.getAttribute("data-prelaunch-reveal") === "once") {
+          entry.target.setAttribute("data-prelaunch-revealed", "true");
+        }
 
-          seenSectionsRef.current.add(sectionId);
-          if (entry.target.getAttribute("data-prelaunch-reveal") === "once") {
-            entry.target.setAttribute("data-prelaunch-revealed", "true");
-          }
-          if (sectionOrder >= lastSectionOrderRef.current) {
-            lastSectionOrderRef.current = sectionOrder;
-            lastSectionIdRef.current = sectionId;
-          }
+        if (seenSectionsRef.current.has(sectionId)) {
+          return;
+        }
 
-          void emitEvent("section_view", {
-            section_id: sectionId,
-            section_order: sectionOrder,
-            surface: sectionSurface,
-          });
+        const sectionOrder = Number(
+          entry.target.getAttribute("data-prelaunch-section-order") || 0,
+        );
+        const sectionSurface =
+          entry.target.getAttribute("data-prelaunch-section-surface") || sectionId;
+
+        seenSectionsRef.current.add(sectionId);
+        if (sectionOrder >= lastSectionOrderRef.current) {
+          lastSectionOrderRef.current = sectionOrder;
+          lastSectionIdRef.current = sectionId;
+        }
+
+        void emitEvent("section_view", {
+          section_id: sectionId,
+          section_order: sectionOrder,
+          surface: sectionSurface,
         });
-      },
-      {
-        threshold: 0.45,
-      },
-    );
+      });
+    };
 
-    const observedNodes = [];
+    const observerGroups = new Map();
 
     sections.forEach((section) => {
       const node = section.selector
@@ -207,13 +207,29 @@ export default function usePrelaunchPageTracking({
       if (section.reveal === true) {
         node.setAttribute("data-prelaunch-reveal", "once");
       }
-      observer.observe(node);
-      observedNodes.push(node);
+
+      const threshold =
+        typeof section.threshold === "number" ? section.threshold : 0.45;
+      let observerGroup = observerGroups.get(threshold);
+      if (!observerGroup) {
+        observerGroup = {
+          observer: new IntersectionObserver(handleEntries, {
+            threshold,
+          }),
+          nodes: [],
+        };
+        observerGroups.set(threshold, observerGroup);
+      }
+
+      observerGroup.observer.observe(node);
+      observerGroup.nodes.push(node);
     });
 
     return () => {
-      observedNodes.forEach((node) => observer.unobserve(node));
-      observer.disconnect();
+      observerGroups.forEach(({ observer, nodes }) => {
+        nodes.forEach((node) => observer.unobserve(node));
+        observer.disconnect();
+      });
     };
   }, [emitEvent, sections]);
 

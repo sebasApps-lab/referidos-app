@@ -46,6 +46,7 @@ export default function MobileWaitlistLandingPage() {
         order: 2,
         surface: "waitlist_steps",
         reveal: true,
+        threshold: 0.12,
       },
       {
         id: "waitlist_form",
@@ -53,6 +54,7 @@ export default function MobileWaitlistLandingPage() {
         order: 3,
         surface: "waitlist_form",
         reveal: true,
+        threshold: 0.18,
       },
       {
         id: "contact_block",
@@ -60,6 +62,7 @@ export default function MobileWaitlistLandingPage() {
         order: 4,
         surface: "contact_block",
         reveal: true,
+        threshold: 0.18,
       },
       {
         id: "footer",
