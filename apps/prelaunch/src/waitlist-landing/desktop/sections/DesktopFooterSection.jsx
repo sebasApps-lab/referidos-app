@@ -25,7 +25,7 @@ export default function DesktopFooterSection({
           </div>
 
           <p className="figma-prototype__footerBrandBottom">
-            {"© 2026 Qrew. Todos los derechos reservados."}
+            {"© 2026 GoPlip. Todos los derechos reservados."}
           </p>
         </div>
       </div>

@@ -106,7 +106,7 @@ export default function MobileFooterSection({
             </button>
           </div>
           <div className="mobile-landing__footer-copyright">
-            {"© 2026 Qrew. Todos los derechos reservados."}
+            {"© 2026 GoPlip. Todos los derechos reservados."}
           </div>
         </div>
       </div>

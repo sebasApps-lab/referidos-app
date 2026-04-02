@@ -324,7 +324,7 @@ export function HelpCenterMobileFooter({ basePath, brandVariant = "consumer" }) 
         </div>
 
         <div className="help-center-mobile__footer-copyright">
-          {"\u00a9 2026 Qrew. Todos los derechos reservados."}
+          {"\u00a9 2026 GoPlip. Todos los derechos reservados."}
         </div>
       </div>
     </footer>
