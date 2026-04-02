@@ -34,9 +34,9 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: "/assets/logo/morado.svg",
-  business: "/assets/logo/negro.svg",
-  feedback: "/assets/logo/negro.svg",
+  consumer: "/assets/logo/go-plip-dark-light-purple.svg",
+  business: "/assets/logo/go-plip-black-blue.svg",
+  feedback: "/assets/logo/go-plip-black-gray.svg",
 };
 
 function helpCenterAsset(relativePath) {
@@ -63,7 +63,7 @@ export function HelpCenterThemedAssetIcon({ assetKey }) {
 
 export function HelpCenterBrandLogo({ variant = "consumer", className = "" }) {
   const src = HELP_CENTER_BRAND_LOGOS[variant] || HELP_CENTER_BRAND_LOGOS.consumer;
-  return <img src={src} alt="Referidos App" className={className} />;
+  return <img src={src} alt="Go Plip" className={className} />;
 }
 
 export function HelpCenterThemeProvider({ theme, children }) {

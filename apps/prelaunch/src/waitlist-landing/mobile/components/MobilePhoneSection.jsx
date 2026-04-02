@@ -48,7 +48,7 @@ export default function MobilePhoneSection({
         </svg>
         <img
           className="mobile-landing__phone-image"
-          src={rootAsset("Nothing Phone 2a 2.png")}
+          src={rootAsset("Nothing Phone 2a.png")}
           alt={"Aplicación Referidos App en un teléfono"}
         />
       </div>

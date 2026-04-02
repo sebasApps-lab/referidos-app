@@ -113,8 +113,8 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       <div className="figma-prototype__nav-brand figma-prototype__entry-edge-left">
         <div className="figma-prototype__nav-brand-row">
           <img
-            src="/assets/logo/blanco-lila-1.svg"
-            alt="Referidos App"
+            src="/assets/logo/go-plip-white-lila.svg"
+            alt="Go Plip"
             className="figma-prototype__nav-brand-logo"
           />
         </div>

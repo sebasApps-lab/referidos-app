@@ -11,8 +11,8 @@ export default function DesktopFooterSection({
         <div className="figma-prototype__footerBrand">
           <div className="figma-prototype__footerBrandTop">
             <img
-              src="/assets/logo/blanco-lila-1.svg"
-              alt="Referidos App"
+              src="/assets/logo/go-plip-white-lila.svg"
+              alt="Go Plip"
               className="figma-prototype__footerBrandLogo"
             />
             <p>

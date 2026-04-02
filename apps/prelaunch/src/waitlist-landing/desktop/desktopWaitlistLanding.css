@@ -179,7 +179,8 @@
 .figma-prototype__nav-brand-logo {
   display: block;
   width: auto;
-  height: 34px;
+  height: 68px;
+  transform: translateY(34px);
 }
 
 .figma-prototype__nav-brand-main,
@@ -930,7 +931,8 @@
   width: 328px;
   height: 580px;
   max-width: none;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .figma-prototype__hero-phone-back-shadow {

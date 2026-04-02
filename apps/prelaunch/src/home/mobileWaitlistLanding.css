@@ -129,7 +129,7 @@
   display: block;
   width: auto;
   max-width: 100%;
-  height: 28px;
+  height: 42px;
 }
 
 .mobile-landing__brand-row {
@@ -494,6 +494,8 @@
   width: 410px;
   height: 725px;
   margin: 0;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .mobile-landing__signup-card {

@@ -68,8 +68,8 @@ export default function MobileFooterSection({
       <div className="mobile-landing__footer-info">
         <div className="mobile-landing__footer-about mobile-landing__reveal-up mobile-landing__reveal-delay-1">
           <img
-            src="/assets/logo/morado.svg"
-            alt="Referidos App"
+            src="/assets/logo/go-plip-black-gray.svg"
+            alt="Go Plip"
             className="mobile-landing__footer-logo"
           />
           <p className="mobile-landing__footer-about-copy">

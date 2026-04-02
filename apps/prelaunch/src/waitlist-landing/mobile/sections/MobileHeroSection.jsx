@@ -52,8 +52,8 @@ export default function MobileHeroSection({
       <header className="mobile-landing__header">
         <div className="mobile-landing__brand mobile-landing__reveal-up">
           <img
-            src="/assets/logo/blanco-lila-1.svg"
-            alt="Referidos App"
+            src="/assets/logo/go-plip-white-lila.svg"
+            alt="Go Plip"
             className="mobile-landing__brand-logo"
           />
         </div>
@@ -143,8 +143,8 @@ export default function MobileHeroSection({
 
         <div className="mobile-landing__drawer-brand">
           <img
-            src="/assets/logo/morado.svg"
-            alt="Referidos App"
+            src="/assets/logo/go-plip-dark-light-purple.svg"
+            alt="Go Plip"
             className="mobile-landing__drawer-logo"
           />
         </div>
