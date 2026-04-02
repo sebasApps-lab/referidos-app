@@ -244,7 +244,7 @@ export default function MobileBusinessInterestModal({ isOpen, onClose }) {
                         ? "Enviando..."
                         : isSubmitted
                           ? "Correo registrado"
-                          : "Notificarme cuando est\u00e9 disponible"}
+                          : "Notificarme cuando esté disponible"}
                     </span>
                   </button>
                 </form>

@@ -1,4 +1,4 @@
-import { HelpCenterMobileFooter } from "../../legal/mobile/helpCenterMobileShared";
+import { HelpCenterFooter } from "../../legal/helpCenterShared";
 import DesktopSupportOpenTicketHeader from "./components/DesktopSupportOpenTicketHeader";
 import DesktopFeedbackMessageBlock from "./components/DesktopFeedbackMessageBlock";
 import { useFeedbackPageController } from "../useFeedbackPageController";
@@ -11,13 +11,14 @@ export default function FeedbackDesktopPage() {
       <DesktopSupportOpenTicketHeader
         backTo={controller.backTo}
         headerActions={controller.desktopHeaderActions}
+        brandVariant="feedback"
       />
 
       <main className="support-open-ticket__main feedback-page__main">
         <DesktopFeedbackMessageBlock controller={controller} />
       </main>
 
-      <HelpCenterMobileFooter basePath={controller.backTo} />
+      <HelpCenterFooter basePath={controller.backTo} brandVariant="feedback" />
     </div>
   );
 }

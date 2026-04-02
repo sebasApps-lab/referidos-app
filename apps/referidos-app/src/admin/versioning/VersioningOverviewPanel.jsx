@@ -704,6 +704,7 @@ export default function VersioningOverviewPanel() {
   const [deployingActionId, setDeployingActionId] = useState("");
   const [deployMessage, setDeployMessage] = useState("");
   const [activeDeployRequestId, setActiveDeployRequestId] = useState("");
+  const [activeDeployTracking, setActiveDeployTracking] = useState(null);
   const [deploySyncRequired, setDeploySyncRequired] = useState(null);
   const [mergeStatusByVersion, setMergeStatusByVersion] = useState({});
   const [envCardMessages, setEnvCardMessages] = useState({});
@@ -721,6 +722,15 @@ export default function VersioningOverviewPanel() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const setPromoteProgressForEnv = useCallback((envKey, progress) => {
+    const key = String(envKey || "").toLowerCase();
+    if (!key) return;
+    setPromoteProgressByEnv((current) => ({
+      ...current,
+      [key]: progress,
+    }));
+  }, []);
 
   const selectedProduct = useMemo(
     () => catalog.products.find((product) => product.product_key === activeProductKey) || null,
@@ -1183,6 +1193,118 @@ export default function VersioningOverviewPanel() {
   }, [devReleaseSyncing, refreshLatestReleaseRows, refreshReleaseArtifacts, load]);
 
   useEffect(() => {
+    if (!activeDeployTracking?.requestId) return undefined;
+
+    let cancelled = false;
+    let timerId;
+    const POLL_INTERVAL_MS = 4000;
+    const MAX_WAIT_MS = 180000;
+
+    const finalizeDeployTracking = async ({ requests, status, detail, logsUrl = "" }) => {
+      if (cancelled) return;
+
+      const envKey = String(activeDeployTracking.envKey || "").toLowerCase();
+
+      if (envKey) {
+        setPromoteProgressForEnv(
+          envKey,
+          createDeployProgress({
+            status,
+            detail,
+            stepStatus: {
+              gate: "success",
+              sync: "success",
+              request: "success",
+              pipeline: status === "success" ? "success" : "error",
+              verify: status === "success" ? "success" : "error",
+            },
+          })
+        );
+      }
+
+      setDeployRequests(Array.isArray(requests) ? requests : []);
+      setDeployMessage(detail);
+      setDeploySyncRequired(null);
+      setActiveDeployRequestId("");
+      setActiveDeployTracking(null);
+      await load(true);
+      if (cancelled) return;
+
+      if (status === "success" && logsUrl) {
+        setDeployMessage(`${detail} Logs: ${logsUrl}`);
+      }
+    };
+
+    const tick = async () => {
+      if (cancelled) return;
+
+      try {
+        const requests = await fetchDeployRequests();
+        if (cancelled) return;
+
+        const requestRow = (Array.isArray(requests) ? requests : []).find(
+          (row) => String(row?.id || "") === String(activeDeployTracking.requestId || "")
+        );
+
+        const deployState = deploymentStateFromRequest(requestRow);
+        const envKey = String(activeDeployTracking.envKey || requestRow?.env_key || "").toLowerCase();
+        const versionLabel = String(
+          activeDeployTracking.semver || requestRow?.version_label || "-"
+        ).trim();
+        const logsUrl = String(
+          requestRow?.logs_url || activeDeployTracking.logsUrl || ""
+        ).trim();
+        const deploymentId = String(
+          requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
+        ).trim();
+
+        if (deployState === "deployed") {
+          await finalizeDeployTracking({
+            requests,
+            status: "success",
+            detail: `Deploy completado (${envKey || "-"} ${versionLabel || "-"}). deployment_id=${deploymentId || "-"}.`,
+            logsUrl,
+          });
+          return;
+        }
+
+        if (deployState === "failed" || deployState === "rejected") {
+          await finalizeDeployTracking({
+            requests,
+            status: "error",
+            detail:
+              requestRow?.error_detail ||
+              `Deploy con error (${envKey || "-"} ${versionLabel || "-"}). deployment_id=${deploymentId || "-"}.`,
+            logsUrl,
+          });
+          return;
+        }
+
+        if (Date.now() - Number(activeDeployTracking.startedAt || 0) >= MAX_WAIT_MS) {
+          setDeployRequests(Array.isArray(requests) ? requests : []);
+          setDeployMessage(
+            `Pipeline despachado (${envKey || "-"} ${versionLabel || "-"}), pero aun no termina de reflejarse en el panel. Si el workflow sigue corriendo, puedes refrescar despues.`
+          );
+          setActiveDeployRequestId("");
+          setActiveDeployTracking(null);
+          return;
+        }
+      } catch {
+        // Keep polling on transient fetch errors.
+      }
+
+      timerId = setTimeout(tick, POLL_INTERVAL_MS);
+    };
+
+    tick();
+
+    return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [activeDeployTracking, load, setPromoteProgressForEnv]);
+
+  useEffect(() => {
     if (!activeProductKey) {
       setPromoteRows([]);
       return;
@@ -1217,6 +1339,7 @@ export default function VersioningOverviewPanel() {
     setApprovalMessage("");
     setDeploySyncRequired(null);
     setActiveDeployRequestId("");
+    setActiveDeployTracking(null);
     setPromoteDraft(null);
     setDevReleaseDraft(null);
     setDevReleaseDraftError("");
@@ -1511,15 +1634,6 @@ export default function VersioningOverviewPanel() {
     },
     [activeProductKey]
   );
-
-  const setPromoteProgressForEnv = useCallback((envKey, progress) => {
-    const key = String(envKey || "").toLowerCase();
-    if (!key) return;
-    setPromoteProgressByEnv((current) => ({
-      ...current,
-      [key]: progress,
-    }));
-  }, []);
 
   const setPromoteProgressFromSyncPayload = useCallback(
     (payload, { toEnv = "", detail = "", status = "running", mergeAttempted = false } = {}) => {
@@ -2238,6 +2352,15 @@ export default function VersioningOverviewPanel() {
       );
       setDeploySyncRequired(null);
       setActiveDeployRequestId(normalizedRequestId);
+      setActiveDeployTracking({
+        requestId: normalizedRequestId,
+        productKey: activeProductKey,
+        envKey,
+        semver,
+        deploymentId: result?.deployment_id || "",
+        logsUrl: result?.logs_url || "",
+        startedAt: Date.now(),
+      });
       setDeployMessage(
         `Pipeline de deploy despachado (${envKey} ${semver}). deployment_id=${result?.deployment_id || "-"}. Espera la finalizacion del workflow y el callback para ver el resultado real.${result?.logs_url ? ` Logs: ${result.logs_url}` : ""}`
       );
@@ -2261,6 +2384,8 @@ export default function VersioningOverviewPanel() {
             "Este release aun no esta en la rama destino. Debes subir release antes de desplegar."
         );
         setDeploySyncRequired(err?.payload || null);
+        setActiveDeployTracking(null);
+        setActiveDeployRequestId("");
         setDeployMessage(
           err?.message ||
             "Este release aun no esta en la rama destino. Debes subir release antes de desplegar."
@@ -2275,6 +2400,8 @@ export default function VersioningOverviewPanel() {
           "error",
           err?.message || "No se pudo ejecutar deploy como admin."
         );
+        setActiveDeployTracking(null);
+        setActiveDeployRequestId("");
         setDeployMessage(err?.message || "No se pudo ejecutar deploy como admin.");
       }
     } finally {

@@ -176,6 +176,13 @@
   gap: 10px;
 }
 
+.figma-prototype__nav-brand-logo {
+  display: block;
+  width: auto;
+  height: 68px;
+  transform: translateY(34px);
+}
+
 .figma-prototype__nav-brand-main,
 .figma-prototype__nav-brand-accent {
   font-size: 31px;
@@ -252,6 +259,39 @@
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
 }
 
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-up,
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-left,
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-right {
+  opacity: 0;
+  transition:
+    opacity 520ms ease var(--figma-reveal-delay, 0ms),
+    transform 520ms ease var(--figma-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-up {
+  transform: translateY(24px);
+}
+
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-left {
+  transform: translateX(-32px);
+}
+
+[data-prelaunch-reveal="once"] .figma-prototype__reveal-right {
+  transform: translateX(32px);
+}
+
+[data-prelaunch-revealed="true"] .figma-prototype__reveal-up,
+[data-prelaunch-revealed="true"] .figma-prototype__reveal-left,
+[data-prelaunch-revealed="true"] .figma-prototype__reveal-right {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+.figma-prototype__reveal-delay-1 {
+  --figma-reveal-delay: 90ms;
+}
+
 .figma-prototype__nav-link--placeholder {
   cursor: default;
   pointer-events: none;
@@ -260,6 +300,28 @@
 .figma-prototype__nav-links button {
   border: 0;
   background: transparent;
+}
+
+@keyframes figma-prototype__business-modal-backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes figma-prototype__business-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.988);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .figma-prototype__business-modal-backdrop {
@@ -273,6 +335,7 @@
   background: rgba(15, 19, 33, 0.46);
   backdrop-filter: blur(10px);
   overflow-y: auto;
+  animation: figma-prototype__business-modal-backdrop-fade-in 180ms ease-out;
 }
 
 .figma-prototype__business-modal {
@@ -285,6 +348,8 @@
   background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;
+  animation: figma-prototype__business-modal-enter 240ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  will-change: transform, opacity;
 }
 
 .figma-prototype__business-modal::before {
@@ -810,6 +875,17 @@
   background-image: none;
   color: #24055c;
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.figma-prototype__hero-button:hover,
+.figma-prototype__hero-button:focus-visible {
+  transform: translateY(-1px);
+  opacity: 0.96;
+  box-shadow: 0 14px 30px rgba(36, 5, 92, 0.16);
 }
 
 .figma-prototype__hero-button span {
@@ -855,7 +931,8 @@
   width: 328px;
   height: 580px;
   max-width: none;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .figma-prototype__hero-phone-back-shadow {
@@ -1696,6 +1773,17 @@
   font-weight: 400;
   line-height: 22.5px;
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.figma-prototype__waitlist-buttonWrap button:hover,
+.figma-prototype__waitlist-buttonWrap button:focus-visible {
+  transform: translateY(-1px);
+  opacity: 0.96;
+  box-shadow: 0 16px 28px rgba(64, 198, 120, 0.22);
 }
 
 .figma-prototype__waitlist-buttonLabel {
@@ -2009,6 +2097,13 @@
   opacity: 0.85;
 }
 
+.figma-prototype__footerBrandLogo {
+  display: block;
+  width: auto;
+  max-width: 270px;
+  height: 42px;
+}
+
 .figma-prototype__footerBrandAccent {
   color: #b26cf2;
 }
@@ -2100,6 +2195,17 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    text-shadow 160ms ease;
+}
+
+.figma-prototype__footerLinks button:hover,
+.figma-prototype__footerLinks button:focus-visible {
+  transform: translateY(-1px);
+  opacity: 0.92;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.16);
 }
 
 @media (max-width: 1280px) {
@@ -2512,5 +2618,12 @@
 @media (max-width: 850px) {
   .figma-prototype__promo-mockup {
     width: 268px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figma-prototype__business-modal-backdrop,
+  .figma-prototype__business-modal {
+    animation: none;
   }
 }

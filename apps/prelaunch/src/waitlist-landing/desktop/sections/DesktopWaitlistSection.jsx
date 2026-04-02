@@ -18,7 +18,7 @@ export default function DesktopWaitlistSection({
       </div>
 
       <div className="figma-prototype__waitlist-content">
-        <div className="figma-prototype__waitlist-copy figma-prototype__entry-edge-left figma-prototype__entry-delay-3">
+        <div className="figma-prototype__waitlist-copy figma-prototype__reveal-left">
           <p className="figma-prototype__waitlist-title">No te quedes sin un puesto para participar</p>
 
           <div className="figma-prototype__waitlist-copy-stack">
@@ -38,7 +38,7 @@ export default function DesktopWaitlistSection({
           </div>
         </div>
 
-        <DesktopMockupSteps className="figma-prototype__entry-edge-right figma-prototype__entry-delay-4" />
+        <DesktopMockupSteps className="figma-prototype__reveal-right figma-prototype__reveal-delay-1" />
       </div>
     </section>
   );
