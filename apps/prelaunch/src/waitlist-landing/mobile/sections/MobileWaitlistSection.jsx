@@ -12,7 +12,7 @@ export default function MobileWaitlistSection({
 }) {
   return (
     <section className="mobile-landing__waitlist" id="waitlist-bottom">
-      <div className="mobile-landing__waitlist-heading">
+      <div className="mobile-landing__waitlist-heading mobile-landing__reveal-up">
         <h2 className="mobile-landing__waitlist-title">No te quedes sin tu invitación</h2>
         <div className="mobile-landing__waitlist-form-block" id="waitlist-invitation-form">
           <p className="mobile-landing__waitlist-copy">
@@ -31,7 +31,7 @@ export default function MobileWaitlistSection({
         </div>
       </div>
 
-      <div className="mobile-landing__promo-section">
+      <div className="mobile-landing__promo-section mobile-landing__reveal-up mobile-landing__reveal-delay-2">
         <h2 className="mobile-landing__promo-heading">
           <span className="mobile-landing__promo-heading-first-line">
             <span className="mobile-landing__promo-heading-prefix">¡Empieza en </span>
@@ -40,7 +40,7 @@ export default function MobileWaitlistSection({
           <strong className="mobile-landing__promo-heading-break">pasos!</strong>
         </h2>
 
-        <MobileMockupSteps />
+        <MobileMockupSteps className="mobile-landing__reveal-up mobile-landing__reveal-delay-3" />
       </div>
     </section>
   );

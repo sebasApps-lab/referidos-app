@@ -1,7 +1,11 @@
 import { rootAsset } from "../mobileWaitlistLandingAssets";
 
-export default function MobileMockupSteps() {
+export default function MobileMockupSteps({ className = "" }) {
   return (
-    <img className="mobile-landing__promo-mockup" src={rootAsset("mockup-how-to-use.png")} alt="" />
+    <img
+      className={`mobile-landing__promo-mockup ${className}`.trim()}
+      src={rootAsset("mockup-how-to-use.png")}
+      alt=""
+    />
   );
 }

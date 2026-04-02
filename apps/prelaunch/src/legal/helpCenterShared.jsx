@@ -33,6 +33,12 @@ const HELP_CENTER_ICON_FILES = {
   },
 };
 
+const HELP_CENTER_BRAND_LOGOS = {
+  consumer: "/assets/logo/go-plip-dark-light-purple.svg",
+  business: "/assets/logo/go-plip-black-blue.svg",
+  feedback: "/assets/logo/go-plip-black-gray.svg",
+};
+
 function helpCenterAsset(relativePath) {
   const assetBaseUrl = getRuntimeConfig().helpCenterAssetBaseUrl.replace(/\/+$/, "");
   const assetPath = `/assets/shared/help-center/${relativePath}`;
@@ -55,6 +61,11 @@ export function HelpCenterThemedAssetIcon({ assetKey }) {
   return <HelpCenterAssetIcon assetKey={assetKey} />;
 }
 
+export function HelpCenterBrandLogo({ variant = "consumer", className = "" }) {
+  const src = HELP_CENTER_BRAND_LOGOS[variant] || HELP_CENTER_BRAND_LOGOS.consumer;
+  return <img src={src} alt="Go Plip" className={className} />;
+}
+
 export function HelpCenterThemeProvider({ theme, children }) {
   return (
     <HelpCenterThemeContext.Provider value={theme}>{children}</HelpCenterThemeContext.Provider>
@@ -70,6 +81,7 @@ export function HelpCenterLayout({
   headerTitle = "Centro de Ayuda",
   theme = "consumer",
   headerActions = null,
+  brandVariant = theme,
 }) {
   const activeCategory = activeCategoryKey
     ? sidebarItems.find((category) => category.key === activeCategoryKey) || null
@@ -84,6 +96,7 @@ export function HelpCenterLayout({
           basePath={basePath}
           headerTitle={headerTitle}
           headerActions={headerActions}
+          brandVariant={brandVariant}
         />
 
         <section className="help-center__body">
@@ -126,12 +139,20 @@ export function HelpCenterLayout({
             </section>
           </div>
         </section>
+
+        <HelpCenterFooter basePath={basePath} brandVariant={brandVariant} />
       </main>
     </HelpCenterThemeProvider>
   );
 }
 
-export function HelpCenterHeader({ basePath, headerTitle, headerActions, titleTo = basePath }) {
+export function HelpCenterHeader({
+  basePath,
+  headerTitle,
+  headerActions,
+  titleTo = basePath,
+  brandVariant = "consumer",
+}) {
   const actions = resolveHelpCenterHeaderActions(
     headerActions ??
       [
@@ -157,8 +178,7 @@ export function HelpCenterHeader({ basePath, headerTitle, headerActions, titleTo
       <div className="help-center__header-inner">
         <div className="help-center__brand-wrap">
           <Link className="help-center__brand" to="/">
-            <span className="help-center__brand-main">REFERIDOS</span>
-            <span className="help-center__brand-accent">APP</span>
+            <HelpCenterBrandLogo variant={brandVariant} className="help-center__brand-logo" />
           </Link>
           <span className="help-center__brand-separator" aria-hidden="true">
             |
@@ -181,6 +201,31 @@ export function HelpCenterHeader({ basePath, headerTitle, headerActions, titleTo
         </nav>
       </div>
     </header>
+  );
+}
+
+export function HelpCenterFooter({ basePath, brandVariant = "consumer" }) {
+  return (
+    <footer className="help-center__footer">
+      <div className="help-center__footer-about">
+        <HelpCenterBrandLogo variant={brandVariant} className="help-center__footer-logo" />
+        <p className="help-center__footer-about-copy">
+          {"Cat\u00e1logo de promociones y sistema de recompensas por canjearlas y referir."}
+        </p>
+      </div>
+
+      <div className="help-center__footer-legal">
+        <div className="help-center__footer-legal-links">
+          <Link to={`${basePath}/articulo/terminos`}>{"T\u00e9rminos"}</Link>
+          <span>-</span>
+          <Link to={`${basePath}/articulo/privacidad`}>Privacidad</Link>
+        </div>
+
+        <div className="help-center__footer-copyright">
+          {"\u00a9 2026 GoPlip. Todos los derechos reservados."}
+        </div>
+      </div>
+    </footer>
   );
 }
 

@@ -89,6 +89,12 @@ body,
   white-space: nowrap;
 }
 
+.help-center__brand-logo {
+  display: block;
+  width: auto;
+  height: 30px;
+}
+
 .help-center__brand-main,
 .help-center__brand-accent {
   font-size: 31px;
@@ -161,6 +167,71 @@ body,
 .help-center__header-link--solid:active,
 .help-center__header-link--solid:focus-visible {
   color: #ffffff !important;
+}
+
+.help-center__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 28px;
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 8px 28px 32px;
+}
+
+.help-center__footer-about {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.help-center__footer-logo {
+  display: block;
+  width: auto;
+  height: 32px;
+}
+
+.help-center__footer-about-copy {
+  margin: 0;
+  color: var(--help-text-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.help-center__footer-legal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.help-center__footer-legal-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.help-center__footer-legal-links a,
+.help-center__footer-copyright {
+  color: var(--help-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.help-center__footer-legal-links a {
+  font-weight: 600;
+}
+
+.help-center__footer-legal-links span {
+  color: var(--help-text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .help-center:not(.help-center-mobile) .help-center__header-inner {
@@ -729,6 +800,12 @@ body,
   grid-area: brand;
 }
 
+.help-center-mobile__brand-logo {
+  display: block;
+  width: auto;
+  height: 22px;
+}
+
 .help-center-mobile__brand-main,
 .help-center-mobile__brand-accent {
   font-size: 12px;
@@ -1273,6 +1350,12 @@ body,
   align-items: center;
   gap: 12px;
   width: 100%;
+}
+
+.help-center-mobile__footer-logo {
+  display: block;
+  width: auto;
+  height: 26px;
 }
 
 .help-center-mobile__footer-brand {

@@ -6,11 +6,14 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGl
   return (
     <div className="mobile-landing__second-section">
       {!isTabletHeroLayout ? (
-        <MobilePhoneSection phoneGlowFilterId={phoneGlowFilterId} />
+        <MobilePhoneSection
+          phoneGlowFilterId={phoneGlowFilterId}
+          className="mobile-landing__reveal-up mobile-landing__reveal-delay-1"
+        />
       ) : null}
 
       <section className="mobile-landing__about-block" id="waitlist-steps">
-        <div className="mobile-landing__about-heading">
+        <div className="mobile-landing__about-heading mobile-landing__reveal-up">
           <h2 className="mobile-landing__about-title">
             <span>{"Así de "}</span>
             <strong>{"rápido y simple"}</strong>
@@ -23,8 +26,8 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGl
         </div>
 
         <div className="mobile-landing__steps">
-          {steps.map((step) => (
-            <MobileStepCard key={step.id} step={step} />
+          {steps.map((step, index) => (
+            <MobileStepCard key={step.id} step={step} index={index} />
           ))}
         </div>
       </section>

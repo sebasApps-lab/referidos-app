@@ -112,10 +112,12 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
     >
       <div className="figma-prototype__nav-brand figma-prototype__entry-edge-left">
         <div className="figma-prototype__nav-brand-row">
-          <span className="figma-prototype__nav-brand-main">REFERIDOS</span>
-          <span className="figma-prototype__nav-brand-accent">APP</span>
+          <img
+            src="/assets/logo/go-plip-white-lila.svg"
+            alt="Go Plip"
+            className="figma-prototype__nav-brand-logo"
+          />
         </div>
-        <span className="figma-prototype__nav-brand-tag">Acceso anticipado</span>
       </div>
 
       <nav
@@ -130,7 +132,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       <button
         type="button"
         className="figma-prototype__nav-menu-button"
-        aria-label={isMenuOpen ? "Cerrar men\u00fa" : "Abrir men\u00fa"}
+        aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
         aria-expanded={isMenuOpen}
         onClick={() => setIsMenuOpen((current) => !current)}
       >
@@ -141,7 +143,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
 
       <nav
         className={`figma-prototype__nav-drawer ${isMenuOpen ? "figma-prototype__nav-drawer--open" : ""}`}
-        aria-label="Men\u00fa principal compacto"
+        aria-label="Menú principal compacto"
       >
         {navigationLinks.map((link) =>
           renderNavItem(

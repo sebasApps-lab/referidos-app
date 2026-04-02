@@ -634,7 +634,7 @@ export default function SupportRequestPage({ channel = "whatsapp" }) {
                 Catálogo de promociones y sistema de recompensas por canjearlas y referir.
               </p>
               <div className="mt-4 text-xs text-white/65">
-                <div>© 2026 ReferidosAPP</div>
+                <div>© 2026 GoPlip. Todos los derechos reservados.</div>
               </div>
             </div>
 

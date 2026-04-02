@@ -125,6 +125,13 @@
   width: 189px;
 }
 
+.mobile-landing__brand-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 42px;
+}
+
 .mobile-landing__brand-row {
   display: flex;
   align-items: center;
@@ -284,6 +291,59 @@
   border-top: 0;
 }
 
+.mobile-landing__drawer-brand {
+  margin-top: 56px;
+  padding: 0 16px;
+}
+
+.mobile-landing__drawer-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 32px;
+}
+
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-up,
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-left,
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-right {
+  opacity: 0;
+  transition:
+    opacity 460ms ease var(--mobile-reveal-delay, 0ms),
+    transform 460ms ease var(--mobile-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-up {
+  transform: translateY(20px);
+}
+
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-left {
+  transform: translateX(-24px);
+}
+
+[data-prelaunch-reveal="once"] .mobile-landing__reveal-right {
+  transform: translateX(24px);
+}
+
+[data-prelaunch-revealed="true"] .mobile-landing__reveal-up,
+[data-prelaunch-revealed="true"] .mobile-landing__reveal-left,
+[data-prelaunch-revealed="true"] .mobile-landing__reveal-right {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+.mobile-landing__reveal-delay-1 {
+  --mobile-reveal-delay: 90ms;
+}
+
+.mobile-landing__reveal-delay-2 {
+  --mobile-reveal-delay: 180ms;
+}
+
+.mobile-landing__reveal-delay-3 {
+  --mobile-reveal-delay: 270ms;
+}
+
 .mobile-landing__hero-section {
   position: relative;
   z-index: 1;
@@ -434,6 +494,8 @@
   width: 410px;
   height: 725px;
   margin: 0;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .mobile-landing__signup-card {
@@ -620,12 +682,15 @@
 .mobile-landing__steps {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 96px;
-  width: 354px;
+  width: min(100%, 354px);
 }
 
 .mobile-landing__step-card-shell {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   width: calc(354px * var(--mobile-step-card-scale, 1));
   height: calc(543px * var(--mobile-step-card-scale, 1));
 }
@@ -634,6 +699,8 @@
   position: relative;
   width: 354px;
   height: 543px;
+  transform: scale(var(--mobile-step-card-scale, 1));
+  transform-origin: top center;
 }
 
 .mobile-landing__step-number-badge {
@@ -1621,8 +1688,7 @@
   }
 
   .mobile-landing__step-card {
-    transform: scale(var(--mobile-step-card-scale, 1));
-    transform-origin: top left;
+    transform-origin: top center;
   }
 }
 
@@ -1924,6 +1990,13 @@
   font-size: 20px;
   line-height: 140%;
   color: #b26cf2;
+}
+
+.mobile-landing__footer-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 34px;
 }
 
 .mobile-landing__footer-about-copy {

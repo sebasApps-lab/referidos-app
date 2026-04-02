@@ -33,14 +33,14 @@ export default function DesktopWaitlistForm({
           onChange={(event) => onEmailChange?.(event.target.value)}
           placeholder="Tu correo electrónico"
           autoComplete="email"
-          aria-label="Correo electr\u00f3nico para lista de espera"
+          aria-label="Correo electrónico para lista de espera"
           aria-invalid={status === "error" ? "true" : "false"}
         />
 
         <div className="figma-prototype__waitlist-buttonWrap">
           <button type="submit" disabled={isLoading}>
             <span className="figma-prototype__waitlist-buttonLabel">
-              {isLoading ? "Enviando..." : "A\u00f1adir correo"}
+              {isLoading ? "Enviando..." : "Añadir correo"}
             </span>
           </button>
           <span className="figma-prototype__waitlist-buttonGlow" aria-hidden="true" />
