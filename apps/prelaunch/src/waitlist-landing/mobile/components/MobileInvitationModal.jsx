@@ -1,5 +1,6 @@
 import MobileLandingModalFrame from "./MobileLandingModalFrame";
 import { LANDING_MODAL_ASSETS } from "./MobileLandingModalAssets";
+import { prelaunchAsset } from "../../../assets/registry";
 
 export default function MobileInvitationModal({ isOpen, onClose, onPrimaryAction }) {
   return (
@@ -37,7 +38,7 @@ export default function MobileInvitationModal({ isOpen, onClose, onPrimaryAction
               <span className="mobile-landing__invitation-title-accent">muy pronto</span>
             </h2>
             <img
-              src="/assets/line-5.png"
+              src={prelaunchAsset("line-5.png")}
               alt=""
               aria-hidden="true"
               className="mobile-landing__invitation-divider"

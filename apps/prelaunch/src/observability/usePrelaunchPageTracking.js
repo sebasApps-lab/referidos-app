@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ingestPrelaunchEvent,
   ingestPrelaunchEventKeepalive,
+  schedulePrelaunchEvent,
 } from "../services/prelaunchSystem";
 
 function buildBaseProps(page, tree, route) {
@@ -47,7 +48,7 @@ export default function usePrelaunchPageTracking({
 
   const emitEvent = useCallback(
     (eventType, props = {}) =>
-      ingestPrelaunchEvent(eventType, {
+      schedulePrelaunchEvent(eventType, {
         path,
         props: {
           ...baseProps,
@@ -189,8 +190,23 @@ export default function usePrelaunchPageTracking({
     };
 
     const observerGroups = new Map();
+    const observedNodes = new Map();
 
-    sections.forEach((section) => {
+    function ensureObserverGroup(threshold) {
+      let observerGroup = observerGroups.get(threshold);
+      if (!observerGroup) {
+        observerGroup = {
+          observer: new IntersectionObserver(handleEntries, {
+            threshold,
+          }),
+          nodes: new Set(),
+        };
+        observerGroups.set(threshold, observerGroup);
+      }
+      return observerGroup;
+    }
+
+    function bindSection(section) {
       const node = section.selector
         ? document.querySelector(section.selector)
         : document.getElementById(section.id);
@@ -198,34 +214,49 @@ export default function usePrelaunchPageTracking({
         return;
       }
 
+      const threshold = typeof section.threshold === "number" ? section.threshold : 0.45;
+      const previousNode = observedNodes.get(section.id);
+      if (previousNode === node) {
+        return;
+      }
+
+      if (previousNode) {
+        const previousThreshold =
+          typeof section.threshold === "number" ? section.threshold : 0.45;
+        const previousGroup = observerGroups.get(previousThreshold);
+        previousGroup?.observer.unobserve(previousNode);
+        previousGroup?.nodes.delete(previousNode);
+      }
+
       node.setAttribute("data-prelaunch-section-id", section.id);
       node.setAttribute("data-prelaunch-section-order", String(section.order || 0));
-      node.setAttribute(
-        "data-prelaunch-section-surface",
-        String(section.surface || section.id),
-      );
+      node.setAttribute("data-prelaunch-section-surface", String(section.surface || section.id));
       if (section.reveal === true) {
         node.setAttribute("data-prelaunch-reveal", "once");
       }
 
-      const threshold =
-        typeof section.threshold === "number" ? section.threshold : 0.45;
-      let observerGroup = observerGroups.get(threshold);
-      if (!observerGroup) {
-        observerGroup = {
-          observer: new IntersectionObserver(handleEntries, {
-            threshold,
-          }),
-          nodes: [],
-        };
-        observerGroups.set(threshold, observerGroup);
-      }
-
+      const observerGroup = ensureObserverGroup(threshold);
       observerGroup.observer.observe(node);
-      observerGroup.nodes.push(node);
+      observerGroup.nodes.add(node);
+      observedNodes.set(section.id, node);
+    }
+
+    function bindSections() {
+      sections.forEach(bindSection);
+    }
+
+    bindSections();
+
+    const mutationObserver = new MutationObserver(() => {
+      bindSections();
+    });
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
     });
 
     return () => {
+      mutationObserver.disconnect();
       observerGroups.forEach(({ observer, nodes }) => {
         nodes.forEach((node) => observer.unobserve(node));
         observer.disconnect();

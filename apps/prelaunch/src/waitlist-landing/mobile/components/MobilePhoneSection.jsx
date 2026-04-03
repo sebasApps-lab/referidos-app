@@ -49,7 +49,10 @@ export default function MobilePhoneSection({
         <img
           className="mobile-landing__phone-image"
           src={rootAsset("Nothing Phone 2a.png")}
-          alt={"Aplicación Referidos App en un teléfono"}
+          alt={"AplicaciÃ³n Referidos App en un telÃ©fono"}
+          loading={isHeroLayout ? "eager" : "lazy"}
+          fetchPriority={isHeroLayout ? "high" : "low"}
+          decoding="async"
         />
       </div>
     </section>

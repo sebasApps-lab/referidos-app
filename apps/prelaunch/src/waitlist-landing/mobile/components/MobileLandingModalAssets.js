@@ -1,13 +1,15 @@
+import { prelaunchAsset, prelaunchModalAsset } from "../../../assets/registry";
+
 export const LANDING_MODAL_ASSETS = {
-  congratsIcon: "/assets/modals/clock-yellow-icon-congrats-modal.png",
-  platformIcon: "/assets/modals/clock-yellow-icon-platform.png",
-  teamIcon: "/assets/modals/clock-yellow-icon-team.png",
-  invitationClockIcon: "/assets/clock-yellow-icon.png",
-  checkBullet: "/assets/modals/lets-icons_check-fill.svg",
-  copyIcon: "/assets/modals/tabler_copy.svg",
-  whatsappIcon: "/assets/modals/logos_whatsapp-icon.svg",
-  facebookIcon: "/assets/modals/ic_baseline-facebook.svg",
-  instagramIcon: "/assets/modals/skill-icons_instagram.svg",
-  twitterXIcon: "/assets/modals/bi_twitter-x.svg",
-  notifyBellIcon: "/assets/mdi_bell.svg",
+  congratsIcon: prelaunchModalAsset("clock-yellow-icon-congrats-modal.png"),
+  platformIcon: prelaunchModalAsset("clock-yellow-icon-platform.png"),
+  teamIcon: prelaunchModalAsset("clock-yellow-icon-team.png"),
+  invitationClockIcon: prelaunchAsset("clock-yellow-icon.png"),
+  checkBullet: prelaunchModalAsset("lets-icons_check-fill.svg"),
+  copyIcon: prelaunchModalAsset("tabler_copy.svg"),
+  whatsappIcon: prelaunchModalAsset("logos_whatsapp-icon.svg"),
+  facebookIcon: prelaunchModalAsset("ic_baseline-facebook.svg"),
+  instagramIcon: prelaunchModalAsset("skill-icons_instagram.svg"),
+  twitterXIcon: prelaunchModalAsset("bi_twitter-x.svg"),
+  notifyBellIcon: prelaunchAsset("mdi_bell.svg"),
 };

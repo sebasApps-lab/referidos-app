@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
+import { prelaunchAsset, prelaunchLogoAsset } from "../assets/registry";
 import { getRuntimeConfig } from "../config/runtimeConfig";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
 import "./helpCenter.css";
@@ -34,9 +35,9 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: "/assets/logo/go-plip-dark-light-purple.svg",
-  business: "/assets/logo/go-plip-black-blue.svg",
-  feedback: "/assets/logo/go-plip-black-gray.svg",
+  consumer: prelaunchLogoAsset("go-plip-dark-light-purple.svg"),
+  business: prelaunchLogoAsset("go-plip-black-blue.svg"),
+  feedback: prelaunchLogoAsset("go-plip-black-gray.svg"),
 };
 
 function helpCenterAsset(relativePath) {
@@ -350,7 +351,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
 }
 
 function MailSupportIcon() {
-  return <img src="/assets/fluent-color-mail-16.svg" alt="" aria-hidden="true" />;
+  return <img src={prelaunchAsset("fluent-color-mail-16.svg")} alt="" aria-hidden="true" />;
 }
 
 function BriefcaseIcon() {

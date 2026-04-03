@@ -1,6 +1,7 @@
 .feedback-page {
   min-height: 100vh;
-  background: #ffffff url("/assets/support-form/page-bg.png") center top / cover no-repeat;
+  background: #ffffff url("../assets/support-form/page-bg.png") center top / cover
+    no-repeat;
   color: #1a1c2b;
 }
 

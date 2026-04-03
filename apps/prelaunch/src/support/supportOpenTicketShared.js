@@ -1,10 +1,12 @@
+import { prelaunchSupportFormAsset } from "../assets/registry";
+
 export const ECUADOR_PREFIX = "593";
 export const ECUADOR_FLAG_SVG_URL =
   "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
 export const SUPPORT_FORM_MAIL_ICON_URL =
-  "/assets/support-form/fluent_mail-24-filled.svg";
+  prelaunchSupportFormAsset("fluent_mail-24-filled.svg");
 export const SUPPORT_FORM_WHATSAPP_ICON_URL =
-  "/assets/support-form/logos_whatsapp-icon.svg";
+  prelaunchSupportFormAsset("logos_whatsapp-icon.svg");
 export const DEFAULT_SUPPORT_CATEGORIES = [
   { id: "cuenta", label: "Cuenta y acceso" },
   { id: "promociones", label: "Promociones y beneficios" },

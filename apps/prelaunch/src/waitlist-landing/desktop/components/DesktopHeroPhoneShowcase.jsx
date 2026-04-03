@@ -16,6 +16,8 @@ export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick
           src={asset("Nothing Phone 2a.png")}
           alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
           loading="eager"
+          fetchPriority="high"
+          decoding="async"
         />
       </div>
 

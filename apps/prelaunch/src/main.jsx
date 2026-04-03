@@ -1,54 +1,61 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { runtimeConfig } from "./config/runtimeConfig";
 import TreeProvider from "./UI-detect/TreeProvider";
-import HelpCenterPage from "./legal/HelpCenterPage";
-import HelpCenterCategoryPage from "./legal/HelpCenterCategoryPage";
-import HelpCenterArticlePage from "./legal/HelpCenterArticlePage";
-import HelpCenterBusinessPage from "./legal/HelpCenterBusinessPage";
-import HelpCenterBusinessCategoryPage from "./legal/HelpCenterBusinessCategoryPage";
-import HelpCenterBusinessArticlePage from "./legal/HelpCenterBusinessArticlePage";
-import SupportOpenTicketPage from "./support/SupportOpenTicketPage";
-import FeedbackRoute from "./support/FeedbackRoute";
-import { initPrelaunchObservability } from "./observability/prelaunchObservability";
 import WaitlistLandingPage from "./waitlist-landing/WaitlistLandingPage";
 
-initPrelaunchObservability();
+const HelpCenterPage = lazy(() => import("./legal/HelpCenterPage"));
+const HelpCenterCategoryPage = lazy(() => import("./legal/HelpCenterCategoryPage"));
+const HelpCenterArticlePage = lazy(() => import("./legal/HelpCenterArticlePage"));
+const HelpCenterBusinessPage = lazy(() => import("./legal/HelpCenterBusinessPage"));
+const HelpCenterBusinessCategoryPage = lazy(() =>
+  import("./legal/HelpCenterBusinessCategoryPage"),
+);
+const HelpCenterBusinessArticlePage = lazy(() =>
+  import("./legal/HelpCenterBusinessArticlePage"),
+);
+const SupportOpenTicketPage = lazy(() => import("./support/SupportOpenTicketPage"));
+const FeedbackRoute = lazy(() => import("./support/FeedbackRoute"));
+const BusinessLandingPage = lazy(() => import("./business-landing/BusinessLandingPage"));
+const ComponentsPlaygroundPage = lazy(() =>
+  import("./components-playground/ComponentsPlaygroundPage"),
+);
 
-async function loadDevOnlyPages() {
-  if (import.meta.env.PROD) {
-    return {
-      BusinessLandingPage: null,
-      ComponentsPlaygroundPage: null,
-    };
+function startPrelaunchObservability() {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  const [{ default: BusinessLandingPage }, { default: ComponentsPlaygroundPage }] =
-    await Promise.all([
-      import("./business-landing/BusinessLandingPage"),
-      import("./components-playground/ComponentsPlaygroundPage"),
-    ]);
-
-  return {
-    BusinessLandingPage,
-    ComponentsPlaygroundPage,
+  const boot = () => {
+    void import("./observability/prelaunchObservability")
+      .then(({ initPrelaunchObservability }) => {
+        initPrelaunchObservability();
+      })
+      .catch(() => {});
   };
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(boot, { timeout: 1500 });
+    return;
+  }
+
+  window.setTimeout(boot, 400);
 }
 
-async function bootstrap() {
-  const { BusinessLandingPage, ComponentsPlaygroundPage } = await loadDevOnlyPages();
+startPrelaunchObservability();
 
-  ReactDOM.createRoot(document.getElementById("root")).render(
-    <React.StrictMode>
-      <TreeProvider>
-        <BrowserRouter>
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <TreeProvider>
+      <BrowserRouter>
+        <Suspense fallback={<div className="waitlist-landing-route-fallback" aria-hidden="true" />}>
           <Routes>
             <Route path="/" element={<WaitlistLandingPage />} />
-            {!runtimeConfig.isProd && ComponentsPlaygroundPage ? (
+            {!runtimeConfig.isProd ? (
               <Route path="/components" element={<ComponentsPlaygroundPage />} />
             ) : null}
-            {!runtimeConfig.isProd && BusinessLandingPage ? (
+            {!runtimeConfig.isProd ? (
               <Route path="/negocios" element={<BusinessLandingPage />} />
             ) : null}
             <Route path="/ayuda/es" element={<HelpCenterPage />} />
@@ -80,10 +87,8 @@ async function bootstrap() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </BrowserRouter>
-      </TreeProvider>
-    </React.StrictMode>,
-  );
-}
-
-void bootstrap();
+        </Suspense>
+      </BrowserRouter>
+    </TreeProvider>
+  </React.StrictMode>,
+);

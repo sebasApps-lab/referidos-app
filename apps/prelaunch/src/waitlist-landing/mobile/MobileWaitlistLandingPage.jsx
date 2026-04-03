@@ -1,5 +1,6 @@
-import { useId, useMemo, useState } from "react";
+import { Suspense, lazy, useId, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DeferredRender from "../../performance/DeferredRender";
 import useLandingLeadCapture from "../../landing-logic/useLandingLeadCapture";
 import usePrelaunchPageTracking from "../../observability/usePrelaunchPageTracking";
 import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
@@ -9,16 +10,19 @@ import "../../home/mobileWaitlistLanding.css";
 import "./MobileLandingModals.css";
 import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
-import MobileBusinessInterestModal from "./components/MobileBusinessInterestModal";
-import MobileCongratsModal from "./components/MobileCongratsModal";
-import MobileInvitationModal from "./components/MobileInvitationModal";
-import MobilePlatformModal from "./components/MobilePlatformModal";
-import MobileWhoWeAreModal from "./components/MobileWhoWeAreModal";
-import MobileContactSection from "./sections/MobileContactSection";
-import MobileFooterSection from "./sections/MobileFooterSection";
 import MobileHeroSection from "./sections/MobileHeroSection";
 import MobileWaitlistSection from "./sections/MobileWaitlistSection";
-import MobileWaitlistStepsSection from "./sections/MobileWaitlistStepsSection";
+
+const MobileBusinessInterestModal = lazy(() =>
+  import("./components/MobileBusinessInterestModal"),
+);
+const MobileCongratsModal = lazy(() => import("./components/MobileCongratsModal"));
+const MobileInvitationModal = lazy(() => import("./components/MobileInvitationModal"));
+const MobilePlatformModal = lazy(() => import("./components/MobilePlatformModal"));
+const MobileWhoWeAreModal = lazy(() => import("./components/MobileWhoWeAreModal"));
+const MobileContactSection = lazy(() => import("./sections/MobileContactSection"));
+const MobileFooterSection = lazy(() => import("./sections/MobileFooterSection"));
+const MobileWaitlistStepsSection = lazy(() => import("./sections/MobileWaitlistStepsSection"));
 
 export default function MobileWaitlistLandingPage() {
   const [activeModal, setActiveModal] = useState(null);
@@ -323,10 +327,18 @@ export default function MobileWaitlistLandingPage() {
           onInvitationClick={openInvitationModal}
           onWaitlistClick={() => handleScrollToWaitlist("hero_cta")}
         />
-        <MobileWaitlistStepsSection
-          isTabletHeroLayout={isTabletHeroLayout}
-          phoneGlowFilterId={phoneGlowFilterId}
-        />
+        <DeferredRender
+          placeholderAs="section"
+          placeholderId="waitlist-steps"
+          placeholderClassName="mobile-landing__second-section mobile-landing__deferred-placeholder"
+          placeholderHeight={isTabletHeroLayout ? 1640 : 2260}
+          rootMargin="360px 0px"
+        >
+          <MobileWaitlistStepsSection
+            isTabletHeroLayout={isTabletHeroLayout}
+            phoneGlowFilterId={phoneGlowFilterId}
+          />
+        </DeferredRender>
       </section>
 
       <section className="mobile-landing__features-contact">
@@ -342,45 +354,62 @@ export default function MobileWaitlistLandingPage() {
             onHoneypotChange={waitlistCapture.setHoneypot}
             onSubmit={handleWaitlistSubmit}
           />
-          <MobileContactSection
-            onFeedbackClick={handleFeedbackOpen}
-            onHelpClick={() => handleHelpOpen("contact_block_help_link")}
-            onLinkClick={handleLandingLinkClick}
-          />
+          <DeferredRender
+            placeholderAs="section"
+            placeholderClassName="mobile-landing__contact-section mobile-landing__deferred-placeholder"
+            placeholderHeight={440}
+            rootMargin="260px 0px"
+          >
+            <MobileContactSection
+              onFeedbackClick={handleFeedbackOpen}
+              onHelpClick={() => handleHelpOpen("contact_block_help_link")}
+              onLinkClick={handleLandingLinkClick}
+            />
+          </DeferredRender>
         </div>
 
-        <MobileFooterSection
-          onBusinessClick={() => openBusinessModal("footer_panel")}
-          onLinkClick={handleLandingLinkClick}
-          onPlatformClick={openPlatformModal}
-          onWhoWeAreClick={openTeamModal}
-        />
+        <DeferredRender
+          placeholderAs="footer"
+          placeholderClassName="mobile-landing__footer mobile-landing__deferred-placeholder"
+          placeholderHeight={320}
+          rootMargin="220px 0px"
+        >
+          <MobileFooterSection
+            onBusinessClick={() => openBusinessModal("footer_panel")}
+            onLinkClick={handleLandingLinkClick}
+            onPlatformClick={openPlatformModal}
+            onWhoWeAreClick={openTeamModal}
+          />
+        </DeferredRender>
       </section>
 
-      <MobileBusinessInterestModal
-        isOpen={activeModal === "business-interest"}
-        onClose={(reason) => closeBusinessModal(reason)}
-      />
-      <MobileInvitationModal
-        isOpen={activeModal === "invitation"}
-        onClose={() => closeInvitationModal()}
-        onPrimaryAction={handleInvitationPrimaryAction}
-      />
-      <MobilePlatformModal
-        isOpen={activeModal === "platform"}
-        onClose={() => closePlatformModal()}
-      />
-      <MobileWhoWeAreModal
-        isOpen={activeModal === "team"}
-        onClose={() => closeTeamModal()}
-      />
-      <MobileCongratsModal
-        isOpen={activeModal === "congrats"}
-        onClose={handleCloseCongrats}
-        onCopyLink={handleCopyReferralLink}
-        onShareLink={handleShareReferralLink}
-        referralLink={congratsReferralLink}
-      />
+      <Suspense fallback={null}>
+        {activeModal === "business-interest" ? (
+          <MobileBusinessInterestModal isOpen onClose={(reason) => closeBusinessModal(reason)} />
+        ) : null}
+        {activeModal === "invitation" ? (
+          <MobileInvitationModal
+            isOpen
+            onClose={() => closeInvitationModal()}
+            onPrimaryAction={handleInvitationPrimaryAction}
+          />
+        ) : null}
+        {activeModal === "platform" ? (
+          <MobilePlatformModal isOpen onClose={() => closePlatformModal()} />
+        ) : null}
+        {activeModal === "team" ? (
+          <MobileWhoWeAreModal isOpen onClose={() => closeTeamModal()} />
+        ) : null}
+        {activeModal === "congrats" ? (
+          <MobileCongratsModal
+            isOpen
+            onClose={handleCloseCongrats}
+            onCopyLink={handleCopyReferralLink}
+            onShareLink={handleShareReferralLink}
+            referralLink={congratsReferralLink}
+          />
+        ) : null}
+      </Suspense>
     </main>
   );
 }

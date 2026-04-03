@@ -1,4 +1,5 @@
 import DesktopFooterColumns from "../components/DesktopFooterColumns";
+import { prelaunchLogoAsset } from "../../../assets/registry";
 
 export default function DesktopFooterSection({
   onPlatformClick,
@@ -11,7 +12,7 @@ export default function DesktopFooterSection({
         <div className="figma-prototype__footerBrand">
           <div className="figma-prototype__footerBrandTop">
             <img
-              src="/assets/logo/go-plip-white-lila.svg"
+              src={prelaunchLogoAsset("go-plip-white-lila.svg")}
               alt="Go Plip"
               className="figma-prototype__footerBrandLogo"
             />

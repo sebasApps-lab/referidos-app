@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,200&display=swap");
-
 .figma-prototype {
   width: 100%;
   min-width: 700px;
@@ -354,7 +352,8 @@
   border: 1px solid rgba(226, 218, 237, 0.92);
   border-radius: 28px;
   isolation: isolate;
-  background: url("/assets/modal-bg-landing.png") center center / cover no-repeat;
+  background: url("../../assets/root/modal-bg-landing.png") center center / cover
+    no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;
   animation: figma-prototype__business-modal-enter 240ms cubic-bezier(0.2, 0.9, 0.2, 1);
@@ -1311,6 +1310,8 @@
   margin: 0 auto;
   min-height: 760px;
   padding: 98px 24px 105px;
+  content-visibility: auto;
+  contain-intrinsic-size: 760px;
 }
 
 .figma-prototype__benefits-inner {
@@ -1614,6 +1615,8 @@
   overflow: hidden;
   background: #150444;
   box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
+  content-visibility: auto;
+  contain-intrinsic-size: 1160px;
 }
 
 .figma-prototype__bottom-band::before {
@@ -1624,7 +1627,8 @@
   z-index: 0;
   width: 1694px;
   height: 1130px;
-  background: url("/assets/bg/landing-bottom-footer-bg.png") left top / 1694px 1130px no-repeat;
+  background: url("../../assets/bg/landing-bottom-footer-bg.png") left top / 1694px
+    1130px no-repeat;
 }
 
 .figma-prototype__bottom-band::after {
@@ -1635,7 +1639,8 @@
   z-index: 1;
   width: 1440px;
   height: 832px;
-  background: url("/assets/glow-bottom-section.svg") left top / 1440px 832px no-repeat;
+  background: url("../../assets/root/glow-bottom-section.svg") left top / 1440px 832px
+    no-repeat;
   opacity: 0.36;
   pointer-events: none;
 }
@@ -1679,6 +1684,16 @@
   height: auto;
   max-height: none;
   overflow: visible;
+}
+
+.figma-prototype__deferred-placeholder {
+  width: 100%;
+  background: transparent;
+}
+
+.figma-prototype__deferred-placeholder--bottom {
+  background: #150444;
+  box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
 }
 
 .figma-prototype__waitlist-copy {

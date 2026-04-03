@@ -1,17 +1,18 @@
 import { useEffect, useMemo } from "react";
 import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
+import { prelaunchAsset } from "../../../assets/registry";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
 const MODAL_ASSETS = {
-  briefcase: "/assets/gridicons_briefcase.svg",
-  bellCircle: "/assets/bell-icon-circle.svg",
-  clock: "/assets/clock-yellow-icon.png",
-  check: "/assets/lets-icons_check-fill.svg",
-  divider: "/assets/line-5.png",
-  mail: "/assets/lucide_mail.svg",
-  lock: "/assets/majesticons_lock.svg",
-  notifyBell: "/assets/mdi_bell.svg",
+  briefcase: prelaunchAsset("gridicons_briefcase.svg"),
+  bellCircle: prelaunchAsset("bell-icon-circle.svg"),
+  clock: prelaunchAsset("clock-yellow-icon.png"),
+  check: prelaunchAsset("lets-icons_check-fill.svg"),
+  divider: prelaunchAsset("line-5.png"),
+  mail: prelaunchAsset("lucide_mail.svg"),
+  lock: prelaunchAsset("majesticons_lock.svg"),
+  notifyBell: prelaunchAsset("mdi_bell.svg"),
 };
 
 export default function DesktopBusinessInterestModal({ isOpen, onClose }) {

@@ -444,6 +444,12 @@ verify_jwt = false
 [functions.admin-prelaunch-metrics]
 verify_jwt = false
 
+[functions.prelaunch-ingest]
+verify_jwt = false
+
+[functions.waitlist-signup]
+verify_jwt = false
+
 [functions.obs-symbolicate]
 verify_jwt = false
 
@@ -526,5 +532,17 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.support-anon-categories]
+verify_jwt = false
+
+[functions.support-create-anon-thread]
+verify_jwt = false
+
+[functions.support-anon-cancel-thread]
+verify_jwt = false
+
+[functions.support-retake-thread]
+verify_jwt = false
+
+[functions.support-anon-thread-status]
 verify_jwt = false
 

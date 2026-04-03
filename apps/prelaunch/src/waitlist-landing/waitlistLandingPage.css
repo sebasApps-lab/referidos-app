@@ -33,3 +33,9 @@ html[data-prelaunch-root-entry="desktop"] #root {
   margin: 0;
   background: #ffffff;
 }
+
+.waitlist-landing-route-fallback {
+  width: 100%;
+  min-height: 100vh;
+  background: #ffffff;
+}

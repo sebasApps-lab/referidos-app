@@ -445,6 +445,8 @@
   gap: 84px;
   width: 100%;
   min-height: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 2200px;
 }
 
 .mobile-landing__phone-section {
@@ -845,6 +847,8 @@
   align-items: center;
   width: 100%;
   padding: 0 var(--mobile-horizontal-gutter);
+  content-visibility: auto;
+  contain-intrinsic-size: 1800px;
 }
 
 .mobile-landing__bottom-mask-wrap {
@@ -1141,7 +1145,7 @@
   left: -4px;
   width: 128px;
   height: 122px;
-  background: url("/assets/mobile/gray-scale-bg.png");
+  background: url("../assets/mobile/gray-scale-bg.png");
   background-size: cover;
   background-position: center;
 }
@@ -1265,6 +1269,8 @@
   gap: 36px;
   width: 100%;
   max-width: min(100%, var(--mobile-content-max-width));
+  content-visibility: auto;
+  contain-intrinsic-size: 440px;
 }
 
 .mobile-landing__contact-title {
@@ -1429,6 +1435,13 @@
   width: 100%;
   margin: 0;
   padding: 0 0 8px;
+  background: transparent;
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
+.mobile-landing__deferred-placeholder {
+  width: 100%;
   background: transparent;
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { prelaunchLogoAsset } from "../../../assets/registry";
 import { scrollToSection } from "../../scrollToSection";
 import MobileHeroBackground from "../components/MobileHeroBackground";
 import MobilePhoneSection from "../components/MobilePhoneSection";
@@ -52,7 +53,7 @@ export default function MobileHeroSection({
       <header className="mobile-landing__header">
         <div className="mobile-landing__brand mobile-landing__reveal-up">
           <img
-            src="/assets/logo/go-plip-white-lila.svg"
+            src={prelaunchLogoAsset("go-plip-white-lila.svg")}
             alt="Go Plip"
             className="mobile-landing__brand-logo"
           />
@@ -144,7 +145,7 @@ export default function MobileHeroSection({
 
         <div className="mobile-landing__drawer-brand">
           <img
-            src="/assets/logo/go-plip-dark-light-purple.svg"
+            src={prelaunchLogoAsset("go-plip-dark-light-purple.svg")}
             alt="Go Plip"
             className="mobile-landing__drawer-logo"
           />

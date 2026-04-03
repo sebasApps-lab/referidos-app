@@ -61,6 +61,29 @@ export async function ingestPrelaunchEvent(eventType, { path, props = {}, utm } 
   return client.analytics.ingest(payload);
 }
 
+export function schedulePrelaunchEvent(
+  eventType,
+  { path, props = {}, utm } = {},
+  { timeoutMs = 900 } = {},
+) {
+  if (typeof window === "undefined") {
+    return ingestPrelaunchEvent(eventType, { path, props, utm });
+  }
+
+  return new Promise((resolve) => {
+    const run = () => {
+      void ingestPrelaunchEvent(eventType, { path, props, utm }).then(resolve);
+    };
+
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: timeoutMs });
+      return;
+    }
+
+    window.setTimeout(run, 0);
+  });
+}
+
 export async function ingestPrelaunchEventKeepalive(
   eventType,
   { path, props = {}, utm } = {},
@@ -77,7 +100,6 @@ export async function ingestPrelaunchEventKeepalive(
       headers: {
         "Content-Type": "application/json",
         apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       },
       body: JSON.stringify(payload),
     });
