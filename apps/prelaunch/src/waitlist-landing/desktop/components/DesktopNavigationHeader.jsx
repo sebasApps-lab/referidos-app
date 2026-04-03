@@ -117,6 +117,10 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
             alt="Go Plip"
             className="figma-prototype__nav-brand-logo"
           />
+          <span className="figma-prototype__nav-brand-tag">
+            <span>Acceso</span>
+            <span>Anticipado</span>
+          </span>
         </div>
       </div>
 

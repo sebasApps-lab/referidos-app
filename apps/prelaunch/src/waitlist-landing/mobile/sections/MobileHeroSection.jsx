@@ -56,6 +56,7 @@ export default function MobileHeroSection({
             alt="Go Plip"
             className="mobile-landing__brand-logo"
           />
+          <span className="mobile-landing__brand-subtitle">Acceso Anticipado</span>
         </div>
 
         <button
