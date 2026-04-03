@@ -3,7 +3,7 @@ import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
 import DesktopHeroShadowGroup from "../components/DesktopHeroShadowGroup";
 
-export default function DesktopHeroSection({ onWaitlistClick }) {
+export default function DesktopHeroSection({ onWaitlistClick, onCardWaitlistClick }) {
   return (
     <section className="figma-prototype__hero">
       <DesktopHeroShadowGroup />
@@ -49,7 +49,10 @@ export default function DesktopHeroSection({ onWaitlistClick }) {
           </div>
         </div>
 
-        <DesktopHeroPhoneShowcase className="figma-prototype__entry-edge-right figma-prototype__entry-delay-2" />
+        <DesktopHeroPhoneShowcase
+          className="figma-prototype__entry-edge-right figma-prototype__entry-delay-2"
+          onInviteClick={onCardWaitlistClick}
+        />
       </div>
     </section>
   );

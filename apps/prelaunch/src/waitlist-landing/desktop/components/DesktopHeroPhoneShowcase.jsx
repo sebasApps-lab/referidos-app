@@ -1,7 +1,7 @@
 import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopInfoCard from "./DesktopInfoCard";
 
-export default function DesktopHeroPhoneShowcase({ className = "" }) {
+export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick }) {
   return (
     <div className={`figma-prototype__hero-visual ${className}`.trim()}>
       <div className="figma-prototype__hero-phone">
@@ -26,7 +26,7 @@ export default function DesktopHeroPhoneShowcase({ className = "" }) {
         aria-hidden="true"
       />
 
-      <DesktopInfoCard />
+      <DesktopInfoCard onInviteClick={onInviteClick} />
     </div>
   );
 }

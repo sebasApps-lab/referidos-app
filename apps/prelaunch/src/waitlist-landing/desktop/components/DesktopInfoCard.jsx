@@ -1,7 +1,7 @@
 import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopSignupProviderButton from "./DesktopSignupProviderButton";
 
-export default function DesktopInfoCard() {
+export default function DesktopInfoCard({ onInviteClick }) {
   return (
     <div className="figma-prototype__info-card-wrap">
       <aside className="figma-prototype__info-card figma-prototype__info-card--notify">
@@ -48,6 +48,7 @@ export default function DesktopInfoCard() {
           <DesktopSignupProviderButton
             className="figma-prototype__info-button figma-prototype__info-button--notify"
             Icon={NotifyBellIcon}
+            onClick={onInviteClick}
             label={"Recibir invitación"}
           />
         </div>
