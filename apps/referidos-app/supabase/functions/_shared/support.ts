@@ -71,9 +71,50 @@ export async function getUsuarioByAuthId(authId: string) {
     .limit(1)
     .maybeSingle();
   if (error) {
-    return { usuario: null, error: error.message };
+    return { usuario: null, error: error.message, errorCode: "profile_lookup_failed" };
   }
-  return { usuario: data, error: null };
+  if (!data) {
+    return {
+      usuario: null,
+      error: "Perfil de usuario no encontrado.",
+      errorCode: "profile_not_found",
+    };
+  }
+  return { usuario: data, error: null, errorCode: null };
+}
+
+export function resolveUsuarioProfileFailure({
+  usuario,
+  error,
+  errorCode,
+}: {
+  usuario: unknown;
+  error: string | null;
+  errorCode?: string | null;
+}) {
+  if (errorCode === "profile_lookup_failed") {
+    return {
+      status: 500,
+      body: {
+        ok: false,
+        error: "profile_lookup_failed",
+        detail: error || "No se pudo consultar el perfil del usuario autenticado.",
+      },
+    };
+  }
+
+  if (!usuario) {
+    return {
+      status: 404,
+      body: {
+        ok: false,
+        error: "profile_not_found",
+        detail: error || "Perfil de usuario no encontrado.",
+      },
+    };
+  }
+
+  return null;
 }
 
 export async function loadSupportRuntimeFlags(): Promise<SupportRuntimeFlags> {

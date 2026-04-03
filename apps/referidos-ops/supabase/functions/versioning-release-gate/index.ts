@@ -4,6 +4,7 @@ import {
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveUsuarioProfileFailure,
   supabaseAdmin,
 } from "../_shared/support.ts";
 import { getGithubAuthConfig } from "../_shared/github-auth.ts";
@@ -597,9 +598,14 @@ serve(async (req) => {
     if (authErr || !user) {
       return jsonResponse({ ok: false, error: "unauthorized" }, 401, cors);
     }
-    const { usuario, error: profileErr } = await getUsuarioByAuthId(user.id);
-    if (profileErr || !usuario) {
-      return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
+    const { usuario, error: profileErr, errorCode: profileErrCode } = await getUsuarioByAuthId(user.id);
+    const profileFailure = resolveUsuarioProfileFailure({
+      usuario,
+      error: profileErr,
+      errorCode: profileErrCode,
+    });
+    if (profileFailure) {
+      return jsonResponse(profileFailure.body, profileFailure.status, cors);
     }
     if (usuario.role !== "admin") {
       return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);
