@@ -283,7 +283,13 @@ export default function DesktopWaitlistLandingPage() {
             onBusinessClick={() => openBusinessModal("header_nav")}
             onLinkClick={handleDesktopHeaderLink}
           />
-          <DesktopHeroSection onWaitlistClick={() => handleScrollToWaitlist("hero_cta")} />
+          <DesktopHeroSection
+            onWaitlistClick={() => handleScrollToWaitlist("hero_cta")}
+            onCardWaitlistClick={() => handleScrollToWaitlist("hero_preview_card")}
+          />
+          <p className="figma-prototype__hero-disclaimer">
+            Negocios y promociones mostrados solo con fines ilustrativos.
+          </p>
         </section>
         <DesktopWaitlistStepsSection />
         <section className="figma-prototype__bottom-band" id="waitlist-bottom">
