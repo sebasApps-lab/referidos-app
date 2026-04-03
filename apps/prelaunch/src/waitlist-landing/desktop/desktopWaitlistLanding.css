@@ -793,12 +793,32 @@
   overflow: hidden;
 }
 
-.figma-prototype__hero-bg img {
+.figma-prototype__hero-bg-mask {
+  position: absolute;
+  inset: 0;
+}
+
+.figma-prototype__hero-bg-picture,
+.figma-prototype__hero-bg-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.figma-prototype__hero-bg-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center top;
   filter: drop-shadow(0 2px 4px rgba(36, 5, 92, 0.58));
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: left top;
+  mask-position: left top;
 }
 
 .figma-prototype__hero-content {

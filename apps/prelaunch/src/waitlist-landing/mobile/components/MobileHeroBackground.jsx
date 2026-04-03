@@ -1,64 +1,43 @@
-import {
-  HERO_MASK_PATH,
-  HERO_MASK_VIEWBOX_HEIGHT,
-  HERO_MASK_VIEWBOX_MIN_X,
-  HERO_MASK_VIEWBOX_WIDTH,
-  sharedBgAsset,
-} from "../mobileWaitlistLandingAssets";
+import { prelaunchBgSetAsset } from "../../../assets/registry";
+import heroMobileMask from "../../../assets/bg-sets/landing-hero-mobile-mask.svg?no-inline";
 
-export default function MobileHeroBackground({ heroClipId, heroFilterId }) {
+const heroMobile960Webp = prelaunchBgSetAsset("bg-mobile-960.webp");
+const heroMobile1280Webp = prelaunchBgSetAsset("bg-mobile-1280.webp");
+const heroMobile1605Webp = prelaunchBgSetAsset("bg-mobile-1605.webp");
+const heroMobile960Avif = prelaunchBgSetAsset("bg-mobile-960.avif");
+const heroMobile1280Avif = prelaunchBgSetAsset("bg-mobile-1280.avif");
+const heroMobile1605Avif = prelaunchBgSetAsset("bg-mobile-1605.avif");
+
+export default function MobileHeroBackground() {
   return (
     <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
-      <svg
-        className="mobile-landing__hero-bg-svg"
-        viewBox={`${HERO_MASK_VIEWBOX_MIN_X} 0 ${HERO_MASK_VIEWBOX_WIDTH} ${HERO_MASK_VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="xMidYMin meet"
-        xmlns="http://www.w3.org/2000/svg"
-        overflow="visible"
-      >
-        <defs>
-          <clipPath id={heroClipId} clipPathUnits="userSpaceOnUse">
-            <path d={HERO_MASK_PATH} />
-          </clipPath>
-          <filter
-            id={heroFilterId}
-            x="-533.441"
-            y="-2.32614"
-            width="1613.88"
-            height="907.347"
-            filterUnits="userSpaceOnUse"
-            colorInterpolationFilters="sRGB"
-          >
-            <feFlood floodOpacity="0" result="BackgroundImageFix" />
-            <feColorMatrix
-              in="SourceAlpha"
-              type="matrix"
-              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-              result="hardAlpha"
+      <div className="mobile-landing__hero-bg-mask">
+        <picture className="mobile-landing__hero-bg-picture">
+          {heroMobile960Avif && heroMobile1280Avif && heroMobile1605Avif ? (
+            <source
+              type="image/avif"
+              srcSet={`${heroMobile960Avif} 960w, ${heroMobile1280Avif} 1280w, ${heroMobile1605Avif} 1605w`}
+              sizes="100vw"
             />
-            <feOffset dy="2.11467" />
-            <feGaussianBlur stdDeviation="2.2204" />
-            <feComposite in2="hardAlpha" operator="out" />
-            <feColorMatrix
-              type="matrix"
-              values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.51 0"
-            />
-            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
-          </filter>
-        </defs>
-        <path d={HERO_MASK_PATH} fill="#2f0663" filter={`url(#${heroFilterId})`} />
-        <image
-          className="mobile-landing__hero-bg-image"
-          href={sharedBgAsset("landing-hero-2-bg.png")}
-          x={HERO_MASK_VIEWBOX_MIN_X}
-          y="0"
-          width={HERO_MASK_VIEWBOX_WIDTH}
-          height="906"
-          preserveAspectRatio="xMidYMin slice"
-          clipPath={`url(#${heroClipId})`}
-        />
-      </svg>
+          ) : null}
+          <source
+            type="image/webp"
+            srcSet={`${heroMobile960Webp} 960w, ${heroMobile1280Webp} 1280w, ${heroMobile1605Webp} 1605w`}
+            sizes="100vw"
+          />
+          <img
+            className="mobile-landing__hero-bg-image"
+            src={heroMobile1280Webp}
+            alt=""
+            fetchPriority="high"
+            decoding="async"
+            style={{
+              WebkitMaskImage: `url(${heroMobileMask})`,
+              maskImage: `url(${heroMobileMask})`,
+            }}
+          />
+        </picture>
+      </div>
     </div>
   );
 }

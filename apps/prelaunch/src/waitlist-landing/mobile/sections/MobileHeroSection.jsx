@@ -6,8 +6,6 @@ import MobileHeroBackground from "../components/MobileHeroBackground";
 import MobilePhoneSection from "../components/MobilePhoneSection";
 
 export default function MobileHeroSection({
-  heroClipId,
-  heroFilterId,
   isTabletHeroLayout,
   phoneGlowFilterId,
   onBusinessClick,
@@ -48,7 +46,7 @@ export default function MobileHeroSection({
 
   return (
     <div className="mobile-landing__top-section">
-      <MobileHeroBackground heroClipId={heroClipId} heroFilterId={heroFilterId} />
+      <MobileHeroBackground />
 
       <header className="mobile-landing__header">
         <div className="mobile-landing__brand mobile-landing__reveal-up">

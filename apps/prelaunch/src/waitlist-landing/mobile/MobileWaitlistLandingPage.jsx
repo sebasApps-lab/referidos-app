@@ -29,8 +29,6 @@ export default function MobileWaitlistLandingPage() {
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
   const [congratsReferralLink, setCongratsReferralLink] = useState("");
   const navigate = useNavigate();
-  const heroClipId = useId().replace(/:/g, "");
-  const heroFilterId = useId().replace(/:/g, "");
   const phoneGlowFilterId = useId().replace(/:/g, "");
   const bottomClipId = useId().replace(/:/g, "");
   const { phoneScale, isTabletHeroLayout, stepCardScale } = useMobileWaitlistLandingLayout();
@@ -317,8 +315,6 @@ export default function MobileWaitlistLandingPage() {
     >
       <section className="mobile-landing__top-page">
         <MobileHeroSection
-          heroClipId={heroClipId}
-          heroFilterId={heroFilterId}
           isTabletHeroLayout={isTabletHeroLayout}
           phoneGlowFilterId={phoneGlowFilterId}
           onBusinessClick={() => openBusinessModal("drawer")}

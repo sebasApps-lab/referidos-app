@@ -6,6 +6,23 @@ const bgAssets = import.meta.glob("./bg/*", {
   eager: true,
   import: "default",
 });
+const bgSetWebpAssets = import.meta.glob("./bg-sets/*.webp", {
+  eager: true,
+  import: "default",
+});
+const bgSetAvifAssets = import.meta.glob("./bg-sets/*.avif", {
+  eager: true,
+  import: "default",
+});
+const bgSetSvgAssets = import.meta.glob("./bg-sets/*.svg", {
+  eager: true,
+  import: "default",
+});
+const bgSetAssets = {
+  ...bgSetWebpAssets,
+  ...bgSetAvifAssets,
+  ...bgSetSvgAssets,
+};
 const iconAssets = import.meta.glob("./icons/*", {
   eager: true,
   import: "default",
@@ -42,6 +59,10 @@ function resolveAsset(map, directory, name) {
 
 export const prelaunchAsset = (name) => resolveAsset(rootAssets, "root", name);
 export const prelaunchBgAsset = (name) => resolveAsset(bgAssets, "bg", name);
+export const prelaunchBgSetAsset = (name) => {
+  const key = `./bg-sets/${name}`;
+  return bgSetAssets[key] || null;
+};
 export const prelaunchIconAsset = (name) => resolveAsset(iconAssets, "icons", name);
 export const prelaunchLogoAsset = (name) => resolveAsset(logoAssets, "logos", name);
 export const prelaunchMobileAsset = (name) => resolveAsset(mobileAssets, "mobile", name);
