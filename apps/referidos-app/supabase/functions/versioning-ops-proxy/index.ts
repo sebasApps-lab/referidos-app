@@ -5,6 +5,7 @@ import {
   getUsuarioByAuthId,
   jsonResponse,
   requireAuthUser,
+  resolveUsuarioProfileFailure,
 } from "../_shared/support.ts";
 
 type JsonObject = Record<string, unknown>;
@@ -782,9 +783,17 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       });
 
       if (!result.ok) {
-        throw new Error(
-          asString(result.payload?.detail, asString(result.payload?.error, "No se pudo crear release de development."))
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, "No se pudo crear release de development.")
         );
+        const createError = new Error(detail);
+        (createError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "create_dev_release_failed"
+        );
+        (createError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw createError;
       }
 
       return result.payload;
@@ -808,12 +817,17 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       });
 
       if (!result.ok) {
-        throw new Error(
-          asString(
-            result.payload?.detail,
-            asString(result.payload?.error, "No se pudo ejecutar backfill de build.")
-          )
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, "No se pudo ejecutar backfill de build.")
         );
+        const backfillError = new Error(detail);
+        (backfillError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "backfill_release_artifact_failed"
+        );
+        (backfillError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw backfillError;
       }
 
       return result.payload;
@@ -830,12 +844,17 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       });
 
       if (!result.ok) {
-        throw new Error(
-          asString(
-            result.payload?.detail,
-            asString(result.payload?.error, "No se pudo consultar estado del release de development.")
-          )
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, "No se pudo consultar estado del release de development.")
         );
+        const statusError = new Error(detail);
+        (statusError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "dev_release_status_failed"
+        );
+        (statusError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw statusError;
       }
 
       return result.payload;
@@ -1234,9 +1253,14 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "unauthorized" }, 401, cors);
   }
 
-  const { usuario, error: profileErr } = await getUsuarioByAuthId(user.id);
-  if (profileErr || !usuario) {
-    return jsonResponse({ ok: false, error: "profile_not_found" }, 404, cors);
+  const { usuario, error: profileErr, errorCode: profileErrCode } = await getUsuarioByAuthId(user.id);
+  const profileFailure = resolveUsuarioProfileFailure({
+    usuario,
+    error: profileErr,
+    errorCode: profileErrCode,
+  });
+  if (profileFailure) {
+    return jsonResponse(profileFailure.body, profileFailure.status, cors);
   }
   if (usuario.role !== "admin") {
     return jsonResponse({ ok: false, error: "forbidden" }, 403, cors);

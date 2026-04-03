@@ -999,6 +999,7 @@ export default function VersioningOverviewPanel() {
 
     const tick = async () => {
       if (cancelled) return;
+      const isBackfillMode = devReleaseSyncing.mode === "backfill_artifact";
       try {
         const workflowStatus = await fetchDevReleaseStatus({
           productKey: devReleaseSyncing.productKey,
@@ -1011,7 +1012,6 @@ export default function VersioningOverviewPanel() {
         const run = workflowStatus?.run || null;
         const jobs = Array.isArray(workflowStatus?.jobs) ? workflowStatus.jobs : [];
         const runState = workflowStateToProgress(run?.status, run?.conclusion);
-        const isBackfillMode = devReleaseSyncing.mode === "backfill_artifact";
 
         const dynamicSteps = [
           {
@@ -1149,8 +1149,75 @@ export default function VersioningOverviewPanel() {
           setDevReleaseSyncing(null);
           return;
         }
-      } catch {
-        // Keep polling on transient errors.
+      } catch (err) {
+        if (cancelled) return;
+
+        const errorCode = String(
+          err?.code || err?.payload?.error || ""
+        )
+          .trim()
+          .toLowerCase();
+        const errorDetail =
+          err?.message ||
+          err?.payload?.detail ||
+          "No se pudo consultar estado del release de development.";
+        const isFatalPollingError = [
+          "profile_not_found",
+          "profile_lookup_failed",
+          "unauthorized",
+          "forbidden",
+          "missing_token",
+        ].includes(errorCode);
+
+        setDevReleaseMessage(errorDetail);
+        setDevReleaseProgress((current) =>
+          createProgressState({
+            status: isFatalPollingError ? "error" : "running",
+            headline: isFatalPollingError
+              ? isBackfillMode
+                ? "Backfill build con error"
+                : "Release DEVELOPMENT con error"
+              : isBackfillMode
+                ? "Backfilling build"
+                : "Releasing",
+            detail: errorDetail,
+            steps:
+              Array.isArray(current?.steps) && current.steps.length
+                ? current.steps.map((step) => {
+                    if (step.key === "refresh" || step.key === "workflow") {
+                      return {
+                        ...step,
+                        status: isFatalPollingError ? "error" : "running",
+                      };
+                    }
+                    return step;
+                  })
+                : [
+                    {
+                      key: "dispatch",
+                      label: isBackfillMode
+                        ? "Encolar workflow de backfill"
+                        : "Encolar workflow de release",
+                      status: "success",
+                    },
+                    {
+                      key: "workflow",
+                      label: "Workflow versioning-release-dev.yml",
+                      status: isFatalPollingError ? "error" : "running",
+                    },
+                    {
+                      key: "refresh",
+                      label: "Actualizar estado del panel",
+                      status: isFatalPollingError ? "error" : "running",
+                    },
+                  ],
+          })
+        );
+
+        if (isFatalPollingError) {
+          setDevReleaseSyncing(null);
+          return;
+        }
       }
 
       if (Date.now() - Number(devReleaseSyncing.startedAt || 0) >= MAX_WAIT_MS) {
