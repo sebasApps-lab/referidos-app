@@ -1,18 +1,25 @@
 import { useEffect, useMemo } from "react";
 import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
-import { prelaunchAsset, prelaunchModalAsset } from "../../../assets/registry";
+import briefcaseIcon from "../../../assets/modals/gridicons_briefcase.svg";
+import bellCircleIcon from "../../../assets/modals/bell-icon-circle.svg";
+import clockIcon from "../../../assets/modals/yellow-icon-info-modal.svg";
+import checkIcon from "../../../assets/modals/lets-icons_check-fill.svg";
+import dividerImage from "../../../assets/modals/modal-line.png";
+import mailIcon from "../../../assets/modals/lucide_mail.svg";
+import lockIcon from "../../../assets/modals/majesticons_lock.svg";
+import notifyBellIcon from "../../../assets/modals/mdi_bell.svg";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
 const MODAL_ASSETS = {
-  briefcase: prelaunchAsset("gridicons_briefcase.svg"),
-  bellCircle: prelaunchAsset("bell-icon-circle.svg"),
-  clock: prelaunchModalAsset("yellow-icon-info-card.svg"),
-  check: prelaunchAsset("lets-icons_check-fill.svg"),
-  divider: prelaunchAsset("line-5.png"),
-  mail: prelaunchAsset("lucide_mail.svg"),
-  lock: prelaunchAsset("majesticons_lock.svg"),
-  notifyBell: prelaunchAsset("mdi_bell.svg"),
+  briefcase: briefcaseIcon,
+  bellCircle: bellCircleIcon,
+  clock: clockIcon,
+  check: checkIcon,
+  divider: dividerImage,
+  mail: mailIcon,
+  lock: lockIcon,
+  notifyBell: notifyBellIcon,
 };
 
 export default function MobileBusinessInterestModal({ isOpen, onClose }) {

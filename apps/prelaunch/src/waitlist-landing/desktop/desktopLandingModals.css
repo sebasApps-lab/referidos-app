@@ -46,7 +46,7 @@
   transform-origin: top left;
   border: 1px solid rgba(226, 218, 237, 0.92);
   border-radius: 28px;
-  background: url("../../assets/root/modal-bg-landing-optimized.webp") center center / cover
+  background: url("../../assets/modals/modal-bg-landing-optimized.webp") center center / cover
     no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;
@@ -131,6 +131,7 @@
   height: 465px;
   margin-top: -175.5px;
   margin-bottom: -145px;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__landing-modal-main {

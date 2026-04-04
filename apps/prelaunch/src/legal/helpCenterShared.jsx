@@ -1,8 +1,11 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
-import { prelaunchAsset, prelaunchLogoAsset } from "../assets/registry";
 import { getRuntimeConfig } from "../config/runtimeConfig";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
+import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
+import businessLogo from "../assets/logo/go-plip-black-blue.svg";
+import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
+import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
@@ -35,9 +38,9 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: prelaunchLogoAsset("go-plip-dark-light-purple.svg"),
-  business: prelaunchLogoAsset("go-plip-black-blue.svg"),
-  feedback: prelaunchLogoAsset("go-plip-black-gray.svg"),
+  consumer: consumerLogo,
+  business: businessLogo,
+  feedback: feedbackLogo,
 };
 
 function helpCenterAsset(relativePath) {
@@ -351,7 +354,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
 }
 
 function MailSupportIcon() {
-  return <img src={prelaunchAsset("fluent-color-mail-16.svg")} alt="" aria-hidden="true" />;
+  return <img src={helpMailIcon} alt="" aria-hidden="true" />;
 }
 
 function BriefcaseIcon() {

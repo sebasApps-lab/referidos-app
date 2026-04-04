@@ -1,4 +1,5 @@
-import { asset, iconAsset } from "../desktopWaitlistLandingAssets";
+import qrCodeIcon from "../../../assets/shared/qr-code.svg";
+import supportMailIcon from "../../../assets/support/fluent-color-mail-16.svg";
 
 export default function DesktopBusinessPromoSection() {
   return (
@@ -14,28 +15,28 @@ export default function DesktopBusinessPromoSection() {
             <ul className="business-landing__promo-bullet-list">
               <li>
                 <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                  âœ“
+                  Ã¢Å“â€œ
                 </span>
                 <span>Recibe pagos y nuevos clientes al instante.</span>
               </li>
               <li>
                 <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                  âœ“
+                  Ã¢Å“â€œ
                 </span>
-                <span>Analiza mÃ©tricas detalladas y optimiza tus campaÃ±as.</span>
+                <span>Analiza mÃƒÂ©tricas detalladas y optimiza tus campaÃƒÂ±as.</span>
               </li>
             </ul>
           </div>
 
           <div className="business-landing__promo-signup" id="waitlist-steps">
-            <div className="business-landing__promo-email-field" aria-label="Tu correo electrÃ³nico">
-              <img src={asset("fluent-color-mail-16.svg")} alt="" aria-hidden="true" />
-              <span>Tu correo electrÃ³nico</span>
+            <div className="business-landing__promo-email-field" aria-label="Tu correo electrÃƒÂ³nico">
+              <img src={supportMailIcon} alt="" aria-hidden="true" />
+              <span>Tu correo electrÃƒÂ³nico</span>
             </div>
 
             <div className="business-landing__promo-signup-row">
               <p>
-                Prueba gratis: Sin tarjeta de crÃ©dito.
+                Prueba gratis: Sin tarjeta de crÃƒÂ©dito.
                 <br />
                 Sin compromiso.
               </p>
@@ -46,21 +47,21 @@ export default function DesktopBusinessPromoSection() {
           <ul className="business-landing__promo-summary-list">
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                âœ“
+                Ã¢Å“â€œ
               </span>
               <span>Crea promociones exclusivas y personalizables.</span>
             </li>
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                âœ“
+                Ã¢Å“â€œ
               </span>
               <span>Recibe pagos y nuevos clientes al instante.</span>
             </li>
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                âœ“
+                Ã¢Å“â€œ
               </span>
-              <span>Analiza mÃ©tricas detalladas y optimiza tus campaÃ±as.</span>
+              <span>Analiza mÃƒÂ©tricas detalladas y optimiza tus campaÃƒÂ±as.</span>
             </li>
           </ul>
         </div>
@@ -69,7 +70,7 @@ export default function DesktopBusinessPromoSection() {
           <h3>Escanea y descarga la app</h3>
 
           <div className="business-landing__promo-qr-frame">
-            <img src={iconAsset("qr-code.svg")} alt="CÃ³digo QR para descargar la app" />
+            <img src={qrCodeIcon} alt="CÃƒÂ³digo QR para descargar la app" />
           </div>
 
           <button type="button" className="business-landing__promo-download-button">

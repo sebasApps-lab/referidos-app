@@ -1,4 +1,10 @@
-import { asset, sharedAsset } from "./mobileWaitlistLandingAssets";
+import iconNumber1Blue from "../../assets/landing/steps/icon-number-1-blue.png";
+import iconNumber2Purple from "../../assets/landing/steps/icon-number-2-purple.png";
+import iconNumber3BlueCyan from "../../assets/landing/steps/icon-number-3-blue-cyan.png";
+import iconMailBlue from "../../assets/landing/steps/icon-mail-blue.png";
+import iconGift from "../../assets/landing/steps/icon-gift.png";
+import iconCoins from "../../assets/landing/steps/icon-coins.png";
+import midCardIconShadow1 from "../../assets/landing/steps/mid-card-icon-shadow-1.svg";
 
 export const steps = [
   {
@@ -20,9 +26,9 @@ export const steps = [
         para descargar la app.
       </>
     ),
-    numberSrc: asset("icon-number-1-blue.png"),
-    iconShadowSrc: asset("mail-icon-shadow.png"),
-    iconSrc: asset("mail-icon.png"),
+    numberSrc: iconNumber1Blue,
+    iconShadowSrc: midCardIconShadow1,
+    iconSrc: iconMailBlue,
     iconShadowClassName:
       "mobile-landing__step-icon-shadow mobile-landing__step-icon-shadow--mail",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--mail",
@@ -47,8 +53,8 @@ export const steps = [
         participar en el acceso anticipado.
       </>
     ),
-    numberSrc: asset("icon-number-2-purple.png"),
-    iconSrc: sharedAsset("icon-gift.png"),
+    numberSrc: iconNumber2Purple,
+    iconSrc: iconGift,
     iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--gift",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--gift",
@@ -69,9 +75,9 @@ export const steps = [
         {"y obtén más beneficios."}
       </>
     ),
-    numberSrc: asset("icon-number-3-blue-cyan.png"),
+    numberSrc: iconNumber3BlueCyan,
     iconShadowClassName: "mobile-landing__step-gift-shadow",
-    iconSrc: sharedAsset("icon-coins.png"),
+    iconSrc: iconCoins,
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--coins",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--coins",
   },

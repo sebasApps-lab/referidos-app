@@ -1,11 +1,9 @@
-import { prelaunchBgSetAsset } from "../../../assets/registry";
-
-const bottomDesktop1694Webp = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-1694.webp");
-const bottomDesktop2541Webp = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-2541.webp");
-const bottomDesktop3388Webp = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-3388.webp");
-const bottomDesktop1694Avif = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-1694.avif");
-const bottomDesktop2541Avif = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-2541.avif");
-const bottomDesktop3388Avif = prelaunchBgSetAsset("bottom/bottom-desktop-optimized-3388.avif");
+import bottomDesktop1694Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-1694.webp";
+import bottomDesktop2541Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-2541.webp";
+import bottomDesktop3388Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-3388.webp";
+import bottomDesktop1694Avif from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-1694.avif";
+import bottomDesktop2541Avif from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-2541.avif";
+import bottomDesktop3388Avif from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-3388.avif";
 
 export default function DesktopBottomBackground() {
   return (

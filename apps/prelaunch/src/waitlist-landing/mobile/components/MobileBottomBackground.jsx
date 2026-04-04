@@ -1,15 +1,12 @@
-import { prelaunchBgSetAsset, prelaunchMobileAsset } from "../../../assets/registry";
-import bottomMobileMaskRaw from "../../../assets/bg-sets/bottom/bottom-mobile-mask.svg?raw";
+import bottomMobileMaskRaw from "../../../assets/landing/bottom/bg/bottom-mobile-mask.svg?raw";
 import { svgMaskUrl } from "../../../assets/svgMaskUrl";
-
-const bottomMobile1875Webp = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-1875x1250.webp");
-const bottomMobile2813Webp = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-2813x1875.webp");
-const bottomMobile3750Webp = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-3750x2500.webp");
-const bottomMobile1875Avif = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-1875x1250.avif");
-const bottomMobile2813Avif = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-2813x1875.avif");
-const bottomMobile3750Avif = prelaunchBgSetAsset("bottom/bottom-mobile-optimized-3750x2500.avif");
+import bottomMobile1875Webp from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-1875x1250.webp";
+import bottomMobile2813Webp from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-2813x1875.webp";
+import bottomMobile3750Webp from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-3750x2500.webp";
+import bottomMobile1875Avif from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-1875x1250.avif";
+import bottomMobile2813Avif from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-2813x1875.avif";
+import bottomMobile3750Avif from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-3750x2500.avif";
 const bottomMobileMask = svgMaskUrl(bottomMobileMaskRaw);
-const bottomGlow = prelaunchMobileAsset("bottom-glow-optimized.webp");
 
 export default function MobileBottomBackground({ bottomClipId }) {
   return (
@@ -41,7 +38,6 @@ export default function MobileBottomBackground({ bottomClipId }) {
           />
         </picture>
       </div>
-      <img className="mobile-landing__bottom-glow" src={bottomGlow} alt="" />
     </div>
   );
 }

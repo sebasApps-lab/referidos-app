@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { asset } from "../mobileWaitlistLandingAssets";
+import greenButtonGlow from "../../../assets/landing/bottom/green-button-glow.png";
 
 export default function MobileWaitlistForm({
   email,
@@ -43,7 +43,7 @@ export default function MobileWaitlistForm({
       <div className="mobile-landing__green-button-wrap">
         <img
           className="mobile-landing__green-button-glow"
-          src={asset("green-button-glow.png")}
+          src={greenButtonGlow}
           alt=""
         />
         <button type="submit" className="mobile-landing__green-button" disabled={isLoading}>

@@ -1,12 +1,11 @@
-import { prelaunchSupportFormAsset } from "../assets/registry";
+import supportMailIcon from "../assets/support/fluent-color-mail-16.svg";
+import supportWhatsappIcon from "../assets/modals/logos_whatsapp-icon.svg";
 
 export const ECUADOR_PREFIX = "593";
 export const ECUADOR_FLAG_SVG_URL =
   "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
-export const SUPPORT_FORM_MAIL_ICON_URL =
-  prelaunchSupportFormAsset("fluent_mail-24-filled.svg");
-export const SUPPORT_FORM_WHATSAPP_ICON_URL =
-  prelaunchSupportFormAsset("logos_whatsapp-icon.svg");
+export const SUPPORT_FORM_MAIL_ICON_URL = supportMailIcon;
+export const SUPPORT_FORM_WHATSAPP_ICON_URL = supportWhatsappIcon;
 export const DEFAULT_SUPPORT_CATEGORIES = [
   { id: "cuenta", label: "Cuenta y acceso" },
   { id: "promociones", label: "Promociones y beneficios" },

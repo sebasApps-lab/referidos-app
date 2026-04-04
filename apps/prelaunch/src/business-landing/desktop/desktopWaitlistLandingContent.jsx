@@ -1,19 +1,27 @@
-import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
+import iconCoins from "../../assets/landing/steps/icon-coins.png";
+import iconGift from "../../assets/landing/steps/icon-gift.png";
+import iconMailBlue from "../../assets/landing/steps/icon-mail-blue.png";
+import iconNumber1Blue from "../../assets/landing/steps/icon-number-1-blue.png";
+import iconNumber2Purple from "../../assets/landing/steps/icon-number-2-purple.png";
+import iconNumber3BlueCyan from "../../assets/landing/steps/icon-number-3-blue-cyan.png";
+import midCardIconShadow1 from "../../assets/landing/steps/mid-card-icon-shadow-1.svg";
+import midCardIconShadow2 from "../../assets/landing/steps/mid-card-icon-shadow-2.svg";
+import midCardIconShadow3 from "../../assets/landing/steps/mid-card-icon-shadow-3.svg";
 
 export const navigationLinks = [
-  { label: "Cómo funciona", targetId: "waitlist-bottom" },
-  { label: "Recibir mi invitación", targetId: "waitlist-steps" },
+  { label: "CÃ³mo funciona", targetId: "waitlist-bottom" },
+  { label: "Recibir mi invitaciÃ³n", targetId: "waitlist-steps" },
 ];
 
 export const desktopSteps = [
   {
     key: "correo",
-    numberSrc: mobileAsset("icon-number-1-blue.png"),
-    iconSrc: iconAsset("icon-mail-blue.png"),
-    shadowSrc: asset("mid-card-icon-shadow-1.svg"),
+    numberSrc: iconNumber1Blue,
+    iconSrc: iconMailBlue,
+    shadowSrc: midCardIconShadow1,
     title: (
       <>
-        <span className="business-landing__benefit-title-bold">Añade</span>
+        <span className="business-landing__benefit-title-bold">AÃ±ade</span>
         <span className="business-landing__benefit-title-medium">
           {" "}tu correo
           <br />a la lista
@@ -22,7 +30,7 @@ export const desktopSteps = [
     ),
     description: (
       <>
-        Espera y recibe la invitación
+        Espera y recibe la invitaciÃ³n
         <br />
         para descargar la app.
       </>
@@ -30,9 +38,9 @@ export const desktopSteps = [
   },
   {
     key: "recompensas",
-    numberSrc: mobileAsset("icon-number-2-purple.png"),
-    iconSrc: iconAsset("icon-gift.png"),
-    shadowSrc: asset("mid-card-icon-shadow-2.svg"),
+    numberSrc: iconNumber2Purple,
+    iconSrc: iconGift,
+    shadowSrc: midCardIconShadow2,
     title: (
       <>
         <span className="business-landing__benefit-title-bold">Descarga</span>
@@ -53,9 +61,9 @@ export const desktopSteps = [
   },
   {
     key: "puntos",
-    numberSrc: mobileAsset("icon-number-3-blue-cyan.png"),
-    iconSrc: iconAsset("icon-coins.png"),
-    shadowSrc: asset("mid-card-icon-shadow-3.svg"),
+    numberSrc: iconNumber3BlueCyan,
+    iconSrc: iconCoins,
+    shadowSrc: midCardIconShadow3,
     title: (
       <>
         <span className="business-landing__benefit-title-bold">Gana puntos </span>
@@ -68,7 +76,7 @@ export const desktopSteps = [
     description: (
       <>
         Canjea promociones, suma puntos
-        <br />y obtén más beneficios.
+        <br />y obtÃ©n mÃ¡s beneficios.
       </>
     ),
   },
@@ -76,14 +84,14 @@ export const desktopSteps = [
 
 export const footerColumns = [
   {
-    title: "INFORMACIÓN",
-    links: ["Plataforma", "Quiénes somos"],
+    title: "INFORMACIÃ“N",
+    links: ["Plataforma", "QuiÃ©nes somos"],
   },
   {
     title: "LEGAL",
     links: [
       { label: "Privacidad", to: "/ayuda/es/articulo/privacidad" },
-      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos" },
+      { label: "TÃ©rminos y Condiciones", to: "/ayuda/es/articulo/terminos" },
       { label: "Borrar mis datos", to: "/ayuda/es/articulo/borrar-datos" },
     ],
   },
@@ -92,4 +100,3 @@ export const footerColumns = [
     links: ["Chat de soporte", "Soporte por correo", "Comentarios y sugerencias"],
   },
 ];
-

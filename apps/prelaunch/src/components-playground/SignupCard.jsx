@@ -1,12 +1,16 @@
 import "./signupCard.css";
-import { prelaunchAsset } from "../assets/registry";
+import heroRegisterCardLine from "../assets/landing/hero/hero-register-card-line.png";
+import signUpCardBg from "../assets/landing/hero/sign-up-card-BG.svg";
+import signUpCardGlow from "../assets/landing/hero/sign-up-card-glow.svg";
+import googleIcon from "../assets/shared/material-icon-theme-google.svg";
+import supportMailIcon from "../assets/support/fluent-color-mail-16.svg";
 
 const ASSETS = {
-  blur: prelaunchAsset("sign-up-card-glow.svg"),
-  bg: prelaunchAsset("sign-up-card-BG.svg"),
-  google: prelaunchAsset("material-icon-theme-google.svg"),
-  mail: prelaunchAsset("fluent-color-mail-16.svg"),
-  line: prelaunchAsset("hero-register-card-line.png"),
+  blur: signUpCardGlow,
+  bg: signUpCardBg,
+  google: googleIcon,
+  mail: supportMailIcon,
+  line: heroRegisterCardLine,
 };
 
 function SignupCardButton({ className, iconSrc, label }) {

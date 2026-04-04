@@ -1,4 +1,12 @@
-import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
+import iconNumber1Blue from "../../assets/landing/steps/icon-number-1-blue.png";
+import iconNumber2Purple from "../../assets/landing/steps/icon-number-2-purple.png";
+import iconNumber3BlueCyan from "../../assets/landing/steps/icon-number-3-blue-cyan.png";
+import iconMailBlue from "../../assets/landing/steps/icon-mail-blue.png";
+import iconGift from "../../assets/landing/steps/icon-gift.png";
+import iconCoins from "../../assets/landing/steps/icon-coins.png";
+import midCardIconShadow1 from "../../assets/landing/steps/mid-card-icon-shadow-1.svg";
+import midCardIconShadow2 from "../../assets/landing/steps/mid-card-icon-shadow-2.svg";
+import midCardIconShadow3 from "../../assets/landing/steps/mid-card-icon-shadow-3.svg";
 
 export const navigationLinks = [
   { label: "Ayuda", to: "/ayuda/es" },
@@ -9,9 +17,9 @@ export const navigationLinks = [
 export const desktopSteps = [
   {
     key: "correo",
-    numberSrc: mobileAsset("icon-number-1-blue.png"),
-    iconSrc: iconAsset("icon-mail-blue.png"),
-    shadowSrc: asset("mid-card-icon-shadow-1.svg"),
+    numberSrc: iconNumber1Blue,
+    iconSrc: iconMailBlue,
+    shadowSrc: midCardIconShadow1,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Añade</span>
@@ -31,9 +39,9 @@ export const desktopSteps = [
   },
   {
     key: "recompensas",
-    numberSrc: mobileAsset("icon-number-2-purple.png"),
-    iconSrc: iconAsset("icon-gift.png"),
-    shadowSrc: asset("mid-card-icon-shadow-2.svg"),
+    numberSrc: iconNumber2Purple,
+    iconSrc: iconGift,
+    shadowSrc: midCardIconShadow2,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Descarga</span>
@@ -54,9 +62,9 @@ export const desktopSteps = [
   },
   {
     key: "puntos",
-    numberSrc: mobileAsset("icon-number-3-blue-cyan.png"),
-    iconSrc: iconAsset("icon-coins.png"),
-    shadowSrc: asset("mid-card-icon-shadow-3.svg"),
+    numberSrc: iconNumber3BlueCyan,
+    iconSrc: iconCoins,
+    shadowSrc: midCardIconShadow3,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Gana puntos </span>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { asset } from "../mobileWaitlistLandingAssets";
+import purpleButtonGlow from "../../../assets/landing/bottom/purple-button-glow.png";
 
 export default function MobileContactForm({ onFeedbackClick, onHelpClick, onLinkClick }) {
   const [name, setName] = useState("");
@@ -74,7 +74,7 @@ export default function MobileContactForm({ onFeedbackClick, onHelpClick, onLink
       <div className="mobile-landing__purple-button-wrap">
         <img
           className="mobile-landing__purple-button-glow"
-          src={asset("purple-button-glow.png")}
+          src={purpleButtonGlow}
           alt=""
         />
         <button

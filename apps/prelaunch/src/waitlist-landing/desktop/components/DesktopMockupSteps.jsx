@@ -1,11 +1,12 @@
-import { asset } from "../desktopWaitlistLandingAssets";
+import cardCarouselGlow from "../../../assets/landing/bottom/card-carousel-glow-optimized.webp";
+import mockupHowToUse from "../../../assets/landing/bottom/mockup-how-to-use-optimized.webp";
 
 export default function DesktopMockupSteps({ className = "" }) {
   return (
     <div className={`figma-prototype__promo-stack ${className}`.trim()}>
       <img
         className="figma-prototype__promo-stack-blur"
-        src={asset("card-carousel-glow-optimized.webp")}
+        src={cardCarouselGlow}
         alt=""
         aria-hidden="true"
         loading="lazy"
@@ -13,7 +14,7 @@ export default function DesktopMockupSteps({ className = "" }) {
       />
       <img
         className="figma-prototype__promo-mockup"
-        src={asset("mockup-how-to-use-optimized.webp")}
+        src={mockupHowToUse}
         alt="Mockup de uso de la app Referidos con promociones y recompensas"
         loading="lazy"
         decoding="async"

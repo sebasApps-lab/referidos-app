@@ -1,5 +1,3 @@
-import phoneBackShadow from "../../../assets/landing/hero/phone-back-shadow-container.webp";
-import phoneGlow from "../../../assets/landing/hero/mobile-phone-glow.svg";
 import phoneMockup from "../../../assets/landing/hero/nothing-phone-2a-optimized.webp";
 
 export default function MobilePhoneSection({
@@ -13,17 +11,6 @@ export default function MobilePhoneSection({
       }`.trim()}
     >
       <div className="mobile-landing__phone-stack">
-        <img
-          className="mobile-landing__phone-back-shadow"
-          src={phoneBackShadow}
-          alt=""
-        />
-        <img
-          className="mobile-landing__phone-glow"
-          src={phoneGlow}
-          alt=""
-          aria-hidden="true"
-        />
         <img
           className="mobile-landing__phone-image"
           src={phoneMockup}

@@ -1,11 +1,15 @@
-import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopSignupProviderButton from "./DesktopSignupProviderButton";
+import heroRegisterCardLine from "../../../assets/landing/hero/hero-register-card-line.png";
+import signUpCardBg from "../../../assets/landing/hero/sign-up-card-BG.svg";
+import signUpCardGlow from "../../../assets/landing/hero/sign-up-card-glow.svg";
+import googleIcon from "../../../assets/shared/material-icon-theme-google.svg";
+import supportMailIcon from "../../../assets/support/fluent-color-mail-16.svg";
 
 export default function DesktopSignupCard() {
   return (
     <div className="business-landing__signup-card-wrap">
       <aside className="business-landing__signup-card">
-        <img className="business-landing__signup-card-blur" src={asset("sign-up-card-glow.svg")} alt="" aria-hidden="true" />
+        <img className="business-landing__signup-card-blur" src={signUpCardGlow} alt="" aria-hidden="true" />
         <div className="business-landing__signup-card-bg" aria-hidden="true">
           <SignupCardSvg />
         </div>
@@ -37,7 +41,7 @@ export default function DesktopSignupCard() {
             </div>
           </div>
 
-          <img className="business-landing__signup-line" src={asset("hero-register-card-line.png")} alt="" aria-hidden="true" />
+          <img className="business-landing__signup-line" src={heroRegisterCardLine} alt="" aria-hidden="true" />
         </div>
       </aside>
     </div>
@@ -45,14 +49,14 @@ export default function DesktopSignupCard() {
 }
 
 function SignupCardSvg() {
-  return <img src={asset("sign-up-card-BG.svg")} alt="" />;
+  return <img src={signUpCardBg} alt="" />;
 }
 
 function GoogleMark() {
-  return <img src={asset("material-icon-theme-google.svg")} alt="" />;
+  return <img src={googleIcon} alt="" />;
 }
 
 function MailMark() {
-  return <img src={asset("fluent-color-mail-16.svg")} alt="" />;
+  return <img src={supportMailIcon} alt="" />;
 }
 

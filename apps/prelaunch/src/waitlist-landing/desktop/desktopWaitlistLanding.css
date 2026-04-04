@@ -352,7 +352,7 @@
   border: 1px solid rgba(226, 218, 237, 0.92);
   border-radius: 28px;
   isolation: isolate;
-  background: url("../../assets/root/modal-bg-landing-optimized.webp") center center / cover
+  background: url("../../assets/modals/modal-bg-landing-optimized.webp") center center / cover
     no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;
@@ -445,6 +445,7 @@
   object-fit: contain;
   object-position: center center;
   pointer-events: none;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__business-modal-main {
@@ -710,7 +711,7 @@
 .figma-prototype__hero-phone,
 .figma-prototype__hero-phone-glow,
 .figma-prototype__hero-phone-device,
-.figma-prototype__hero-phone-back-shadow {
+.hero-phone-bottom-shadow {
   pointer-events: none;
 }
 
@@ -750,6 +751,7 @@
   height: 134px;
   opacity: 1;
   filter: blur(10px);
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-pink-base {
@@ -760,6 +762,7 @@
   height: 123px;
   opacity: 1;
   filter: blur(7px);
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-purple-glow {
@@ -770,6 +773,7 @@
   height: 146px;
   opacity: 1;
   filter: blur(14px);
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-purple-base {
@@ -780,6 +784,7 @@
   height: 78px;
   opacity: 0.9;
   filter: blur(8px);
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-bg {
@@ -788,7 +793,7 @@
   left: 0;
   width: 100%;
   height: clamp(664px, 46vw, 704px);
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   overflow: visible;
 }
@@ -833,6 +838,28 @@
   width: min(1109px, calc(100% - 96px));
   max-width: 1109px;
   height: 557px;
+}
+
+.hero-phone-bottom-shadow-anchor {
+  position: absolute;
+  top: max(0px, calc(50% - 272px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: min(1109px, calc(100% - 96px));
+  max-width: 1109px;
+  height: 557px;
+  pointer-events: none;
+}
+
+.hero-phone-bottom-shadow-frame {
+  position: relative;
+  width: 518px;
+  height: 557px;
+  flex-shrink: 0;
 }
 
 .figma-prototype__hero-copy {
@@ -950,28 +977,29 @@
   width: 405px;
   max-width: none;
   height: 1081px;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-phone-device {
   position: absolute;
   top: -16px;
-  left: -5px;
-  width: 280px;
+  left: -23px;
+  z-index: 2;
+  width: 316px;
   height: 560px;
   max-width: none;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center top;
 }
 
-.figma-prototype__hero-phone-back-shadow {
+.hero-phone-bottom-shadow {
   position: absolute;
-  top: 6px;
-  left: 49px;
-  z-index: 1;
-  width: 262px;
-  height: 462px;
-  opacity: 0.46;
-  filter: blur(8px);
+  top: 448px;
+  left: -2px;
+  z-index: 0;
+  width: 418px;
+  height: auto;
+  opacity: 0.92;
 }
 
 .figma-prototype__hero-disclaimer {
@@ -1053,6 +1081,7 @@
   max-width: none;
   opacity: 0.7;
   mix-blend-mode: screen;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
   pointer-events: none;
 }
 
@@ -1244,6 +1273,7 @@
   height: 178px;
   object-fit: contain;
   flex: 0 0 auto;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__info-card--notify .figma-prototype__info-copy-block {
@@ -1669,9 +1699,6 @@
   z-index: 1;
   width: 1440px;
   height: 832px;
-  background: url("../../assets/root/glow-bottom-section.svg") left top / 1440px 832px
-    no-repeat;
-  opacity: 0.36;
   pointer-events: none;
 }
 
@@ -2289,6 +2316,10 @@
     width: calc(100% - 64px);
   }
 
+  .hero-phone-bottom-shadow-anchor {
+    width: calc(100% - 64px);
+  }
+
   .figma-prototype__benefits-inner {
     padding-left: clamp(24px, 7vw, 120px);
     padding-right: clamp(24px, 7vw, 120px);
@@ -2304,6 +2335,10 @@
   .figma-prototype__hero {
     height: auto;
     min-height: 549px;
+  }
+
+  .hero-phone-bottom-shadow-anchor {
+    display: none;
   }
 
   .figma-prototype__hero-content {

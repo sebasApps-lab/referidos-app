@@ -506,17 +506,19 @@
   height: 700px;
   pointer-events: none;
   z-index: 1;
+  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .mobile-landing__phone-image {
   position: absolute;
   top: 15.625px;
-  left: 219.375px;
+  left: 196.95px;
   z-index: 2;
-  width: 346.25px;
+  width: 391.1px;
   height: 693.75px;
   margin: 0;
-  object-fit: cover;
+  max-width: none;
+  object-fit: contain;
   object-position: center top;
 }
 
@@ -837,9 +839,9 @@
 
 .mobile-landing__step-icon-image--mail {
   top: 0;
-  left: calc(50% - 155px);
-  width: 311px;
-  height: 153px;
+  left: calc(50% - 148px);
+  width: 296px;
+  height: 146px;
   object-fit: cover;
 }
 
@@ -1185,9 +1187,9 @@
   left: -4px;
   width: 128px;
   height: 122px;
-  background: url("../assets/mobile/gray-scale-bg.png");
-  background-size: cover;
-  background-position: center;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0) 36%),
+    linear-gradient(180deg, #edf1f6 0%, #cfd5de 100%);
 }
 
 .mobile-landing__promo-icon {

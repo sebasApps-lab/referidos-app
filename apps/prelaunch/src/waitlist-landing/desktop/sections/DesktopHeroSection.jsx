@@ -1,13 +1,17 @@
 import { scrollToSection } from "../../scrollToSection";
 import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
-import DesktopHeroShadowGroup from "../components/DesktopHeroShadowGroup";
+import phoneBottomShadow from "../../../assets/landing/hero/phone-bottom-shadow-optimized.webp";
 
 export default function DesktopHeroSection({ onWaitlistClick, onCardWaitlistClick }) {
   return (
     <section className="figma-prototype__hero">
-      <DesktopHeroShadowGroup />
       <DesktopHeroBackground />
+      <div className="hero-phone-bottom-shadow-anchor" aria-hidden="true">
+        <div className="hero-phone-bottom-shadow-frame">
+          <img className="hero-phone-bottom-shadow" src={phoneBottomShadow} alt="" />
+        </div>
+      </div>
 
       <div className="figma-prototype__hero-content">
         <div className="figma-prototype__hero-copy figma-prototype__entry-edge-left figma-prototype__entry-delay-1">

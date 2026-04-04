@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { prelaunchLogoAsset } from "../../../assets/registry";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";
+import footerLogo from "../../../assets/logo/go-plip-black-gray.svg";
 
 export default function MobileFooterSection({
   onBusinessClick,
@@ -69,7 +69,7 @@ export default function MobileFooterSection({
       <div className="mobile-landing__footer-info">
         <div className="mobile-landing__footer-about mobile-landing__reveal-up mobile-landing__reveal-delay-1">
           <img
-            src={prelaunchLogoAsset("go-plip-black-gray.svg")}
+            src={footerLogo}
             alt="Go Plip"
             className="mobile-landing__footer-logo"
           />
