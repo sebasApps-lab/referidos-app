@@ -13,7 +13,7 @@ export default function DesktopMockupSteps({ className = "" }) {
       />
       <img
         className="figma-prototype__promo-mockup"
-        src={asset("mockup-how-to-use.png")}
+        src={asset("mockup-how-to-use-optimized.webp")}
         alt="Mockup de uso de la app Referidos con promociones y recompensas"
         loading="lazy"
         decoding="async"

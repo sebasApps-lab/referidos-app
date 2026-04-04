@@ -46,7 +46,7 @@
   transform-origin: top left;
   border: 1px solid rgba(226, 218, 237, 0.92);
   border-radius: 28px;
-  background: url("../../assets/root/modal-bg-landing.png") center center / cover
+  background: url("../../assets/root/modal-bg-landing-optimized.webp") center center / cover
     no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;

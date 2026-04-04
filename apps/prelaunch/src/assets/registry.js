@@ -6,15 +6,15 @@ const bgAssets = import.meta.glob("./bg/*", {
   eager: true,
   import: "default",
 });
-const bgSetWebpAssets = import.meta.glob("./bg-sets/*.webp", {
+const bgSetWebpAssets = import.meta.glob("./bg-sets/**/*.webp", {
   eager: true,
   import: "default",
 });
-const bgSetAvifAssets = import.meta.glob("./bg-sets/*.avif", {
+const bgSetAvifAssets = import.meta.glob("./bg-sets/**/*.avif", {
   eager: true,
   import: "default",
 });
-const bgSetSvgAssets = import.meta.glob("./bg-sets/*.svg", {
+const bgSetSvgAssets = import.meta.glob("./bg-sets/**/*.svg", {
   eager: true,
   import: "default",
 });

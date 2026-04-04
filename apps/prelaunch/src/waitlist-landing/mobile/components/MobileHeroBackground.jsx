@@ -1,12 +1,14 @@
 import { prelaunchBgSetAsset } from "../../../assets/registry";
-import heroMobileMask from "../../../assets/bg-sets/landing-hero-mobile-mask.svg?no-inline";
+import heroMobileMaskRaw from "../../../assets/bg-sets/hero/hero-mobile-mask.svg?raw";
+import { svgMaskUrl } from "../../../assets/svgMaskUrl";
 
-const heroMobile960Webp = prelaunchBgSetAsset("bg-mobile-960.webp");
-const heroMobile1280Webp = prelaunchBgSetAsset("bg-mobile-1280.webp");
-const heroMobile1605Webp = prelaunchBgSetAsset("bg-mobile-1605.webp");
-const heroMobile960Avif = prelaunchBgSetAsset("bg-mobile-960.avif");
-const heroMobile1280Avif = prelaunchBgSetAsset("bg-mobile-1280.avif");
-const heroMobile1605Avif = prelaunchBgSetAsset("bg-mobile-1605.avif");
+const heroMobile960Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-960.webp");
+const heroMobile1280Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-1280.webp");
+const heroMobile1605Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-1605.webp");
+const heroMobile960Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-960.avif");
+const heroMobile1280Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-1280.avif");
+const heroMobile1605Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-1605.avif");
+const heroMobileMask = svgMaskUrl(heroMobileMaskRaw);
 
 export default function MobileHeroBackground() {
   return (

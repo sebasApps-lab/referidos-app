@@ -352,7 +352,7 @@
   border: 1px solid rgba(226, 218, 237, 0.92);
   border-radius: 28px;
   isolation: isolate;
-  background: url("../../assets/root/modal-bg-landing.png") center center / cover
+  background: url("../../assets/root/modal-bg-landing-optimized.webp") center center / cover
     no-repeat;
   box-shadow: 0 32px 82px rgba(27, 18, 50, 0.18), 0 12px 36px rgba(27, 18, 50, 0.08);
   overflow: hidden;
@@ -790,12 +790,13 @@
   height: clamp(664px, 46vw, 704px);
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .figma-prototype__hero-bg-mask {
   position: absolute;
   inset: 0;
+  filter: drop-shadow(0 2px 4px rgba(36, 5, 92, 0.58));
 }
 
 .figma-prototype__hero-bg-picture,
@@ -810,7 +811,6 @@
   height: 100%;
   object-fit: cover;
   object-position: center top;
-  filter: drop-shadow(0 2px 4px rgba(36, 5, 92, 0.58));
   -webkit-mask-mode: alpha;
   mask-mode: alpha;
   -webkit-mask-repeat: no-repeat;
@@ -954,10 +954,10 @@
 
 .figma-prototype__hero-phone-device {
   position: absolute;
-  top: -29px;
-  left: -28px;
-  width: 328px;
-  height: 580px;
+  top: -16px;
+  left: -5px;
+  width: 280px;
+  height: 560px;
   max-width: none;
   object-fit: cover;
   object-position: center top;
@@ -978,7 +978,7 @@
   position: relative;
   z-index: 3;
   width: min(100%, 1440px);
-  margin: -8px auto 0;
+  margin: 52px auto 0;
   padding: 0 46px 18px;
   color: rgba(47, 26, 85, 0.6);
   font-size: 12px;
@@ -1639,16 +1639,26 @@
   contain-intrinsic-size: 1160px;
 }
 
-.figma-prototype__bottom-band::before {
-  content: "";
+.figma-prototype__bottom-bg {
   position: absolute;
   top: 0;
   left: -127px;
   z-index: 0;
   width: 1694px;
   height: 1130px;
-  background: url("../../assets/bg/landing-bottom-footer-bg.png") left top / 1694px
-    1130px no-repeat;
+  pointer-events: none;
+}
+
+.figma-prototype__bottom-bg-picture,
+.figma-prototype__bottom-bg-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.figma-prototype__bottom-bg-image {
+  object-fit: cover;
+  object-position: left top;
 }
 
 .figma-prototype__bottom-band::after {

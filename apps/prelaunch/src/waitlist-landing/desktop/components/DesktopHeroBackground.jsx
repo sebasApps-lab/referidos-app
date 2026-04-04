@@ -1,12 +1,14 @@
 import { prelaunchBgSetAsset } from "../../../assets/registry";
-import heroDesktopMask from "../../../assets/bg-sets/landing-hero-desktop-mask.svg?no-inline";
+import heroDesktopMaskRaw from "../../../assets/bg-sets/hero/hero-desktop-mask.svg?raw";
+import { svgMaskUrl } from "../../../assets/svgMaskUrl";
 
-const heroDesktop1600Webp = prelaunchBgSetAsset("bg-desktop-1600.webp");
-const heroDesktop1920Webp = prelaunchBgSetAsset("bg-desktop-1920.webp");
-const heroDesktop2560Webp = prelaunchBgSetAsset("bg-desktop-2560.webp");
-const heroDesktop1600Avif = prelaunchBgSetAsset("bg-desktop-1600.avif");
-const heroDesktop1920Avif = prelaunchBgSetAsset("bg-desktop-1920.avif");
-const heroDesktop2560Avif = prelaunchBgSetAsset("bg-desktop-2560.avif");
+const heroDesktop1600Webp = prelaunchBgSetAsset("hero/hero-desktop-optimized-1600.webp");
+const heroDesktop1920Webp = prelaunchBgSetAsset("hero/hero-desktop-optimized-1920.webp");
+const heroDesktop2560Webp = prelaunchBgSetAsset("hero/hero-desktop-optimized-2560.webp");
+const heroDesktop1600Avif = prelaunchBgSetAsset("hero/hero-desktop-optimized-1600.avif");
+const heroDesktop1920Avif = prelaunchBgSetAsset("hero/hero-desktop-optimized-1920.avif");
+const heroDesktop2560Avif = prelaunchBgSetAsset("hero/hero-desktop-optimized-2560.avif");
+const heroDesktopMask = svgMaskUrl(heroDesktopMaskRaw);
 
 export default function DesktopHeroBackground() {
   return (

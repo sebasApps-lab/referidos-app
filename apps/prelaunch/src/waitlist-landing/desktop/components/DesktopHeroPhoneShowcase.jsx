@@ -13,7 +13,7 @@ export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick
         />
         <img
           className="figma-prototype__hero-phone-device"
-          src={asset("Nothing Phone 2a.png")}
+          src={asset("nothing-phone-2a-optimized.webp")}
           alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
           loading="eager"
           fetchPriority="high"

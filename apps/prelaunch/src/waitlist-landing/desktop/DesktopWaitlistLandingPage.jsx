@@ -7,6 +7,7 @@ import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "./desktopWaitlistLanding.css";
 import "./desktopLandingModals.css";
+import DesktopBottomBackground from "./components/DesktopBottomBackground";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";
 import DesktopHeroSection from "./sections/DesktopHeroSection";
 
@@ -313,6 +314,7 @@ export default function DesktopWaitlistLandingPage() {
           rootMargin="520px 0px"
         >
           <section className="figma-prototype__bottom-band" id="waitlist-bottom">
+            <DesktopBottomBackground />
             <DesktopWaitlistSection
               email={waitlistCapture.email}
               honeypot={waitlistCapture.honeypot}

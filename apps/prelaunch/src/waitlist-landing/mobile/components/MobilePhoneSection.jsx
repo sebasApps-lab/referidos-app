@@ -14,7 +14,7 @@ export default function MobilePhoneSection({
       <div className="mobile-landing__phone-stack">
         <img
           className="mobile-landing__phone-back-shadow"
-          src={asset("phone-back-shadow-container.png")}
+          src={asset("phone-back-shadow-container.webp")}
           alt=""
         />
         <svg
@@ -22,6 +22,7 @@ export default function MobilePhoneSection({
           viewBox="-211.5 0 797 700"
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
+          overflow="visible"
         >
           <g opacity="0.61" filter={`url(#${phoneGlowFilterId})`}>
             <path
@@ -33,10 +34,10 @@ export default function MobilePhoneSection({
           <defs>
             <filter
               id={phoneGlowFilterId}
-              x="-211.5"
-              y="0"
-              width="797"
-              height="700"
+              x="-320"
+              y="-140"
+              width="1014"
+              height="980"
               filterUnits="userSpaceOnUse"
               colorInterpolationFilters="sRGB"
             >
@@ -48,7 +49,7 @@ export default function MobilePhoneSection({
         </svg>
         <img
           className="mobile-landing__phone-image"
-          src={rootAsset("Nothing Phone 2a.png")}
+          src={rootAsset("nothing-phone-2a-optimized.webp")}
           alt={"AplicaciÃ³n Referidos App en un telÃ©fono"}
           loading={isHeroLayout ? "eager" : "lazy"}
           fetchPriority={isHeroLayout ? "high" : "low"}
