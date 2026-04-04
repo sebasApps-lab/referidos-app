@@ -1,13 +1,13 @@
 import { useEffect, useMemo } from "react";
 import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
-import { prelaunchAsset } from "../../../assets/registry";
+import { prelaunchAsset, prelaunchModalAsset } from "../../../assets/registry";
 
 const EARLY_ACCESS_DATE = "1 de abril de 2026";
 
 const MODAL_ASSETS = {
   briefcase: prelaunchAsset("gridicons_briefcase.svg"),
   bellCircle: prelaunchAsset("bell-icon-circle.svg"),
-  clock: prelaunchAsset("clock-yellow-icon.png"),
+  clock: prelaunchModalAsset("yellow-icon-info-card.svg"),
   check: prelaunchAsset("lets-icons_check-fill.svg"),
   divider: prelaunchAsset("line-5.png"),
   mail: prelaunchAsset("lucide_mail.svg"),

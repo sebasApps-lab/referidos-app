@@ -2,14 +2,11 @@ import { steps } from "../mobileWaitlistLandingContent";
 import MobilePhoneSection from "../components/MobilePhoneSection";
 import MobileStepCard from "../components/MobileStepCard";
 
-export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGlowFilterId }) {
+export default function MobileWaitlistStepsSection({ isTabletHeroLayout }) {
   return (
     <div className="mobile-landing__second-section">
       {!isTabletHeroLayout ? (
-        <MobilePhoneSection
-          phoneGlowFilterId={phoneGlowFilterId}
-          className="mobile-landing__reveal-up mobile-landing__reveal-delay-1"
-        />
+        <MobilePhoneSection className="mobile-landing__reveal-up mobile-landing__reveal-delay-1" />
       ) : null}
 
       <section className="mobile-landing__about-block" id="waitlist-steps">

@@ -5,7 +5,7 @@ export default function DesktopMockupSteps({ className = "" }) {
     <div className={`figma-prototype__promo-stack ${className}`.trim()}>
       <img
         className="figma-prototype__promo-stack-blur"
-        src={asset("card-carousel-glow.png")}
+        src={asset("card-carousel-glow-optimized.webp")}
         alt=""
         aria-hidden="true"
         loading="lazy"

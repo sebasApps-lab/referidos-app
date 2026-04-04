@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { prelaunchLogoAsset } from "../../../assets/registry";
 import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
+import headerLogo from "../../../assets/logo/go-plip-white-lila.svg";
 
 export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -114,7 +114,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       <div className="figma-prototype__nav-brand figma-prototype__entry-edge-left">
         <div className="figma-prototype__nav-brand-row">
           <img
-            src={prelaunchLogoAsset("go-plip-white-lila.svg")}
+            src={headerLogo}
             alt="Go Plip"
             className="figma-prototype__nav-brand-logo"
           />

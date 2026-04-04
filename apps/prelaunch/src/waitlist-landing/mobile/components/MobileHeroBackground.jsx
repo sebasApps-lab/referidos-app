@@ -1,13 +1,11 @@
-import { prelaunchBgSetAsset } from "../../../assets/registry";
-import heroMobileMaskRaw from "../../../assets/bg-sets/hero/hero-mobile-mask.svg?raw";
+import heroMobileMaskRaw from "../../../assets/landing/hero/bg/hero-mobile-mask.svg?raw";
 import { svgMaskUrl } from "../../../assets/svgMaskUrl";
-
-const heroMobile960Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-960.webp");
-const heroMobile1280Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-1280.webp");
-const heroMobile1605Webp = prelaunchBgSetAsset("hero/hero-mobile-optimized-1605.webp");
-const heroMobile960Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-960.avif");
-const heroMobile1280Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-1280.avif");
-const heroMobile1605Avif = prelaunchBgSetAsset("hero/hero-mobile-optimized-1605.avif");
+import heroMobile960Webp from "../../../assets/landing/hero/bg/hero-mobile-optimized-960.webp";
+import heroMobile1280Webp from "../../../assets/landing/hero/bg/hero-mobile-optimized-1280.webp";
+import heroMobile1605Webp from "../../../assets/landing/hero/bg/hero-mobile-optimized-1605.webp";
+import heroMobile960Avif from "../../../assets/landing/hero/bg/hero-mobile-optimized-960.avif";
+import heroMobile1280Avif from "../../../assets/landing/hero/bg/hero-mobile-optimized-1280.avif";
+import heroMobile1605Avif from "../../../assets/landing/hero/bg/hero-mobile-optimized-1605.avif";
 const heroMobileMask = svgMaskUrl(heroMobileMaskRaw);
 
 export default function MobileHeroBackground() {
@@ -15,13 +13,11 @@ export default function MobileHeroBackground() {
     <div className="mobile-landing__hero-bg-wrap" aria-hidden="true">
       <div className="mobile-landing__hero-bg-mask">
         <picture className="mobile-landing__hero-bg-picture">
-          {heroMobile960Avif && heroMobile1280Avif && heroMobile1605Avif ? (
-            <source
-              type="image/avif"
-              srcSet={`${heroMobile960Avif} 960w, ${heroMobile1280Avif} 1280w, ${heroMobile1605Avif} 1605w`}
-              sizes="100vw"
-            />
-          ) : null}
+          <source
+            type="image/avif"
+            srcSet={`${heroMobile960Avif} 960w, ${heroMobile1280Avif} 1280w, ${heroMobile1605Avif} 1605w`}
+            sizes="100vw"
+          />
           <source
             type="image/webp"
             srcSet={`${heroMobile960Webp} 960w, ${heroMobile1280Webp} 1280w, ${heroMobile1605Webp} 1605w`}

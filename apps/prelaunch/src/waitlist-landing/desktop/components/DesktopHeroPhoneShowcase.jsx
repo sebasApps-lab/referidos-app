@@ -1,5 +1,7 @@
-import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopInfoCard from "./DesktopInfoCard";
+import phoneGlow from "../../../assets/landing/hero/phone-glow.svg";
+import phoneMockup from "../../../assets/landing/hero/nothing-phone-2a-optimized.webp";
+import phoneBackShadow from "../../../assets/landing/hero/phone-back-shadow.svg";
 
 export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick }) {
   return (
@@ -7,13 +9,13 @@ export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick
       <div className="figma-prototype__hero-phone">
         <img
           className="figma-prototype__hero-phone-glow"
-          src={asset("phone-glow.svg")}
+          src={phoneGlow}
           alt=""
           aria-hidden="true"
         />
         <img
           className="figma-prototype__hero-phone-device"
-          src={asset("nothing-phone-2a-optimized.webp")}
+          src={phoneMockup}
           alt="Mockup del telefono Nothing Phone 2a mostrando la app Referidos"
           loading="eager"
           fetchPriority="high"
@@ -23,7 +25,7 @@ export default function DesktopHeroPhoneShowcase({ className = "", onInviteClick
 
       <img
         className="figma-prototype__hero-phone-back-shadow"
-        src={asset("phone-back-shadow.svg")}
+        src={phoneBackShadow}
         alt=""
         aria-hidden="true"
       />

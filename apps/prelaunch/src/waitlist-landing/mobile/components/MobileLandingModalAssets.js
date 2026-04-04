@@ -1,10 +1,10 @@
 import { prelaunchAsset, prelaunchModalAsset } from "../../../assets/registry";
 
 export const LANDING_MODAL_ASSETS = {
-  congratsIcon: prelaunchModalAsset("clock-yellow-icon-congrats-modal.png"),
-  platformIcon: prelaunchModalAsset("clock-yellow-icon-platform.png"),
-  teamIcon: prelaunchModalAsset("clock-yellow-icon-team.png"),
-  invitationClockIcon: prelaunchAsset("clock-yellow-icon.png"),
+  congratsIcon: prelaunchModalAsset("yellow-icon-congrats-modal.svg"),
+  platformIcon: prelaunchModalAsset("yellow-icon-platform-modal.svg"),
+  teamIcon: prelaunchModalAsset("yellow-icon-about-us-modal.svg"),
+  invitationClockIcon: prelaunchModalAsset("yellow-icon-info-card.svg"),
   checkBullet: prelaunchModalAsset("lets-icons_check-fill.svg"),
   copyIcon: prelaunchModalAsset("tabler_copy.svg"),
   whatsappIcon: prelaunchModalAsset("logos_whatsapp-icon.svg"),

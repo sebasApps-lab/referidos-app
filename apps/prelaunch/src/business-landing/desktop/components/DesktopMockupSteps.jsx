@@ -5,7 +5,7 @@ export default function DesktopMockupSteps() {
     <div className="business-landing__promo-stack">
       <img
         className="business-landing__promo-stack-blur"
-        src={asset("card-carousel-glow.png")}
+        src={asset("card-carousel-glow-optimized.webp")}
         alt=""
         aria-hidden="true"
         loading="lazy"

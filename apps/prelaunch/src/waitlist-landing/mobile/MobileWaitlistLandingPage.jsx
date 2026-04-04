@@ -29,7 +29,6 @@ export default function MobileWaitlistLandingPage() {
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
   const [congratsReferralLink, setCongratsReferralLink] = useState("");
   const navigate = useNavigate();
-  const phoneGlowFilterId = useId().replace(/:/g, "");
   const bottomClipId = useId().replace(/:/g, "");
   const { phoneScale, isTabletHeroLayout, stepCardScale } = useMobileWaitlistLandingLayout();
 
@@ -316,7 +315,6 @@ export default function MobileWaitlistLandingPage() {
       <section className="mobile-landing__top-page">
         <MobileHeroSection
           isTabletHeroLayout={isTabletHeroLayout}
-          phoneGlowFilterId={phoneGlowFilterId}
           onBusinessClick={() => openBusinessModal("drawer")}
           onHelpClick={() => handleHelpOpen("drawer_nav")}
           onHowItWorksClick={handleHowItWorksClick}
@@ -330,10 +328,7 @@ export default function MobileWaitlistLandingPage() {
           placeholderHeight={isTabletHeroLayout ? 1640 : 2260}
           rootMargin="360px 0px"
         >
-          <MobileWaitlistStepsSection
-            isTabletHeroLayout={isTabletHeroLayout}
-            phoneGlowFilterId={phoneGlowFilterId}
-          />
+          <MobileWaitlistStepsSection isTabletHeroLayout={isTabletHeroLayout} />
         </DeferredRender>
       </section>
 

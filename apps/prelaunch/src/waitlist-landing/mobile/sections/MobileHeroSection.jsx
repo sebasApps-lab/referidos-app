@@ -1,13 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { prelaunchLogoAsset } from "../../../assets/registry";
 import { scrollToSection } from "../../scrollToSection";
 import MobileHeroBackground from "../components/MobileHeroBackground";
 import MobilePhoneSection from "../components/MobilePhoneSection";
+import headerLogo from "../../../assets/logo/go-plip-white-lila.svg";
+import drawerLogo from "../../../assets/logo/go-plip-dark-light-purple.svg";
 
 export default function MobileHeroSection({
   isTabletHeroLayout,
-  phoneGlowFilterId,
   onBusinessClick,
   onHelpClick,
   onHowItWorksClick,
@@ -51,7 +51,7 @@ export default function MobileHeroSection({
       <header className="mobile-landing__header">
         <div className="mobile-landing__brand mobile-landing__reveal-up">
           <img
-            src={prelaunchLogoAsset("go-plip-white-lila.svg")}
+            src={headerLogo}
             alt="Go Plip"
             className="mobile-landing__brand-logo"
           />
@@ -143,7 +143,7 @@ export default function MobileHeroSection({
 
         <div className="mobile-landing__drawer-brand">
           <img
-            src={prelaunchLogoAsset("go-plip-dark-light-purple.svg")}
+            src={drawerLogo}
             alt="Go Plip"
             className="mobile-landing__drawer-logo"
           />
@@ -200,7 +200,6 @@ export default function MobileHeroSection({
         {isTabletHeroLayout ? (
           <MobilePhoneSection
             isHeroLayout
-            phoneGlowFilterId={phoneGlowFilterId}
             className="mobile-landing__reveal-up mobile-landing__reveal-delay-3"
           />
         ) : null}
