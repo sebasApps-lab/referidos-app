@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import "./fonts.css";
 import { runtimeConfig } from "./config/runtimeConfig";
 import TreeProvider from "./UI-detect/TreeProvider";
 import WaitlistLandingPage from "./waitlist-landing/WaitlistLandingPage";
@@ -17,10 +18,12 @@ const HelpCenterBusinessArticlePage = lazy(() =>
 );
 const SupportOpenTicketPage = lazy(() => import("./support/SupportOpenTicketPage"));
 const FeedbackRoute = lazy(() => import("./support/FeedbackRoute"));
-const BusinessLandingPage = lazy(() => import("./business-landing/BusinessLandingPage"));
-const ComponentsPlaygroundPage = lazy(() =>
-  import("./components-playground/ComponentsPlaygroundPage"),
-);
+const BusinessLandingPage = import.meta.env.DEV
+  ? lazy(() => import("./business-landing/BusinessLandingPage"))
+  : null;
+const ComponentsPlaygroundPage = import.meta.env.DEV
+  ? lazy(() => import("./components-playground/ComponentsPlaygroundPage"))
+  : null;
 
 function startPrelaunchObservability() {
   if (typeof window === "undefined") {
@@ -52,10 +55,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Suspense fallback={<div className="waitlist-landing-route-fallback" aria-hidden="true" />}>
           <Routes>
             <Route path="/" element={<WaitlistLandingPage />} />
-            {!runtimeConfig.isProd ? (
+            {ComponentsPlaygroundPage && !runtimeConfig.isProd ? (
               <Route path="/components" element={<ComponentsPlaygroundPage />} />
             ) : null}
-            {!runtimeConfig.isProd ? (
+            {BusinessLandingPage && !runtimeConfig.isProd ? (
               <Route path="/negocios" element={<BusinessLandingPage />} />
             ) : null}
             <Route path="/ayuda/es" element={<HelpCenterPage />} />

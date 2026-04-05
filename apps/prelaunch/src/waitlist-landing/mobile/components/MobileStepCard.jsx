@@ -7,11 +7,11 @@ export default function MobileStepCard({ step, index = 0 }) {
       <article className={step.wrapClassName}>
         <img className="mobile-landing__step-number-badge" src={step.numberSrc} alt="" />
         <div className="mobile-landing__step-card-body">
-          {step.iconShadowSrc ? (
+          {step.iconShadowSrc && step.iconShadowClassName ? (
             <img className={step.iconShadowClassName} src={step.iconShadowSrc} alt="" />
-          ) : (
+          ) : step.iconShadowClassName ? (
             <div className={step.iconShadowClassName} />
-          )}
+          ) : null}
           <img className={step.iconClassName} src={step.iconSrc} alt="" />
           <div className="mobile-landing__step-card-surface">
             <p className="mobile-landing__step-title">{step.title}</p>

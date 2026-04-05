@@ -1,7 +1,7 @@
 import DesktopSignupProviderButton from "./DesktopSignupProviderButton";
-import signUpCardGlow from "../../../assets/landing/hero/sign-up-card-glow.svg";
-import signUpCardBg from "../../../assets/landing/hero/sign-up-card-BG.svg";
-import yellowInfoCard from "../../../assets/landing/hero/yellow-icon-info-card.svg";
+import signUpCardGlow from "../../../assets/landing/hero/info-card-glow-optimized.webp";
+import signUpCardBg from "../../../assets/landing/hero/info-card-BG-optimized.webp";
+import yellowInfoCard from "../../../assets/landing/hero/yellow-icon-info-card-optimized.webp";
 import heroRegisterCardLine from "../../../assets/landing/hero/hero-register-card-line.png";
 
 export default function DesktopInfoCard({ onInviteClick }) {

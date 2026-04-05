@@ -1,12 +1,9 @@
-import iconCoins from "../../assets/landing/steps/icon-coins.png";
-import iconGift from "../../assets/landing/steps/icon-gift.png";
-import iconMailBlue from "../../assets/landing/steps/icon-mail-blue.png";
-import iconNumber1Blue from "../../assets/landing/steps/icon-number-1-blue.png";
-import iconNumber2Purple from "../../assets/landing/steps/icon-number-2-purple.png";
-import iconNumber3BlueCyan from "../../assets/landing/steps/icon-number-3-blue-cyan.png";
-import midCardIconShadow1 from "../../assets/landing/steps/mid-card-icon-shadow-1.svg";
-import midCardIconShadow2 from "../../assets/landing/steps/mid-card-icon-shadow-2.svg";
-import midCardIconShadow3 from "../../assets/landing/steps/mid-card-icon-shadow-3.svg";
+import iconCoins from "../../assets/landing/steps/coin-optimized.webp";
+import iconGift from "../../assets/landing/steps/gift-optimized.webp";
+import iconMailBlue from "../../assets/landing/steps/mail-optimized.webp";
+import iconNumber1Blue from "../../assets/landing/steps/n1-blue-optimized.webp";
+import iconNumber2Purple from "../../assets/landing/steps/n2-purple-optimized.webp";
+import iconNumber3BlueCyan from "../../assets/landing/steps/n3-cyan-optimized.webp";
 
 export const navigationLinks = [
   { label: "CÃ³mo funciona", targetId: "waitlist-bottom" },
@@ -18,7 +15,6 @@ export const desktopSteps = [
     key: "correo",
     numberSrc: iconNumber1Blue,
     iconSrc: iconMailBlue,
-    shadowSrc: midCardIconShadow1,
     title: (
       <>
         <span className="business-landing__benefit-title-bold">AÃ±ade</span>
@@ -40,7 +36,6 @@ export const desktopSteps = [
     key: "recompensas",
     numberSrc: iconNumber2Purple,
     iconSrc: iconGift,
-    shadowSrc: midCardIconShadow2,
     title: (
       <>
         <span className="business-landing__benefit-title-bold">Descarga</span>
@@ -63,7 +58,6 @@ export const desktopSteps = [
     key: "puntos",
     numberSrc: iconNumber3BlueCyan,
     iconSrc: iconCoins,
-    shadowSrc: midCardIconShadow3,
     title: (
       <>
         <span className="business-landing__benefit-title-bold">Gana puntos </span>

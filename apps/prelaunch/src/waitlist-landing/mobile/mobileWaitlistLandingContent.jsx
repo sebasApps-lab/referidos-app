@@ -1,10 +1,9 @@
-import iconNumber1Blue from "../../assets/landing/steps/icon-number-1-blue.png";
-import iconNumber2Purple from "../../assets/landing/steps/icon-number-2-purple.png";
-import iconNumber3BlueCyan from "../../assets/landing/steps/icon-number-3-blue-cyan.png";
-import iconMailBlue from "../../assets/landing/steps/icon-mail-blue.png";
-import iconGift from "../../assets/landing/steps/icon-gift.png";
-import iconCoins from "../../assets/landing/steps/icon-coins.png";
-import midCardIconShadow1 from "../../assets/landing/steps/mid-card-icon-shadow-1.svg";
+import iconNumber1Blue from "../../assets/landing/steps/n1-blue-optimized.webp";
+import iconNumber2Purple from "../../assets/landing/steps/n2-purple-optimized.webp";
+import iconNumber3BlueCyan from "../../assets/landing/steps/n3-cyan-optimized.webp";
+import iconMailBlue from "../../assets/landing/steps/mail-optimized.webp";
+import iconGift from "../../assets/landing/steps/gift-optimized.webp";
+import iconCoins from "../../assets/landing/steps/coin-optimized.webp";
 
 export const steps = [
   {
@@ -27,10 +26,7 @@ export const steps = [
       </>
     ),
     numberSrc: iconNumber1Blue,
-    iconShadowSrc: midCardIconShadow1,
     iconSrc: iconMailBlue,
-    iconShadowClassName:
-      "mobile-landing__step-icon-shadow mobile-landing__step-icon-shadow--mail",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--mail",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--mail",
   },
@@ -55,7 +51,6 @@ export const steps = [
     ),
     numberSrc: iconNumber2Purple,
     iconSrc: iconGift,
-    iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--gift",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--gift",
   },
@@ -76,7 +71,6 @@ export const steps = [
       </>
     ),
     numberSrc: iconNumber3BlueCyan,
-    iconShadowClassName: "mobile-landing__step-gift-shadow",
     iconSrc: iconCoins,
     iconClassName: "mobile-landing__step-icon-image mobile-landing__step-icon-image--coins",
     wrapClassName: "mobile-landing__step-card mobile-landing__step-card--coins",

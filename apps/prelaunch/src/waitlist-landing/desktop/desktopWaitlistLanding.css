@@ -445,7 +445,6 @@
   object-fit: contain;
   object-position: center center;
   pointer-events: none;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__business-modal-main {
@@ -751,7 +750,6 @@
   height: 134px;
   opacity: 1;
   filter: blur(10px);
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-pink-base {
@@ -762,7 +760,6 @@
   height: 123px;
   opacity: 1;
   filter: blur(7px);
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-purple-glow {
@@ -773,7 +770,6 @@
   height: 146px;
   opacity: 1;
   filter: blur(14px);
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-shadow-purple-base {
@@ -784,7 +780,6 @@
   height: 78px;
   opacity: 0.9;
   filter: blur(8px);
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-bg {
@@ -952,7 +947,6 @@
 
 .figma-prototype__hero-visual {
   position: relative;
-  z-index: 2;
   display: inline-flex;
   align-items: flex-start;
   overflow: visible;
@@ -964,7 +958,6 @@
 
 .figma-prototype__hero-phone {
   position: relative;
-  z-index: 2;
   width: 280px;
   height: 540px;
   overflow: visible;
@@ -977,16 +970,15 @@
   width: 405px;
   max-width: none;
   height: 1081px;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__hero-phone-device {
   position: absolute;
   top: -16px;
-  left: -23px;
-  z-index: 2;
-  width: 316px;
-  height: 560px;
+  left: -26.95px;
+  z-index: 3;
+  width: 323.9px;
+  height: 574px;
   max-width: none;
   object-fit: contain;
   object-position: center top;
@@ -994,7 +986,7 @@
 
 .hero-phone-bottom-shadow {
   position: absolute;
-  top: 448px;
+  top: 465px;
   left: -2px;
   z-index: 0;
   width: 418px;
@@ -1006,7 +998,7 @@
   position: relative;
   z-index: 3;
   width: min(100%, 1440px);
-  margin: 52px auto 0;
+  margin: 82px auto 0;
   padding: 0 46px 18px;
   color: rgba(47, 26, 85, 0.6);
   font-size: 12px;
@@ -1018,7 +1010,7 @@
 .figma-prototype__info-card-wrap,
 .figma-prototype__signup-card-wrap {
   position: relative;
-  z-index: 0;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   overflow: visible;
@@ -1081,7 +1073,6 @@
   max-width: none;
   opacity: 0.7;
   mix-blend-mode: screen;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
   pointer-events: none;
 }
 
@@ -1273,7 +1264,6 @@
   height: 178px;
   object-fit: contain;
   flex: 0 0 auto;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .figma-prototype__info-card--notify .figma-prototype__info-copy-block {
@@ -1452,19 +1442,19 @@
 
 .figma-prototype__step-number-badge {
   position: absolute;
-  top: -128px;
-  left: calc(50% - 60px);
+  top: -104px;
+  left: calc(50% - 35px);
   z-index: 0;
-  width: 120px;
-  height: 120px;
+  width: 70px;
+  height: 70px;
   opacity: 0.8;
   pointer-events: none;
 }
 
 .figma-prototype__benefit-card--correo .figma-prototype__step-number-badge {
-  left: calc(50% - 58px);
-  width: 116px;
-  height: 116px;
+  left: calc(50% - 34px);
+  width: 68px;
+  height: 68px;
 }
 
 .figma-prototype__benefit-shadow {
@@ -1655,9 +1645,26 @@
   top: 50%;
   left: 50%;
   max-width: none;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   transform: translate(-50%, -50%);
+}
+
+.figma-prototype__benefit-icon--correo .figma-prototype__benefit-icon-image {
+  width: 111px;
+  height: 83.2px;
+}
+
+.figma-prototype__benefit-icon--recompensas .figma-prototype__benefit-icon-image {
+  top: 41%;
+  width: 104px;
+  height: 102.8px;
+}
+
+.figma-prototype__benefit-icon--puntos .figma-prototype__benefit-icon-image {
+  width: 116.7px;
+  height: 81.7px;
 }
 
 .figma-prototype__bottom-band {

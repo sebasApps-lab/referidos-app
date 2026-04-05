@@ -1,4 +1,4 @@
-import iMacPanelPromosMockupBlue from "../../../assets/business/iMac-panel-promos-mockup-BLUE.png";
+import iMacPanelPromosMockupBlue from "../../../../../assets/dev/business/iMac-panel-promos-mockup-BLUE.png";
 
 export default function DesktopHeroPhoneShowcase() {
   return (

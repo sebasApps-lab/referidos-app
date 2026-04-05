@@ -1,5 +1,5 @@
 import { useState } from "react";
-import purpleButtonGlow from "../../../assets/landing/bottom/purple-button-glow.png";
+import purpleButtonGlow from "../../../assets/landing/bottom/purple-button-glow-optimized.webp";
 
 export default function MobileContactForm({ onFeedbackClick, onHelpClick, onLinkClick }) {
   const [name, setName] = useState("");

@@ -1,39 +1,56 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
-import { getRuntimeConfig } from "../config/runtimeConfig";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
 import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
 import businessLogo from "../assets/logo/go-plip-black-blue.svg";
 import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
 import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
+import helpCenterBusinessIcon from "../assets/help-center/help-center-icon-negocio.webp";
+import helpCenterBusinessArrow from "../assets/help-center/ir-right-arrow-negocio.webp";
+import consumerSigninIcon from "../assets/help-center/cliente/key-icon-cliente.webp";
+import consumerTermsIcon from "../assets/help-center/cliente/terms-icon-cliente.webp";
+import consumerPrivacyIcon from "../assets/help-center/cliente/privacy-icon-cliente.webp";
+import consumerVerifyIcon from "../assets/help-center/cliente/verify-account-icon-cliente.webp";
+import consumerRedeemIcon from "../assets/help-center/cliente/gift-promos-icon-cliente.webp";
+import consumerDeleteIcon from "../assets/help-center/cliente/delete-data-icon-cliente.webp";
+import consumerPointsIcon from "../assets/help-center/cliente/points-icon-cliente.webp";
+import consumerBusinessIcon from "../assets/help-center/cliente/negocio-icon-cliente.webp";
+import consumerSupportIcon from "../assets/help-center/cliente/chat-support-icon-cliente.webp";
+import businessSigninIcon from "../assets/help-center/negocios/key-icon-negocio.webp";
+import businessPrivacyIcon from "../assets/help-center/negocios/privacy-icon-negocio.webp";
+import businessVerifyIcon from "../assets/help-center/negocios/verify-account-icon-negocio.webp";
+import businessRedeemIcon from "../assets/help-center/negocios/gift-promos-icon-negocio.webp";
+import businessDeleteIcon from "../assets/help-center/negocios/delete-data-icon-negocio.webp";
+import businessPointsIcon from "../assets/help-center/negocios/points-icon-negocio.webp";
+import businessSupportIcon from "../assets/help-center/negocios/chat-support-icon-negocio.webp";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
 
 const HELP_CENTER_ICON_FILES = {
   consumer: {
-    signin: "cliente/key-icon-cliente.png",
-    terms: "cliente/terms-icon-cliente.png",
-    privacy: "cliente/privacy-icon-cliente.png",
-    verify: "cliente/verify-account-icon-cliente.png",
-    redeem: "cliente/gift-promos-icon-cliente.png",
-    delete: "cliente/delete-data-icon-cliente.png",
-    points: "cliente/points-icon-cliente.png",
-    business: "cliente/negocio-icon-cliente.png",
-    support: "cliente/chat-support-icon-cliente.png",
-    arrow: "ir-right-arrow-negocio.png",
+    signin: consumerSigninIcon,
+    terms: consumerTermsIcon,
+    privacy: consumerPrivacyIcon,
+    verify: consumerVerifyIcon,
+    redeem: consumerRedeemIcon,
+    delete: consumerDeleteIcon,
+    points: consumerPointsIcon,
+    business: consumerBusinessIcon,
+    support: consumerSupportIcon,
+    arrow: helpCenterBusinessArrow,
   },
   business: {
-    signin: "negocio/key-icon-negocio.png",
-    terms: "negocio/terms-icon-negocio.png",
-    privacy: "negocio/privacy-icon-negocio.png",
-    verify: "negocio/verify-account-icon-negocio.png",
-    redeem: "negocio/gift-promos-icon-negocio.png",
-    delete: "negocio/delete-data-icon-negocio.png",
-    points: "negocio/points-icon-negocio.png",
-    business: "negocio/clientes-icon-negocio.png",
-    support: "negocio/chat-support-icon-negocio.png",
-    arrow: "ir-right-arrow-negocio.png",
+    signin: businessSigninIcon,
+    terms: consumerTermsIcon,
+    privacy: businessPrivacyIcon,
+    verify: businessVerifyIcon,
+    redeem: businessRedeemIcon,
+    delete: businessDeleteIcon,
+    points: businessPointsIcon,
+    business: helpCenterBusinessIcon,
+    support: businessSupportIcon,
+    arrow: helpCenterBusinessArrow,
   },
 };
 
@@ -43,17 +60,9 @@ const HELP_CENTER_BRAND_LOGOS = {
   feedback: feedbackLogo,
 };
 
-function helpCenterAsset(relativePath) {
-  const assetBaseUrl = getRuntimeConfig().helpCenterAssetBaseUrl.replace(/\/+$/, "");
-  const assetPath = `/assets/shared/help-center/${relativePath}`;
-  return assetBaseUrl ? `${assetBaseUrl}${assetPath}` : assetPath;
-}
-
 function useThemedHelpCenterAsset(key) {
   const theme = useContext(HelpCenterThemeContext);
-  const relativePath =
-    HELP_CENTER_ICON_FILES[theme]?.[key] ?? HELP_CENTER_ICON_FILES.business[key];
-  return helpCenterAsset(relativePath);
+  return HELP_CENTER_ICON_FILES[theme]?.[key] ?? HELP_CENTER_ICON_FILES.business[key];
 }
 
 function HelpCenterAssetIcon({ assetKey }) {

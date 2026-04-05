@@ -1,7 +1,7 @@
 import "./signupCard.css";
 import heroRegisterCardLine from "../assets/landing/hero/hero-register-card-line.png";
-import signUpCardBg from "../assets/landing/hero/sign-up-card-BG.svg";
-import signUpCardGlow from "../assets/landing/hero/sign-up-card-glow.svg";
+import signUpCardBg from "../assets/landing/hero/info-card-BG-optimized.webp";
+import signUpCardGlow from "../assets/landing/hero/info-card-glow-optimized.webp";
 import googleIcon from "../assets/shared/material-icon-theme-google.svg";
 import supportMailIcon from "../assets/support/fluent-color-mail-16.svg";
 

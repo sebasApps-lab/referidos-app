@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
 import briefcaseIcon from "../../../assets/modals/gridicons_briefcase.svg";
 import bellCircleIcon from "../../../assets/modals/bell-icon-circle.svg";
-import clockIcon from "../../../assets/modals/yellow-icon-info-modal.svg";
+import clockIcon from "../../../assets/modals/yellow-icon-info-modal-optimized.webp";
 import checkIcon from "../../../assets/modals/lets-icons_check-fill.svg";
 import dividerImage from "../../../assets/modals/modal-line.png";
 import mailIcon from "../../../assets/modals/lucide_mail.svg";

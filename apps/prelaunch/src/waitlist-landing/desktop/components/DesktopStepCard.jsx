@@ -20,7 +20,9 @@ export default function DesktopStepCard({ step, index = 0 }) {
           className={`figma-prototype__benefit-icon figma-prototype__benefit-icon--${step.key}`}
           aria-hidden="true"
         >
-          <img className="figma-prototype__benefit-icon-shadow" src={step.shadowSrc} alt="" />
+          {step.shadowSrc ? (
+            <img className="figma-prototype__benefit-icon-shadow" src={step.shadowSrc} alt="" />
+          ) : null}
           <img
             className="figma-prototype__benefit-icon-image"
             src={step.iconSrc}

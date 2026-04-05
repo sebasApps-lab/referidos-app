@@ -52,10 +52,6 @@ const appChannel = asString(
   runtimeWindowConfig.appChannel,
   asString(importEnv.VITE_APP_CHANNEL, "prelaunch_web")
 );
-const helpCenterAssetBaseUrl = asString(
-  runtimeWindowConfig.helpCenterAssetBaseUrl,
-  asString(importEnv.VITE_HELP_CENTER_ASSET_BASE_URL, "https://referidos-app-assets.netlify.app")
-);
 const supabaseUrl = asString(runtimeWindowConfig.supabaseUrl, asString(importEnv.VITE_SUPABASE_URL));
 const supabasePublishableKey = asString(
   runtimeWindowConfig.supabasePublishableKey,
@@ -74,7 +70,6 @@ export const runtimeConfig = Object.freeze({
   sourceCommitSha,
   defaultTenantId,
   appChannel,
-  helpCenterAssetBaseUrl,
   supabaseUrl,
   supabasePublishableKey,
   mode,

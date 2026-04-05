@@ -1,4 +1,4 @@
-import businessHeroBg from "../../../assets/business/bg-hero-negocio.png";
+import businessHeroBg from "../../../../../assets/dev/business/bg-hero-negocio.png";
 
 export default function DesktopHeroBackground() {
   return (

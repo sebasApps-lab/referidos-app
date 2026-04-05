@@ -390,7 +390,6 @@
   height: auto;
   margin-top: -120px;
   margin-bottom: -42px;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .mobile-landing__modal-root--congrats .figma-prototype__landing-modal-heroIcon {
@@ -863,7 +862,6 @@
   object-fit: contain;
   object-position: center center;
   pointer-events: none;
-  outline: 2px solid rgba(255, 0, 0, 0.95);
 }
 
 .mobile-landing__business-modal-v2-root .figma-prototype__business-modal-main {

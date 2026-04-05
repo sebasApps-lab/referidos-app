@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import greenButtonGlow from "../../../assets/landing/bottom/green-button-glow.png";
+import greenButtonGlow from "../../../assets/landing/bottom/green-button-glow-optimized.webp";
 
 export default function MobileWaitlistForm({
   email,

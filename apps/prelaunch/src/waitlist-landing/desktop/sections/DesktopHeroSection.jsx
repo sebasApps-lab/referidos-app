@@ -6,12 +6,12 @@ import phoneBottomShadow from "../../../assets/landing/hero/phone-bottom-shadow-
 export default function DesktopHeroSection({ onWaitlistClick, onCardWaitlistClick }) {
   return (
     <section className="figma-prototype__hero">
-      <DesktopHeroBackground />
       <div className="hero-phone-bottom-shadow-anchor" aria-hidden="true">
         <div className="hero-phone-bottom-shadow-frame">
           <img className="hero-phone-bottom-shadow" src={phoneBottomShadow} alt="" />
         </div>
       </div>
+      <DesktopHeroBackground />
 
       <div className="figma-prototype__hero-content">
         <div className="figma-prototype__hero-copy figma-prototype__entry-edge-left figma-prototype__entry-delay-1">
