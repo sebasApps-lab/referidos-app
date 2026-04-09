@@ -13,23 +13,6 @@ function buildBaseProps(page, tree, route) {
   };
 }
 
-function getScrollPercentage() {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return 0;
-  }
-
-  const root = document.documentElement;
-  const scrollable = Math.max(root.scrollHeight - window.innerHeight, 0);
-  if (scrollable <= 0) {
-    return 100;
-  }
-
-  return Math.max(
-    0,
-    Math.min(100, Math.round((window.scrollY / scrollable) * 100)),
-  );
-}
-
 export default function usePrelaunchPageTracking({
   path = "/",
   page = "prelaunch_page",
@@ -39,9 +22,13 @@ export default function usePrelaunchPageTracking({
 } = {}) {
   const startedAtRef = useRef(Date.now());
   const seenSectionsRef = useRef(new Set());
-  const maxScrollPctRef = useRef(0);
   const lastSectionIdRef = useRef(null);
   const lastSectionOrderRef = useRef(0);
+  const seenCheckpointsRef = useRef(new Set());
+  const lastCheckpointIdRef = useRef(null);
+  const lastCheckpointOrderRef = useRef(0);
+  const furthestCheckpointIdRef = useRef(null);
+  const furthestCheckpointOrderRef = useRef(0);
   const leaveSentRef = useRef(false);
 
   const baseProps = useMemo(() => buildBaseProps(page, tree, route), [page, route, tree]);
@@ -125,25 +112,6 @@ export default function usePrelaunchPageTracking({
       referral_code_present: true,
     });
   }, [emitEvent]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    function handleScroll() {
-      maxScrollPctRef.current = Math.max(maxScrollPctRef.current, getScrollPercentage());
-    }
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") {
@@ -265,6 +233,91 @@ export default function usePrelaunchPageTracking({
   }, [emitEvent, sections]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return undefined;
+    }
+
+    const observedNodes = new Map();
+
+    const checkpointObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          const checkpointId = entry.target.getAttribute("data-prelaunch-checkpoint-id");
+          if (!checkpointId) {
+            return;
+          }
+
+          const checkpointOrder = Number(
+            entry.target.getAttribute("data-prelaunch-checkpoint-order") || 0,
+          );
+          const checkpointSurface =
+            entry.target.getAttribute("data-prelaunch-checkpoint-surface") || checkpointId;
+
+          lastCheckpointIdRef.current = checkpointId;
+          lastCheckpointOrderRef.current = checkpointOrder;
+
+          if (checkpointOrder >= furthestCheckpointOrderRef.current) {
+            furthestCheckpointOrderRef.current = checkpointOrder;
+            furthestCheckpointIdRef.current = checkpointId;
+          }
+
+          if (seenCheckpointsRef.current.has(checkpointId)) {
+            return;
+          }
+
+          seenCheckpointsRef.current.add(checkpointId);
+          void emitEvent("checkpoint_view", {
+            checkpoint_id: checkpointId,
+            checkpoint_order: checkpointOrder,
+            surface: checkpointSurface,
+          });
+        });
+      },
+      {
+        threshold: 0,
+      },
+    );
+
+    function bindCheckpoints() {
+      const checkpointNodes = document.querySelectorAll("[data-prelaunch-checkpoint-id]");
+      checkpointNodes.forEach((node) => {
+        const checkpointId = node.getAttribute("data-prelaunch-checkpoint-id");
+        if (!checkpointId || observedNodes.get(checkpointId) === node) {
+          return;
+        }
+
+        const previousNode = observedNodes.get(checkpointId);
+        if (previousNode) {
+          checkpointObserver.unobserve(previousNode);
+        }
+
+        checkpointObserver.observe(node);
+        observedNodes.set(checkpointId, node);
+      });
+    }
+
+    bindCheckpoints();
+
+    const mutationObserver = new MutationObserver(() => {
+      bindCheckpoints();
+    });
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      mutationObserver.disconnect();
+      observedNodes.forEach((node) => checkpointObserver.unobserve(node));
+      checkpointObserver.disconnect();
+    };
+  }, [emitEvent]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
@@ -280,8 +333,11 @@ export default function usePrelaunchPageTracking({
       void emitKeepaliveEvent("page_leave", {
         reason,
         elapsed_ms: elapsedMs,
-        max_scroll_pct: maxScrollPctRef.current,
         last_section_id: lastSectionIdRef.current,
+        last_checkpoint_id: lastCheckpointIdRef.current,
+        last_checkpoint_order: lastCheckpointOrderRef.current,
+        furthest_checkpoint_id: furthestCheckpointIdRef.current,
+        furthest_checkpoint_order: furthestCheckpointOrderRef.current,
       });
     }
 

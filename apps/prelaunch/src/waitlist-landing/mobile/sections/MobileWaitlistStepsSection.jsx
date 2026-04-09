@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
 import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import "./MobileWaitlistStepsSection.css";
 import { steps } from "../mobileWaitlistLandingContent";
@@ -11,6 +12,7 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout }) {
 
   return (
     <div className="mobile-landing__second-section">
+      <PrelaunchCheckpoint id="waitlist_steps_start" order={20} surface="waitlist_steps" />
       {!isTabletHeroLayout ? (
         <MobilePhoneSection showDisclaimer />
       ) : null}
@@ -39,6 +41,12 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout }) {
           ))}
         </div>
       </section>
+      <PrelaunchCheckpoint
+        id="waitlist_steps_end"
+        order={29}
+        surface="waitlist_steps"
+        position="end"
+      />
     </div>
   );
 }

@@ -42,6 +42,23 @@
   transition: opacity 260ms ease;
 }
 
+.prelaunch-checkpoint {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prelaunch-checkpoint--start {
+  top: 0;
+}
+
+.prelaunch-checkpoint--end {
+  bottom: 0;
+}
+
 .mobile-landing button,
 .mobile-landing input,
 .mobile-landing textarea {

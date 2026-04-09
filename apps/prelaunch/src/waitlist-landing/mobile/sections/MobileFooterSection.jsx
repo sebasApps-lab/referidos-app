@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import "./MobileWaitlistBottomSection.css";
 import { useNavigate } from "react-router-dom";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
 import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";
@@ -69,6 +70,7 @@ export default function MobileFooterSection({
       className="mobile-landing__footer prelaunch-section-gated"
       data-section-ready={isSectionReady ? "true" : "false"}
     >
+      <PrelaunchCheckpoint id="footer_start" order={50} surface="footer" />
       <MobileFooterPanels
         panels={footerPanels}
         onPanelClick={handleFooterPanelClick}
@@ -120,6 +122,7 @@ export default function MobileFooterSection({
           </div>
         </div>
       </div>
+      <PrelaunchCheckpoint id="footer_end" order={59} surface="footer" position="end" />
     </footer>
   );
 }

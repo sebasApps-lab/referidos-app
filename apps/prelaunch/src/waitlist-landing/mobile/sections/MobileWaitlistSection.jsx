@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
 import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import "./MobileWaitlistBottomSection.css";
 import MobileMockupSteps from "../components/MobileMockupSteps";
@@ -23,6 +24,7 @@ export default function MobileWaitlistSection({
       id="waitlist-bottom"
       data-section-ready={isSectionReady ? "true" : "false"}
     >
+      <PrelaunchCheckpoint id="waitlist_form_start" order={30} surface="waitlist_form" />
       <div className="mobile-landing__waitlist-heading mobile-landing__reveal-up">
         <h2 className="mobile-landing__waitlist-title">No te quedes sin tu invitación</h2>
         <div className="mobile-landing__waitlist-form-block" id="waitlist-invitation-form">
@@ -53,6 +55,7 @@ export default function MobileWaitlistSection({
 
         <MobileMockupSteps className="mobile-landing__reveal-up mobile-landing__reveal-delay-3" />
       </div>
+      <PrelaunchCheckpoint id="waitlist_form_end" order={39} surface="waitlist_form" position="end" />
     </section>
   );
 }

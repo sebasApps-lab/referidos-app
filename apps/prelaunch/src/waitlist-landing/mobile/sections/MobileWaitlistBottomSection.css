@@ -69,6 +69,7 @@
 }
 
 .mobile-landing__waitlist {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -433,6 +434,7 @@
 }
 
 .mobile-landing__contact-section {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -596,6 +598,7 @@
 }
 
 .mobile-landing__footer {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;

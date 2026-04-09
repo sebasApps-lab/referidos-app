@@ -5,6 +5,14 @@
   box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
 }
 
+.figma-prototype__bottom-bg-clip {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .figma-prototype__bottom-bg {
   position: absolute;
   top: 0;

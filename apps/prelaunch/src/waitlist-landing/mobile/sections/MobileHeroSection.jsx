@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
 import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { scrollToSection } from "../../scrollToSection";
 import MobileHeroBackground from "../components/MobileHeroBackground";
@@ -63,6 +64,7 @@ export default function MobileHeroSection({
       className="mobile-landing__top-section prelaunch-section-gated"
       data-section-ready={isSectionReady ? "true" : "false"}
     >
+      <PrelaunchCheckpoint id="hero_start" order={10} surface="hero" />
       <MobileHeroBackground />
 
       <header className="mobile-landing__header">
@@ -218,6 +220,7 @@ export default function MobileHeroSection({
           <MobilePhoneSection isHeroLayout showDisclaimer />
         ) : null}
       </div>
+      <PrelaunchCheckpoint id="hero_end" order={19} surface="hero" position="end" />
     </div>
   );
 }

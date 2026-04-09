@@ -1,6 +1,7 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import DeferredRender from "../../performance/DeferredRender";
 import useLandingLeadCapture from "../../landing-logic/useLandingLeadCapture";
+import PrelaunchCheckpoint from "../../observability/PrelaunchCheckpoint";
 import usePrelaunchPageTracking from "../../observability/usePrelaunchPageTracking";
 import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
@@ -20,26 +21,7 @@ const DesktopFooterSection = lazy(() => import("./sections/DesktopFooterSection"
 const DesktopWaitlistSection = lazy(() => import("./sections/DesktopWaitlistSection"));
 const DesktopWaitlistStepsSection = lazy(() => import("./sections/DesktopWaitlistStepsSection"));
 
-function getFooterColumnsScale() {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-
-  if (window.innerWidth >= 850) {
-    return 1;
-  }
-
-  if (window.innerWidth <= 700) {
-    return 0.72;
-  }
-
-  return 0.72 + ((window.innerWidth - 700) / 150) * 0.28;
-}
-
 export default function DesktopWaitlistLandingPage() {
-  const [footerColumnsScale, setFooterColumnsScale] = useState(() =>
-    getFooterColumnsScale(),
-  );
   const [isHeroSectionReady, setIsHeroSectionReady] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
@@ -96,15 +78,6 @@ export default function DesktopWaitlistLandingPage() {
     tree: "desktop",
     page: "waitlist_landing",
   });
-
-  useEffect(() => {
-    function handleResize() {
-      setFooterColumnsScale(getFooterColumnsScale());
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   function handleScrollToWaitlist(surface = "hero_cta") {
     void ingestPrelaunchEvent("cta_waitlist_open", {
@@ -277,13 +250,10 @@ export default function DesktopWaitlistLandingPage() {
   }
 
   return (
-    <main
-      className="figma-prototype"
-      aria-label="Figma prototype v2"
-      style={{ "--figma-footer-columns-scale": footerColumnsScale }}
-    >
+    <main className="figma-prototype" aria-label="Figma prototype v2">
       <div className="figma-prototype__shell">
         <section className="figma-prototype__hero-band">
+          <PrelaunchCheckpoint id="hero_start" order={10} surface="hero" />
           <DesktopNavigationHeader
             isHeroReady={isHeroSectionReady}
             onBusinessClick={() => openBusinessModal("header_nav")}
@@ -306,6 +276,7 @@ export default function DesktopWaitlistLandingPage() {
           >
             Negocios y promociones mostrados solo con fines ilustrativos.
           </p>
+          <PrelaunchCheckpoint id="hero_end" order={19} surface="hero" position="end" />
         </section>
         <DeferredRender
           placeholderAs="section"
