@@ -5,7 +5,7 @@
   align-items: center;
   gap: 84px;
   width: 100%;
-  min-height: 0;
+  min-height: 2360px;
   margin-top: -16px;
   padding-top: 16px;
   isolation: isolate;
@@ -20,8 +20,6 @@
   min-height: 1396px;
   margin-top: 100px;
   padding: 0 var(--mobile-horizontal-gutter);
-  content-visibility: auto;
-  contain-intrinsic-size: 1480px;
 }
 
 .mobile-landing__about-heading {

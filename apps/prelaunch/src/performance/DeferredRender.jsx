@@ -17,11 +17,27 @@ export default function DeferredRender({
   placeholderId = undefined,
   placeholderClassName = "",
   placeholderHeight = 0,
-  fallback = null,
+  placeholderContent = null,
+  fallback = undefined,
   immediate = false,
 }) {
   const [shouldRender, setShouldRender] = useState(immediate);
   const placeholderRef = useRef(null);
+  const PlaceholderTag = placeholderAs;
+
+  function renderPlaceholder(ref = undefined) {
+    return (
+      <PlaceholderTag
+        ref={ref}
+        id={placeholderId}
+        className={placeholderClassName}
+        aria-hidden="true"
+        style={buildPlaceholderStyle(placeholderHeight)}
+      >
+        {placeholderContent}
+      </PlaceholderTag>
+    );
+  }
 
   useEffect(() => {
     if (shouldRender) {
@@ -52,17 +68,8 @@ export default function DeferredRender({
   }, [rootMargin, shouldRender]);
 
   if (shouldRender) {
-    return <Suspense fallback={fallback}>{children}</Suspense>;
+    return <Suspense fallback={fallback === undefined ? renderPlaceholder() : fallback}>{children}</Suspense>;
   }
 
-  const PlaceholderTag = placeholderAs;
-  return (
-    <PlaceholderTag
-      ref={placeholderRef}
-      id={placeholderId}
-      className={placeholderClassName}
-      aria-hidden="true"
-      style={buildPlaceholderStyle(placeholderHeight)}
-    />
-  );
+  return renderPlaceholder(placeholderRef);
 }

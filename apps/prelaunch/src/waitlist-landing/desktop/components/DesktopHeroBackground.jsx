@@ -8,9 +8,9 @@ import heroDesktop1920Avif from "../../../assets/landing/hero/bg/hero-desktop-op
 import heroDesktop2560Avif from "../../../assets/landing/hero/bg/hero-desktop-optimized-2560.avif";
 const heroDesktopMask = svgMaskUrl(heroDesktopMaskRaw);
 
-export default function DesktopHeroBackground() {
+export default function DesktopHeroBackground({ className = "" }) {
   return (
-    <div className="figma-prototype__hero-bg" aria-hidden="true">
+    <div className={["figma-prototype__hero-bg", className].filter(Boolean).join(" ")} aria-hidden="true">
       <div className="figma-prototype__hero-bg-mask">
         <picture className="figma-prototype__hero-bg-picture">
           <source

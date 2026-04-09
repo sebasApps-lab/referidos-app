@@ -30,6 +30,18 @@
   max-width: none;
 }
 
+.prelaunch-section-gated[data-section-ready="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.prelaunch-section-gated[data-section-ready="true"] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 260ms ease;
+}
+
 .mobile-landing button,
 .mobile-landing input,
 .mobile-landing textarea {
@@ -525,6 +537,11 @@
     overflow: visible;
   }
 
+  .mobile-landing__phone-section--hero.mobile-landing__phone-section--with-disclaimer {
+    min-height: calc((725px * var(--mobile-phone-hero-scale)) + 42px);
+    height: calc((725px * var(--mobile-phone-hero-scale)) + 42px);
+  }
+
   .mobile-landing__phone-section--hero .mobile-landing__phone-stack {
     transform: scale(var(--mobile-phone-hero-scale));
     left: auto;
@@ -535,6 +552,7 @@
     margin-top: 0;
     padding-top: 0;
     gap: 0;
+    min-height: 1680px;
   }
 
   .mobile-landing__about-block {
@@ -562,6 +580,7 @@
     width: calc(100% + (var(--mobile-horizontal-gutter) * 2));
     margin: 0 calc(var(--mobile-horizontal-gutter) * -1);
     border-top: 1px solid rgba(28, 0, 73, 0.15);
+    min-height: 360px;
   }
 
   .mobile-landing__footer-info {
@@ -666,6 +685,10 @@
 
   .mobile-landing__legal-copy {
     margin-top: 34px;
+  }
+
+  .mobile-landing__contact-section {
+    min-height: 460px;
   }
 
   .mobile-landing__steps {
@@ -785,6 +808,7 @@
 
   .mobile-landing__contact-section {
     max-width: 900px;
+    min-height: 460px;
   }
 }
 

@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import "./MobileWaitlistBottomSection.css";
 import MobileMockupSteps from "../components/MobileMockupSteps";
 import MobileWaitlistForm from "../components/MobileWaitlistForm";
@@ -11,8 +13,16 @@ export default function MobileWaitlistSection({
   onHoneypotChange,
   onSubmit,
 }) {
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
+
   return (
-    <section className="mobile-landing__waitlist" id="waitlist-bottom">
+    <section
+      ref={sectionRef}
+      className="mobile-landing__waitlist prelaunch-section-gated"
+      id="waitlist-bottom"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
       <div className="mobile-landing__waitlist-heading mobile-landing__reveal-up">
         <h2 className="mobile-landing__waitlist-title">No te quedes sin tu invitación</h2>
         <div className="mobile-landing__waitlist-form-block" id="waitlist-invitation-form">

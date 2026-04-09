@@ -1,10 +1,20 @@
+import { useRef } from "react";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import "./DesktopWaitlistStepsSection.css";
 import { desktopSteps } from "../desktopWaitlistLandingContent";
 import DesktopStepCard from "../components/DesktopStepCard";
 
 export default function DesktopWaitlistStepsSection() {
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
+
   return (
-    <section className="figma-prototype__benefits" id="waitlist-steps">
+    <section
+      ref={sectionRef}
+      className="figma-prototype__benefits prelaunch-section-gated"
+      id="waitlist-steps"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
       <div className="figma-prototype__benefits-inner">
         <div className="figma-prototype__benefits-heading figma-prototype__reveal-up">
           <div className="figma-prototype__benefits-title">

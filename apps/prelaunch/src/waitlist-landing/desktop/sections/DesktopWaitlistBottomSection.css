@@ -3,8 +3,6 @@
   overflow: visible;
   background: #150444;
   box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
-  content-visibility: auto;
-  contain-intrinsic-size: 1160px;
 }
 
 .figma-prototype__bottom-bg {
@@ -79,8 +77,6 @@
   height: auto;
   max-height: none;
   overflow: visible;
-  content-visibility: auto;
-  contain-intrinsic-size: 760px;
 }
 
 .figma-prototype__deferred-placeholder {

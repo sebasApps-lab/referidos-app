@@ -4,11 +4,14 @@ import phoneMockup from "../../../assets/landing/hero/nothing-phone-2a-optimized
 export default function MobilePhoneSection({
   isHeroLayout = false,
   className = "",
+  showDisclaimer = false,
 }) {
   return (
     <section
       className={`${className} mobile-landing__phone-section${
         isHeroLayout ? " mobile-landing__phone-section--hero" : ""
+      }${
+        showDisclaimer ? " mobile-landing__phone-section--with-disclaimer" : ""
       }`.trim()}
     >
       <div className="mobile-landing__phone-stack">
@@ -21,6 +24,11 @@ export default function MobilePhoneSection({
           decoding="async"
         />
       </div>
+      {showDisclaimer ? (
+        <p className="mobile-landing__phone-disclaimer">
+          Negocios y promociones mostrados solo con fines ilustrativos.
+        </p>
+      ) : null}
     </section>
   );
 }

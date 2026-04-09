@@ -40,6 +40,7 @@ export default function DesktopWaitlistLandingPage() {
   const [footerColumnsScale, setFooterColumnsScale] = useState(() =>
     getFooterColumnsScale(),
   );
+  const [isHeroSectionReady, setIsHeroSectionReady] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
   const [congratsReferralLink, setCongratsReferralLink] = useState("");
@@ -284,14 +285,25 @@ export default function DesktopWaitlistLandingPage() {
       <div className="figma-prototype__shell">
         <section className="figma-prototype__hero-band">
           <DesktopNavigationHeader
+            isHeroReady={isHeroSectionReady}
             onBusinessClick={() => openBusinessModal("header_nav")}
             onLinkClick={handleDesktopHeaderLink}
           />
           <DesktopHeroSection
+            onAssetsReadyChange={setIsHeroSectionReady}
             onWaitlistClick={() => handleScrollToWaitlist("hero_cta")}
             onCardWaitlistClick={() => handleScrollToWaitlist("hero_preview_card")}
           />
-          <p className="figma-prototype__hero-disclaimer">
+          <p
+            className={[
+              "figma-prototype__hero-disclaimer",
+              isHeroSectionReady
+                ? "figma-prototype__hero-disclaimer-entry"
+                : "figma-prototype__entry-pending",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             Negocios y promociones mostrados solo con fines ilustrativos.
           </p>
         </section>

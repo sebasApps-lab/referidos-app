@@ -9,6 +9,7 @@ import { scrollToSection } from "../scrollToSection";
 import "../../home/mobileWaitlistLanding.css";
 import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
+import MobilePhoneSection from "./components/MobilePhoneSection";
 import MobileHeroSection from "./sections/MobileHeroSection";
 import MobileWaitlistSection from "./sections/MobileWaitlistSection";
 
@@ -27,9 +28,13 @@ export default function MobileWaitlistLandingPage() {
   const [activeModal, setActiveModal] = useState(null);
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
   const [congratsReferralLink, setCongratsReferralLink] = useState("");
+  const [isHeroSectionReady, setIsHeroSectionReady] = useState(false);
   const navigate = useNavigate();
   const bottomClipId = useId().replace(/:/g, "");
   const { phoneScale, isTabletHeroLayout, stepCardScale } = useMobileWaitlistLandingLayout();
+  const stepsPlaceholderHeight = isTabletHeroLayout ? 1680 : 2360;
+  const contactPlaceholderHeight = isTabletHeroLayout ? 460 : 560;
+  const footerPlaceholderHeight = isTabletHeroLayout ? 360 : 420;
 
   const trackedSections = useMemo(
     () => [
@@ -314,6 +319,7 @@ export default function MobileWaitlistLandingPage() {
       <section className="mobile-landing__top-page">
         <MobileHeroSection
           isTabletHeroLayout={isTabletHeroLayout}
+          onAssetsReadyChange={setIsHeroSectionReady}
           onBusinessClick={() => openBusinessModal("drawer")}
           onHelpClick={() => handleHelpOpen("drawer_nav")}
           onHowItWorksClick={handleHowItWorksClick}
@@ -324,7 +330,17 @@ export default function MobileWaitlistLandingPage() {
           placeholderAs="section"
           placeholderId="waitlist-steps"
           placeholderClassName="mobile-landing__second-section mobile-landing__deferred-placeholder"
-          placeholderHeight={isTabletHeroLayout ? 1640 : 2260}
+          placeholderHeight={stepsPlaceholderHeight}
+          placeholderContent={
+            !isTabletHeroLayout ? (
+              <div
+                className="mobile-landing__steps-phone-placeholder"
+                data-hero-ready={isHeroSectionReady ? "true" : "false"}
+              >
+                <MobilePhoneSection showDisclaimer />
+              </div>
+            ) : null
+          }
           rootMargin="360px 0px"
         >
           <MobileWaitlistStepsSection isTabletHeroLayout={isTabletHeroLayout} />
@@ -347,7 +363,7 @@ export default function MobileWaitlistLandingPage() {
           <DeferredRender
             placeholderAs="section"
             placeholderClassName="mobile-landing__contact-section mobile-landing__deferred-placeholder"
-            placeholderHeight={440}
+            placeholderHeight={contactPlaceholderHeight}
             rootMargin="260px 0px"
           >
             <MobileContactSection
@@ -361,7 +377,7 @@ export default function MobileWaitlistLandingPage() {
         <DeferredRender
           placeholderAs="footer"
           placeholderClassName="mobile-landing__footer mobile-landing__deferred-placeholder"
-          placeholderHeight={320}
+          placeholderHeight={footerPlaceholderHeight}
           rootMargin="220px 0px"
         >
           <MobileFooterSection

@@ -6,8 +6,6 @@
   align-items: center;
   width: 100%;
   padding: 0 var(--mobile-horizontal-gutter);
-  content-visibility: auto;
-  contain-intrinsic-size: 1800px;
 }
 
 .mobile-landing__bottom-mask-wrap {
@@ -77,8 +75,6 @@
   gap: 175px;
   width: 100%;
   padding-top: 160px;
-  content-visibility: auto;
-  contain-intrinsic-size: 1400px;
 }
 
 .mobile-landing__waitlist-heading {
@@ -244,8 +240,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 38px;
-  content-visibility: auto;
-  contain-intrinsic-size: 640px;
 }
 
 .mobile-landing__promo-heading {
@@ -445,8 +439,7 @@
   gap: 36px;
   width: 100%;
   max-width: min(100%, var(--mobile-content-max-width));
-  content-visibility: auto;
-  contain-intrinsic-size: 440px;
+  min-height: 560px;
 }
 
 .mobile-landing__contact-title {
@@ -611,13 +604,29 @@
   margin: 0;
   padding: 0 0 8px;
   background: transparent;
-  content-visibility: auto;
-  contain-intrinsic-size: 320px;
+  min-height: 420px;
 }
 
 .mobile-landing__deferred-placeholder {
   width: 100%;
   background: transparent;
+}
+
+.mobile-landing__steps-phone-placeholder {
+  width: 100%;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(14px);
+}
+
+.mobile-landing__steps-phone-placeholder[data-hero-ready="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .mobile-landing__footer-panels {

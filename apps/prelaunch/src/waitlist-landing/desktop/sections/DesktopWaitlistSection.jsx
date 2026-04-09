@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import "./DesktopWaitlistBottomSection.css";
 import DesktopMockupSteps from "../components/DesktopMockupSteps";
 import DesktopWaitlistForm from "../components/DesktopWaitlistForm";
@@ -11,8 +13,15 @@ export default function DesktopWaitlistSection({
   onHoneypotChange,
   onSubmit,
 }) {
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
+
   return (
-    <section className="figma-prototype__waitlist">
+    <section
+      ref={sectionRef}
+      className="figma-prototype__waitlist prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
       <div className="figma-prototype__waitlist-content">
         <div className="figma-prototype__waitlist-copy figma-prototype__reveal-left">
           <p className="figma-prototype__waitlist-title">No te quedes sin un puesto para participar</p>

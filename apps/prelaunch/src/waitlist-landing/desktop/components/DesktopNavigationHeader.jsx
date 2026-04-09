@@ -4,9 +4,15 @@ import { scrollToSection } from "../../scrollToSection";
 import { navigationLinks } from "../desktopWaitlistLandingContent";
 import headerLogo from "../../../assets/logo/go-plip-white-lila.svg";
 
-export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }) {
+export default function DesktopNavigationHeader({ isHeroReady, onBusinessClick, onLinkClick }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const headerRef = useRef(null);
+  const brandEntryClassName = isHeroReady
+    ? "figma-prototype__entry-edge-left figma-prototype__entry-delay-4"
+    : "figma-prototype__entry-pending";
+  const linksEntryClassName = isHeroReady
+    ? "figma-prototype__entry-edge-right figma-prototype__entry-delay-5"
+    : "figma-prototype__entry-pending";
 
   function handleScroll(event, targetId) {
     event.preventDefault();
@@ -111,7 +117,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       ref={headerRef}
       className={`figma-prototype__nav ${isMenuOpen ? "figma-prototype__nav--menu-open" : ""}`}
     >
-      <div className="figma-prototype__nav-brand figma-prototype__entry-edge-left">
+      <div className={["figma-prototype__nav-brand", brandEntryClassName].filter(Boolean).join(" ")}>
         <div className="figma-prototype__nav-brand-row">
           <img
             src={headerLogo}
@@ -126,7 +132,7 @@ export default function DesktopNavigationHeader({ onBusinessClick, onLinkClick }
       </div>
 
       <nav
-        className="figma-prototype__nav-links figma-prototype__entry-edge-right figma-prototype__entry-delay-1"
+        className={["figma-prototype__nav-links", linksEntryClassName].filter(Boolean).join(" ")}
         aria-label="Principal"
       >
         {navigationLinks.map((link) =>

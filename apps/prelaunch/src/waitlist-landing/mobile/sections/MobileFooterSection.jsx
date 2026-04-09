@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import "./MobileWaitlistBottomSection.css";
 import { useNavigate } from "react-router-dom";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";
 import footerLogo from "../../../assets/logo/go-plip-black-gray.svg";
@@ -11,6 +13,8 @@ export default function MobileFooterSection({
   onWhoWeAreClick,
 }) {
   const navigate = useNavigate();
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
 
   function trackAndNavigate({ linkId, targetPath, surface, label }) {
     onLinkClick?.({
@@ -60,7 +64,11 @@ export default function MobileFooterSection({
   }
 
   return (
-    <footer className="mobile-landing__footer">
+    <footer
+      ref={sectionRef}
+      className="mobile-landing__footer prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
       <MobileFooterPanels
         panels={footerPanels}
         onPanelClick={handleFooterPanelClick}

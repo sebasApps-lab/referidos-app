@@ -46,6 +46,18 @@
   margin: 0;
 }
 
+.prelaunch-section-gated[data-section-ready="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.prelaunch-section-gated[data-section-ready="true"] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 260ms ease;
+}
+
 .figma-prototype__entry-fade-up,
 .figma-prototype__entry-edge-left,
 .figma-prototype__entry-edge-right {
@@ -55,6 +67,37 @@
   animation-fill-mode: both;
   animation-timing-function: cubic-bezier(0.18, 0.7, 0.22, 1);
   will-change: transform, opacity;
+}
+
+.figma-prototype__entry-pending {
+  opacity: 0;
+}
+
+.figma-prototype__hero-copy-entry,
+.figma-prototype__hero-visual-entry,
+.figma-prototype__hero-bg-entry {
+  --figma-entry-delay: 0ms;
+  opacity: 0;
+  animation-duration: 1.08s;
+  animation-delay: var(--figma-entry-delay);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.16, 0.84, 0.22, 1);
+  will-change: transform, opacity, filter;
+}
+
+.figma-prototype__hero-copy-entry {
+  --figma-entry-delay: 110ms;
+  animation-name: figmaHeroCopyEntry;
+}
+
+.figma-prototype__hero-visual-entry {
+  --figma-entry-delay: 190ms;
+  animation-name: figmaHeroVisualEntry;
+}
+
+.figma-prototype__hero-bg-entry {
+  animation-duration: 1.12s;
+  animation-name: figmaHeroBackgroundEntry;
 }
 
 .figma-prototype__entry-fade-up {
@@ -125,10 +168,74 @@
   }
 }
 
+@keyframes figmaHeroCopyEntry {
+  0% {
+    opacity: 0;
+    transform: translate3d(-28px, 22px, 0) scale(0.985);
+    filter: blur(10px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translate3d(2px, -1px, 0) scale(1.004);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes figmaHeroVisualEntry {
+  0% {
+    opacity: 0;
+    transform: translate3d(38px, 16px, 0) scale(0.952);
+    filter: blur(12px);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translate3d(-3px, -2px, 0) scale(1.006);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes figmaHeroBackgroundEntry {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0) scale(1.03);
+    filter: saturate(0.94);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.006);
+    filter: saturate(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: saturate(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .figma-prototype__entry-fade-up,
   .figma-prototype__entry-edge-left,
-  .figma-prototype__entry-edge-right {
+  .figma-prototype__entry-edge-right,
+  .figma-prototype__hero-copy-entry,
+  .figma-prototype__hero-visual-entry,
+  .figma-prototype__hero-bg-entry,
+  .figma-prototype__hero-disclaimer-entry {
     animation: none;
   }
 }
@@ -569,6 +676,20 @@
   font-weight: 400;
   line-height: 1.5;
   text-align: center;
+}
+
+.figma-prototype__hero-disclaimer-entry {
+  animation: figmaHeroDisclaimerEntry 360ms ease 1360ms both;
+}
+
+@keyframes figmaHeroDisclaimerEntry {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .figma-prototype__info-card-wrap,

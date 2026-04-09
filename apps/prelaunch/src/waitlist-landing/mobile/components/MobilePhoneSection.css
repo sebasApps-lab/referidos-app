@@ -7,6 +7,11 @@
   isolation: isolate;
 }
 
+.mobile-landing__phone-section--with-disclaimer {
+  min-height: calc((725px * var(--mobile-phone-scale)) + 42px);
+  height: calc((725px * var(--mobile-phone-scale)) + 42px);
+}
+
 .mobile-landing__phone-stack {
   position: absolute;
   top: 0;
@@ -29,4 +34,18 @@
   max-width: none;
   object-fit: contain;
   object-position: center top;
+}
+
+.mobile-landing__phone-disclaimer {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(calc(100% - 48px), 340px);
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(47, 26, 85, 0.6);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
 }
