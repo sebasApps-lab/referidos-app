@@ -7,7 +7,6 @@ import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "../../home/mobileWaitlistLanding.css";
-import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
 import MobilePhoneSection from "./components/MobilePhoneSection";
 import MobileHeroSection from "./sections/MobileHeroSection";
@@ -31,10 +30,6 @@ export default function MobileWaitlistLandingPage() {
   const [isHeroSectionReady, setIsHeroSectionReady] = useState(false);
   const navigate = useNavigate();
   const bottomClipId = useId().replace(/:/g, "");
-  const { phoneScale, isTabletHeroLayout, stepCardScale } = useMobileWaitlistLandingLayout();
-  const stepsPlaceholderHeight = isTabletHeroLayout ? 1680 : 2360;
-  const contactPlaceholderHeight = isTabletHeroLayout ? 460 : 560;
-  const footerPlaceholderHeight = isTabletHeroLayout ? 360 : 420;
 
   const trackedSections = useMemo(
     () => [
@@ -311,14 +306,9 @@ export default function MobileWaitlistLandingPage() {
     <main
       className="mobile-landing"
       aria-label="Mobile waitlist landing"
-      style={{
-        "--mobile-phone-scale": phoneScale.toFixed(4),
-        "--mobile-step-card-scale": stepCardScale.toFixed(4),
-      }}
     >
       <section className="mobile-landing__top-page">
         <MobileHeroSection
-          isTabletHeroLayout={isTabletHeroLayout}
           onAssetsReadyChange={setIsHeroSectionReady}
           onBusinessClick={() => openBusinessModal("drawer")}
           onHelpClick={() => handleHelpOpen("drawer_nav")}
@@ -329,21 +319,21 @@ export default function MobileWaitlistLandingPage() {
         <DeferredRender
           placeholderAs="section"
           placeholderId="waitlist-steps"
-          placeholderClassName="mobile-landing__second-section mobile-landing__deferred-placeholder"
-          placeholderHeight={stepsPlaceholderHeight}
+          placeholderClassName="mobile-landing__second-section mobile-landing__deferred-placeholder mobile-landing__deferred-placeholder--steps"
           placeholderContent={
-            !isTabletHeroLayout ? (
-              <div
-                className="mobile-landing__steps-phone-placeholder"
-                data-hero-ready={isHeroSectionReady ? "true" : "false"}
-              >
-                <MobilePhoneSection showDisclaimer />
-              </div>
-            ) : null
+            <div
+              className="mobile-landing__steps-phone-placeholder"
+              data-hero-ready={isHeroSectionReady ? "true" : "false"}
+            >
+              <MobilePhoneSection
+                className="mobile-landing__phone-section-slot mobile-landing__phone-section-slot--steps-placeholder"
+                showDisclaimer
+              />
+            </div>
           }
           rootMargin="360px 0px"
         >
-          <MobileWaitlistStepsSection isTabletHeroLayout={isTabletHeroLayout} />
+          <MobileWaitlistStepsSection />
         </DeferredRender>
       </section>
 
@@ -362,8 +352,7 @@ export default function MobileWaitlistLandingPage() {
           />
           <DeferredRender
             placeholderAs="section"
-            placeholderClassName="mobile-landing__contact-section mobile-landing__deferred-placeholder"
-            placeholderHeight={contactPlaceholderHeight}
+            placeholderClassName="mobile-landing__contact-section mobile-landing__deferred-placeholder mobile-landing__deferred-placeholder--contact"
             rootMargin="260px 0px"
           >
             <MobileContactSection
@@ -376,8 +365,7 @@ export default function MobileWaitlistLandingPage() {
 
         <DeferredRender
           placeholderAs="footer"
-          placeholderClassName="mobile-landing__footer mobile-landing__deferred-placeholder"
-          placeholderHeight={footerPlaceholderHeight}
+          placeholderClassName="mobile-landing__footer mobile-landing__deferred-placeholder mobile-landing__deferred-placeholder--footer"
           rootMargin="220px 0px"
         >
           <MobileFooterSection

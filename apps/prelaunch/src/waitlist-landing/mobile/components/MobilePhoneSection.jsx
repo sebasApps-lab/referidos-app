@@ -9,8 +9,6 @@ export default function MobilePhoneSection({
   return (
     <section
       className={`${className} mobile-landing__phone-section${
-        isHeroLayout ? " mobile-landing__phone-section--hero" : ""
-      }${
         showDisclaimer ? " mobile-landing__phone-section--with-disclaimer" : ""
       }`.trim()}
     >
@@ -18,7 +16,7 @@ export default function MobilePhoneSection({
         <img
           className="mobile-landing__phone-image"
           src={phoneMockup}
-          alt={"AplicaciÃƒÂ³n Referidos App en un telÃƒÂ©fono"}
+          alt="Aplicacion Referidos App en un telefono"
           loading={isHeroLayout ? "eager" : "lazy"}
           fetchPriority={isHeroLayout ? "high" : "low"}
           decoding="async"

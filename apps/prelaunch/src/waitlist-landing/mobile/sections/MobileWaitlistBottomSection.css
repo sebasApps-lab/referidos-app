@@ -615,6 +615,18 @@
   background: transparent;
 }
 
+.mobile-landing__deferred-placeholder--steps {
+  min-height: 2360px;
+}
+
+.mobile-landing__deferred-placeholder--contact {
+  min-height: 560px;
+}
+
+.mobile-landing__deferred-placeholder--footer {
+  min-height: 420px;
+}
+
 .mobile-landing__steps-phone-placeholder {
   width: 100%;
   opacity: 0;
@@ -709,9 +721,11 @@
 .mobile-landing__footer-legal {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
   width: 100%;
+  max-width: 420px;
+  padding: 0 15px;
 }
 
 .mobile-landing__footer-legal-links {
@@ -741,4 +755,76 @@
   font-weight: 275;
   font-size: 14px;
   line-height: 150%;
+}
+
+@media (min-width: 750px) {
+  .mobile-landing__footer {
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(20px, 4vw, 52px);
+    width: calc(100% + (var(--mobile-horizontal-gutter) * 2));
+    min-height: 360px;
+    margin: 0 calc(var(--mobile-horizontal-gutter) * -1);
+    padding-top: 0;
+    padding-right: var(--mobile-horizontal-gutter);
+    padding-left: var(--mobile-horizontal-gutter);
+    border-top: 1px solid rgba(28, 0, 73, 0.15);
+  }
+
+  .mobile-landing__footer-info {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    max-width: 420px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: start;
+    padding-top: 20px;
+  }
+
+  .mobile-landing__footer-about {
+    align-items: flex-start;
+    padding: 0;
+  }
+
+  .mobile-landing__footer-about-copy {
+    text-align: left;
+  }
+
+  .mobile-landing__footer-legal {
+    align-items: flex-start;
+    max-width: none;
+    padding: 0;
+  }
+
+  .mobile-landing__footer-legal-links {
+    justify-content: flex-start;
+  }
+
+  .mobile-landing__footer-copyright {
+    text-align: left;
+  }
+
+  .mobile-landing__footer-panels {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: stretch;
+    justify-self: stretch;
+    width: calc(100% + var(--mobile-horizontal-gutter));
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    margin: 0 calc(var(--mobile-horizontal-gutter) * -1) 0 0;
+    border-top: 0;
+    border-left: 1px solid rgba(28, 0, 73, 0.15);
+  }
+
+  .mobile-landing button.mobile-landing__footer-panel {
+    flex: 1 1 0;
+    min-height: 65px;
+    height: auto;
+    justify-content: center;
+    padding: 20px 0;
+  }
 }

@@ -10,7 +10,6 @@ import headerLogo from "../../../assets/logo/go-plip-white-lila.svg";
 import drawerLogo from "../../../assets/logo/go-plip-dark-light-purple.svg";
 
 export default function MobileHeroSection({
-  isTabletHeroLayout,
   onAssetsReadyChange,
   onBusinessClick,
   onHelpClick,
@@ -22,11 +21,7 @@ export default function MobileHeroSection({
   const drawerId = useId();
   const navigate = useNavigate();
   const sectionRef = useRef(null);
-  const isSectionReady = useSectionAssetsReady(
-    sectionRef,
-    [isTabletHeroLayout],
-    isTabletHeroLayout ? [] : [phoneMockup],
-  );
+  const isSectionReady = useSectionAssetsReady(sectionRef, [], [phoneMockup]);
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -216,9 +211,11 @@ export default function MobileHeroSection({
           </div>
         </section>
 
-        {isTabletHeroLayout ? (
-          <MobilePhoneSection isHeroLayout showDisclaimer />
-        ) : null}
+        <MobilePhoneSection
+          isHeroLayout
+          className="mobile-landing__phone-section-slot mobile-landing__phone-section-slot--hero mobile-landing__phone-section--hero"
+          showDisclaimer
+        />
       </div>
       <PrelaunchCheckpoint id="hero_end" order={19} surface="hero" position="end" />
     </div>

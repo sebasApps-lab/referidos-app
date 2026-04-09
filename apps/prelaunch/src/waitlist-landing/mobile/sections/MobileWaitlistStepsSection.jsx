@@ -6,16 +6,17 @@ import { steps } from "../mobileWaitlistLandingContent";
 import MobilePhoneSection from "../components/MobilePhoneSection";
 import MobileStepCard from "../components/MobileStepCard";
 
-export default function MobileWaitlistStepsSection({ isTabletHeroLayout }) {
+export default function MobileWaitlistStepsSection() {
   const aboutBlockRef = useRef(null);
-  const isSectionReady = useSectionAssetsReady(aboutBlockRef, [isTabletHeroLayout]);
+  const isSectionReady = useSectionAssetsReady(aboutBlockRef);
 
   return (
     <div className="mobile-landing__second-section">
       <PrelaunchCheckpoint id="waitlist_steps_start" order={20} surface="waitlist_steps" />
-      {!isTabletHeroLayout ? (
-        <MobilePhoneSection showDisclaimer />
-      ) : null}
+      <MobilePhoneSection
+        className="mobile-landing__phone-section-slot mobile-landing__phone-section-slot--steps"
+        showDisclaimer
+      />
 
       <section
         ref={aboutBlockRef}

@@ -45,17 +45,6 @@ export default function DesktopNavigationHeader({ isHeroReady, onBusinessClick, 
     };
   }, [isMenuOpen]);
 
-  useEffect(() => {
-    function handleResize() {
-      if (window.innerWidth > 1024) {
-        setIsMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   function renderNavItem(link, className) {
     if (link.to) {
       return (

@@ -1,15 +1,5 @@
 import "../desktopLandingModals.css";
-import { useEffect, useState } from "react";
-
-function getModalScale(designWidth, designHeight) {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-
-  const availableWidth = Math.max(320, window.innerWidth - 64);
-  const availableHeight = Math.max(320, window.innerHeight - 64);
-  return Math.min(1, availableWidth / designWidth, availableHeight / designHeight);
-}
+import { useEffect } from "react";
 
 export default function DesktopLandingModalFrame({
   isOpen,
@@ -20,22 +10,6 @@ export default function DesktopLandingModalFrame({
   lockHeight = false,
   children,
 }) {
-  const [scale, setScale] = useState(() => getModalScale(designWidth, designHeight));
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-
-    function handleResize() {
-      setScale(getModalScale(designWidth, designHeight));
-    }
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [designHeight, designWidth, isOpen]);
-
   useEffect(() => {
     if (!isOpen) {
       return undefined;
@@ -79,24 +53,27 @@ export default function DesktopLandingModalFrame({
       }}
     >
       <div
-        className="figma-prototype__landing-modal-shell"
+        className={[
+          "figma-prototype__landing-modal-shell",
+          lockHeight ? "figma-prototype__landing-modal-shell--lock-height" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         style={{
-          width: `${designWidth * scale}px`,
-          ...(lockHeight
-            ? { height: `${designHeight * scale}px` }
-            : { minHeight: `${designHeight * scale}px` }),
+          "--landing-modal-design-width": `${designWidth}px`,
+          "--landing-modal-design-height": `${designHeight}px`,
         }}
       >
         <div
-          className="figma-prototype__landing-modal-panel"
+          className={[
+            "figma-prototype__landing-modal-panel",
+            lockHeight ? "figma-prototype__landing-modal-panel--lock-height" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           role="dialog"
           aria-modal="true"
           aria-label={dialogLabel}
-          style={{
-            width: `${designWidth}px`,
-            ...(lockHeight ? { height: `${designHeight}px` } : { minHeight: `${designHeight}px` }),
-            transform: `scale(${scale})`,
-          }}
         >
           {children}
         </div>
