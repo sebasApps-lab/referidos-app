@@ -1,6 +1,6 @@
 .figma-prototype__bottom-band {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   background: #150444;
   box-shadow: 0 -2px 4px rgba(36, 5, 92, 0.58);
   content-visibility: auto;
@@ -245,7 +245,6 @@
     rgba(255, 255, 255, 0.14) 47.57%,
     rgba(255, 255, 255, 0.3) 78.47%
   );
-  filter: blur(1.15px);
   transform: rotate(-14deg);
   transform-origin: center;
   pointer-events: none;

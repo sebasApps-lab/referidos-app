@@ -156,41 +156,6 @@
   z-index: 1;
 }
 
-.mobile-landing__step-icon-shadow {
-  position: absolute;
-  z-index: 2;
-}
-
-.mobile-landing__step-icon-shadow--mail {
-  top: 46px;
-  left: 123px;
-  width: 171px;
-  height: 47px;
-}
-
-.mobile-landing__step-gift-shadow {
-  position: absolute;
-  top: 60px;
-  left: calc(50% - 26px);
-  width: 106px;
-  height: 47px;
-  background: rgba(174, 174, 174, 0.59);
-  border-radius: 53px / 23.5px;
-  transform: rotate(-7.22deg);
-  filter: blur(2.49px);
-  z-index: 2;
-}
-
-.mobile-landing__step-card--coins .mobile-landing__step-gift-shadow {
-  top: 58px;
-  left: 171px;
-  width: 104px;
-  height: 40px;
-  border-radius: 52px / 20px;
-  transform: rotate(-10.59deg);
-  filter: blur(2.32px);
-}
-
 .mobile-landing__step-icon-image {
   position: absolute;
   z-index: 3;

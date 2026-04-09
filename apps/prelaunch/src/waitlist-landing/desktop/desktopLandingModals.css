@@ -29,8 +29,9 @@
   justify-content: center;
   padding: 28px;
   overflow-y: auto;
-  background: rgba(15, 19, 33, 0.46);
-  backdrop-filter: blur(10px);
+  background:
+    linear-gradient(rgba(15, 19, 33, 0.46), rgba(15, 19, 33, 0.46)),
+    url("../../assets/modals/modals-blur-optimized.webp") center center / cover no-repeat;
   animation: figma-prototype__modal-backdrop-fade-in 180ms ease-out;
 }
 
