@@ -1,3 +1,4 @@
+import "../sections/MobileWaitlistBottomSection.css";
 import bottomMobileMaskRaw from "../../../assets/landing/bottom/bg/bottom-mobile-mask.svg?raw";
 import { svgMaskUrl } from "../../../assets/svgMaskUrl";
 import bottomMobile1875Webp from "../../../assets/landing/bottom/bg/bottom-mobile-optimized-1875x1250.webp";

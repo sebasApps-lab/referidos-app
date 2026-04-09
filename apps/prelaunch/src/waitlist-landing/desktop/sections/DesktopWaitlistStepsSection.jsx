@@ -1,3 +1,4 @@
+import "./DesktopWaitlistStepsSection.css";
 import { desktopSteps } from "../desktopWaitlistLandingContent";
 import DesktopStepCard from "../components/DesktopStepCard";
 

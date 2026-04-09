@@ -1,3 +1,4 @@
+import "./MobilePhoneSection.css";
 import phoneMockup from "../../../assets/landing/hero/nothing-phone-2a-optimized.webp";
 
 export default function MobilePhoneSection({

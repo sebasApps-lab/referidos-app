@@ -1,3 +1,4 @@
+import "./DesktopWaitlistBottomSection.css";
 import DesktopMockupSteps from "../components/DesktopMockupSteps";
 import DesktopWaitlistForm from "../components/DesktopWaitlistForm";
 

@@ -1,3 +1,4 @@
+import "./DesktopWaitlistBottomSection.css";
 import DesktopFooterColumns from "../components/DesktopFooterColumns";
 import footerLogo from "../../../assets/logo/go-plip-white-lila.svg";
 

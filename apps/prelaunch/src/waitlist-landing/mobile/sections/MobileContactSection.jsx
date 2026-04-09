@@ -1,3 +1,4 @@
+import "./MobileWaitlistBottomSection.css";
 import MobileContactForm from "../components/MobileContactForm";
 
 export default function MobileContactSection({ onFeedbackClick, onHelpClick, onLinkClick }) {

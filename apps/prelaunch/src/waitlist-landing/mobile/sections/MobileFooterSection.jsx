@@ -1,3 +1,4 @@
+import "./MobileWaitlistBottomSection.css";
 import { useNavigate } from "react-router-dom";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";

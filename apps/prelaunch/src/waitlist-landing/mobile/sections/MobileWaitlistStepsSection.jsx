@@ -1,3 +1,4 @@
+import "./MobileWaitlistStepsSection.css";
 import { steps } from "../mobileWaitlistLandingContent";
 import MobilePhoneSection from "../components/MobilePhoneSection";
 import MobileStepCard from "../components/MobileStepCard";

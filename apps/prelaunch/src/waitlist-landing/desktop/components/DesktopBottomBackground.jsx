@@ -1,3 +1,4 @@
+import "../sections/DesktopWaitlistBottomSection.css";
 import bottomDesktop1694Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-1694.webp";
 import bottomDesktop2541Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-2541.webp";
 import bottomDesktop3388Webp from "../../../assets/landing/bottom/bg/bottom-desktop-optimized-3388.webp";

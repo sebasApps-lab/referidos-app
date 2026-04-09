@@ -1,0 +1,326 @@
+.figma-prototype__benefits {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  min-height: 760px;
+  padding: 98px 24px 105px;
+  content-visibility: auto;
+  contain-intrinsic-size: 760px;
+}
+
+.figma-prototype__benefits-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: min(1243px, 100%);
+  height: auto;
+  min-height: 530px;
+  max-height: 575px;
+  padding: 0 clamp(24px, 12vw, 176.3px);
+}
+
+.figma-prototype__benefits-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10.68px;
+  width: 603.69px;
+  height: 160px;
+}
+
+.figma-prototype__benefits-title {
+  display: flex;
+  align-items: center;
+  gap: 9.79px;
+  width: 432.79px;
+  height: 58px;
+}
+
+.figma-prototype__benefits-title span,
+.figma-prototype__benefits-title strong {
+  color: #4b0d82;
+  font-size: 38.2873px;
+  line-height: 57.69px;
+}
+
+.figma-prototype__benefits-title span {
+  font-weight: 400;
+}
+
+.figma-prototype__benefits-title strong {
+  font-weight: 700;
+}
+
+.figma-prototype__benefits-heading p {
+  width: 603.69px;
+  height: 58.77px;
+  color: #1c0049;
+  font-size: 19.5888px;
+  font-weight: 300;
+  line-height: 29.52px;
+  text-align: center;
+  opacity: 0.86;
+}
+
+.figma-prototype__benefits-heading-regular {
+  font-weight: 400;
+}
+
+.figma-prototype__benefits-heading-strong {
+  font-weight: 500;
+}
+
+.figma-prototype__benefit-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: min(933.14px, 100%);
+  height: auto;
+  margin: 0;
+}
+
+.figma-prototype__benefit-card {
+  position: relative;
+  width: 300.96px;
+  height: 247.53px;
+  overflow: visible;
+}
+
+.figma-prototype__step-card-body {
+  position: absolute;
+  inset: 0;
+}
+
+.figma-prototype__step-number-badge {
+  position: absolute;
+  top: -104px;
+  left: calc(50% - 35px);
+  z-index: 0;
+  width: 70px;
+  height: 70px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__step-number-badge {
+  left: calc(50% - 34px);
+  width: 68px;
+  height: 68px;
+}
+
+.figma-prototype__benefit-shadow {
+  position: absolute;
+  top: 63.78px;
+  width: 300.96px;
+  height: 185.2px;
+  border-radius: 29.3832px;
+  background: #eeddf7;
+  opacity: 0.5;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-shadow {
+  left: 0.12px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-shadow {
+  left: 0;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-shadow {
+  left: -0.38px;
+}
+
+.figma-prototype__benefit-surface {
+  position: absolute;
+  top: 57.88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14.25px;
+  width: 300.96px;
+  height: 188.77px;
+  overflow: hidden;
+  border: 0.890401px solid rgba(149, 149, 149, 0.52);
+  border-radius: 30.2736px;
+  background: #fcf9fd;
+  box-shadow: 0 0 6.57949px 16.4487px rgba(232, 215, 244, 0.2),
+    0 2.46731px 16.4487px 4.11218px rgba(207, 168, 231, 0.12),
+    0 5.75705px 4.11218px rgba(215, 181, 234, 0.18),
+    inset 0 -2.46731px 8.22731px rgba(233, 221, 243, 0.16),
+    inset 0 0.822436px 1.64487px rgba(255, 255, 255, 0.75);
+  filter: blur(0.328974px);
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-surface {
+  left: 0.12px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-surface {
+  left: 0;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-surface {
+  left: -0.38px;
+}
+
+.figma-prototype__benefit-gloss {
+  position: absolute;
+  top: 63.78px;
+  width: 300.07px;
+  height: 185.2px;
+  border-radius: 30.2736px;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 50%, rgba(241, 231, 247, 0.1) 100%);
+  opacity: 0.14;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-gloss {
+  left: 0.12px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-gloss {
+  left: 0;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-gloss {
+  left: -0.38px;
+  width: 300.96px;
+}
+
+.figma-prototype__benefit-title-content {
+  color: #1b0048;
+  font-size: 21.3696px;
+  font-weight: 700;
+  line-height: 28.64px;
+  text-align: center;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-title-content {
+  width: 173px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-title-content {
+  width: 300.96px;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-title-content {
+  width: 161px;
+}
+
+.figma-prototype__benefit-title-bold {
+  font-weight: 700;
+}
+
+.figma-prototype__benefit-title-medium {
+  font-size: 20.5px;
+  font-weight: 500;
+  line-height: 27.4px;
+}
+
+.figma-prototype__benefit-title-regular {
+  font-size: 20.6px;
+  font-weight: 400;
+  line-height: 27.6px;
+}
+
+.figma-prototype__benefit-description {
+  color: #1b0048;
+  font-size: 13.356px;
+  font-weight: 300;
+  line-height: 20.13px;
+  text-align: center;
+  opacity: 0.86;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-description,
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-description {
+  width: 300.96px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-description {
+  width: 233px;
+}
+
+.figma-prototype__benefit-icon {
+  position: absolute;
+  top: 7.12px;
+  border-radius: 13.356px;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-icon {
+  left: 104.18px;
+  width: 92.6px;
+  height: 69.45px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-icon {
+  left: 112.19px;
+  width: 76.57px;
+  height: 75.68px;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-icon {
+  left: 101.51px;
+  width: 97.94px;
+  height: 68.56px;
+}
+
+.figma-prototype__benefit-icon-shadow {
+  position: absolute;
+  display: block;
+}
+
+.figma-prototype__benefit-card--correo .figma-prototype__benefit-icon-shadow {
+  top: 38.41px;
+  left: 12.89px;
+  width: 98.55px;
+  height: 28.42px;
+}
+
+.figma-prototype__benefit-card--recompensas .figma-prototype__benefit-icon-shadow {
+  top: 41.58px;
+  left: 22.14px;
+  width: 72.21px;
+  height: 36.3px;
+}
+
+.figma-prototype__benefit-card--puntos .figma-prototype__benefit-icon-shadow {
+  top: 33.1px;
+  left: 42.57px;
+  width: 75.03px;
+  height: 35.88px;
+}
+
+.figma-prototype__benefit-icon-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.figma-prototype__benefit-icon--correo .figma-prototype__benefit-icon-image {
+  width: 111px;
+  height: 83.2px;
+}
+
+.figma-prototype__benefit-icon--recompensas .figma-prototype__benefit-icon-image {
+  top: 41%;
+  width: 104px;
+  height: 102.8px;
+}
+
+.figma-prototype__benefit-icon--puntos .figma-prototype__benefit-icon-image {
+  width: 116.7px;
+  height: 81.7px;
+}
+

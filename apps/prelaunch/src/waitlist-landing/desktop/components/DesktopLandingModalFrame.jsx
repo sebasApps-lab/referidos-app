@@ -1,3 +1,4 @@
+import "../desktopLandingModals.css";
 import { useEffect, useState } from "react";
 
 function getModalScale(designWidth, designHeight) {

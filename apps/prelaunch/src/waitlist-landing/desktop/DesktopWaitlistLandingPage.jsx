@@ -6,7 +6,6 @@ import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "./desktopWaitlistLanding.css";
-import "./desktopLandingModals.css";
 import DesktopBottomBackground from "./components/DesktopBottomBackground";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";
 import DesktopHeroSection from "./sections/DesktopHeroSection";

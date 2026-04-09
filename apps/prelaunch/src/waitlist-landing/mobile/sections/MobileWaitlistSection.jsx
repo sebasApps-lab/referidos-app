@@ -1,3 +1,4 @@
+import "./MobileWaitlistBottomSection.css";
 import MobileMockupSteps from "../components/MobileMockupSteps";
 import MobileWaitlistForm from "../components/MobileWaitlistForm";
 

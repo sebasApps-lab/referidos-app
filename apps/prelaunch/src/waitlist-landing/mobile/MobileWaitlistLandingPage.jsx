@@ -7,7 +7,6 @@ import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "../../home/mobileWaitlistLanding.css";
-import "./MobileLandingModals.css";
 import useMobileWaitlistLandingLayout from "./useMobileWaitlistLandingLayout";
 import MobileBottomBackground from "./components/MobileBottomBackground";
 import MobileHeroSection from "./sections/MobileHeroSection";

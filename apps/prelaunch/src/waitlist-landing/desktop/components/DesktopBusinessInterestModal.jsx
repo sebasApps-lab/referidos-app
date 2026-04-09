@@ -1,3 +1,4 @@
+import "./DesktopBusinessInterestModal.css";
 import { useEffect, useMemo } from "react";
 import useLandingLeadCapture from "../../../landing-logic/useLandingLeadCapture";
 import briefcaseIcon from "../../../assets/modals/gridicons_briefcase.svg";

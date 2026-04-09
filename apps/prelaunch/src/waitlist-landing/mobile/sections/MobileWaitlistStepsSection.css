@@ -1,0 +1,222 @@
+.mobile-landing__second-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 84px;
+  width: 100%;
+  min-height: 0;
+  margin-top: -16px;
+  padding-top: 16px;
+  isolation: isolate;
+}
+
+.mobile-landing__about-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 82px;
+  width: 100%;
+  min-height: 1396px;
+  margin-top: 100px;
+  padding: 0 var(--mobile-horizontal-gutter);
+  content-visibility: auto;
+  contain-intrinsic-size: 1480px;
+}
+
+.mobile-landing__about-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
+  width: 100%;
+  max-width: min(100%, 460px);
+}
+
+.mobile-landing__about-title {
+  width: 100%;
+  margin: 0;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 150%;
+  text-align: center;
+  color: #4b0d82;
+}
+
+.mobile-landing__about-title strong {
+  font-weight: 700;
+}
+
+.mobile-landing__about-copy {
+  width: 100%;
+  margin: 0;
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 150%;
+  text-align: center;
+  color: #1c0049;
+  opacity: 0.86;
+}
+
+.mobile-landing__steps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 96px;
+  width: min(100%, 354px);
+}
+
+.mobile-landing__step-card-shell {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: calc(354px * var(--mobile-step-card-scale, 1));
+  height: calc(543px * var(--mobile-step-card-scale, 1));
+}
+
+.mobile-landing__step-card {
+  position: relative;
+  width: 354px;
+  height: 543px;
+  transform: scale(var(--mobile-step-card-scale, 1));
+  transform-origin: top center;
+}
+
+.mobile-landing__step-number-badge {
+  position: absolute;
+  top: 9px;
+  left: calc(50% - 48px);
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  opacity: 0.8;
+  z-index: 3;
+}
+
+.mobile-landing__step-card-body {
+  position: absolute;
+  top: 181px;
+  left: 0;
+  width: 354px;
+  height: 290px;
+}
+
+.mobile-landing__step-card--gift .mobile-landing__step-card-body {
+  top: 197px;
+}
+
+.mobile-landing__step-card-surface {
+  position: absolute;
+  top: 68px;
+  left: 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 353px;
+  height: 221px;
+  padding: 57px 24px 0;
+  background: #ffffff;
+  border-radius: 35px;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+  z-index: 1;
+}
+
+.mobile-landing__step-title {
+  margin: 0;
+  text-align: center;
+  color: #1c0049;
+  font-size: 23px;
+  line-height: 134%;
+  position: relative;
+  z-index: 1;
+}
+
+.mobile-landing__step-title-strong {
+  font-weight: 600;
+}
+
+.mobile-landing__step-title-light {
+  font-weight: 275;
+}
+
+.mobile-landing__step-description {
+  width: 100%;
+  max-width: 292px;
+  margin: 0;
+  font-weight: 275;
+  font-size: 16px;
+  line-height: 150%;
+  text-align: center;
+  color: #1c0049;
+  opacity: 0.86;
+  position: relative;
+  z-index: 1;
+}
+
+.mobile-landing__step-icon-shadow {
+  position: absolute;
+  z-index: 2;
+}
+
+.mobile-landing__step-icon-shadow--mail {
+  top: 46px;
+  left: 123px;
+  width: 171px;
+  height: 47px;
+}
+
+.mobile-landing__step-gift-shadow {
+  position: absolute;
+  top: 60px;
+  left: calc(50% - 26px);
+  width: 106px;
+  height: 47px;
+  background: rgba(174, 174, 174, 0.59);
+  border-radius: 53px / 23.5px;
+  transform: rotate(-7.22deg);
+  filter: blur(2.49px);
+  z-index: 2;
+}
+
+.mobile-landing__step-card--coins .mobile-landing__step-gift-shadow {
+  top: 58px;
+  left: 171px;
+  width: 104px;
+  height: 40px;
+  border-radius: 52px / 20px;
+  transform: rotate(-10.59deg);
+  filter: blur(2.32px);
+}
+
+.mobile-landing__step-icon-image {
+  position: absolute;
+  z-index: 3;
+}
+
+.mobile-landing__step-icon-image--mail {
+  top: 6px;
+  left: calc(50% - 83px);
+  width: 166px;
+  height: 81.8px;
+  object-fit: contain;
+}
+
+.mobile-landing__step-icon-image--gift {
+  top: -44px;
+  left: calc(50% - 72px);
+  width: 144px;
+  height: 144px;
+  object-fit: contain;
+}
+
+.mobile-landing__step-icon-image--coins {
+  top: -7px;
+  left: calc(50% - 83px);
+  width: 166px;
+  height: 106.1px;
+  object-fit: contain;
+}
+
