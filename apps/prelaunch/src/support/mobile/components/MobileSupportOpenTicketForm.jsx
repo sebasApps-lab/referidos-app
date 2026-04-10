@@ -1,6 +1,5 @@
 import {
   ECUADOR_FLAG_SVG_URL,
-  SUPPORT_FORM_MAIL_ICON_URL,
   SUPPORT_FORM_WHATSAPP_ICON_URL,
 } from "../../supportOpenTicketShared";
 
@@ -92,7 +91,7 @@ export default function MobileSupportOpenTicketForm({ controller }) {
               onClick={() => controller.setPreferredChannel("email")}
             >
               <span className="support-open-ticket__method-icon support-open-ticket__method-icon--email">
-                <img src={SUPPORT_FORM_MAIL_ICON_URL} alt="" aria-hidden="true" />
+                <MailMethodIcon />
               </span>
               <span>{"Correo electr\u00f3nico"}</span>
             </button>
@@ -112,13 +111,30 @@ export default function MobileSupportOpenTicketForm({ controller }) {
           </div>
         </div>
 
+        {controller.isOtherCategorySelected ? (
+          <div className="support-open-ticket__field support-open-ticket__field--plain">
+            <div className="support-open-ticket__text-shell support-open-ticket__text-shell--textarea">
+              <textarea
+                id="support-description-mobile"
+                value={controller.description}
+                onChange={(event) => controller.setDescription(event.target.value)}
+                placeholder="Descripción (Opcional)"
+                rows={4}
+              />
+            </div>
+          </div>
+        ) : null}
+
         <div className="support-open-ticket__submit-row">
+          <p className="support-open-ticket__submit-copy">
+            Se creará un ticket para que un asesor se ponga en contacto contigo
+          </p>
           <button
             type="submit"
             className="support-open-ticket__submit"
             disabled={!controller.canSubmit}
           >
-            {controller.submitting ? "Enviando..." : "Enviar mensaje"}
+            {controller.submitting ? "Creando ticket..." : "Crear ticket"}
           </button>
         </div>
 
@@ -130,5 +146,20 @@ export default function MobileSupportOpenTicketForm({ controller }) {
         ) : null}
       </form>
     </section>
+  );
+}
+
+function MailMethodIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        className="support-open-ticket__mail-icon-body"
+        d="M4.75 7.75h14.5v8.5a2 2 0 0 1-2 2H6.75a2 2 0 0 1-2-2z"
+      />
+      <path
+        className="support-open-ticket__mail-icon-flap"
+        d="M4.75 8.25 12 13l7.25-4.75"
+      />
+    </svg>
   );
 }

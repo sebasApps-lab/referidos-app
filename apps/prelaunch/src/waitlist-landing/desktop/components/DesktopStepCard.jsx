@@ -27,7 +27,8 @@ export default function DesktopStepCard({ step, index = 0 }) {
             className="figma-prototype__benefit-icon-image"
             src={step.iconSrc}
             alt=""
-            loading="lazy"
+            loading="eager"
+            decoding="async"
           />
         </div>
       </div>

@@ -26,7 +26,7 @@
   );
   height: auto;
   min-height: 530px;
-  gap: 72px;
+  gap: 130px;
   padding: 0 var(--figma-benefits-inline-pad);
 }
 
@@ -343,13 +343,13 @@
   }
 
   .figma-prototype__benefit-grid {
-    gap: 100px 18px;
+    gap: 170px 18px;
     padding-top: 0;
   }
 
   .figma-prototype__benefits-inner {
     max-height: none;
-    gap: 72px;
+    gap: 130px;
   }
 
   /* Keep wrapped rows on the same visual baseline as the single-row layout. */

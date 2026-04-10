@@ -7,7 +7,7 @@ export default function DesktopMockupSteps({ className = "" }) {
         className="figma-prototype__promo-mockup"
         src={mockupHowToUse}
         alt="Mockup de uso de la app Referidos con promociones y recompensas"
-        loading="lazy"
+        loading="eager"
         decoding="async"
       />
     </div>

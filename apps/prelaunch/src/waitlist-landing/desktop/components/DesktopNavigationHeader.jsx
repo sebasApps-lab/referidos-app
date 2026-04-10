@@ -8,10 +8,10 @@ export default function DesktopNavigationHeader({ isHeroReady, onBusinessClick, 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const headerRef = useRef(null);
   const brandEntryClassName = isHeroReady
-    ? "figma-prototype__entry-edge-left figma-prototype__entry-delay-4"
+    ? "figma-prototype__entry-edge-left figma-prototype__entry-delay-1"
     : "figma-prototype__entry-pending";
   const linksEntryClassName = isHeroReady
-    ? "figma-prototype__entry-edge-right figma-prototype__entry-delay-5"
+    ? "figma-prototype__entry-edge-right figma-prototype__entry-delay-2"
     : "figma-prototype__entry-pending";
 
   function handleScroll(event, targetId) {

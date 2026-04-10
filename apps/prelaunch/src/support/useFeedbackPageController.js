@@ -64,14 +64,14 @@ export function useFeedbackPageController() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const originRole = normalizeOriginRole(searchParams.get("origin"));
-  const backTo = originRole === "negocio" ? "/ayuda-negocios/es" : "/ayuda/es";
+  const backTo = "/ayuda/es";
   const prefill = useMemo(() => readPrefillFromLocationState(location.state), [location.state]);
 
   const desktopHeaderActions = useMemo(
     () => [
       {
         key: "back",
-        label: "\u2197 Volver al Centro de Ayuda",
+        label: "\u2197 Centro de Ayuda",
         to: backTo,
         className:
           "help-center__header-link help-center__header-link--ghost support-open-ticket__header-link-back",
@@ -84,7 +84,7 @@ export function useFeedbackPageController() {
     () => [
       {
         key: "back",
-        label: "\u2197 Volver al Centro de Ayuda",
+        label: "\u2197 Centro de Ayuda",
         to: backTo,
         variant: "ghost",
       },
@@ -96,7 +96,7 @@ export function useFeedbackPageController() {
     () => [
       {
         key: "back",
-        title: "Volver al Centro de Ayuda",
+        title: "Centro de Ayuda",
         to: backTo,
       },
     ],

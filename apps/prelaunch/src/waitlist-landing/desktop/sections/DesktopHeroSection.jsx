@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { scrollToSection } from "../../scrollToSection";
 import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
 import phoneBottomShadow from "../../../assets/landing/hero/phone-bottom-shadow-optimized.webp";
+
+const HERO_BG_ENTRY_MS = 420;
 
 export default function DesktopHeroSection({
   onWaitlistClick,
@@ -12,16 +14,30 @@ export default function DesktopHeroSection({
 }) {
   const sectionRef = useRef(null);
   const isSectionReady = useSectionAssetsReady(sectionRef);
-  const heroBackgroundClassName = isSectionReady ? "figma-prototype__hero-bg-entry" : "";
-  const heroCopyClassName = isSectionReady
+  const [isHeroIntroReady, setIsHeroIntroReady] = useState(false);
+  const heroBackgroundClassName = isSectionReady
+    ? "figma-prototype__hero-bg-entry"
+    : "figma-prototype__entry-pending";
+  const heroCopyClassName = isHeroIntroReady
     ? "figma-prototype__hero-copy figma-prototype__hero-copy-entry"
-    : "figma-prototype__hero-copy";
-  const heroVisualClassName = isSectionReady
+    : "figma-prototype__hero-copy figma-prototype__entry-pending";
+  const heroVisualClassName = isHeroIntroReady
     ? "figma-prototype__hero-visual-entry"
-    : "";
+    : "figma-prototype__entry-pending";
 
   useEffect(() => {
-    onAssetsReadyChange?.(isSectionReady);
+    if (!isSectionReady) {
+      setIsHeroIntroReady(false);
+      onAssetsReadyChange?.(false);
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setIsHeroIntroReady(true);
+      onAssetsReadyChange?.(true);
+    }, HERO_BG_ENTRY_MS);
+
+    return () => window.clearTimeout(timerId);
   }, [isSectionReady, onAssetsReadyChange]);
 
   return (

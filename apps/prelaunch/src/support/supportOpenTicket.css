@@ -72,6 +72,16 @@
   font-weight: 400;
 }
 
+.support-open-ticket__hero p + p {
+  margin-top: 4px;
+}
+
+.support-open-ticket__hero a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .support-open-ticket__card {
   width: min(100%, 460px);
   margin: 34px auto 0;
@@ -140,24 +150,57 @@
   padding: 14px 13px;
 }
 
-.support-open-ticket__text-shell input {
+.support-open-ticket__text-shell input,
+.support-open-ticket__text-shell textarea {
   width: 100%;
   min-width: 0;
-  height: auto;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  font: 400 12px/1.2 "Poppins", sans-serif;
+  letter-spacing: 0;
   color: #1a1c2b;
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 400;
+  background: transparent;
+  border: 0;
+  padding: 0;
   outline: none;
   box-shadow: none;
 }
 
+.support-open-ticket__text-shell--textarea {
+  min-height: 102px;
+}
+
+.support-open-ticket__text-shell textarea {
+  min-height: 74px;
+  border: 0;
+  resize: vertical;
+  height: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-text-fill-color: #1a1c2b;
+}
+
 .support-open-ticket__text-shell input::placeholder,
+.support-open-ticket__text-shell textarea::placeholder,
 .support-open-ticket__phone-row input::placeholder {
+  font: 400 12px/1.2 "Poppins", sans-serif;
   color: #9aa3b5;
+  opacity: 1;
+}
+
+#support-description,
+#support-description-mobile {
+  font: 400 12px/1.2 "Poppins", sans-serif;
+  letter-spacing: 0;
+  color: #1a1c2b;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-text-fill-color: #1a1c2b;
+}
+
+#support-description::placeholder,
+#support-description-mobile::placeholder {
+  font: 400 12px/1.2 "Poppins", sans-serif;
+  color: #9aa3b5;
+  opacity: 1;
 }
 
 .support-open-ticket:not(.support-open-ticket--mobile-tree) .support-open-ticket__text-shell {
@@ -165,6 +208,7 @@
 }
 
 .support-open-ticket:not(.support-open-ticket--mobile-tree) .support-open-ticket__text-shell input::placeholder,
+.support-open-ticket:not(.support-open-ticket--mobile-tree) .support-open-ticket__text-shell textarea::placeholder,
 .support-open-ticket:not(.support-open-ticket--mobile-tree) .support-open-ticket__phone-row input::placeholder {
   font-size: 12px;
 }
@@ -187,8 +231,8 @@
   padding: 14px 13px;
   background: transparent;
   color: #1a1c2b;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.2;
   font-weight: 400;
 }
 
@@ -199,8 +243,8 @@
   padding: 14px 13px;
   border-right: 1px solid #d7deed;
   color: #1a1c2b;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.2;
   font-weight: 500;
 }
 
@@ -301,6 +345,11 @@
   object-fit: contain;
 }
 
+.support-open-ticket__method-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 .support-open-ticket__method-icon--email img {
   filter: grayscale(1) brightness(0.52) opacity(0.82);
 }
@@ -309,10 +358,39 @@
   filter: brightness(0) invert(1);
 }
 
+.support-open-ticket__mail-icon-body,
+.support-open-ticket__mail-icon-flap {
+  fill: #ffffff;
+  stroke: #263e54;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.support-open-ticket__mail-icon-body {
+  stroke-width: 1.7;
+}
+
+.support-open-ticket__mail-icon-flap {
+  fill: none;
+  stroke-width: 1.55;
+}
+
 .support-open-ticket__submit-row {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
   padding-top: 4px;
+}
+
+.support-open-ticket__submit-copy {
+  margin: 0;
+  color: #627281;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 400;
+  text-align: center;
 }
 
 .support-open-ticket__submit {
@@ -448,12 +526,14 @@
 }
 
 .support-open-ticket--mobile-tree .support-open-ticket__text-shell input,
+.support-open-ticket--mobile-tree .support-open-ticket__text-shell textarea,
 .support-open-ticket--mobile-tree .support-open-ticket__phone-row input,
 .support-open-ticket--mobile-tree .support-open-ticket__country-box {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .support-open-ticket--mobile-tree .support-open-ticket__text-shell input,
+.support-open-ticket--mobile-tree .support-open-ticket__text-shell textarea,
 .support-open-ticket--mobile-tree .support-open-ticket__phone-row input {
   height: auto;
 }

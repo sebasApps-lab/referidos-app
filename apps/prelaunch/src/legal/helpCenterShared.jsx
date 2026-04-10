@@ -5,8 +5,6 @@ import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
 import businessLogo from "../assets/logo/go-plip-black-blue.svg";
 import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
 import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
-import helpCenterBusinessIcon from "../assets/help-center/help-center-icon-negocio.webp";
-import helpCenterBusinessArrow from "../assets/help-center/ir-right-arrow-negocio.webp";
 import consumerSigninIcon from "../assets/help-center/cliente/key-icon-cliente.webp";
 import consumerTermsIcon from "../assets/help-center/cliente/terms-icon-cliente.webp";
 import consumerPrivacyIcon from "../assets/help-center/cliente/privacy-icon-cliente.webp";
@@ -14,15 +12,7 @@ import consumerVerifyIcon from "../assets/help-center/cliente/verify-account-ico
 import consumerRedeemIcon from "../assets/help-center/cliente/gift-promos-icon-cliente.webp";
 import consumerDeleteIcon from "../assets/help-center/cliente/delete-data-icon-cliente.webp";
 import consumerPointsIcon from "../assets/help-center/cliente/points-icon-cliente.webp";
-import consumerBusinessIcon from "../assets/help-center/cliente/negocio-icon-cliente.webp";
 import consumerSupportIcon from "../assets/help-center/cliente/chat-support-icon-cliente.webp";
-import businessSigninIcon from "../assets/help-center/negocios/key-icon-negocio.webp";
-import businessPrivacyIcon from "../assets/help-center/negocios/privacy-icon-negocio.webp";
-import businessVerifyIcon from "../assets/help-center/negocios/verify-account-icon-negocio.webp";
-import businessRedeemIcon from "../assets/help-center/negocios/gift-promos-icon-negocio.webp";
-import businessDeleteIcon from "../assets/help-center/negocios/delete-data-icon-negocio.webp";
-import businessPointsIcon from "../assets/help-center/negocios/points-icon-negocio.webp";
-import businessSupportIcon from "../assets/help-center/negocios/chat-support-icon-negocio.webp";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
@@ -36,21 +26,17 @@ const HELP_CENTER_ICON_FILES = {
     redeem: consumerRedeemIcon,
     delete: consumerDeleteIcon,
     points: consumerPointsIcon,
-    business: consumerBusinessIcon,
     support: consumerSupportIcon,
-    arrow: helpCenterBusinessArrow,
   },
   business: {
-    signin: businessSigninIcon,
+    signin: consumerSigninIcon,
     terms: consumerTermsIcon,
-    privacy: businessPrivacyIcon,
-    verify: businessVerifyIcon,
-    redeem: businessRedeemIcon,
-    delete: businessDeleteIcon,
-    points: businessPointsIcon,
-    business: helpCenterBusinessIcon,
-    support: businessSupportIcon,
-    arrow: helpCenterBusinessArrow,
+    privacy: consumerPrivacyIcon,
+    verify: consumerVerifyIcon,
+    redeem: consumerRedeemIcon,
+    delete: consumerDeleteIcon,
+    points: consumerPointsIcon,
+    support: consumerSupportIcon,
   },
 };
 
@@ -100,7 +86,7 @@ export function HelpCenterLayout({
     ? sidebarItems.find((category) => category.key === activeCategoryKey) || null
     : null;
   const isDefaultScreen = !activeCategory && !content;
-  const showCtas = isDefaultScreen;
+  const showCtas = isDefaultScreen || activeCategoryKey === "legal";
 
   return (
     <HelpCenterThemeProvider theme={theme}>
@@ -289,41 +275,8 @@ function HelpResourceCard({ resource }) {
 }
 
 export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) {
-  const theme = useContext(HelpCenterThemeContext);
-  const businessTitle =
-    theme === "business" ? "\u00bfEres un cliente?" : "\u00bfEres un Negocio o Empresa?";
-  const businessLinkText =
-    theme === "business"
-      ? "Ir al Centro de Ayuda para Clientes"
-      : "Ir al Centro de Ayuda para Empresas";
-  const businessTarget = theme === "business" ? "/ayuda/es" : "/ayuda-negocios/es";
-
   return (
     <section className="help-center__cta-panel">
-      <div className="help-center__business-card">
-        <div className="help-center__business-copy">
-          <div className="help-center__business-icon" aria-hidden="true">
-            <BriefcaseIcon />
-          </div>
-
-          <div className="help-center__business-text">
-            <h3>{businessTitle}</h3>
-            <div className="help-center__business-action">
-              <Link className="help-center__business-link-text" to={businessTarget}>
-                {businessLinkText}
-              </Link>
-              <Link
-                className="help-center__business-arrow-button"
-                to={businessTarget}
-                aria-label={businessLinkText}
-              >
-                <BusinessArrowIcon />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="help-center__support-card">
         <div className="help-center__support-copy">
           <div className="help-center__support-icon" aria-hidden="true">
@@ -340,7 +293,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
               <div className="help-center__support-actions">
                 <Link
                   className="help-center__whatsapp-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=whatsapp`}
+                  to="/soporte/abrir-ticket?origin=cliente&channel=whatsapp"
                 >
                   <WhatsAppIcon />
                   <span>Whatsapp</span>
@@ -348,7 +301,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
 
                 <Link
                   className="help-center__email-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=email`}
+                  to="/soporte/abrir-ticket?origin=cliente&channel=email"
                 >
                   <MailSupportIcon />
                   <span>{emailLabel}</span>
@@ -366,16 +319,8 @@ function MailSupportIcon() {
   return <img src={helpMailIcon} alt="" aria-hidden="true" />;
 }
 
-function BriefcaseIcon() {
-  return <HelpCenterAssetIcon assetKey="business" />;
-}
-
 function ChatBubbleIcon() {
   return <HelpCenterAssetIcon assetKey="support" />;
-}
-
-function BusinessArrowIcon() {
-  return <HelpCenterAssetIcon assetKey="arrow" />;
 }
 
 function WhatsAppIcon() {

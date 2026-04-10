@@ -9,13 +9,6 @@ import WaitlistLandingPage from "./waitlist-landing/WaitlistLandingPage";
 const HelpCenterPage = lazy(() => import("./legal/HelpCenterPage"));
 const HelpCenterCategoryPage = lazy(() => import("./legal/HelpCenterCategoryPage"));
 const HelpCenterArticlePage = lazy(() => import("./legal/HelpCenterArticlePage"));
-const HelpCenterBusinessPage = lazy(() => import("./legal/HelpCenterBusinessPage"));
-const HelpCenterBusinessCategoryPage = lazy(() =>
-  import("./legal/HelpCenterBusinessCategoryPage"),
-);
-const HelpCenterBusinessArticlePage = lazy(() =>
-  import("./legal/HelpCenterBusinessArticlePage"),
-);
 const SupportOpenTicketPage = lazy(() => import("./support/SupportOpenTicketPage"));
 const FeedbackRoute = lazy(() => import("./support/FeedbackRoute"));
 const BusinessLandingPage = import.meta.env.DEV
@@ -64,15 +57,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/ayuda/es" element={<HelpCenterPage />} />
             <Route path="/ayuda/es/categoria/:category" element={<HelpCenterCategoryPage />} />
             <Route path="/ayuda/es/articulo/:doc" element={<HelpCenterArticlePage />} />
-            <Route path="/ayuda-negocios/es" element={<HelpCenterBusinessPage />} />
-            <Route
-              path="/ayuda-negocios/es/categoria/:category"
-              element={<HelpCenterBusinessCategoryPage />}
-            />
-            <Route
-              path="/ayuda-negocios/es/articulo/:doc"
-              element={<HelpCenterBusinessArticlePage />}
-            />
             <Route path="/soporte/abrir-ticket" element={<SupportOpenTicketPage />} />
             <Route
               path="/soporte-chat"
@@ -84,10 +68,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             />
             <Route path="/feedback" element={<FeedbackRoute />} />
             <Route path="/ayuda/*" element={<Navigate to="/ayuda/es" replace />} />
-            <Route
-              path="/ayuda-negocios/*"
-              element={<Navigate to="/ayuda-negocios/es" replace />}
-            />
+            <Route path="/ayuda-negocios/*" element={<Navigate to="/ayuda/es" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

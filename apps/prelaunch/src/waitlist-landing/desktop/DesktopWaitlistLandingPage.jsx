@@ -41,6 +41,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 2,
         surface: "waitlist_steps",
         reveal: true,
+        threshold: 0.12,
       },
       {
         id: "waitlist_form",
@@ -48,6 +49,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 3,
         surface: "waitlist_form",
         reveal: true,
+        threshold: 0.12,
       },
       {
         id: "footer",
@@ -55,6 +57,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 4,
         surface: "footer",
         reveal: true,
+        threshold: 0.08,
       },
     ],
     [],

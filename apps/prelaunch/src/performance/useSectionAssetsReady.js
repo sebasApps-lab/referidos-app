@@ -2,6 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 
 const SECTION_ASSET_TIMEOUT_MS = 1600;
 
+function waitForImageLoad(image) {
+  if (image.complete && image.naturalWidth > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const handleDone = () => {
+      image.removeEventListener("load", handleDone);
+      image.removeEventListener("error", handleDone);
+      resolve();
+    };
+
+    image.addEventListener("load", handleDone, { once: true });
+    image.addEventListener("error", handleDone, { once: true });
+  });
+}
+
+async function waitForImageReady(image) {
+  await waitForImageLoad(image);
+
+  if (typeof image.decode === "function") {
+    try {
+      await image.decode();
+    } catch {
+      // Ignore decode failures and let the browser paint the best available result.
+    }
+  }
+}
+
 export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetSrcs = []) {
   const [isReady, setIsReady] = useState(false);
   const normalizedExtraAssetSrcs = useMemo(
@@ -21,7 +50,6 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
     let rafId = null;
 
     const images = Array.from(node.querySelectorAll("img"));
-    const pendingImages = images.filter((image) => !image.complete || image.naturalWidth === 0);
     const seenAssetSrcs = new Set(
       images.map((image) => image.currentSrc || image.src).filter(Boolean),
     );
@@ -44,6 +72,7 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
 
       if (timeoutId) {
         window.clearTimeout(timeoutId);
+        timeoutId = null;
       }
 
       rafId = window.requestAnimationFrame(() => {
@@ -55,37 +84,16 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
 
     setIsReady(false);
 
-    if (pendingImages.length === 0 && pendingExtraImages.length === 0) {
-      finalize();
-      return () => {
-        cancelled = true;
-        if (rafId) {
-          window.cancelAnimationFrame(rafId);
-        }
-      };
-    }
-
-    let remaining = pendingImages.length + pendingExtraImages.length;
-
-    function markLoaded() {
-      remaining -= 1;
-      if (remaining <= 0) {
-        finalize();
-      }
-    }
-
-    pendingImages.forEach((image) => {
-      image.addEventListener("load", markLoaded, { once: true });
-      image.addEventListener("error", markLoaded, { once: true });
-    });
-    pendingExtraImages.forEach((image) => {
-      image.addEventListener("load", markLoaded, { once: true });
-      image.addEventListener("error", markLoaded, { once: true });
-    });
-
     timeoutId = window.setTimeout(() => {
       finalize();
     }, SECTION_ASSET_TIMEOUT_MS);
+
+    void Promise.all([
+      ...images.map((image) => waitForImageReady(image)),
+      ...extraImages.map((image) => waitForImageReady(image)),
+    ]).then(() => {
+      finalize();
+    });
 
     return () => {
       cancelled = true;
@@ -95,14 +103,6 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
       if (rafId) {
         window.cancelAnimationFrame(rafId);
       }
-      pendingImages.forEach((image) => {
-        image.removeEventListener("load", markLoaded);
-        image.removeEventListener("error", markLoaded);
-      });
-      pendingExtraImages.forEach((image) => {
-        image.removeEventListener("load", markLoaded);
-        image.removeEventListener("error", markLoaded);
-      });
     };
   }, [sectionRef, ...deps, ...normalizedExtraAssetSrcs]);
 
