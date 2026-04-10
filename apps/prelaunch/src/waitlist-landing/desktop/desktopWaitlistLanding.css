@@ -1036,11 +1036,6 @@
     width: calc(100% - 64px);
   }
 
-  .figma-prototype__benefits-inner {
-    padding-left: clamp(24px, 7vw, 120px);
-    padding-right: clamp(24px, 7vw, 120px);
-  }
-
   .figma-prototype__waitlist {
     padding-left: 32px;
     padding-right: 32px;
@@ -1079,37 +1074,6 @@
   .figma-prototype__hero-shadow-group {
     left: auto;
     right: 84px;
-  }
-
-  .figma-prototype__benefits {
-    padding-top: 80px;
-  }
-
-  .figma-prototype__benefit-grid {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 48px 24px;
-    padding-top: 0;
-  }
-
-  .figma-prototype__benefits-inner {
-    max-height: none;
-    gap: 72px;
-  }
-
-  .figma-prototype__benefit-card {
-    height: 387.53px;
-  }
-
-  .figma-prototype__step-card-body {
-    top: 140px;
-    right: 0;
-    bottom: 0;
-    left: 0;
-  }
-
-  .figma-prototype__step-number-badge {
-    top: 0;
   }
 
   .figma-prototype__waitlist {

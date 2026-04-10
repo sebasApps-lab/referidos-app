@@ -14,15 +14,20 @@
 }
 
 .figma-prototype__benefits-inner {
+  --figma-benefits-grid-max-width: 933.14px;
+  --figma-benefits-inline-pad: clamp(24px, 12vw, 176.3px);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  width: min(1243px, 100%);
+  width: min(
+    calc(var(--figma-benefits-grid-max-width) + (var(--figma-benefits-inline-pad) * 2)),
+    100%
+  );
   height: auto;
   min-height: 530px;
-  max-height: 575px;
-  padding: 0 clamp(24px, 12vw, 176.3px);
+  gap: 72px;
+  padding: 0 var(--figma-benefits-inline-pad);
 }
 
 .figma-prototype__benefits-heading {
@@ -78,15 +83,18 @@
 
 .figma-prototype__benefit-grid {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: flex-start;
-  width: min(933.14px, 100%);
+  width: min(var(--figma-benefits-grid-max-width), 100%);
   height: auto;
   margin: 0;
+  gap: 56px 14px;
 }
 
 .figma-prototype__benefit-card {
   position: relative;
+  flex: 0 0 300.96px;
   width: 300.96px;
   height: 247.53px;
   overflow: visible;
@@ -321,5 +329,36 @@
 .figma-prototype__benefit-icon--puntos .figma-prototype__benefit-icon-image {
   width: 116.7px;
   height: 81.7px;
+}
+
+@media (max-width: 1280px) {
+  .figma-prototype__benefits-inner {
+    --figma-benefits-inline-pad: clamp(24px, 7vw, 120px);
+  }
+}
+
+@media (max-width: 1160px) {
+  .figma-prototype__benefits {
+    padding-top: 80px;
+  }
+
+  .figma-prototype__benefit-grid {
+    gap: 100px 18px;
+    padding-top: 0;
+  }
+
+  .figma-prototype__benefits-inner {
+    max-height: none;
+    gap: 72px;
+  }
+
+  /* Keep wrapped rows on the same visual baseline as the single-row layout. */
+  .figma-prototype__step-card-body {
+    inset: 0;
+  }
+
+  .figma-prototype__step-number-badge {
+    top: -104px;
+  }
 }
 
