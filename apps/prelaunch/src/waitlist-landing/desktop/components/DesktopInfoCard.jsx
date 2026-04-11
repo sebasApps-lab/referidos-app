@@ -1,5 +1,8 @@
-import { asset } from "../desktopWaitlistLandingAssets";
 import DesktopSignupProviderButton from "./DesktopSignupProviderButton";
+import signUpCardGlow from "../../../assets/landing/hero/info-card-glow-optimized.webp";
+import signUpCardBg from "../../../assets/landing/hero/info-card-BG-optimized.webp";
+import yellowInfoCard from "../../../assets/landing/hero/yellow-icon-info-card-optimized.webp";
+import heroRegisterCardLine from "../../../assets/landing/hero/hero-register-card-line.png";
 
 export default function DesktopInfoCard({ onInviteClick }) {
   return (
@@ -7,20 +10,20 @@ export default function DesktopInfoCard({ onInviteClick }) {
       <aside className="figma-prototype__info-card figma-prototype__info-card--notify">
         <img
           className="figma-prototype__info-card-blur"
-          src={asset("sign-up-card-glow.svg")}
+          src={signUpCardGlow}
           alt=""
           aria-hidden="true"
         />
 
         <div className="figma-prototype__info-card-bg" aria-hidden="true">
-          <img src={asset("sign-up-card-BG.svg")} alt="" />
+          <img src={signUpCardBg} alt="" />
         </div>
 
         <div className="figma-prototype__info-content">
           <div className="figma-prototype__info-clock-wrap">
             <img
               className="figma-prototype__info-clock"
-              src={asset("clock-yellow-icon.png")}
+              src={yellowInfoCard}
               alt=""
               aria-hidden="true"
             />
@@ -34,7 +37,7 @@ export default function DesktopInfoCard({ onInviteClick }) {
 
             <img
               className="figma-prototype__info-line"
-              src={asset("hero-register-card-line.png")}
+              src={heroRegisterCardLine}
               alt=""
               aria-hidden="true"
             />

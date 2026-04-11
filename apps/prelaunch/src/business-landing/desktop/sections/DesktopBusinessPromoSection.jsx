@@ -1,3 +1,6 @@
+import qrCodeIcon from "../../../assets/shared/qr-code.svg";
+import supportMailIcon from "../../../assets/support/fluent-color-mail-16.svg";
+
 export default function DesktopBusinessPromoSection() {
   return (
     <section className="business-landing__promo-section">
@@ -27,7 +30,7 @@ export default function DesktopBusinessPromoSection() {
 
           <div className="business-landing__promo-signup" id="waitlist-steps">
             <div className="business-landing__promo-email-field" aria-label="Tu correo electrónico">
-              <img src="/assets/fluent-color-mail-16.svg" alt="" aria-hidden="true" />
+              <img src={supportMailIcon} alt="" aria-hidden="true" />
               <span>Tu correo electrónico</span>
             </div>
 
@@ -67,7 +70,7 @@ export default function DesktopBusinessPromoSection() {
           <h3>Escanea y descarga la app</h3>
 
           <div className="business-landing__promo-qr-frame">
-            <img src="/assets/icons/qr-code.svg" alt="Código QR para descargar la app" />
+            <img src={qrCodeIcon} alt="Código QR para descargar la app" />
           </div>
 
           <button type="button" className="business-landing__promo-download-button">

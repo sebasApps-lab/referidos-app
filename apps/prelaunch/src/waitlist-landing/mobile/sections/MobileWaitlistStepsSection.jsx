@@ -1,18 +1,29 @@
+import { useRef } from "react";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
+import "./MobileWaitlistStepsSection.css";
 import { steps } from "../mobileWaitlistLandingContent";
 import MobilePhoneSection from "../components/MobilePhoneSection";
 import MobileStepCard from "../components/MobileStepCard";
 
-export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGlowFilterId }) {
+export default function MobileWaitlistStepsSection() {
+  const aboutBlockRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(aboutBlockRef);
+
   return (
     <div className="mobile-landing__second-section">
-      {!isTabletHeroLayout ? (
-        <MobilePhoneSection
-          phoneGlowFilterId={phoneGlowFilterId}
-          className="mobile-landing__reveal-up mobile-landing__reveal-delay-1"
-        />
-      ) : null}
+      <PrelaunchCheckpoint id="waitlist_steps_start" order={20} surface="waitlist_steps" />
+      <MobilePhoneSection
+        className="mobile-landing__phone-section-slot mobile-landing__phone-section-slot--steps"
+        showDisclaimer
+      />
 
-      <section className="mobile-landing__about-block" id="waitlist-steps">
+      <section
+        ref={aboutBlockRef}
+        className="mobile-landing__about-block prelaunch-section-gated"
+        id="waitlist-steps"
+        data-section-ready={isSectionReady ? "true" : "false"}
+      >
         <div className="mobile-landing__about-heading mobile-landing__reveal-up">
           <h2 className="mobile-landing__about-title">
             <span>{"Así de "}</span>
@@ -31,6 +42,12 @@ export default function MobileWaitlistStepsSection({ isTabletHeroLayout, phoneGl
           ))}
         </div>
       </section>
+      <PrelaunchCheckpoint
+        id="waitlist_steps_end"
+        order={29}
+        surface="waitlist_steps"
+        position="end"
+      />
     </div>
   );
 }

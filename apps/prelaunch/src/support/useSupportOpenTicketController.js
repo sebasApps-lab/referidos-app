@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ingestPrelaunchEvent } from "../services/prelaunchSystem";
-import { createAnonymousSupportThread, listAnonymousSupportCategories } from "./supportApi";
+import { createAnonymousSupportThread } from "./supportApi";
 import {
   DEFAULT_SUPPORT_CATEGORIES,
   ECUADOR_PREFIX,
   buildSupportSuccessMessage,
-  normalizeSupportCategoryOption,
+  isOtherSupportCategory,
   normalizeSupportEmail,
   normalizeSupportWhatsappLocal,
 } from "./supportOpenTicketShared";
@@ -21,13 +21,13 @@ export function useSupportOpenTicketController() {
   const [searchParams] = useSearchParams();
   const origin = normalizeOriginRole(searchParams.get("origin"));
   const initialChannel = searchParams.get("channel") === "whatsapp" ? "whatsapp" : "email";
-  const backTo = origin === "negocio" ? "/ayuda-negocios/es" : "/ayuda/es";
+  const backTo = "/ayuda/es";
 
   const desktopHeaderActions = useMemo(
     () => [
       {
         key: "back",
-        label: "\u2197 Volver al Centro de Ayuda",
+        label: "\u2197 Centro de Ayuda",
         to: backTo,
         className:
           "help-center__header-link help-center__header-link--ghost support-open-ticket__header-link-back",
@@ -40,7 +40,7 @@ export function useSupportOpenTicketController() {
     () => [
       {
         key: "back",
-        label: "\u2197 Volver al Centro de Ayuda",
+        label: "\u2197 Centro de Ayuda",
         to: backTo,
         variant: "ghost",
       },
@@ -52,7 +52,7 @@ export function useSupportOpenTicketController() {
     () => [
       {
         key: "back",
-        title: "Volver al Centro de Ayuda",
+        title: "Centro de Ayuda",
         to: backTo,
       },
     ],
@@ -63,6 +63,7 @@ export function useSupportOpenTicketController() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
   const [preferredChannel, setPreferredChannel] = useState(initialChannel);
   const [categoryOptions, setCategoryOptions] = useState(DEFAULT_SUPPORT_CATEGORIES);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -85,6 +86,11 @@ export function useSupportOpenTicketController() {
     () => categoryOptions.find((item) => item.id === category) || null,
     [category, categoryOptions],
   );
+  const isOtherCategorySelected = useMemo(
+    () => isOtherSupportCategory(selectedCategory?.id),
+    [selectedCategory],
+  );
+  const trimmedDescription = useMemo(() => description.trim(), [description]);
 
   const canSubmit = Boolean(
     name.trim() &&
@@ -106,37 +112,8 @@ export function useSupportOpenTicketController() {
   }, [origin]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadCategories() {
-      setCategoriesLoading(true);
-      const response = await listAnonymousSupportCategories({
-        requested_channel: preferredChannel,
-      });
-
-      if (cancelled) {
-        return;
-      }
-
-      if (!response.ok || !response.data?.ok) {
-        setCategoryOptions(DEFAULT_SUPPORT_CATEGORIES);
-        setCategoriesLoading(false);
-        return;
-      }
-
-      const nextOptions = (response.data.categories || [])
-        .map((item) => normalizeSupportCategoryOption(item))
-        .filter(Boolean);
-
-      setCategoryOptions(nextOptions.length ? nextOptions : DEFAULT_SUPPORT_CATEGORIES);
-      setCategoriesLoading(false);
-    }
-
-    void loadCategories();
-
-    return () => {
-      cancelled = true;
-    };
+    setCategoryOptions(DEFAULT_SUPPORT_CATEGORIES);
+    setCategoriesLoading(false);
   }, [preferredChannel]);
 
   useEffect(() => {
@@ -163,7 +140,8 @@ export function useSupportOpenTicketController() {
     const payload = {
       channel: preferredChannel,
       contact: selectedContact,
-      summary: "Solicitud enviada desde el formulario web de soporte.",
+      summary:
+        trimmedDescription || "Solicitud enviada desde el formulario web de soporte.",
       category: selectedCategory.id,
       severity: "s2",
       origin_source: "user",
@@ -178,6 +156,7 @@ export function useSupportOpenTicketController() {
         preferred_channel: preferredChannel,
         category_label: selectedCategory.label,
         help_center_origin: origin,
+        description: trimmedDescription || null,
       },
     };
 
@@ -227,6 +206,9 @@ export function useSupportOpenTicketController() {
     setPhone,
     category,
     setCategory,
+    description,
+    setDescription,
+    isOtherCategorySelected,
     preferredChannel,
     setPreferredChannel,
     categoryOptions,

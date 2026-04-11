@@ -1,4 +1,7 @@
+import "./DesktopWaitlistBottomSection.css";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
 import DesktopFooterColumns from "../components/DesktopFooterColumns";
+import footerLogo from "../../../assets/logo/go-plip-white-lila.svg";
 
 export default function DesktopFooterSection({
   onPlatformClick,
@@ -7,11 +10,12 @@ export default function DesktopFooterSection({
 }) {
   return (
     <footer className="figma-prototype__footerSection">
+      <PrelaunchCheckpoint id="footer_start" order={40} surface="footer" />
       <div className="figma-prototype__footerBrandScaleWrap figma-prototype__reveal-left">
         <div className="figma-prototype__footerBrand">
           <div className="figma-prototype__footerBrandTop">
             <img
-              src="/assets/logo/go-plip-white-lila.svg"
+              src={footerLogo}
               alt="Go Plip"
               className="figma-prototype__footerBrandLogo"
             />
@@ -37,6 +41,7 @@ export default function DesktopFooterSection({
           onLinkClick={onLinkClick}
         />
       </div>
+      <PrelaunchCheckpoint id="footer_end" order={49} surface="footer" position="end" />
     </footer>
   );
 }

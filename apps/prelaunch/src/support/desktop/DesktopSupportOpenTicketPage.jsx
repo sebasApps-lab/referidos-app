@@ -1,3 +1,4 @@
+import { HelpCenterFooter } from "../../legal/helpCenterShared";
 import { useSupportOpenTicketController } from "../useSupportOpenTicketController";
 import DesktopSupportOpenTicketForm from "./components/DesktopSupportOpenTicketForm";
 import DesktopSupportOpenTicketHeader from "./components/DesktopSupportOpenTicketHeader";
@@ -17,6 +18,8 @@ export default function DesktopSupportOpenTicketPage() {
         <DesktopSupportOpenTicketHero />
         <DesktopSupportOpenTicketForm controller={controller} />
       </main>
+
+      <HelpCenterFooter basePath={controller.backTo} brandVariant="business" />
     </div>
   );
 }

@@ -1,17 +1,18 @@
+import supportWhatsappIcon from "../assets/modals/logos_whatsapp-icon.svg";
+
 export const ECUADOR_PREFIX = "593";
 export const ECUADOR_FLAG_SVG_URL =
   "https://upload.wikimedia.org/wikipedia/commons/e/e8/Flag_of_Ecuador.svg";
-export const SUPPORT_FORM_MAIL_ICON_URL =
-  "/assets/support-form/fluent_mail-24-filled.svg";
-export const SUPPORT_FORM_WHATSAPP_ICON_URL =
-  "/assets/support-form/logos_whatsapp-icon.svg";
+export const SUPPORT_FORM_WHATSAPP_ICON_URL = supportWhatsappIcon;
 export const DEFAULT_SUPPORT_CATEGORIES = [
-  { id: "cuenta", label: "Cuenta y acceso" },
-  { id: "promociones", label: "Promociones y beneficios" },
-  { id: "recompensas", label: "Canjes y recompensas" },
-  { id: "tecnico", label: "Soporte t\u00e9cnico" },
-  { id: "otra", label: "Otra consulta" },
+  { id: "borrar_correo", label: "Borrar correo" },
+  { id: "otra", label: "Otra razón" },
 ];
+
+export function isOtherSupportCategory(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "otra" || normalized === "other" || normalized.startsWith("otra");
+}
 
 export function normalizeSupportEmail(value) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -48,6 +49,6 @@ export function normalizeSupportCategoryOption(item) {
 
 export function buildSupportSuccessMessage(channel) {
   return channel === "whatsapp"
-    ? "Tu mensaje fue enviado. Te escribiremos por WhatsApp apenas un asesor tome tu solicitud."
-    : "Tu mensaje fue enviado. Te responderemos al correo electr\u00f3nico que ingresaste.";
+    ? "Tu ticket fue creado. Te escribiremos por WhatsApp apenas un asesor tome tu solicitud."
+    : "Tu ticket fue creado. Te responderemos al correo electr\u00f3nico que ingresaste.";
 }

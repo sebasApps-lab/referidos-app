@@ -1,13 +1,34 @@
+import { lazy, Suspense, useMemo } from "react";
 import { useTree } from "./useTree";
 
-export default function AdaptiveRoute({ DesktopComponent, MobileComponent }) {
+export default function AdaptiveRoute({
+  DesktopComponent,
+  MobileComponent,
+  desktopLoader,
+  mobileLoader,
+  fallback = null,
+}) {
   const tree = useTree();
-  const DesktopView = DesktopComponent;
-  const MobileView = MobileComponent;
+  const LazyDesktopView = useMemo(
+    () => (desktopLoader ? lazy(desktopLoader) : null),
+    [desktopLoader],
+  );
+  const LazyMobileView = useMemo(
+    () => (mobileLoader ? lazy(mobileLoader) : null),
+    [mobileLoader],
+  );
 
-  if (tree === "mobile") {
-    return <MobileView />;
+  const DesktopView = DesktopComponent || LazyDesktopView;
+  const MobileView = MobileComponent || LazyMobileView;
+  const ActiveView = tree === "mobile" ? MobileView : DesktopView;
+
+  if (!ActiveView) {
+    return fallback;
   }
 
-  return <DesktopView />;
+  return (
+    <Suspense fallback={fallback}>
+      <ActiveView />
+    </Suspense>
+  );
 }

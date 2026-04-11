@@ -1,13 +1,25 @@
+import yellowCongratsIcon from "../../../assets/modals/yellow-icon-congrats-modal-optimized.webp";
+import yellowPlatformIcon from "../../../assets/modals/yellow-icon-platform-modal-optimized.webp";
+import yellowAboutUsIcon from "../../../assets/modals/yellow-icon-about-us-modal-optimized.webp";
+import yellowInfoModalIcon from "../../../assets/modals/yellow-icon-info-modal-optimized.webp";
+import checkBulletIcon from "../../../assets/modals/lets-icons_check-fill.svg";
+import copyIcon from "../../../assets/modals/tabler_copy.svg";
+import whatsappIcon from "../../../assets/modals/logos_whatsapp-icon.svg";
+import facebookIcon from "../../../assets/modals/ic_baseline-facebook.svg";
+import instagramIcon from "../../../assets/modals/skill-icons_instagram.svg";
+import twitterXIcon from "../../../assets/modals/bi_twitter-x.svg";
+import notifyBellIcon from "../../../assets/modals/mdi_bell.svg";
+
 export const LANDING_MODAL_ASSETS = {
-  congratsIcon: "/assets/modals/clock-yellow-icon-congrats-modal.png",
-  platformIcon: "/assets/modals/clock-yellow-icon-platform.png",
-  teamIcon: "/assets/modals/clock-yellow-icon-team.png",
-  invitationClockIcon: "/assets/clock-yellow-icon.png",
-  checkBullet: "/assets/modals/lets-icons_check-fill.svg",
-  copyIcon: "/assets/modals/tabler_copy.svg",
-  whatsappIcon: "/assets/modals/logos_whatsapp-icon.svg",
-  facebookIcon: "/assets/modals/ic_baseline-facebook.svg",
-  instagramIcon: "/assets/modals/skill-icons_instagram.svg",
-  twitterXIcon: "/assets/modals/bi_twitter-x.svg",
-  notifyBellIcon: "/assets/mdi_bell.svg",
+  congratsIcon: yellowCongratsIcon,
+  platformIcon: yellowPlatformIcon,
+  teamIcon: yellowAboutUsIcon,
+  invitationClockIcon: yellowInfoModalIcon,
+  checkBullet: checkBulletIcon,
+  copyIcon,
+  whatsappIcon,
+  facebookIcon,
+  instagramIcon,
+  twitterXIcon,
+  notifyBellIcon,
 };

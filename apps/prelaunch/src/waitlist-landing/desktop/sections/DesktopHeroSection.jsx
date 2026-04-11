@@ -1,16 +1,60 @@
+import { useEffect, useRef, useState } from "react";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { scrollToSection } from "../../scrollToSection";
 import DesktopHeroBackground from "../components/DesktopHeroBackground";
 import DesktopHeroPhoneShowcase from "../components/DesktopHeroPhoneShowcase";
-import DesktopHeroShadowGroup from "../components/DesktopHeroShadowGroup";
+import phoneBottomShadow from "../../../assets/landing/hero/phone-bottom-shadow-optimized.webp";
 
-export default function DesktopHeroSection({ onWaitlistClick, onCardWaitlistClick }) {
+const HERO_BG_ENTRY_MS = 420;
+
+export default function DesktopHeroSection({
+  onWaitlistClick,
+  onCardWaitlistClick,
+  onAssetsReadyChange,
+}) {
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
+  const [isHeroIntroReady, setIsHeroIntroReady] = useState(false);
+  const heroBackgroundClassName = isSectionReady
+    ? "figma-prototype__hero-bg-entry"
+    : "figma-prototype__entry-pending";
+  const heroCopyClassName = isHeroIntroReady
+    ? "figma-prototype__hero-copy figma-prototype__hero-copy-entry"
+    : "figma-prototype__hero-copy figma-prototype__entry-pending";
+  const heroVisualClassName = isHeroIntroReady
+    ? "figma-prototype__hero-visual-entry"
+    : "figma-prototype__entry-pending";
+
+  useEffect(() => {
+    if (!isSectionReady) {
+      setIsHeroIntroReady(false);
+      onAssetsReadyChange?.(false);
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setIsHeroIntroReady(true);
+      onAssetsReadyChange?.(true);
+    }, HERO_BG_ENTRY_MS);
+
+    return () => window.clearTimeout(timerId);
+  }, [isSectionReady, onAssetsReadyChange]);
+
   return (
-    <section className="figma-prototype__hero">
-      <DesktopHeroShadowGroup />
-      <DesktopHeroBackground />
+    <section
+      ref={sectionRef}
+      className="figma-prototype__hero prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+      >
+      <div className="hero-phone-bottom-shadow-anchor" aria-hidden="true">
+        <div className={`hero-phone-bottom-shadow-frame ${heroVisualClassName}`.trim()}>
+          <img className="hero-phone-bottom-shadow" src={phoneBottomShadow} alt="" />
+        </div>
+      </div>
+      <DesktopHeroBackground className={heroBackgroundClassName} />
 
       <div className="figma-prototype__hero-content">
-        <div className="figma-prototype__hero-copy figma-prototype__entry-edge-left figma-prototype__entry-delay-1">
+        <div className={heroCopyClassName}>
           <div className="figma-prototype__hero-copy-stack">
             <div className="figma-prototype__hero-copy-body">
               <p className="figma-prototype__hero-title">
@@ -50,7 +94,7 @@ export default function DesktopHeroSection({ onWaitlistClick, onCardWaitlistClic
         </div>
 
         <DesktopHeroPhoneShowcase
-          className="figma-prototype__entry-edge-right figma-prototype__entry-delay-2"
+          className={heroVisualClassName}
           onInviteClick={onCardWaitlistClick}
         />
       </div>

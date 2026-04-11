@@ -27,14 +27,14 @@ export default function DesktopPlatformModal({ isOpen, onClose }) {
 
       <div className="figma-prototype__landing-modal-stage figma-prototype__landing-modal-stage--wide">
         <img
-          className="figma-prototype__landing-modal-heroIcon"
+          className="figma-prototype__landing-modal-heroIcon figma-prototype__landing-modal-heroIcon--wide-desktop"
           src={LANDING_MODAL_ASSETS.platformIcon}
           alt=""
           aria-hidden="true"
         />
 
         <div className="figma-prototype__landing-modal-main figma-prototype__landing-modal-main--wide">
-          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide">
+          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide figma-prototype__landing-modal-header--wide-desktop-title">
             <h2>Sobre nuestra plataforma</h2>
             <p>
               Nuestra plataforma ha sido diseñada para que puedas descubrir, guardar y

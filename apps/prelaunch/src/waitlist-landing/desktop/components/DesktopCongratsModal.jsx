@@ -31,10 +31,9 @@ export default function DesktopCongratsModal({
     <DesktopLandingModalFrame
       isOpen={isOpen}
       onClose={onClose}
-      designWidth={650}
-      designHeight={405}
+      designWidth={900}
+      designHeight={520}
       dialogLabel="Felicitaciones, ya estás en la lista"
-      lockHeight
     >
       <button
         type="button"
@@ -45,16 +44,16 @@ export default function DesktopCongratsModal({
         <CloseIcon />
       </button>
 
-      <div className="figma-prototype__landing-modal-stage figma-prototype__landing-modal-stage--congrats">
+      <div className="figma-prototype__landing-modal-stage figma-prototype__landing-modal-stage--wide figma-prototype__landing-modal-stage--congrats">
         <img
-          className="figma-prototype__landing-modal-heroIcon"
+          className="figma-prototype__landing-modal-heroIcon figma-prototype__landing-modal-heroIcon--wide-desktop"
           src={LANDING_MODAL_ASSETS.congratsIcon}
           alt=""
           aria-hidden="true"
         />
 
         <div className="figma-prototype__landing-modal-main">
-          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--congrats">
+          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide figma-prototype__landing-modal-header--wide-desktop-title">
             <h2>¡Felicitaciones, ya estás en la lista!</h2>
             <p>Consigue más beneficios invitando a tus amigos.</p>
           </div>

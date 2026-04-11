@@ -1,3 +1,4 @@
+import "../MobileLandingModals.css";
 import { useEffect } from "react";
 
 export default function MobileLandingModalFrame({

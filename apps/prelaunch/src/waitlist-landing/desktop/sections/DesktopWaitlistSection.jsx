@@ -1,3 +1,7 @@
+import { useRef } from "react";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
+import "./DesktopWaitlistBottomSection.css";
 import DesktopMockupSteps from "../components/DesktopMockupSteps";
 import DesktopWaitlistForm from "../components/DesktopWaitlistForm";
 
@@ -10,13 +14,16 @@ export default function DesktopWaitlistSection({
   onHoneypotChange,
   onSubmit,
 }) {
-  return (
-    <section className="figma-prototype__waitlist">
-      <div className="figma-prototype__waitlist-bg" aria-hidden="true" />
-      <div className="figma-prototype__waitlist-glow" aria-hidden="true">
-        <img src="/assets/glow-bottom-section.svg" alt="" />
-      </div>
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
 
+  return (
+    <section
+      ref={sectionRef}
+      className="figma-prototype__waitlist prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
+      <PrelaunchCheckpoint id="waitlist_form_start" order={30} surface="waitlist_form" />
       <div className="figma-prototype__waitlist-content">
         <div className="figma-prototype__waitlist-copy figma-prototype__reveal-left">
           <p className="figma-prototype__waitlist-title">No te quedes sin un puesto para participar</p>
@@ -40,6 +47,7 @@ export default function DesktopWaitlistSection({
 
         <DesktopMockupSteps className="figma-prototype__reveal-right figma-prototype__reveal-delay-1" />
       </div>
+      <PrelaunchCheckpoint id="waitlist_form_end" order={39} surface="waitlist_form" position="end" />
     </section>
   );
 }

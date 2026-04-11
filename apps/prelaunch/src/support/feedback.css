@@ -1,6 +1,7 @@
 .feedback-page {
   min-height: 100vh;
-  background: #ffffff url("/assets/support-form/page-bg.png") center top / cover no-repeat;
+  background: #ffffff url("../assets/shared/page-bg-optimized.png") center top / cover
+    no-repeat;
   color: #1a1c2b;
 }
 
@@ -23,8 +24,8 @@
   margin: 0;
   color: #1a1c2b;
   font-weight: 600;
-  font-size: 28px;
-  line-height: 1.15;
+  font-size: 26px;
+  line-height: 1.08;
   text-align: center;
 }
 
@@ -49,8 +50,8 @@
   margin: 0;
   color: #627281;
   font-weight: 400;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.4;
   text-align: center;
 }
 
@@ -189,7 +190,7 @@
 
 @media (max-width: 520px) {
   .feedback-page__contact-title {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .feedback-page__contact-copy,

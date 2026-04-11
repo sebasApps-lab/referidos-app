@@ -23,6 +23,7 @@ const EVENT_TYPES = [
   "waitlist_submit",
   "waitlist_submit_error",
   "section_view",
+  "checkpoint_view",
   "modal_view",
   "modal_close",
   "link_click",
@@ -476,6 +477,7 @@ serve(async (req) => {
   const recurrentVisitorPerDay = new Map<string, Set<string>>();
   const pageLeaveStatsByDay = new Map<string, { sumMs: number; count: number }>();
   const sectionCountMap = new Map<string, number>();
+  const checkpointCountMap = new Map<string, number>();
   const modalViewCountMap = new Map<string, number>();
   const modalCloseCountMap = new Map<string, number>();
   const modalOverallUniqueViewers = new Map<string, Set<string>>();
@@ -525,6 +527,7 @@ serve(async (req) => {
       "support_ticket_created",
       "feedback_submit_success",
       "section_view",
+      "checkpoint_view",
       "modal_view",
       "modal_close",
       "link_click",
@@ -590,6 +593,15 @@ serve(async (req) => {
     if (row.event_type === "section_view") {
       const sectionId = readStringProp(props, "section_id") || "unknown";
       sectionCountMap.set(sectionId, (sectionCountMap.get(sectionId) || 0) + 1);
+      continue;
+    }
+
+    if (row.event_type === "checkpoint_view") {
+      const checkpointId = readStringProp(props, "checkpoint_id") || "unknown";
+      checkpointCountMap.set(
+        checkpointId,
+        (checkpointCountMap.get(checkpointId) || 0) + 1,
+      );
       continue;
     }
 
@@ -708,6 +720,7 @@ serve(async (req) => {
     });
 
   const sectionBreakdown = mapToSortedCounts(sectionCountMap, "section_id");
+  const checkpointBreakdown = mapToSortedCounts(checkpointCountMap, "checkpoint_id");
 
   const topLinks = Array.from(linkClickMap.values())
     .sort((a, b) => b.count - a.count)
@@ -775,6 +788,7 @@ serve(async (req) => {
       },
       engagement: {
         sections: sectionBreakdown,
+        checkpoints: checkpointBreakdown,
         modals: modalBreakdown,
         links: topLinks,
       },

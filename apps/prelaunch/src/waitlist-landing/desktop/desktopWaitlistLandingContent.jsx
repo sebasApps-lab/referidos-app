@@ -1,4 +1,9 @@
-import { asset, iconAsset, mobileAsset } from "./desktopWaitlistLandingAssets";
+import iconNumber1Blue from "../../assets/landing/steps/n1-blue-optimized.webp";
+import iconNumber2Purple from "../../assets/landing/steps/n2-purple-optimized.webp";
+import iconNumber3BlueCyan from "../../assets/landing/steps/n3-cyan-optimized.webp";
+import iconMailBlue from "../../assets/landing/steps/mail-optimized.webp";
+import iconGift from "../../assets/landing/steps/gift-optimized.webp";
+import iconCoins from "../../assets/landing/steps/coin-optimized.webp";
 
 export const navigationLinks = [
   { label: "Ayuda", to: "/ayuda/es" },
@@ -9,9 +14,8 @@ export const navigationLinks = [
 export const desktopSteps = [
   {
     key: "correo",
-    numberSrc: mobileAsset("icon-number-1-blue.png"),
-    iconSrc: iconAsset("icon-mail-blue.png"),
-    shadowSrc: asset("mid-card-icon-shadow-1.svg"),
+    numberSrc: iconNumber1Blue,
+    iconSrc: iconMailBlue,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Añade</span>
@@ -31,9 +35,8 @@ export const desktopSteps = [
   },
   {
     key: "recompensas",
-    numberSrc: mobileAsset("icon-number-2-purple.png"),
-    iconSrc: iconAsset("icon-gift.png"),
-    shadowSrc: asset("mid-card-icon-shadow-2.svg"),
+    numberSrc: iconNumber2Purple,
+    iconSrc: iconGift,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Descarga</span>
@@ -54,9 +57,8 @@ export const desktopSteps = [
   },
   {
     key: "puntos",
-    numberSrc: mobileAsset("icon-number-3-blue-cyan.png"),
-    iconSrc: iconAsset("icon-coins.png"),
-    shadowSrc: asset("mid-card-icon-shadow-3.svg"),
+    numberSrc: iconNumber3BlueCyan,
+    iconSrc: iconCoins,
     title: (
       <>
         <span className="figma-prototype__benefit-title-bold">Gana puntos </span>
