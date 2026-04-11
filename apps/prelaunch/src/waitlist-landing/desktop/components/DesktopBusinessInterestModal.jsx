@@ -10,7 +10,7 @@ import mailIcon from "../../../assets/modals/lucide_mail.svg";
 import lockIcon from "../../../assets/modals/majesticons_lock.svg";
 import notifyBellIcon from "../../../assets/modals/mdi_bell.svg";
 
-const EARLY_ACCESS_DATE = "1 de abril de 2026";
+const EARLY_ACCESS_WINDOW = "en pocas semanas";
 
 const MODAL_ASSETS = {
   briefcase: briefcaseIcon,
@@ -47,7 +47,7 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
 
   const successMessage = useMemo(
     () =>
-      `Perfecto. Te escribiremos a este correo cuando el acceso anticipado del panel de promociones comience el ${EARLY_ACCESS_DATE}.`,
+      `Perfecto. Te escribiremos a este correo cuando el acceso anticipado del panel de promociones comience ${EARLY_ACCESS_WINDOW}.`,
     [],
   );
 
@@ -160,10 +160,10 @@ export default function DesktopBusinessInterestModal({ isOpen, onClose }) {
                   <div className="figma-prototype__business-modal-header-copy">
                     <h2 id="business-interest-modal-title">
                       <span className="figma-prototype__business-modal-title-regular">
-                        El acceso anticipado al panel de promociones para negocios llegará el{" "}
+                        El acceso anticipado al panel de promociones para negocios llegará{" "}
                       </span>
                       <span className="figma-prototype__business-modal-title-accent">
-                        {EARLY_ACCESS_DATE}
+                        {EARLY_ACCESS_WINDOW}
                       </span>
                     </h2>
 
