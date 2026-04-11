@@ -143,11 +143,11 @@
   gap: 24px;
 }
 
-.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats {
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header {
   width: min(100%, 720px);
 }
 
-.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header--congrats h2 {
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header h2 {
   width: min(100%, 620px);
 }
 
@@ -157,6 +157,25 @@
 
 .figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-footerCopy {
   width: min(100%, 620px);
+}
+
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-heroIcon--wide-desktop {
+  width: 260px;
+  max-width: calc(100% - 56px);
+  margin-top: -60px;
+  margin-bottom: -60px;
+}
+
+.figma-prototype__landing-modal-stage--congrats
+  .figma-prototype__landing-modal-header--wide-desktop-title {
+  gap: 36px;
+}
+
+.figma-prototype__landing-modal-stage--congrats
+  .figma-prototype__landing-modal-header--wide-desktop-title
+  h2 {
+  font-size: 34px;
+  line-height: 38px;
 }
 
 .figma-prototype__landing-modal-heroIcon {
@@ -203,10 +222,8 @@
   text-align: center;
 }
 
-.figma-prototype__landing-modal-header--congrats h2 {
+.figma-prototype__landing-modal-stage--congrats .figma-prototype__landing-modal-header h2 {
   width: min(100%, 696px);
-  font-size: 35px;
-  line-height: 42px;
 }
 
 .figma-prototype__landing-modal-header p {
