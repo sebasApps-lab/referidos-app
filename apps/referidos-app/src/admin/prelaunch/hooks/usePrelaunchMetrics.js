@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { buildMockPrelaunchMetrics } from "../mockPrelaunchMetrics";
 import { fetchPrelaunchMetrics } from "../services/prelaunchMetrics";
 
 const INITIAL_FILTERS = {
   days: 7,
   appChannel: "",
 };
+
+const USE_PRELAUNCH_ANALYTICS_MOCK = import.meta.env.DEV;
 
 export function usePrelaunchMetrics(initialFilters = INITIAL_FILTERS) {
   const [filters, setFilters] = useState({
@@ -24,6 +27,14 @@ export function usePrelaunchMetrics(initialFilters = INITIAL_FILTERS) {
       setLoading(true);
     }
     setError("");
+
+    if (USE_PRELAUNCH_ANALYTICS_MOCK) {
+      setMetrics(buildMockPrelaunchMetrics(filters));
+      setLastUpdatedAt(new Date().toISOString());
+      if (!silent) setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     const result = await fetchPrelaunchMetrics(filters);
     if (!result.ok) {

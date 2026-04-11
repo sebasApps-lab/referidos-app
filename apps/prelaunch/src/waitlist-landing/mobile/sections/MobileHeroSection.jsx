@@ -1,14 +1,16 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { scrollToSection } from "../../scrollToSection";
 import MobileHeroBackground from "../components/MobileHeroBackground";
 import MobilePhoneSection from "../components/MobilePhoneSection";
+import phoneMockup from "../../../assets/landing/hero/nothing-phone-2a-optimized.webp";
+import headerLogo from "../../../assets/logo/go-plip-white-lila.svg";
+import drawerLogo from "../../../assets/logo/go-plip-dark-light-purple.svg";
 
 export default function MobileHeroSection({
-  heroClipId,
-  heroFilterId,
-  isTabletHeroLayout,
-  phoneGlowFilterId,
+  onAssetsReadyChange,
   onBusinessClick,
   onHelpClick,
   onHowItWorksClick,
@@ -18,6 +20,8 @@ export default function MobileHeroSection({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const drawerId = useId();
   const navigate = useNavigate();
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef, [], [phoneMockup]);
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -40,19 +44,28 @@ export default function MobileHeroSection({
     };
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    onAssetsReadyChange?.(isSectionReady);
+  }, [isSectionReady, onAssetsReadyChange]);
+
   function handleMenuAction(callback) {
     setIsMenuOpen(false);
     window.setTimeout(callback, 0);
   }
 
   return (
-    <div className="mobile-landing__top-section">
-      <MobileHeroBackground heroClipId={heroClipId} heroFilterId={heroFilterId} />
+    <div
+      ref={sectionRef}
+      className="mobile-landing__top-section prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
+      <PrelaunchCheckpoint id="hero_start" order={10} surface="hero" />
+      <MobileHeroBackground />
 
       <header className="mobile-landing__header">
-        <div className="mobile-landing__brand mobile-landing__reveal-up">
+        <div className="mobile-landing__brand">
           <img
-            src="/assets/logo/go-plip-white-lila.svg"
+            src={headerLogo}
             alt="Go Plip"
             className="mobile-landing__brand-logo"
           />
@@ -144,7 +157,7 @@ export default function MobileHeroSection({
 
         <div className="mobile-landing__drawer-brand">
           <img
-            src="/assets/logo/go-plip-dark-light-purple.svg"
+            src={drawerLogo}
             alt="Go Plip"
             className="mobile-landing__drawer-logo"
           />
@@ -153,7 +166,7 @@ export default function MobileHeroSection({
 
       <div className="mobile-landing__hero-layout">
         <section className="mobile-landing__hero-section">
-          <div className="mobile-landing__hero-text mobile-landing__reveal-up mobile-landing__reveal-delay-1">
+          <div className="mobile-landing__hero-text">
             <h1 className="mobile-landing__hero-title">
               Descubre y
               <br />
@@ -169,7 +182,7 @@ export default function MobileHeroSection({
             </p>
           </div>
 
-          <div className="mobile-landing__hero-actions mobile-landing__reveal-up mobile-landing__reveal-delay-2">
+          <div className="mobile-landing__hero-actions">
             <button
               type="button"
               className="mobile-landing__hero-primary-button"
@@ -198,14 +211,13 @@ export default function MobileHeroSection({
           </div>
         </section>
 
-        {isTabletHeroLayout ? (
-          <MobilePhoneSection
-            isHeroLayout
-            phoneGlowFilterId={phoneGlowFilterId}
-            className="mobile-landing__reveal-up mobile-landing__reveal-delay-3"
-          />
-        ) : null}
+        <MobilePhoneSection
+          isHeroLayout
+          className="mobile-landing__phone-section-slot mobile-landing__phone-section-slot--hero mobile-landing__phone-section--hero"
+          showDisclaimer
+        />
       </div>
+      <PrelaunchCheckpoint id="hero_end" order={19} surface="hero" position="end" />
     </div>
   );
 }

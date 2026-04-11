@@ -1,55 +1,54 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
-import { getRuntimeConfig } from "../config/runtimeConfig";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
+import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
+import businessLogo from "../assets/logo/go-plip-black-blue.svg";
+import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
+import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
+import consumerSigninIcon from "../assets/help-center/cliente/key-icon-cliente.webp";
+import consumerTermsIcon from "../assets/help-center/cliente/terms-icon-cliente.webp";
+import consumerPrivacyIcon from "../assets/help-center/cliente/privacy-icon-cliente.webp";
+import consumerVerifyIcon from "../assets/help-center/cliente/verify-account-icon-cliente.webp";
+import consumerRedeemIcon from "../assets/help-center/cliente/gift-promos-icon-cliente.webp";
+import consumerDeleteIcon from "../assets/help-center/cliente/delete-data-icon-cliente.webp";
+import consumerPointsIcon from "../assets/help-center/cliente/points-icon-cliente.webp";
+import consumerSupportIcon from "../assets/help-center/cliente/chat-support-icon-cliente.webp";
 import "./helpCenter.css";
 
 const HelpCenterThemeContext = createContext("consumer");
 
 const HELP_CENTER_ICON_FILES = {
   consumer: {
-    signin: "cliente/key-icon-cliente.png",
-    terms: "cliente/terms-icon-cliente.png",
-    privacy: "cliente/privacy-icon-cliente.png",
-    verify: "cliente/verify-account-icon-cliente.png",
-    redeem: "cliente/gift-promos-icon-cliente.png",
-    delete: "cliente/delete-data-icon-cliente.png",
-    points: "cliente/points-icon-cliente.png",
-    business: "cliente/negocio-icon-cliente.png",
-    support: "cliente/chat-support-icon-cliente.png",
-    arrow: "ir-right-arrow-negocio.png",
+    signin: consumerSigninIcon,
+    terms: consumerTermsIcon,
+    privacy: consumerPrivacyIcon,
+    verify: consumerVerifyIcon,
+    redeem: consumerRedeemIcon,
+    delete: consumerDeleteIcon,
+    points: consumerPointsIcon,
+    support: consumerSupportIcon,
   },
   business: {
-    signin: "negocio/key-icon-negocio.png",
-    terms: "negocio/terms-icon-negocio.png",
-    privacy: "negocio/privacy-icon-negocio.png",
-    verify: "negocio/verify-account-icon-negocio.png",
-    redeem: "negocio/gift-promos-icon-negocio.png",
-    delete: "negocio/delete-data-icon-negocio.png",
-    points: "negocio/points-icon-negocio.png",
-    business: "negocio/clientes-icon-negocio.png",
-    support: "negocio/chat-support-icon-negocio.png",
-    arrow: "ir-right-arrow-negocio.png",
+    signin: consumerSigninIcon,
+    terms: consumerTermsIcon,
+    privacy: consumerPrivacyIcon,
+    verify: consumerVerifyIcon,
+    redeem: consumerRedeemIcon,
+    delete: consumerDeleteIcon,
+    points: consumerPointsIcon,
+    support: consumerSupportIcon,
   },
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: "/assets/logo/go-plip-dark-light-purple.svg",
-  business: "/assets/logo/go-plip-black-blue.svg",
-  feedback: "/assets/logo/go-plip-black-gray.svg",
+  consumer: consumerLogo,
+  business: businessLogo,
+  feedback: feedbackLogo,
 };
-
-function helpCenterAsset(relativePath) {
-  const assetBaseUrl = getRuntimeConfig().helpCenterAssetBaseUrl.replace(/\/+$/, "");
-  const assetPath = `/assets/shared/help-center/${relativePath}`;
-  return assetBaseUrl ? `${assetBaseUrl}${assetPath}` : assetPath;
-}
 
 function useThemedHelpCenterAsset(key) {
   const theme = useContext(HelpCenterThemeContext);
-  const relativePath =
-    HELP_CENTER_ICON_FILES[theme]?.[key] ?? HELP_CENTER_ICON_FILES.business[key];
-  return helpCenterAsset(relativePath);
+  return HELP_CENTER_ICON_FILES[theme]?.[key] ?? HELP_CENTER_ICON_FILES.business[key];
 }
 
 function HelpCenterAssetIcon({ assetKey }) {
@@ -87,7 +86,7 @@ export function HelpCenterLayout({
     ? sidebarItems.find((category) => category.key === activeCategoryKey) || null
     : null;
   const isDefaultScreen = !activeCategory && !content;
-  const showCtas = isDefaultScreen;
+  const showCtas = isDefaultScreen || activeCategoryKey === "legal";
 
   return (
     <HelpCenterThemeProvider theme={theme}>
@@ -276,41 +275,8 @@ function HelpResourceCard({ resource }) {
 }
 
 export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) {
-  const theme = useContext(HelpCenterThemeContext);
-  const businessTitle =
-    theme === "business" ? "\u00bfEres un cliente?" : "\u00bfEres un Negocio o Empresa?";
-  const businessLinkText =
-    theme === "business"
-      ? "Ir al Centro de Ayuda para Clientes"
-      : "Ir al Centro de Ayuda para Empresas";
-  const businessTarget = theme === "business" ? "/ayuda/es" : "/ayuda-negocios/es";
-
   return (
     <section className="help-center__cta-panel">
-      <div className="help-center__business-card">
-        <div className="help-center__business-copy">
-          <div className="help-center__business-icon" aria-hidden="true">
-            <BriefcaseIcon />
-          </div>
-
-          <div className="help-center__business-text">
-            <h3>{businessTitle}</h3>
-            <div className="help-center__business-action">
-              <Link className="help-center__business-link-text" to={businessTarget}>
-                {businessLinkText}
-              </Link>
-              <Link
-                className="help-center__business-arrow-button"
-                to={businessTarget}
-                aria-label={businessLinkText}
-              >
-                <BusinessArrowIcon />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="help-center__support-card">
         <div className="help-center__support-copy">
           <div className="help-center__support-icon" aria-hidden="true">
@@ -327,7 +293,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
               <div className="help-center__support-actions">
                 <Link
                   className="help-center__whatsapp-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=whatsapp`}
+                  to="/soporte/abrir-ticket?origin=cliente&channel=whatsapp"
                 >
                   <WhatsAppIcon />
                   <span>Whatsapp</span>
@@ -335,7 +301,7 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
 
                 <Link
                   className="help-center__email-button"
-                  to={`/soporte/abrir-ticket?origin=${theme === "business" ? "negocio" : "cliente"}&channel=email`}
+                  to="/soporte/abrir-ticket?origin=cliente&channel=email"
                 >
                   <MailSupportIcon />
                   <span>{emailLabel}</span>
@@ -350,19 +316,11 @@ export function HelpCenterCtas({ emailLabel = "Correo electr\u00f3nico" } = {}) 
 }
 
 function MailSupportIcon() {
-  return <img src="/assets/fluent-color-mail-16.svg" alt="" aria-hidden="true" />;
-}
-
-function BriefcaseIcon() {
-  return <HelpCenterAssetIcon assetKey="business" />;
+  return <img src={helpMailIcon} alt="" aria-hidden="true" />;
 }
 
 function ChatBubbleIcon() {
   return <HelpCenterAssetIcon assetKey="support" />;
-}
-
-function BusinessArrowIcon() {
-  return <HelpCenterAssetIcon assetKey="arrow" />;
 }
 
 function WhatsAppIcon() {

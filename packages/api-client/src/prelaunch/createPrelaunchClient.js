@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { buildAnonymousIdentity, extractUtmFromSearch } from "./anonIdentity.js";
 import { invokePublicFeedbackSubmit } from "../../../feedback-sdk/src/publicClient.js";
 import { normalizeFeedbackOriginRole } from "../../../feedback-sdk/src/shared.js";
@@ -52,14 +51,6 @@ export function createPrelaunchClient({
     throw new Error("createPrelaunchClient requires supabaseUrl and publishableKey");
   }
 
-  const supabase = createClient(supabaseUrl, publishableKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-    },
-  });
-
   function getIdentity() {
     return buildAnonymousIdentity({
       keyPrefix: identityKeyPrefix,
@@ -68,11 +59,33 @@ export function createPrelaunchClient({
   }
 
   async function invokePublic(fnName, payload = {}) {
-    const { data, error } = await supabase.functions.invoke(fnName, { body: payload });
-    if (error) {
-      return { ok: false, error: error.message || String(error), data: null };
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: publishableKey,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: data?.message || data?.error || "request_failed",
+          data: null,
+        };
+      }
+
+      return { ok: true, data: data ?? null };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "request_failed",
+        data: null,
+      };
     }
-    return { ok: true, data: data ?? null };
   }
 
   function withSharedPayload(payload = {}) {

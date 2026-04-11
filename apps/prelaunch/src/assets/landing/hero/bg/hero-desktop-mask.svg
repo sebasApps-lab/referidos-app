@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1440"
+   height="850"
+   viewBox="0 0 1440 850"
+   fill="none"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="landing-hero-desktop-mask.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.59202454"
+     inkscape:cx="649.46632"
+     inkscape:cy="243.23316"
+     inkscape:window-width="1920"
+     inkscape:window-height="1006"
+     inkscape:window-x="1358"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <path
+     d="M 0,-3.3904508 H 1440 V 748.50786 l -76.18,20.038 c 0,0 -53.57,12.458 -88.18,18.449 -44.13,7.637 -69.12,9.985 -113.58,14.476 -45.53,4.6 -71.19,5.254 -116.8,8.651 -102.418,7.628 -159.708,14.579 -262.24,19.773 -91.351,4.628 -142.641,5.43 -234.075,6.708 -87.078,1.217 -135.932,2.284 -222.994,0 -40.4,-1.06 -63.095,-0.945 -103.418,-3.973 -32.882,-2.468 -58.353,-3.93 -91.027,-8.828 -30.636,-4.593 -41.0857,-8.498 -71.0251,-15.009 C 29.0504,801.95686 0,794.66686 0,794.66686 Z"
+     fill="#ffffff"
+     id="path1"
+     sodipodi:nodetypes="ccccccscssccccc" />
+</svg>

@@ -1,41 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
+import DeferredRender from "../../performance/DeferredRender";
 import useLandingLeadCapture from "../../landing-logic/useLandingLeadCapture";
+import PrelaunchCheckpoint from "../../observability/PrelaunchCheckpoint";
 import usePrelaunchPageTracking from "../../observability/usePrelaunchPageTracking";
 import { ingestPrelaunchEvent } from "../../services/prelaunchSystem";
 import { buildAbsoluteReferralLink } from "../../waitlist/referralLinks";
 import { scrollToSection } from "../scrollToSection";
 import "./desktopWaitlistLanding.css";
-import "./desktopLandingModals.css";
-import DesktopBusinessInterestModal from "./components/DesktopBusinessInterestModal";
-import DesktopCongratsModal from "./components/DesktopCongratsModal";
+import DesktopBottomBackground from "./components/DesktopBottomBackground";
 import DesktopNavigationHeader from "./components/DesktopNavigationHeader";
-import DesktopPlatformModal from "./components/DesktopPlatformModal";
-import DesktopWhoWeAreModal from "./components/DesktopWhoWeAreModal";
-import DesktopFooterSection from "./sections/DesktopFooterSection";
 import DesktopHeroSection from "./sections/DesktopHeroSection";
-import DesktopWaitlistSection from "./sections/DesktopWaitlistSection";
-import DesktopWaitlistStepsSection from "./sections/DesktopWaitlistStepsSection";
 
-function getFooterColumnsScale() {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-
-  if (window.innerWidth >= 850) {
-    return 1;
-  }
-
-  if (window.innerWidth <= 700) {
-    return 0.72;
-  }
-
-  return 0.72 + ((window.innerWidth - 700) / 150) * 0.28;
-}
+const DesktopBusinessInterestModal = lazy(() =>
+  import("./components/DesktopBusinessInterestModal"),
+);
+const DesktopCongratsModal = lazy(() => import("./components/DesktopCongratsModal"));
+const DesktopPlatformModal = lazy(() => import("./components/DesktopPlatformModal"));
+const DesktopWhoWeAreModal = lazy(() => import("./components/DesktopWhoWeAreModal"));
+const DesktopFooterSection = lazy(() => import("./sections/DesktopFooterSection"));
+const DesktopWaitlistSection = lazy(() => import("./sections/DesktopWaitlistSection"));
+const DesktopWaitlistStepsSection = lazy(() => import("./sections/DesktopWaitlistStepsSection"));
 
 export default function DesktopWaitlistLandingPage() {
-  const [footerColumnsScale, setFooterColumnsScale] = useState(() =>
-    getFooterColumnsScale(),
-  );
+  const [isHeroSectionReady, setIsHeroSectionReady] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [businessModalSurface, setBusinessModalSurface] = useState(null);
   const [congratsReferralLink, setCongratsReferralLink] = useState("");
@@ -54,6 +41,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 2,
         surface: "waitlist_steps",
         reveal: true,
+        threshold: 0.12,
       },
       {
         id: "waitlist_form",
@@ -61,6 +49,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 3,
         surface: "waitlist_form",
         reveal: true,
+        threshold: 0.12,
       },
       {
         id: "footer",
@@ -68,6 +57,7 @@ export default function DesktopWaitlistLandingPage() {
         order: 4,
         surface: "footer",
         reveal: true,
+        threshold: 0.08,
       },
     ],
     [],
@@ -91,15 +81,6 @@ export default function DesktopWaitlistLandingPage() {
     tree: "desktop",
     page: "waitlist_landing",
   });
-
-  useEffect(() => {
-    function handleResize() {
-      setFooterColumnsScale(getFooterColumnsScale());
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   function handleScrollToWaitlist(surface = "hero_cta") {
     void ingestPrelaunchEvent("cta_waitlist_open", {
@@ -272,62 +253,90 @@ export default function DesktopWaitlistLandingPage() {
   }
 
   return (
-    <main
-      className="figma-prototype"
-      aria-label="Figma prototype v2"
-      style={{ "--figma-footer-columns-scale": footerColumnsScale }}
-    >
+    <main className="figma-prototype" aria-label="Figma prototype v2">
       <div className="figma-prototype__shell">
         <section className="figma-prototype__hero-band">
+          <PrelaunchCheckpoint id="hero_start" order={10} surface="hero" />
           <DesktopNavigationHeader
+            isHeroReady={isHeroSectionReady}
             onBusinessClick={() => openBusinessModal("header_nav")}
             onLinkClick={handleDesktopHeaderLink}
           />
           <DesktopHeroSection
+            onAssetsReadyChange={setIsHeroSectionReady}
             onWaitlistClick={() => handleScrollToWaitlist("hero_cta")}
             onCardWaitlistClick={() => handleScrollToWaitlist("hero_preview_card")}
           />
-          <p className="figma-prototype__hero-disclaimer">
+          <p
+            className={[
+              "figma-prototype__hero-disclaimer",
+              isHeroSectionReady
+                ? "figma-prototype__hero-disclaimer-entry"
+                : "figma-prototype__entry-pending",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             Negocios y promociones mostrados solo con fines ilustrativos.
           </p>
+          <PrelaunchCheckpoint id="hero_end" order={19} surface="hero" position="end" />
         </section>
-        <DesktopWaitlistStepsSection />
-        <section className="figma-prototype__bottom-band" id="waitlist-bottom">
-          <DesktopWaitlistSection
-            email={waitlistCapture.email}
-            honeypot={waitlistCapture.honeypot}
-            status={waitlistCapture.status}
-            errorMessage={waitlistCapture.errorMessage}
-            onEmailChange={waitlistCapture.setEmail}
-            onHoneypotChange={waitlistCapture.setHoneypot}
-            onSubmit={handleWaitlistSubmit}
-          />
-          <DesktopFooterSection
-            onPlatformClick={openPlatformModal}
-            onWhoWeAreClick={openTeamModal}
-            onLinkClick={handleDesktopFooterLink}
-          />
-        </section>
+        <DeferredRender
+          placeholderAs="section"
+          placeholderId="waitlist-steps"
+          placeholderClassName="figma-prototype__benefits figma-prototype__deferred-placeholder"
+          placeholderHeight={760}
+          rootMargin="420px 0px"
+        >
+          <DesktopWaitlistStepsSection />
+        </DeferredRender>
+
+        <DeferredRender
+          placeholderAs="section"
+          placeholderId="waitlist-bottom"
+          placeholderClassName="figma-prototype__bottom-band figma-prototype__deferred-placeholder figma-prototype__deferred-placeholder--bottom"
+          placeholderHeight={1160}
+          rootMargin="520px 0px"
+        >
+          <section className="figma-prototype__bottom-band" id="waitlist-bottom">
+            <DesktopBottomBackground />
+            <DesktopWaitlistSection
+              email={waitlistCapture.email}
+              honeypot={waitlistCapture.honeypot}
+              status={waitlistCapture.status}
+              errorMessage={waitlistCapture.errorMessage}
+              onEmailChange={waitlistCapture.setEmail}
+              onHoneypotChange={waitlistCapture.setHoneypot}
+              onSubmit={handleWaitlistSubmit}
+            />
+            <DesktopFooterSection
+              onPlatformClick={openPlatformModal}
+              onWhoWeAreClick={openTeamModal}
+              onLinkClick={handleDesktopFooterLink}
+            />
+          </section>
+        </DeferredRender>
       </div>
 
-      <DesktopBusinessInterestModal
-        isOpen={activeModal === "business-interest"}
-        onClose={(reason) => closeBusinessModal(reason)}
-      />
-      <DesktopPlatformModal
-        isOpen={activeModal === "platform"}
-        onClose={() => closePlatformModal()}
-      />
-      <DesktopWhoWeAreModal
-        isOpen={activeModal === "team"}
-        onClose={() => closeTeamModal()}
-      />
-      <DesktopCongratsModal
-        isOpen={activeModal === "congrats"}
-        onClose={handleCloseCongrats}
-        onCopyLink={handleCopyReferralLink}
-        referralLink={congratsReferralLink}
-      />
+      <Suspense fallback={null}>
+        {activeModal === "business-interest" ? (
+          <DesktopBusinessInterestModal isOpen onClose={(reason) => closeBusinessModal(reason)} />
+        ) : null}
+        {activeModal === "platform" ? (
+          <DesktopPlatformModal isOpen onClose={() => closePlatformModal()} />
+        ) : null}
+        {activeModal === "team" ? (
+          <DesktopWhoWeAreModal isOpen onClose={() => closeTeamModal()} />
+        ) : null}
+        {activeModal === "congrats" ? (
+          <DesktopCongratsModal
+            isOpen
+            onClose={handleCloseCongrats}
+            onCopyLink={handleCopyReferralLink}
+            referralLink={congratsReferralLink}
+          />
+        ) : null}
+      </Suspense>
     </main>
   );
 }

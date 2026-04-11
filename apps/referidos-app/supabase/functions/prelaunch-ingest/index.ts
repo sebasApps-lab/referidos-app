@@ -28,6 +28,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "waitlist_submit",
   "waitlist_submit_error",
   "section_view",
+  "checkpoint_view",
   "modal_view",
   "modal_close",
   "link_click",

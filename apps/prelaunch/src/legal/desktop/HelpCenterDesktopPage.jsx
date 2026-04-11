@@ -1,8 +1,11 @@
-import { buildDefaultResources } from "../helpCenterData";
+import { buildLegalResources } from "../helpCenterData";
 import DesktopConsumerHelpCenterLayout from "./DesktopConsumerHelpCenterLayout";
 
 export default function HelpCenterDesktopPage() {
   return (
-    <DesktopConsumerHelpCenterLayout resourceItems={buildDefaultResources()} />
+    <DesktopConsumerHelpCenterLayout
+      resourceItems={buildLegalResources("/ayuda/es")}
+      activeCategoryKey="legal"
+    />
   );
 }

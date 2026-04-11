@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import AdaptiveRoute from "../UI-detect/AdaptiveRoute";
-import DesktopWaitlistLandingPage from "./desktop/DesktopWaitlistLandingPage";
-import MobileWaitlistLandingPage from "./mobile/MobileWaitlistLandingPage";
 import "./waitlistLandingPage.css";
 
 export default function WaitlistLandingPage() {
@@ -37,8 +35,9 @@ export default function WaitlistLandingPage() {
 
   return (
     <AdaptiveRoute
-      DesktopComponent={DesktopWaitlistLandingPage}
-      MobileComponent={MobileWaitlistLandingPage}
+      desktopLoader={() => import("./desktop/DesktopWaitlistLandingPage")}
+      mobileLoader={() => import("./mobile/MobileWaitlistLandingPage")}
+      fallback={<div className="waitlist-landing-route-fallback" aria-hidden="true" />}
     />
   );
 }

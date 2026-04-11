@@ -27,14 +27,14 @@ export default function DesktopWhoWeAreModal({ isOpen, onClose }) {
 
       <div className="figma-prototype__landing-modal-stage figma-prototype__landing-modal-stage--wide">
         <img
-          className="figma-prototype__landing-modal-heroIcon"
+          className="figma-prototype__landing-modal-heroIcon figma-prototype__landing-modal-heroIcon--wide-desktop"
           src={LANDING_MODAL_ASSETS.teamIcon}
           alt=""
           aria-hidden="true"
         />
 
         <div className="figma-prototype__landing-modal-main figma-prototype__landing-modal-main--wide">
-          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide">
+          <div className="figma-prototype__landing-modal-header figma-prototype__landing-modal-header--wide figma-prototype__landing-modal-header--wide-desktop-title">
             <h2>Quiénes somos</h2>
             <p>
               Somos un equipo con una meta clara: ayudar a negocios y clientes a

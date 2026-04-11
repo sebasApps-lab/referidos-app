@@ -1,9 +1,22 @@
+import { useRef } from "react";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
+import "./DesktopWaitlistStepsSection.css";
 import { desktopSteps } from "../desktopWaitlistLandingContent";
 import DesktopStepCard from "../components/DesktopStepCard";
 
 export default function DesktopWaitlistStepsSection() {
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
+
   return (
-    <section className="figma-prototype__benefits" id="waitlist-steps">
+    <section
+      ref={sectionRef}
+      className="figma-prototype__benefits prelaunch-section-gated"
+      id="waitlist-steps"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
+      <PrelaunchCheckpoint id="waitlist_steps_start" order={20} surface="waitlist_steps" />
       <div className="figma-prototype__benefits-inner">
         <div className="figma-prototype__benefits-heading figma-prototype__reveal-up">
           <div className="figma-prototype__benefits-title">
@@ -27,6 +40,12 @@ export default function DesktopWaitlistStepsSection() {
           ))}
         </div>
       </div>
+      <PrelaunchCheckpoint
+        id="waitlist_steps_end"
+        order={29}
+        surface="waitlist_steps"
+        position="end"
+      />
     </section>
   );
 }

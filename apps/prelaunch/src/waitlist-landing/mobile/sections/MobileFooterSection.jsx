@@ -1,6 +1,11 @@
+import { useRef } from "react";
+import "./MobileWaitlistBottomSection.css";
 import { useNavigate } from "react-router-dom";
+import PrelaunchCheckpoint from "../../../observability/PrelaunchCheckpoint";
+import useSectionAssetsReady from "../../../performance/useSectionAssetsReady";
 import { footerPanels } from "../mobileWaitlistLandingContent";
 import MobileFooterPanels from "../components/MobileFooterPanels";
+import footerLogo from "../../../assets/logo/go-plip-black-gray.svg";
 
 export default function MobileFooterSection({
   onBusinessClick,
@@ -9,6 +14,8 @@ export default function MobileFooterSection({
   onWhoWeAreClick,
 }) {
   const navigate = useNavigate();
+  const sectionRef = useRef(null);
+  const isSectionReady = useSectionAssetsReady(sectionRef);
 
   function trackAndNavigate({ linkId, targetPath, surface, label }) {
     onLinkClick?.({
@@ -58,7 +65,12 @@ export default function MobileFooterSection({
   }
 
   return (
-    <footer className="mobile-landing__footer">
+    <footer
+      ref={sectionRef}
+      className="mobile-landing__footer prelaunch-section-gated"
+      data-section-ready={isSectionReady ? "true" : "false"}
+    >
+      <PrelaunchCheckpoint id="footer_start" order={50} surface="footer" />
       <MobileFooterPanels
         panels={footerPanels}
         onPanelClick={handleFooterPanelClick}
@@ -68,7 +80,7 @@ export default function MobileFooterSection({
       <div className="mobile-landing__footer-info">
         <div className="mobile-landing__footer-about mobile-landing__reveal-up mobile-landing__reveal-delay-1">
           <img
-            src="/assets/logo/go-plip-black-gray.svg"
+            src={footerLogo}
             alt="Go Plip"
             className="mobile-landing__footer-logo"
           />
@@ -110,6 +122,7 @@ export default function MobileFooterSection({
           </div>
         </div>
       </div>
+      <PrelaunchCheckpoint id="footer_end" order={59} surface="footer" position="end" />
     </footer>
   );
 }

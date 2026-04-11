@@ -1,14 +1,23 @@
-import { asset } from "../desktopWaitlistLandingAssets";
+import cardCarouselGlow from "../../../assets/landing/bottom/card-carousel-glow-optimized.webp";
+import mockupHowToUse from "../../../assets/landing/bottom/mockup-how-to-use-optimized.webp";
 
 export default function DesktopMockupSteps() {
   return (
     <div className="business-landing__promo-stack">
-      <img className="business-landing__promo-stack-blur" src="/assets/card-carousel-glow.png" alt="" aria-hidden="true" />
+      <img
+        className="business-landing__promo-stack-blur"
+        src={cardCarouselGlow}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+      />
       <img
         className="business-landing__promo-mockup"
-        src={asset("mockup-how-to-use.png")}
+        src={mockupHowToUse}
         alt="Mockup de uso de la app Referidos con promociones y recompensas"
         loading="lazy"
+        decoding="async"
       />
     </div>
   );
