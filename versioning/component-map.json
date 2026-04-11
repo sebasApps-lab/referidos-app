@@ -59,6 +59,7 @@
         "eslint.config.js",
         "package.json",
         "scripts/**",
+        "tooling/**",
         "tooling/guardrails/**",
         "tooling/observability/**",
         "tooling/scripts/**"
