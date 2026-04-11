@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
-import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
+import consumerLogo from "../assets/logo/go-plip-black-blue.svg";
 import businessLogo from "../assets/logo/go-plip-black-blue.svg";
 import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
 import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
@@ -41,7 +41,7 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: consumerLogo,
+  consumer: feedbackLogo,
   business: businessLogo,
   feedback: feedbackLogo,
 };
