@@ -15,28 +15,28 @@ export default function DesktopBusinessPromoSection() {
             <ul className="business-landing__promo-bullet-list">
               <li>
                 <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                  Ã¢Å“â€œ
+                  ✓
                 </span>
                 <span>Recibe pagos y nuevos clientes al instante.</span>
               </li>
               <li>
                 <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                  Ã¢Å“â€œ
+                  ✓
                 </span>
-                <span>Analiza mÃƒÂ©tricas detalladas y optimiza tus campaÃƒÂ±as.</span>
+                <span>Analiza métricas detalladas y optimiza tus campañas.</span>
               </li>
             </ul>
           </div>
 
           <div className="business-landing__promo-signup" id="waitlist-steps">
-            <div className="business-landing__promo-email-field" aria-label="Tu correo electrÃƒÂ³nico">
+            <div className="business-landing__promo-email-field" aria-label="Tu correo electrónico">
               <img src={supportMailIcon} alt="" aria-hidden="true" />
-              <span>Tu correo electrÃƒÂ³nico</span>
+              <span>Tu correo electrónico</span>
             </div>
 
             <div className="business-landing__promo-signup-row">
               <p>
-                Prueba gratis: Sin tarjeta de crÃƒÂ©dito.
+                Prueba gratis: Sin tarjeta de crédito.
                 <br />
                 Sin compromiso.
               </p>
@@ -47,21 +47,21 @@ export default function DesktopBusinessPromoSection() {
           <ul className="business-landing__promo-summary-list">
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                Ã¢Å“â€œ
+                ✓
               </span>
               <span>Crea promociones exclusivas y personalizables.</span>
             </li>
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                Ã¢Å“â€œ
+                ✓
               </span>
               <span>Recibe pagos y nuevos clientes al instante.</span>
             </li>
             <li>
               <span className="business-landing__promo-bullet-icon" aria-hidden="true">
-                Ã¢Å“â€œ
+                ✓
               </span>
-              <span>Analiza mÃƒÂ©tricas detalladas y optimiza tus campaÃƒÂ±as.</span>
+              <span>Analiza métricas detalladas y optimiza tus campañas.</span>
             </li>
           </ul>
         </div>
@@ -70,7 +70,7 @@ export default function DesktopBusinessPromoSection() {
           <h3>Escanea y descarga la app</h3>
 
           <div className="business-landing__promo-qr-frame">
-            <img src={qrCodeIcon} alt="CÃƒÂ³digo QR para descargar la app" />
+            <img src={qrCodeIcon} alt="Código QR para descargar la app" />
           </div>
 
           <button type="button" className="business-landing__promo-download-button">

@@ -6,8 +6,8 @@ import iconNumber2Purple from "../../assets/landing/steps/n2-purple-optimized.we
 import iconNumber3BlueCyan from "../../assets/landing/steps/n3-cyan-optimized.webp";
 
 export const navigationLinks = [
-  { label: "CÃ³mo funciona", targetId: "waitlist-bottom" },
-  { label: "Recibir mi invitaciÃ³n", targetId: "waitlist-steps" },
+  { label: "Cómo funciona", targetId: "waitlist-bottom" },
+  { label: "Recibir mi invitación", targetId: "waitlist-steps" },
 ];
 
 export const desktopSteps = [
@@ -17,7 +17,7 @@ export const desktopSteps = [
     iconSrc: iconMailBlue,
     title: (
       <>
-        <span className="business-landing__benefit-title-bold">AÃ±ade</span>
+        <span className="business-landing__benefit-title-bold">Añade</span>
         <span className="business-landing__benefit-title-medium">
           {" "}tu correo
           <br />a la lista
@@ -26,7 +26,7 @@ export const desktopSteps = [
     ),
     description: (
       <>
-        Espera y recibe la invitaciÃ³n
+        Espera y recibe la invitación
         <br />
         para descargar la app.
       </>
@@ -70,7 +70,7 @@ export const desktopSteps = [
     description: (
       <>
         Canjea promociones, suma puntos
-        <br />y obtÃ©n mÃ¡s beneficios.
+        <br />y obtén más beneficios.
       </>
     ),
   },
@@ -78,14 +78,14 @@ export const desktopSteps = [
 
 export const footerColumns = [
   {
-    title: "INFORMACIÃ“N",
-    links: ["Plataforma", "QuiÃ©nes somos"],
+    title: "INFORMACIÓN",
+    links: ["Plataforma", "Quiénes somos"],
   },
   {
     title: "LEGAL",
     links: [
       { label: "Privacidad", to: "/ayuda/es/articulo/privacidad" },
-      { label: "TÃ©rminos y Condiciones", to: "/ayuda/es/articulo/terminos" },
+      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos" },
       { label: "Borrar mis datos", to: "/ayuda/es/articulo/borrar-datos" },
     ],
   },

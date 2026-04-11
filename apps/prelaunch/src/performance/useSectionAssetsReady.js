@@ -61,10 +61,6 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
         image.src = src;
         return image;
       });
-    const pendingExtraImages = extraImages.filter(
-      (image) => !image.complete || image.naturalWidth === 0,
-    );
-
     function finalize() {
       if (cancelled) {
         return;
@@ -104,6 +100,7 @@ export default function useSectionAssetsReady(sectionRef, deps = [], extraAssetS
         window.cancelAnimationFrame(rafId);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionRef, ...deps, ...normalizedExtraAssetSrcs]);
 
   return isReady;

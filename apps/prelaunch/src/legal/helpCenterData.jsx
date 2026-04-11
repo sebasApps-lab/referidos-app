@@ -4,10 +4,6 @@ const SIDEBAR_CATEGORY_DEFS = [
   { key: "legal", title: "Legal", slug: "legal" },
 ];
 
-function cloneItems(items) {
-  return items.map((item) => ({ ...item }));
-}
-
 export function buildSidebarCategories(basePath = "/ayuda/es") {
   return SIDEBAR_CATEGORY_DEFS.map((category) => ({
     key: category.key,
