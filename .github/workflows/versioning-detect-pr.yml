@@ -4,6 +4,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   detect:
     runs-on: ubuntu-latest
@@ -21,11 +26,59 @@ jobs:
       - name: Detect versioning changeset
         env:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          VERSIONING_STRICT_MAJOR_ACK: "0"
         run: |
           node tooling/versioning/detect-changes.mjs \
             --base "${{ github.event.pull_request.base.sha }}" \
             --head "${{ github.sha }}" \
             --output "versioning/out/changeset.json"
+
+      - name: Auto-apply semver major label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = "versioning/out/changeset.json";
+            const data = JSON.parse(fs.readFileSync(path, "utf8"));
+            const needsMajor = (data.products || []).some((product) => product.requiresMajorAck);
+            if (!needsMajor) {
+              core.info("No major ack required.");
+              return;
+            }
+            const label = "semver:major";
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const existing = await github.paginate(github.rest.issues.listLabelsOnIssue, {
+              owner,
+              repo,
+              issue_number,
+            });
+            if (existing.some((item) => item.name === label)) {
+              core.info("semver:major label already present.");
+              return;
+            }
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (error) {
+              if (error.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: label,
+                  color: "b60205",
+                  description: "Contract/public changes require major version ack.",
+                });
+              } else {
+                throw error;
+              }
+            }
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number,
+              labels: [label],
+            });
+            core.info("Applied semver:major label.");
 
       - name: Upload changeset artifact
         uses: actions/upload-artifact@v4
