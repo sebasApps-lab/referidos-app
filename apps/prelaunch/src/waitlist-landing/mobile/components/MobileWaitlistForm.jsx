@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import greenButtonGlow from "../../../assets/landing/bottom/green-button-glow-optimized.webp";
+import checkIcon from "../../../assets/modals/lets-icons_check-fill.svg";
+import lockIcon from "../../../assets/modals/majesticons_lock.svg";
 
 export default function MobileWaitlistForm({
   email,
@@ -59,14 +61,31 @@ export default function MobileWaitlistForm({
 
       <p className="mobile-landing__legal-copy">
         <span>Al suscribirte, aceptas los </span>
-        <Link className="mobile-landing__legal-copy-link" to="/ayuda/es/articulo/terminos">
+        <Link
+          className="mobile-landing__legal-copy-link"
+          to="/ayuda/es/articulo/terminos-condiciones-lista"
+        >
           términos y condiciones,
         </Link>
         <span> además de las </span>
-        <Link className="mobile-landing__legal-copy-link" to="/ayuda/es/articulo/privacidad">
+        <Link
+          className="mobile-landing__legal-copy-link"
+          to="/ayuda/es/articulo/politicas-privacidad-lista"
+        >
           Políticas de Privacidad
         </Link>
       </p>
+
+      <div className="mobile-landing__waitlist-badges" aria-hidden="true">
+        <div className="mobile-landing__waitlist-badge">
+          <img className="mobile-landing__waitlist-badge-icon" src={checkIcon} alt="" />
+          <span>Sin spam.</span>
+        </div>
+        <div className="mobile-landing__waitlist-badge">
+          <img className="mobile-landing__waitlist-badge-lock" src={lockIcon} alt="" />
+          <span>Solo usaremos tu correo para esta notificación.</span>
+        </div>
+      </div>
     </form>
   );
 }

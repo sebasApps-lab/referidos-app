@@ -125,9 +125,9 @@ export default function DesktopWaitlistLandingPage() {
     const targetPath = link.to || "";
     const surface = column?.title === "CONTACTO" ? "footer_contact" : "footer_legal";
     const linkIds = {
-      "/ayuda/es/articulo/privacidad": "footer_privacy",
-      "/ayuda/es/articulo/terminos": "footer_terms",
-      "/ayuda/es/articulo/borrar-datos": "footer_delete_data",
+      "/ayuda/es/articulo/politicas-privacidad-lista": "footer_privacy",
+      "/ayuda/es/articulo/terminos-condiciones-lista": "footer_terms",
+      "/ayuda/es/articulo/borrar-correo-lista": "footer_delete_data",
       "/soporte/abrir-ticket?origin=cliente&channel=whatsapp": "footer_support_whatsapp",
       "/soporte/abrir-ticket?origin=cliente&channel=email": "footer_support_email",
       "/feedback?origin=cliente": "footer_feedback",

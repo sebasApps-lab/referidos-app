@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import checkIcon from "../../../assets/modals/lets-icons_check-fill.svg";
+import lockIcon from "../../../assets/modals/majesticons_lock.svg";
 
 export default function DesktopWaitlistForm({
   email,
@@ -59,14 +61,31 @@ export default function DesktopWaitlistForm({
 
       <p className="figma-prototype__waitlist-legal">
         <span>Al suscribirte, aceptas los </span>
-        <Link className="figma-prototype__waitlist-legal-link" to="/ayuda/es/articulo/terminos">
+        <Link
+          className="figma-prototype__waitlist-legal-link"
+          to="/ayuda/es/articulo/terminos-condiciones-lista"
+        >
           términos y condiciones
         </Link>
         <span>, además de las </span>
-        <Link className="figma-prototype__waitlist-legal-link" to="/ayuda/es/articulo/privacidad">
+        <Link
+          className="figma-prototype__waitlist-legal-link"
+          to="/ayuda/es/articulo/politicas-privacidad-lista"
+        >
           Políticas de Privacidad
         </Link>
       </p>
+
+      <div className="figma-prototype__waitlist-badges" aria-hidden="true">
+        <div className="figma-prototype__waitlist-badge">
+          <img className="figma-prototype__waitlist-badge-icon" src={checkIcon} alt="" />
+          <span>Sin spam.</span>
+        </div>
+        <div className="figma-prototype__waitlist-badge">
+          <img className="figma-prototype__waitlist-badge-lock" src={lockIcon} alt="" />
+          <span>Solo usaremos tu correo para esta notificación.</span>
+        </div>
+      </div>
     </form>
   );
 }

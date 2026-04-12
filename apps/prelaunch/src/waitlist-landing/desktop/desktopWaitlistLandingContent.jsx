@@ -88,9 +88,9 @@ export const footerColumns = [
   {
     title: "LEGAL",
     links: [
-      { label: "Privacidad", to: "/ayuda/es/articulo/privacidad" },
-      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos" },
-      { label: "Borrar mis datos", to: "/ayuda/es/articulo/borrar-datos" },
+      { label: "Privacidad", to: "/ayuda/es/articulo/politicas-privacidad-lista" },
+      { label: "Términos y Condiciones", to: "/ayuda/es/articulo/terminos-condiciones-lista" },
+      { label: "Borrar mi correo", to: "/ayuda/es/articulo/borrar-correo-lista" },
     ],
   },
   {

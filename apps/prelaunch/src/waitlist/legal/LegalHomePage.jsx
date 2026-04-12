@@ -2,7 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 export default function LegalHomePage() {
-  const navLinkClass = "px-2 py-1.5 font-semibold text-[#5E30A5] transition-colors hover:text-[#2B174A]";
+  const navLinkClass =
+    "px-2 py-1.5 font-semibold text-[#5E30A5] transition-colors hover:text-[#2B174A]";
   const separatorClass =
     "inline-flex h-5 w-px bg-gradient-to-b from-transparent via-[#7E73A2]/55 to-transparent";
 
@@ -14,16 +15,16 @@ export default function LegalHomePage() {
             ReferidosAPP
           </Link>
           <nav className="flex flex-wrap items-center text-sm">
-            <Link to="/legal/es/privacidad" className={navLinkClass}>
+            <Link to="/ayuda/es/articulo/politicas-privacidad-lista" className={navLinkClass}>
               Politica de Privacidad
             </Link>
             <span aria-hidden="true" className={separatorClass} />
-            <Link to="/legal/es/terminos" className={navLinkClass}>
-              Términos y Condiciones
+            <Link to="/ayuda/es/articulo/terminos-condiciones-lista" className={navLinkClass}>
+              Terminos y Condiciones
             </Link>
             <span aria-hidden="true" className={separatorClass} />
-            <Link to="/legal/es/borrar-datos" className={navLinkClass}>
-              Borrar mis datos
+            <Link to="/ayuda/es/articulo/borrar-correo-lista" className={navLinkClass}>
+              Borrar correo
             </Link>
           </nav>
         </header>
@@ -34,13 +35,13 @@ export default function LegalHomePage() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-[#1F1235]">Legal y privacidad</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-700">
-            Esta seccion explica de forma clara como usamos la informacion, cuales son las reglas de uso y
-            como puedes solicitar el borrado de tus datos.
+            Esta seccion explica de forma clara como usamos la informacion, cuales son las reglas
+            de uso y como puedes solicitar el borrado de tus datos.
           </p>
 
           <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-3">
             <Link
-              to="/legal/es/privacidad"
+              to="/ayuda/es/articulo/politicas-privacidad-lista"
               className="rounded-2xl border border-[#E3D9FF] bg-[#FAF8FF] px-5 py-5 transition-colors hover:bg-[#F1EBFF]"
             >
               <h2 className="text-base font-semibold text-[#2B174A]">Privacidad</h2>
@@ -48,7 +49,7 @@ export default function LegalHomePage() {
             </Link>
 
             <Link
-              to="/legal/es/terminos"
+              to="/ayuda/es/articulo/terminos-condiciones-lista"
               className="rounded-2xl border border-[#E3D9FF] bg-[#FAF8FF] px-5 py-5 transition-colors hover:bg-[#F1EBFF]"
             >
               <h2 className="text-base font-semibold text-[#2B174A]">Terminos</h2>
@@ -56,11 +57,11 @@ export default function LegalHomePage() {
             </Link>
 
             <Link
-              to="/legal/es/borrar-datos"
+              to="/ayuda/es/articulo/borrar-correo-lista"
               className="rounded-2xl border border-[#E3D9FF] bg-[#FAF8FF] px-5 py-5 transition-colors hover:bg-[#F1EBFF]"
             >
-              <h2 className="text-base font-semibold text-[#2B174A]">Borrar datos</h2>
-              <p className="mt-2 text-sm text-slate-600">Guia para solicitar eliminacion de informacion.</p>
+              <h2 className="text-base font-semibold text-[#2B174A]">Borrar correo</h2>
+              <p className="mt-2 text-sm text-slate-600">Guia para solicitar eliminacion.</p>
             </Link>
           </div>
         </section>

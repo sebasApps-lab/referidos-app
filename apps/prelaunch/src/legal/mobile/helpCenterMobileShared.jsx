@@ -318,9 +318,9 @@ export function HelpCenterMobileFooter({ basePath, brandVariant = "consumer" }) 
 
       <div className="help-center-mobile__footer-legal">
         <div className="help-center-mobile__footer-legal-links">
-          <Link to={`${basePath}/articulo/terminos`}>{"T\u00e9rminos"}</Link>
+          <Link to={`${basePath}/articulo/terminos-condiciones-lista`}>{"T\u00e9rminos"}</Link>
           <span>-</span>
-          <Link to={`${basePath}/articulo/privacidad`}>Privacidad</Link>
+          <Link to={`${basePath}/articulo/politicas-privacidad-lista`}>Privacidad</Link>
         </div>
 
         <div className="help-center-mobile__footer-copyright">
