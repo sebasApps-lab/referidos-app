@@ -49,6 +49,7 @@ const AdminApps = lazy(() => import("./pages/admin/AdminApps"));
 const AdminSistema = lazy(() => import("./pages/admin/AdminSistema"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminDashboardAnalytics = lazy(() => import("./pages/admin/AdminDashboardAnalytics"));
+const AdminDashboardDlqEvents = lazy(() => import("./pages/admin/AdminDashboardDlqEvents"));
 const AdminVersioningOverview = lazy(() => import("./pages/admin/AdminVersioningOverview"));
 const AdminVersioningReleases = lazy(() => import("./pages/admin/AdminVersioningReleases"));
 const AdminDocumentation = lazy(() => import("./pages/admin/AdminDocumentation"));
@@ -214,6 +215,16 @@ export default function AppRoutes() {
           <RequireAuth>
             <RequireRole role="admin">
               <AdminDashboardAnalytics />
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/dashboard/telemetry-dlq"
+        element={
+          <RequireAuth>
+            <RequireRole role="admin">
+              <AdminDashboardDlqEvents />
             </RequireRole>
           </RequireAuth>
         }

@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowRight, MonitorSmartphone, RefreshCw, Rocket } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDashboardProdVersions } from "./hooks/useDashboardProdVersions";
+import OpsTelemetryDlqPanel from "./OpsTelemetryDlqPanel";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -114,15 +115,18 @@ export default function AdminDashboardOverviewPanel() {
           Cargando versiones productivas...
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {products.map((product) => (
-            <ProductCard
-              key={product.key}
-              product={product}
-              onSelect={handleSelect}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {products.map((product) => (
+              <ProductCard
+                key={product.key}
+                product={product}
+                onSelect={handleSelect}
+              />
+            ))}
+          </div>
+          <OpsTelemetryDlqPanel />
+        </>
       )}
     </div>
   );

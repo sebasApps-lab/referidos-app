@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
+    "deno": "^2.7.12",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.24",
     "leaflet": "^1.9.4",

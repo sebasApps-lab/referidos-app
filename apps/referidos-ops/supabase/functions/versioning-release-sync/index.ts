@@ -26,6 +26,7 @@ type PullRequestSummary = {
   mergeable: boolean | null;
   merge_state_status: string;
   head_sha: string;
+  merge_commit_sha: string;
   head_ref: string;
   base_ref: string;
   html_url: string;
@@ -46,6 +47,26 @@ type ChecksSummary = {
   test: "success" | "pending" | "failed" | "missing";
   build: "success" | "pending" | "failed" | "missing";
   items: CheckItem[];
+  lookup_state:
+    | "ok"
+    | "resolved_alternate_sha"
+    | "no_checks"
+    | "sha_not_found"
+    | "permission_denied"
+    | "github_error";
+  lookup_detail: string;
+  requested_sha: string;
+  resolved_sha: string;
+  resolved_label: string;
+  attempts: Array<{
+    sha: string;
+    label: string;
+    status: number;
+    ok: boolean;
+    error_code: string;
+    detail: string;
+    items_count: number;
+  }>;
 };
 
 const REQUIRED_CHECKS_LABEL = "detect/lint/test/build";
@@ -219,6 +240,7 @@ function mapPrSummary(raw: Record<string, unknown>): PullRequestSummary {
     mergeable: typeof raw.mergeable === "boolean" ? raw.mergeable : null,
     merge_state_status: asString(raw.mergeable_state),
     head_sha: getNestedString(raw, ["head", "sha"]),
+    merge_commit_sha: asString(raw.merge_commit_sha),
     head_ref: getNestedString(raw, ["head", "ref"]),
     base_ref: getNestedString(raw, ["base", "ref"]),
     html_url: asString(raw.html_url),
@@ -440,16 +462,75 @@ function inferGateState(items: CheckItem[], keywords: string[]): "success" | "pe
   return "pending";
 }
 
-async function fetchChecksSummary({
+function summarizeChecks(
+  items: CheckItem[],
+  meta: Pick<
+    ChecksSummary,
+    "lookup_state" | "lookup_detail" | "requested_sha" | "resolved_sha" | "resolved_label" | "attempts"
+  >
+): ChecksSummary {
+  const lint = inferGateState(items, ["lint", "eslint"]);
+  const test = inferGateState(items, ["test", "jest", "vitest"]);
+  const build = inferGateState(items, ["build", "compile", "typecheck"]);
+  const detect = inferGateState(items, ["detect", "changeset"]);
+
+  const gateStates = [detect, lint, test, build];
+  const requiredGreen = gateStates.every((state) => state === "success");
+  const summaryState = gateStates.includes("failed")
+    ? "failed"
+    : requiredGreen
+      ? "success"
+      : "pending";
+
+  return {
+    required_green: requiredGreen,
+    summary_state: summaryState,
+    detect,
+    lint,
+    test,
+    build,
+    items,
+    lookup_state: meta.lookup_state,
+    lookup_detail: meta.lookup_detail,
+    requested_sha: meta.requested_sha,
+    resolved_sha: meta.resolved_sha,
+    resolved_label: meta.resolved_label,
+    attempts: meta.attempts,
+  };
+}
+
+function resolveChecksGateError(checks: ChecksSummary) {
+  const error =
+    checks.lookup_state === "permission_denied"
+      ? "github_checks_permission_denied"
+      : checks.lookup_state === "sha_not_found"
+        ? "github_checks_sha_not_found"
+        : checks.lookup_state === "github_error"
+          ? "github_checks_fetch_failed"
+          : checks.lookup_state === "no_checks"
+            ? "github_checks_missing"
+            : "";
+
+  return {
+    error,
+    detail: error
+      ? checks.lookup_detail
+      : `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) aun no estan en verde.`,
+  };
+}
+
+async function fetchChecksForCommitSha({
   owner,
   repo,
   token,
-  headSha,
+  sha,
+  label,
 }: {
   owner: string;
   repo: string;
   token: string;
-  headSha: string;
+  sha: string;
+  label: string;
 }) {
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -459,11 +540,11 @@ async function fetchChecksSummary({
   };
 
   const [checkRunsRes, statusRes] = await Promise.all([
-    fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?per_page=100`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}/check-runs?per_page=100`, {
       method: "GET",
       headers,
     }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/status`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}/status`, {
       method: "GET",
       headers,
     }),
@@ -477,12 +558,37 @@ async function fetchChecksSummary({
   try {
     checkRunsParsed = checkRunsRaw ? JSON.parse(checkRunsRaw) : {};
   } catch {
-    checkRunsParsed = {};
+    checkRunsParsed = { raw: checkRunsRaw };
   }
   try {
     statusParsed = statusRaw ? JSON.parse(statusRaw) : {};
   } catch {
-    statusParsed = {};
+    statusParsed = { raw: statusRaw };
+  }
+
+  if (!checkRunsRes.ok || !statusRes.ok) {
+    const statuses = [checkRunsRes.status, statusRes.status];
+    const permissionDenied = statuses.some((status) => status === 401 || status === 403);
+    const shaNotFound = statuses.some((status) => status === 404);
+    const errorCode = permissionDenied
+      ? "permission_denied"
+      : shaNotFound
+        ? "sha_not_found"
+        : "github_error";
+    const detail = permissionDenied
+      ? `GitHub no permitio leer checks para ${label} (${sha}).`
+      : shaNotFound
+        ? `GitHub no encontro checks para ${label} (${sha}).`
+        : `GitHub fallo al consultar checks para ${label} (${sha}).`;
+    return {
+      ok: false,
+      sha,
+      label,
+      status: Math.max(checkRunsRes.status || 0, statusRes.status || 0),
+      error_code: errorCode,
+      detail,
+      items: [] as CheckItem[],
+    };
   }
 
   const items: CheckItem[] = [];
@@ -518,30 +624,154 @@ async function fetchChecksSummary({
     });
   }
 
-  const lint = inferGateState(items, ["lint", "eslint"]);
-  const test = inferGateState(items, ["test", "jest", "vitest"]);
-  const build = inferGateState(items, ["build", "compile", "typecheck"]);
-  const detect = inferGateState(items, ["detect", "changeset"]);
-
-  const gateStates = [detect, lint, test, build];
-  const requiredGreen = gateStates.every((state) => state === "success");
-  const summaryState = gateStates.includes("failed")
-    ? "failed"
-    : requiredGreen
-      ? "success"
-      : "pending";
-
-  const summary: ChecksSummary = {
-    required_green: requiredGreen,
-    summary_state: summaryState,
-    detect,
-    lint,
-    test,
-    build,
+  return {
+    ok: true,
+    sha,
+    label,
+    status: 200,
+    error_code: "",
+    detail: items.length
+      ? `Se encontraron ${items.length} checks en ${label} (${sha}).`
+      : `No hay checks asociados a ${label} (${sha}).`,
     items,
   };
+}
 
-  return summary;
+async function fetchChecksSummary({
+  owner,
+  repo,
+  token,
+  headSha,
+  mergeCommitSha = "",
+}: {
+  owner: string;
+  repo: string;
+  token: string;
+  headSha: string;
+  mergeCommitSha?: string;
+}) {
+  const candidates = [
+    { sha: headSha, label: "head_sha" },
+    { sha: mergeCommitSha, label: "merge_commit_sha" },
+  ].filter(
+    (candidate, index, all) =>
+      candidate.sha &&
+      all.findIndex((other) => other.sha === candidate.sha) === index
+  );
+
+  const attempts: ChecksSummary["attempts"] = [];
+  const successful: Array<{ sha: string; label: string; items: CheckItem[] }> = [];
+  let permissionAttempt: { sha: string; label: string; detail: string; status: number } | null = null;
+  let githubErrorAttempt: { sha: string; label: string; detail: string; status: number } | null = null;
+  let shaNotFoundAttempt: { sha: string; label: string; detail: string; status: number } | null = null;
+
+  for (const candidate of candidates) {
+    const result = await fetchChecksForCommitSha({
+      owner,
+      repo,
+      token,
+      sha: candidate.sha,
+      label: candidate.label,
+    });
+
+    attempts.push({
+      sha: candidate.sha,
+      label: candidate.label,
+      status: result.status,
+      ok: result.ok,
+      error_code: result.error_code,
+      detail: result.detail,
+      items_count: result.items.length,
+    });
+
+    if (!result.ok) {
+      if (result.error_code === "permission_denied" && !permissionAttempt) {
+        permissionAttempt = result;
+      } else if (result.error_code === "github_error" && !githubErrorAttempt) {
+        githubErrorAttempt = result;
+      } else if (result.error_code === "sha_not_found" && !shaNotFoundAttempt) {
+        shaNotFoundAttempt = result;
+      }
+      continue;
+    }
+
+    successful.push({
+      sha: result.sha,
+      label: result.label,
+      items: result.items,
+    });
+  }
+
+  const primarySuccess = successful.find((attempt) => attempt.label === "head_sha");
+  const alternateSuccess = successful.find(
+    (attempt) => attempt.label !== "head_sha" && attempt.items.length > 0
+  );
+  const firstSuccessWithItems = successful.find((attempt) => attempt.items.length > 0);
+
+  if (alternateSuccess && primarySuccess && primarySuccess.items.length === 0) {
+    return summarizeChecks(alternateSuccess.items, {
+      lookup_state: "resolved_alternate_sha",
+      lookup_detail:
+        `Los checks no estaban asociados a head_sha (${headSha}); se resolvieron correctamente via ${alternateSuccess.label} (${alternateSuccess.sha}).`,
+      requested_sha: headSha,
+      resolved_sha: alternateSuccess.sha,
+      resolved_label: alternateSuccess.label,
+      attempts,
+    });
+  }
+
+  if (firstSuccessWithItems) {
+    return summarizeChecks(firstSuccessWithItems.items, {
+      lookup_state: "ok",
+      lookup_detail: `Checks leidos desde ${firstSuccessWithItems.label} (${firstSuccessWithItems.sha}).`,
+      requested_sha: headSha,
+      resolved_sha: firstSuccessWithItems.sha,
+      resolved_label: firstSuccessWithItems.label,
+      attempts,
+    });
+  }
+
+  if (permissionAttempt) {
+    return summarizeChecks([], {
+      lookup_state: "permission_denied",
+      lookup_detail: permissionAttempt.detail,
+      requested_sha: headSha,
+      resolved_sha: "",
+      resolved_label: "",
+      attempts,
+    });
+  }
+
+  if (githubErrorAttempt) {
+    return summarizeChecks([], {
+      lookup_state: "github_error",
+      lookup_detail: githubErrorAttempt.detail,
+      requested_sha: headSha,
+      resolved_sha: "",
+      resolved_label: "",
+      attempts,
+    });
+  }
+
+  if (shaNotFoundAttempt && successful.length === 0) {
+    return summarizeChecks([], {
+      lookup_state: "sha_not_found",
+      lookup_detail: shaNotFoundAttempt.detail,
+      requested_sha: headSha,
+      resolved_sha: "",
+      resolved_label: "",
+      attempts,
+    });
+  }
+
+  return summarizeChecks([], {
+    lookup_state: "no_checks",
+    lookup_detail: `No se encontraron checks en los SHAs consultados (${candidates.map((item) => `${item.label}:${item.sha}`).join(", ")}).`,
+    requested_sha: headSha,
+    resolved_sha: "",
+    resolved_label: "",
+    attempts,
+  });
 }
 
 async function waitForRequiredChecksGreen({
@@ -549,6 +779,7 @@ async function waitForRequiredChecksGreen({
   repo,
   token,
   headSha,
+  mergeCommitSha = "",
   retries = 20,
   delayMs = 3000,
 }: {
@@ -556,11 +787,16 @@ async function waitForRequiredChecksGreen({
   repo: string;
   token: string;
   headSha: string;
+  mergeCommitSha?: string;
   retries?: number;
   delayMs?: number;
 }) {
-  let checks = await fetchChecksSummary({ owner, repo, token, headSha });
-  if (checks.required_green || checks.summary_state === "failed") {
+  let checks = await fetchChecksSummary({ owner, repo, token, headSha, mergeCommitSha });
+  if (
+    checks.required_green ||
+    checks.summary_state === "failed" ||
+    ["permission_denied", "github_error"].includes(checks.lookup_state)
+  ) {
     return {
       checks,
       attempts: 1,
@@ -570,8 +806,12 @@ async function waitForRequiredChecksGreen({
 
   for (let attempt = 2; attempt <= retries; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    checks = await fetchChecksSummary({ owner, repo, token, headSha });
-    if (checks.required_green || checks.summary_state === "failed") {
+    checks = await fetchChecksSummary({ owner, repo, token, headSha, mergeCommitSha });
+    if (
+      checks.required_green ||
+      checks.summary_state === "failed" ||
+      ["permission_denied", "github_error"].includes(checks.lookup_state)
+    ) {
       return {
         checks,
         attempts: attempt,
@@ -1504,6 +1744,7 @@ async function syncWorkflowPackTarget({
       repo,
       token,
       headSha: prLoaded.pr.head_sha,
+      mergeCommitSha: prLoaded.pr.merge_commit_sha,
     });
 
     if (prLoaded.pr.mergeable === false) {
@@ -1525,18 +1766,22 @@ async function syncWorkflowPackTarget({
       repo,
       token,
       headSha: prLoaded.pr.head_sha,
+      mergeCommitSha: prLoaded.pr.merge_commit_sha,
       retries: checksRetries,
       delayMs: checksDelayMs,
     });
     const checks = checksWait.checks;
 
     if (!checks.required_green) {
+      const checksGateError = resolveChecksGateError(checks);
       return {
         ok: false,
-        error: "workflow_pack_checks_not_green",
-        detail: checksWait.timed_out
-          ? `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no quedaron en verde antes del timeout para workflow pack.`
-          : `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no estan en verde para workflow pack.`,
+        error: checksGateError.error || "workflow_pack_checks_not_green",
+        detail: checksGateError.error
+          ? checksGateError.detail
+          : checksWait.timed_out
+            ? `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no quedaron en verde antes del timeout para workflow pack.`
+            : `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) no estan en verde para workflow pack.`,
         payload: {
           target_branch: targetBranch,
           temp_branch: tempBranch,
@@ -2376,6 +2621,7 @@ serve(async (req) => {
     repo: githubRepo,
     token: githubToken,
     headSha: pr.head_sha,
+    mergeCommitSha: pr.merge_commit_sha,
   });
 
   if (checkOnly || !autoMerge) {
@@ -2414,11 +2660,13 @@ serve(async (req) => {
   }
 
   if (!checks.required_green) {
+    const checksGateError = resolveChecksGateError(checks);
+
     return jsonResponse(
       {
         ok: false,
-        error: "pr_checks_not_green",
-        detail: `Checks obligatorios (${REQUIRED_CHECKS_LABEL}) aun no estan en verde.`,
+        error: checksGateError.error || "pr_checks_not_green",
+        detail: checksGateError.detail,
         pr,
         checks,
         ...responseBase,
