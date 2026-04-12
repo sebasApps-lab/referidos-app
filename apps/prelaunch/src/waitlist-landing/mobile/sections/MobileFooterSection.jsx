@@ -57,7 +57,7 @@ export default function MobileFooterSection({
     if (panelKey === "delete-data") {
       trackAndNavigate({
         linkId: "footer_delete_data",
-        targetPath: "/ayuda/es/articulo/borrar-datos",
+        targetPath: "/ayuda/es/articulo/borrar-correo-lista",
         surface: "footer_panel",
         label: "Borrar datos",
       });
@@ -96,7 +96,7 @@ export default function MobileFooterSection({
               onClick={() =>
                 trackAndNavigate({
                   linkId: "footer_terms",
-                  targetPath: "/ayuda/es/articulo/terminos",
+                  targetPath: "/ayuda/es/articulo/terminos-condiciones-lista",
                   surface: "footer_legal",
                   label: "Términos",
                 })}
@@ -109,7 +109,7 @@ export default function MobileFooterSection({
               onClick={() =>
                 trackAndNavigate({
                   linkId: "footer_privacy",
-                  targetPath: "/ayuda/es/articulo/privacidad",
+                  targetPath: "/ayuda/es/articulo/politicas-privacidad-lista",
                   surface: "footer_legal",
                   label: "Privacidad",
                 })}

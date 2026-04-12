@@ -212,6 +212,34 @@
   color: #ffffff;
 }
 
+.mobile-landing__waitlist-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 18px;
+}
+
+.mobile-landing__waitlist-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-landing__waitlist-badge-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.mobile-landing__waitlist-badge-lock {
+  width: 14px;
+  height: 14px;
+}
+
 .mobile-landing__waitlist-feedback {
   width: 100%;
   margin: -8px 0 0;

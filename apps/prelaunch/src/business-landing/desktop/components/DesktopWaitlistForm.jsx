@@ -16,7 +16,7 @@ export default function DesktopWaitlistForm() {
 
         <div className="business-landing__waitlist-buttonWrap">
           <button type="button">
-            <span className="business-landing__waitlist-buttonLabel">Añadir correo</span>
+            <span className="business-landing__waitlist-buttonLabel">Anadir correo</span>
           </button>
           <span className="business-landing__waitlist-buttonGlow" aria-hidden="true" />
         </div>
@@ -24,15 +24,20 @@ export default function DesktopWaitlistForm() {
 
       <p className="business-landing__waitlist-legal">
         <span>Al suscribirte, aceptas los </span>
-        <Link className="business-landing__waitlist-legal-link" to="/ayuda/es/articulo/terminos">
-          términos y condiciones
+        <Link
+          className="business-landing__waitlist-legal-link"
+          to="/ayuda/es/articulo/terminos-condiciones-lista"
+        >
+          terminos y condiciones
         </Link>
-        <span>, además de las </span>
-        <Link className="business-landing__waitlist-legal-link" to="/ayuda/es/articulo/privacidad">
-          Políticas de Privacidad
+        <span>, ademas de las </span>
+        <Link
+          className="business-landing__waitlist-legal-link"
+          to="/ayuda/es/articulo/politicas-privacidad-lista"
+        >
+          Politicas de Privacidad
         </Link>
       </p>
     </div>
   );
 }
-

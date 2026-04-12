@@ -1,2 +1,2 @@
-export { LegalContent as default } from "@referidos/legal-content";
+export { LegalContent as default } from "@referidos/legal-content/prelaunch";
 

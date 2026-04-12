@@ -7,15 +7,15 @@ import LegalLayout from "./LegalLayout";
 import LegalContent from "./blocks/LegalContent";
 
 const DOC_PAGES = {
-  terms: TermsPage,
-  privacy: PrivacyPage,
-  "data-deletion": DataDeletionPage,
+  "terminos-condiciones-lista": TermsPage,
+  "politicas-privacidad-lista": PrivacyPage,
+  "borrar-correo-lista": DataDeletionPage,
 };
 
 const SUPPORTED_LOCALES = ["es", "en"];
 
 export default function LegalRouter() {
-  const { locale = "es", document = "terms" } = useParams();
+  const { locale = "es", document = "terminos-condiciones-lista" } = useParams();
   const safeLocale = SUPPORTED_LOCALES.includes(locale) ? locale : "es";
   const Page = DOC_PAGES[document];
 

@@ -1,7 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link } from "react-router-dom";
 import { resolveHelpCenterHeaderActions } from "./helpCenterData";
-import consumerLogo from "../assets/logo/go-plip-dark-light-purple.svg";
 import businessLogo from "../assets/logo/go-plip-black-blue.svg";
 import feedbackLogo from "../assets/logo/go-plip-black-gray.svg";
 import helpMailIcon from "../assets/support/fluent-color-mail-16.svg";
@@ -41,7 +40,7 @@ const HELP_CENTER_ICON_FILES = {
 };
 
 const HELP_CENTER_BRAND_LOGOS = {
-  consumer: consumerLogo,
+  consumer: feedbackLogo,
   business: businessLogo,
   feedback: feedbackLogo,
 };
@@ -215,9 +214,9 @@ export function HelpCenterFooter({ basePath, brandVariant = "consumer" }) {
 
       <div className="help-center__footer-legal">
         <div className="help-center__footer-legal-links">
-          <Link to={`${basePath}/articulo/terminos`}>{"T\u00e9rminos"}</Link>
+          <Link to={`${basePath}/articulo/terminos-condiciones-lista`}>{"T\u00e9rminos"}</Link>
           <span>-</span>
-          <Link to={`${basePath}/articulo/privacidad`}>Privacidad</Link>
+          <Link to={`${basePath}/articulo/politicas-privacidad-lista`}>Privacidad</Link>
         </div>
 
         <div className="help-center__footer-copyright">

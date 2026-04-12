@@ -19,24 +19,24 @@ export function buildDefaultResources() {
 export function buildLegalResources(basePath = "/ayuda/es") {
   return [
     {
-      key: "terms",
+      key: "terminos-condiciones-lista",
       title: "T\u00e9rminos y Condiciones",
       description: "Consulta nuestras normas y reglas.",
-      to: `${basePath}/articulo/terminos`,
+      to: `${basePath}/articulo/terminos-condiciones-lista`,
       iconKey: "terms",
     },
     {
-      key: "privacy",
+      key: "politicas-privacidad-lista",
       title: "Pol\u00edtica de Privacidad",
       description: "Lee c\u00f3mo protegemos tu privacidad.",
-      to: `${basePath}/articulo/privacidad`,
+      to: `${basePath}/articulo/politicas-privacidad-lista`,
       iconKey: "privacy",
     },
     {
-      key: "delete",
-      title: "Borrar mis datos",
+      key: "borrar-correo-lista",
+      title: "Borrar mi correo",
       description: "Solicita la eliminaci\u00f3n de tu informaci\u00f3n.",
-      to: `${basePath}/articulo/borrar-datos`,
+      to: `${basePath}/articulo/borrar-correo-lista`,
       iconKey: "delete",
     },
   ];

@@ -1,11 +1,11 @@
 import React from "react";
 import LegalLayout from "../LegalLayout";
 import LegalContent from "../blocks/LegalContent";
-import { getLegalMarkdown } from "@referidos/legal-content";
+import { getLegalMarkdown } from "@referidos/legal-content/prelaunch";
 
 const CONTENT = {
-  es: getLegalMarkdown("data-deletion", "es"),
-  en: getLegalMarkdown("data-deletion", "en"),
+  es: getLegalMarkdown("borrar-correo-lista", "es"),
+  en: getLegalMarkdown("borrar-correo-lista", "en"),
 };
 
 const TITLES = {
