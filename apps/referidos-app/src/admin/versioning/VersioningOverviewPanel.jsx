@@ -20,6 +20,7 @@ import {
   createDevRelease,
   fetchBuildTimeline,
   fetchDevReleaseStatus,
+  fetchDeployPipelineStatus,
   fetchDeployRequests,
   fetchDrift,
   fetchEnvConfigVersions,
@@ -126,7 +127,7 @@ function normalizeReleaseStatus(envKey, status) {
 function statusBadgeClass(status) {
   if (status === "pending") return "bg-amber-100 text-amber-700";
   if (status === "approved") return "bg-indigo-100 text-indigo-700";
-  if (status === "executed") return "bg-emerald-100 text-emerald-700";
+  if (status === "executed") return "bg-amber-100 text-amber-700";
   if (status === "failed") return "bg-red-100 text-red-700";
   if (status === "rejected") return "bg-slate-200 text-slate-700";
   return "bg-slate-100 text-slate-600";
@@ -148,22 +149,28 @@ function actionKey(prefix, ...parts) {
   return `${prefix}-${normalized}`;
 }
 
+function asRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
 function deploymentStateFromRequest(row) {
   if (!row) return "not_deployed";
   const requestStatus = String(row.status || "").toLowerCase();
   const deploymentStatus = String(row.deployment_status || "").toLowerCase();
 
   if (deploymentStatus === "success" || deploymentStatus === "deployed") return "deployed";
+  if (deploymentStatus === "started") return "running";
   if (requestStatus === "pending") return "pending";
   if (requestStatus === "approved") return "approved";
   if (requestStatus === "rejected") return "rejected";
   if (requestStatus === "failed" || deploymentStatus === "failed") return "failed";
-  if (requestStatus === "executed") return deploymentStatus === "failed" ? "failed" : "deployed";
+  if (requestStatus === "executed") return "running";
   return "not_deployed";
 }
 
 function deploymentStateBadgeClass(state) {
   if (state === "deployed") return "bg-emerald-100 text-emerald-700";
+  if (state === "running") return "bg-amber-100 text-amber-700";
   if (state === "pending") return "bg-amber-100 text-amber-700";
   if (state === "approved") return "bg-indigo-100 text-indigo-700";
   if (state === "failed") return "bg-red-100 text-red-700";
@@ -173,6 +180,7 @@ function deploymentStateBadgeClass(state) {
 
 function deploymentStateLabel(state) {
   if (state === "deployed") return "deployed";
+  if (state === "running") return "running";
   if (state === "pending") return "pending";
   if (state === "approved") return "approved";
   if (state === "failed") return "failed";
@@ -314,6 +322,14 @@ function workflowStateToProgress(status, conclusion) {
   }
   if (s === "completed" && !c) return "success";
   if (["in_progress", "queued", "pending", "waiting", "requested"].includes(s)) return "running";
+  return "pending";
+}
+
+function workflowStateLabel(run) {
+  const state = String(run?.state || workflowStateToProgress(run?.status, run?.conclusion));
+  if (state === "success") return "success";
+  if (state === "error") return "failed";
+  if (state === "running") return "running";
   return "pending";
 }
 
@@ -1265,7 +1281,8 @@ export default function VersioningOverviewPanel() {
     let cancelled = false;
     let timerId;
     const POLL_INTERVAL_MS = 4000;
-    const MAX_WAIT_MS = 180000;
+    const MAX_WAIT_MS = 300000;
+    const CALLBACK_GRACE_MS = 20000;
 
     const finalizeDeployTracking = async ({ requests, status, detail, logsUrl = "" }) => {
       if (cancelled) return;
@@ -1297,7 +1314,7 @@ export default function VersioningOverviewPanel() {
       await load(true);
       if (cancelled) return;
 
-      if (status === "success" && logsUrl) {
+      if (logsUrl) {
         setDeployMessage(`${detail} Logs: ${logsUrl}`);
       }
     };
@@ -1312,6 +1329,7 @@ export default function VersioningOverviewPanel() {
         const requestRow = (Array.isArray(requests) ? requests : []).find(
           (row) => String(row?.id || "") === String(activeDeployTracking.requestId || "")
         );
+        const requestMetadata = asRecord(requestRow?.metadata);
 
         const deployState = deploymentStateFromRequest(requestRow);
         const envKey = String(activeDeployTracking.envKey || requestRow?.env_key || "").toLowerCase();
@@ -1324,6 +1342,62 @@ export default function VersioningOverviewPanel() {
         const deploymentId = String(
           requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
         ).trim();
+        const workflowRunId =
+          Number(activeDeployTracking.runId || 0) || Number(requestMetadata.github_run_id || 0);
+        const dispatchStartedAt =
+          activeDeployTracking.dispatchStartedAt ||
+          String(requestMetadata?.workflow?.dispatched_at || "");
+        let workflowStatus = null;
+
+        if (dispatchStartedAt || workflowRunId > 0) {
+          try {
+            workflowStatus = await fetchDeployPipelineStatus({
+              requestId: activeDeployTracking.requestId,
+              runId: workflowRunId,
+              dispatchStartedAt,
+            });
+          } catch {
+            workflowStatus = null;
+          }
+        }
+
+        const run = workflowStatus?.run || null;
+        const runState = run?.state || workflowStateToProgress(run?.status, run?.conclusion);
+        const workflowLabel = run
+          ? `Workflow ${workflowStateLabel(run)}${run?.run_number ? ` (#${run.run_number})` : ""}`
+          : "Workflow pending";
+
+        setPromoteProgressForEnv(
+          envKey,
+          createDeployProgress({
+            status:
+              deployState === "failed" || runState === "error"
+                ? "error"
+                : deployState === "deployed"
+                  ? "success"
+                  : "running",
+            detail: `${workflowLabel}. Request=${String(requestRow?.status || "-")} deployment_status=${String(
+              requestRow?.deployment_status || "-"
+            )}.`,
+            stepStatus: {
+              gate: "success",
+              sync: "success",
+              request: "success",
+              pipeline:
+                runState === "success"
+                  ? "success"
+                  : runState === "error"
+                    ? "error"
+                    : "running",
+              verify:
+                deployState === "deployed"
+                  ? "success"
+                  : deployState === "failed" || runState === "error"
+                    ? "error"
+                    : "running",
+            },
+          })
+        );
 
         if (deployState === "deployed") {
           await finalizeDeployTracking({
@@ -1347,10 +1421,46 @@ export default function VersioningOverviewPanel() {
           return;
         }
 
+        if (runState === "error") {
+          await finalizeDeployTracking({
+            requests,
+            status: "error",
+            detail:
+              `Workflow de deploy finalizado con error (${envKey || "-"} ${versionLabel || "-"}). ` +
+              `run=${run?.run_number || "-"} deployment_id=${deploymentId || "-"}.`,
+            logsUrl: String(run?.html_url || logsUrl || "").trim(),
+          });
+          return;
+        }
+
+        if (runState === "success") {
+          const runUpdatedAt = Date.parse(String(run?.updated_at || ""));
+          const callbackSettled =
+            deployState === "deployed" || deployState === "failed" || deployState === "rejected";
+          if (
+            !callbackSettled &&
+            Number.isFinite(runUpdatedAt) &&
+            Date.now() - runUpdatedAt >= CALLBACK_GRACE_MS
+          ) {
+            await finalizeDeployTracking({
+              requests,
+              status: "error",
+              detail:
+                `El workflow termino correctamente (${envKey || "-"} ${versionLabel || "-"}), ` +
+                "pero el backend no confirmo el callback final. Revisa el callback y los logs.",
+              logsUrl: String(run?.html_url || logsUrl || "").trim(),
+            });
+            return;
+          }
+        }
+
         if (Date.now() - Number(activeDeployTracking.startedAt || 0) >= MAX_WAIT_MS) {
           setDeployRequests(Array.isArray(requests) ? requests : []);
           setDeployMessage(
-            `Pipeline despachado (${envKey || "-"} ${versionLabel || "-"}), pero aun no termina de reflejarse en el panel. Si el workflow sigue corriendo, puedes refrescar despues.`
+            `Se detuvo el polling del deploy (${envKey || "-"} ${versionLabel || "-"}). ` +
+              `Request=${String(requestRow?.status || "-")} deployment_status=${String(
+                requestRow?.deployment_status || "-"
+              )} workflow=${workflowLabel}.`
           );
           setActiveDeployRequestId("");
           setActiveDeployTracking(null);
@@ -2426,6 +2536,10 @@ export default function VersioningOverviewPanel() {
         semver,
         deploymentId: result?.deployment_id || "",
         logsUrl: result?.logs_url || "",
+        dispatchStartedAt:
+          result?.dispatch_started_at || result?.workflow?.dispatch_started_at || "",
+        workflowId: result?.workflow?.id || "",
+        workflowRef: result?.workflow?.ref || "",
         startedAt: Date.now(),
       });
       setDeployMessage(

@@ -9,6 +9,8 @@ import {
 } from "../_shared/support.ts";
 import { getGithubAuthConfig } from "../_shared/github-auth.ts";
 
+type JsonObject = Record<string, unknown>;
+
 type DeployRequestRow = {
   id: string;
   release_id: string;
@@ -18,6 +20,10 @@ type DeployRequestRow = {
   status: string;
   requested_by: string | null;
   admin_override: boolean | null;
+  deployment_id?: string | null;
+  deployment_status?: string | null;
+  logs_url?: string | null;
+  metadata?: JsonObject | null;
 };
 
 type BranchCheckResult = {
@@ -143,6 +149,261 @@ function getNestedString(input: Record<string, unknown>, path: string[]): string
 function asNumber(value: unknown, fallback = 0): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+}
+
+async function fetchGithubJson(
+  url: string,
+  token: string
+): Promise<{ ok: boolean; status: number; data: JsonObject; detail: string }> {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "referidos-versioning-edge",
+    },
+  });
+
+  const raw = await response.text();
+  let parsed: JsonObject = {};
+  try {
+    parsed = raw ? (JSON.parse(raw) as JsonObject) : {};
+  } catch {
+    parsed = { raw };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      data: parsed,
+      detail: asString(parsed.message, asString(parsed.raw, "github_request_failed")),
+    };
+  }
+
+  return {
+    ok: true,
+    status: response.status,
+    data: parsed,
+    detail: "ok",
+  };
+}
+
+function normalizeWorkflowState({
+  status,
+  conclusion,
+}: {
+  status: string;
+  conclusion: string;
+}): "success" | "running" | "error" | "pending" {
+  const normalizedStatus = asString(status).toLowerCase();
+  const normalizedConclusion = asString(conclusion).toLowerCase();
+
+  if (["success", "neutral", "skipped"].includes(normalizedConclusion)) {
+    return "success";
+  }
+  if (
+    ["failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale"].includes(
+      normalizedConclusion
+    )
+  ) {
+    return "error";
+  }
+  if (normalizedStatus === "completed" && !normalizedConclusion) {
+    return "success";
+  }
+  if (["in_progress", "queued", "waiting", "requested", "pending"].includes(normalizedStatus)) {
+    return "running";
+  }
+  return "pending";
+}
+
+async function resolveWorkflowRunAndJobs({
+  owner,
+  repo,
+  workflowId,
+  token,
+  ref,
+  runId,
+  dispatchStartedAt,
+}: {
+  owner: string;
+  repo: string;
+  workflowId: string;
+  token: string;
+  ref: string;
+  runId: number;
+  dispatchStartedAt: string;
+}) {
+  let runData: JsonObject | null = null;
+
+  if (runId > 0) {
+    const runResponse = await fetchGithubJson(
+      `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
+      token
+    );
+    if (!runResponse.ok) {
+      return {
+        ok: false,
+        error: "github_get_run_failed",
+        detail: runResponse.detail,
+        status: runResponse.status,
+      };
+    }
+    runData = runResponse.data;
+  } else {
+    const listResponse = await fetchGithubJson(
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs?event=workflow_dispatch&branch=${encodeURIComponent(
+        ref
+      )}&per_page=30`,
+      token
+    );
+    if (!listResponse.ok) {
+      return {
+        ok: false,
+        error: "github_list_runs_failed",
+        detail: listResponse.detail,
+        status: listResponse.status,
+      };
+    }
+
+    const workflowRuns = Array.isArray(listResponse.data.workflow_runs)
+      ? (listResponse.data.workflow_runs as JsonObject[])
+      : [];
+    const dispatchMs = Date.parse(dispatchStartedAt || "");
+    const dispatchThresholdMs = Number.isFinite(dispatchMs) ? dispatchMs - 120000 : 0;
+
+    const candidates = workflowRuns.filter((run) => {
+      const runBranch = asString(run.head_branch).toLowerCase();
+      if (runBranch && runBranch !== ref.toLowerCase()) return false;
+      if (!dispatchThresholdMs) return true;
+      const createdMs = Date.parse(asString(run.created_at));
+      return Number.isFinite(createdMs) && createdMs >= dispatchThresholdMs;
+    });
+
+    runData = candidates[0] || null;
+  }
+
+  if (!runData) {
+    return {
+      ok: true,
+      run: null,
+      jobs: [],
+      summary: {
+        total: 0,
+        success: 0,
+        error: 0,
+        running: 0,
+        pending: 0,
+      },
+      detail: "run_not_found_yet",
+    };
+  }
+
+  const resolvedRunId = asNumber(runData.id, 0);
+  if (!resolvedRunId) {
+    return {
+      ok: false,
+      error: "invalid_run_id",
+      detail: "No se pudo resolver run id del workflow.",
+      status: 500,
+    };
+  }
+
+  const jobsResponse = await fetchGithubJson(
+    `https://api.github.com/repos/${owner}/${repo}/actions/runs/${resolvedRunId}/jobs?per_page=100`,
+    token
+  );
+  if (!jobsResponse.ok) {
+    return {
+      ok: false,
+      error: "github_get_jobs_failed",
+      detail: jobsResponse.detail,
+      status: jobsResponse.status,
+    };
+  }
+
+  const jobsRaw = Array.isArray(jobsResponse.data.jobs)
+    ? (jobsResponse.data.jobs as JsonObject[])
+    : [];
+
+  const jobs = jobsRaw.map((job) => {
+    const jobStatus = asString(job.status);
+    const jobConclusion = asString(job.conclusion);
+    const stepsRaw = Array.isArray(job.steps) ? (job.steps as JsonObject[]) : [];
+    const steps = stepsRaw.map((step) => {
+      const stepStatus = asString(step.status);
+      const stepConclusion = asString(step.conclusion);
+      return {
+        number: asNumber(step.number, 0),
+        name: asString(step.name, "-"),
+        status: stepStatus,
+        conclusion: stepConclusion || null,
+        state: normalizeWorkflowState({
+          status: stepStatus,
+          conclusion: stepConclusion,
+        }),
+        started_at: asString(step.started_at) || null,
+        completed_at: asString(step.completed_at) || null,
+      };
+    });
+
+    return {
+      id: asNumber(job.id, 0),
+      name: asString(job.name, "-"),
+      status: jobStatus,
+      conclusion: jobConclusion || null,
+      state: normalizeWorkflowState({
+        status: jobStatus,
+        conclusion: jobConclusion,
+      }),
+      started_at: asString(job.started_at) || null,
+      completed_at: asString(job.completed_at) || null,
+      html_url: asString(job.html_url) || null,
+      steps,
+    };
+  });
+
+  const summary = jobs.reduce(
+    (acc, job) => {
+      acc.total += 1;
+      if (job.state === "success") acc.success += 1;
+      if (job.state === "error") acc.error += 1;
+      if (job.state === "running") acc.running += 1;
+      if (job.state === "pending") acc.pending += 1;
+      return acc;
+    },
+    { total: 0, success: 0, error: 0, running: 0, pending: 0 }
+  );
+
+  const runStatus = asString(runData.status);
+  const runConclusion = asString(runData.conclusion);
+  const run = {
+    id: resolvedRunId,
+    name: asString(runData.name) || asString(runData.display_title) || workflowId,
+    status: runStatus,
+    conclusion: runConclusion || null,
+    state: normalizeWorkflowState({
+      status: runStatus,
+      conclusion: runConclusion,
+    }),
+    html_url: asString(runData.html_url) || null,
+    run_number: asNumber(runData.run_number, 0),
+    event: asString(runData.event),
+    head_branch: asString(runData.head_branch),
+    head_sha: asString(runData.head_sha),
+    created_at: asString(runData.created_at) || null,
+    updated_at: asString(runData.updated_at) || null,
+  };
+
+  return {
+    ok: true,
+    run,
+    jobs,
+    summary,
+    detail: "ok",
+  };
 }
 
 async function dispatchGithubWorkflow({
@@ -359,6 +620,7 @@ serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const internalProxyCall = isInternalProxyAuthorized(req);
+  const operation = asString(body.operation, "dispatch").toLowerCase();
 
   let actor = asString(body.actor, "admin:proxy");
   if (!internalProxyCall) {
@@ -388,6 +650,18 @@ serve(async (req) => {
     actor = `admin:${asString(usuario.id) || asString(user.id)}`;
   }
 
+  if (!["dispatch", "status"].includes(operation)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "invalid_operation",
+        detail: "operation permitido: dispatch | status",
+      },
+      400,
+      cors
+    );
+  }
+
   const requestId = asString(body.request_id);
   const forceAdminOverride = asBoolean(body.force_admin_override, false);
   const syncRelease = asBoolean(body.sync_release, false);
@@ -401,7 +675,7 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestErr } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, release_id, product_key, env_key, version_label, status, requested_by, admin_override")
+    .select("id, release_id, product_key, env_key, version_label, status, requested_by, admin_override, deployment_id, deployment_status, logs_url, metadata")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<DeployRequestRow>();
@@ -435,6 +709,81 @@ serve(async (req) => {
     );
   }
 
+  const githubAuth = await getGithubAuthConfig();
+  if (!githubAuth.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: githubAuth.data.error,
+        detail: githubAuth.data.detail,
+      },
+      500,
+      cors
+    );
+  }
+  const githubOwner = githubAuth.data.owner;
+  const githubRepo = githubAuth.data.repo;
+  const githubToken = githubAuth.data.token;
+  const githubAuthMode = githubAuth.data.authMode;
+  const workflowId = asString(
+    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW"),
+    "versioning-deploy-artifact.yml"
+  );
+  const defaultWorkflowRef = asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev");
+  const workflowRef = asString(
+    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW_REF"),
+    defaultWorkflowRef
+  );
+
+  if (operation === "status") {
+    const runIdFromBody = asNumber(body.run_id, 0);
+    const requestMetadata =
+      requestRow.metadata && typeof requestRow.metadata === "object" ? requestRow.metadata : {};
+    const runId = runIdFromBody || asNumber(requestMetadata.github_run_id, 0);
+    const dispatchStartedAt =
+      asString(body.dispatch_started_at) ||
+      getNestedString(requestMetadata as Record<string, unknown>, ["workflow", "dispatched_at"]);
+
+    const resolved = await resolveWorkflowRunAndJobs({
+      owner: githubOwner,
+      repo: githubRepo,
+      workflowId,
+      token: githubToken,
+      ref: workflowRef,
+      runId,
+      dispatchStartedAt,
+    });
+
+    if (!resolved.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: resolved.error || "workflow_status_failed",
+          detail: resolved.detail || "No se pudo consultar estado del workflow de deploy.",
+          status: resolved.status || 500,
+        },
+        502,
+        cors
+      );
+    }
+
+    return jsonResponse(
+      {
+        ok: true,
+        operation: "status",
+        request_id: requestId,
+        workflow: workflowId,
+        ref: workflowRef,
+        run: resolved.run,
+        jobs: resolved.jobs,
+        summary: resolved.summary,
+        detail: resolved.detail,
+      },
+      200,
+      cors
+    );
+  }
+
   if (!["pending", "approved"].includes(requestRow.status)) {
     return jsonResponse(
       { ok: false, error: "deploy_request_invalid_status", status: requestRow.status },
@@ -454,23 +803,6 @@ serve(async (req) => {
       cors
     );
   }
-
-  const githubAuth = await getGithubAuthConfig();
-  if (!githubAuth.ok) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: githubAuth.data.error,
-        detail: githubAuth.data.detail,
-      },
-      500,
-      cors
-    );
-  }
-  const githubOwner = githubAuth.data.owner;
-  const githubRepo = githubAuth.data.repo;
-  const githubToken = githubAuth.data.token;
-  const githubAuthMode = githubAuth.data.authMode;
 
   const { data: releaseRow, error: releaseErr } = await supabaseAdmin
     .from("version_releases")
@@ -639,15 +971,6 @@ serve(async (req) => {
     );
   }
 
-  const workflowId = asString(
-    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW"),
-    "versioning-deploy-artifact.yml"
-  );
-  const defaultWorkflowRef = asString(Deno.env.get("DEPLOY_BRANCH_DEV"), "dev");
-  const workflowRef = asString(
-    Deno.env.get("VERSIONING_DEPLOY_WORKFLOW_REF"),
-    defaultWorkflowRef
-  );
   const callbackUrl = resolveWorkflowCallbackUrl();
   if (!callbackUrl) {
     return jsonResponse(
@@ -764,12 +1087,14 @@ serve(async (req) => {
       deployment_row_id: deploymentRowId,
       deployment_id: deployExecutionId,
       logs_url: workflowLogsUrl,
+      dispatch_started_at: new Date().toISOString(),
       merge: mergeSummary,
       workflow: {
         id: workflowId,
         ref: workflowRef,
         callback_url: callbackUrl,
         status: dispatchResult.status,
+        dispatch_started_at: new Date().toISOString(),
       },
       branches: {
         source: sourceBranch,
