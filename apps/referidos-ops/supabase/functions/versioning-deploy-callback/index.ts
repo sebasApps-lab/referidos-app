@@ -62,6 +62,108 @@ function resolveObsReleaseSyncUrl(envKey: string) {
   return "";
 }
 
+async function registerWorkflowStarted({
+  requestId,
+  actor,
+  deploymentId,
+  logsUrl,
+  metadata,
+}: {
+  requestId: string;
+  actor: string;
+  deploymentId: string;
+  logsUrl: string;
+  metadata: JsonObject;
+}) {
+  const { data: baseRequest, error: baseRequestError } = await supabaseAdmin
+    .from("version_deploy_requests")
+    .select("id, status, tenant_id, release_id, env_id, deployment_id, metadata")
+    .eq("id", requestId)
+    .limit(1)
+    .maybeSingle<{
+      id: string;
+      status: string;
+      tenant_id: string;
+      release_id: string;
+      env_id: string;
+      deployment_id: string | null;
+      metadata: JsonObject | null;
+    }>();
+
+  if (baseRequestError || !baseRequest?.id) {
+    return {
+      ok: false,
+      error: "deploy_request_not_found",
+      detail: baseRequestError?.message || "No se encontro request para started callback.",
+    };
+  }
+
+  const mergedRequestMetadata = {
+    ...(asObject(baseRequest.metadata)),
+    ...metadata,
+  };
+  const deploymentIdFinal = deploymentId || asString(baseRequest.deployment_id);
+
+  const nextStatus = ["pending", "approved", "executed"].includes(asString(baseRequest.status))
+    ? "executed"
+    : asString(baseRequest.status, "executed");
+
+  const { error: requestUpdateError } = await supabaseAdmin
+    .from("version_deploy_requests")
+    .update({
+      status: nextStatus,
+      executed_by: actor,
+      executed_at: new Date().toISOString(),
+      deployment_id: deploymentIdFinal || null,
+      deployment_status: "started",
+      logs_url: logsUrl || null,
+      metadata: mergedRequestMetadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (requestUpdateError) {
+    return {
+      ok: false,
+      error: "deploy_request_started_update_failed",
+      detail: requestUpdateError.message,
+    };
+  }
+
+  if (deploymentIdFinal) {
+    const { data: deploymentRow, error: deploymentLookupError } = await supabaseAdmin
+      .from("version_deployments")
+      .select("id, metadata")
+      .eq("tenant_id", baseRequest.tenant_id)
+      .eq("release_id", baseRequest.release_id)
+      .eq("deployment_id", deploymentIdFinal)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; metadata: JsonObject | null }>();
+
+    if (!deploymentLookupError && deploymentRow?.id) {
+      const mergedDeploymentMetadata = {
+        ...(asObject(deploymentRow.metadata)),
+        ...metadata,
+      };
+      await supabaseAdmin
+        .from("version_deployments")
+        .update({
+          status: "started",
+          logs_url: logsUrl || null,
+          metadata: mergedDeploymentMetadata,
+        })
+        .eq("id", deploymentRow.id);
+    }
+  }
+
+  return {
+    ok: true,
+    deployment_id: deploymentIdFinal || null,
+    logs_url: logsUrl || null,
+  };
+}
+
 async function runObsReleaseSync({
   requestId,
   releaseId,
@@ -362,12 +464,12 @@ serve(async (req) => {
   if (!requestId) {
     return jsonResponse({ ok: false, error: "missing_request_id" }, 400, cors);
   }
-  if (!["success", "failed"].includes(status)) {
+  if (!["started", "success", "failed"].includes(status)) {
     return jsonResponse(
       {
         ok: false,
         error: "invalid_status",
-        detail: "status permitido: success | failed",
+        detail: "status permitido: started | success | failed",
       },
       400,
       cors
@@ -396,6 +498,55 @@ serve(async (req) => {
         detail: requestLookupError?.message || "No se encontro request.",
       },
       404,
+      cors
+    );
+  }
+
+  if (status === "started") {
+    const startedResult = await registerWorkflowStarted({
+      requestId,
+      actor,
+      deploymentId,
+      logsUrl,
+      metadata,
+    });
+
+    if (!startedResult.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: startedResult.error || "register_workflow_started_failed",
+          detail: startedResult.detail || "No se pudo registrar run de workflow.",
+        },
+        500,
+        cors
+      );
+    }
+
+    await emitBuildEvent({
+      tenantId: asString(requestRow.tenant_id),
+      releaseId: asString(requestRow.release_id),
+      deployRequestId: requestId,
+      artifactId: asString(metadata.artifact_id),
+      eventKey: `deploy-callback:${requestId}:started`,
+      eventType: "deploy.workflow_started",
+      status: "running",
+      actor,
+      detail: `Workflow de deploy iniciado para ${asString(requestRow.env_key)} ${asString(requestRow.version_label)}.`,
+      workflowRunId: Number(metadata.github_run_id ?? 0),
+      workflowRunNumber: Number(metadata.github_run_number ?? 0),
+      metadata,
+    });
+
+    return jsonResponse(
+      {
+        ok: true,
+        request_id: requestId,
+        status,
+        deployment_id: startedResult.deployment_id,
+        logs_url: startedResult.logs_url,
+      },
+      200,
       cors
     );
   }

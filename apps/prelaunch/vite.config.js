@@ -57,10 +57,6 @@ export default defineConfig({
             return null;
           }
 
-          if (id.includes("react-router-dom")) {
-            return "vendor-router";
-          }
-
           if (
             id.includes("react-dom") ||
             id.includes("react/jsx-runtime") ||

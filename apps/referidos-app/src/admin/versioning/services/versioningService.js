@@ -261,6 +261,18 @@ export async function triggerDeployPipeline({
   });
 }
 
+export async function fetchDeployPipelineStatus({
+  requestId,
+  runId = 0,
+  dispatchStartedAt = "",
+} = {}) {
+  return invokeVersioningOps("fetch_deploy_pipeline_status", {
+    requestId,
+    runId,
+    dispatchStartedAt,
+  });
+}
+
 export async function syncReleaseBranch({
   productKey,
   fromEnv = "",
