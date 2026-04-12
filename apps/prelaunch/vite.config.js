@@ -52,21 +52,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         sourcemapExcludeSources: false,
-        manualChunks(id) {
-          if (!id.includes("node_modules")) {
-            return null;
-          }
-
-          if (
-            id.includes("react-dom") ||
-            id.includes("react/jsx-runtime") ||
-            id.includes(`${path.sep}react${path.sep}`)
-          ) {
-            return "vendor-react";
-          }
-
-          return "vendor";
-        },
         chunkFileNames: "assets/chunks/[name]-[hash].js",
         entryFileNames: "assets/chunks/[name]-[hash].js",
         assetFileNames: ({ name }) => {
