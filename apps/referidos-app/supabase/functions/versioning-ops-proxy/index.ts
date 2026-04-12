@@ -680,6 +680,35 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       return result.payload;
     }
 
+    case "fetch_deploy_pipeline_status": {
+      const requestId = asString(payload.requestId);
+      if (!requestId) throw new Error("requestId requerido");
+
+      const result = await invokeOpsFunction("versioning-deploy-execute", {
+        operation: "status",
+        request_id: requestId,
+        run_id: asNumber(payload.runId, 0) || null,
+        dispatch_started_at: asString(payload.dispatchStartedAt) || null,
+        actor: asString(payload.actor, actor),
+      });
+
+      if (!result.ok) {
+        const detail = asString(
+          result.payload?.detail,
+          asString(result.payload?.error, "No se pudo consultar estado del workflow de deploy.")
+        );
+        const statusError = new Error(detail);
+        (statusError as Error & { code?: string; payload?: unknown }).code = asString(
+          result.payload?.error,
+          "deploy_pipeline_status_failed"
+        );
+        (statusError as Error & { code?: string; payload?: unknown }).payload = result.payload;
+        throw statusError;
+      }
+
+      return result.payload;
+    }
+
     case "sync_release_branch": {
       const productKey = asString(payload.productKey);
       const toEnv = asString(payload.toEnv).toLowerCase();
