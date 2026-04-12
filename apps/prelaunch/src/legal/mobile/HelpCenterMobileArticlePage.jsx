@@ -5,7 +5,7 @@ import LegalContent from "../blocks/LegalContent";
 import MobileConsumerHelpCenterLayout from "./MobileConsumerHelpCenterLayout";
 
 export default function HelpCenterMobileArticlePage() {
-  const { doc = "terminos" } = useParams();
+  const { doc = "terminos-condiciones-lista" } = useParams();
   const basePath = "/ayuda/es";
   const article = useMemo(() => LEGAL_ARTICLES[doc] || null, [doc]);
 

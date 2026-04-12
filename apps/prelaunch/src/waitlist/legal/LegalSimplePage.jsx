@@ -1,28 +1,31 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import LegalContent from "../../legal/blocks/LegalContent";
-import { getLegalMarkdown } from "@referidos/legal-content";
+import { getLegalMarkdown } from "@referidos/legal-content/prelaunch";
 
 const LEGAL_DOCS = {
-  privacy: {
+  "politicas-privacidad-lista": {
     title: "Privacidad",
     subtitle: "Como tratamos tus datos en ReferidosAPP.",
-    markdown: getLegalMarkdown("privacy", "es"),
+    markdown: getLegalMarkdown("politicas-privacidad-lista", "es"),
   },
-  terms: {
+  "terminos-condiciones-lista": {
     title: "Terminos",
     subtitle: "Condiciones de uso de la plataforma.",
-    markdown: getLegalMarkdown("terms", "es"),
+    markdown: getLegalMarkdown("terminos-condiciones-lista", "es"),
   },
-  "delete-data": {
-    title: "Borrado de datos",
+  "borrar-correo-lista": {
+    title: "Borrado de correo",
     subtitle: "Como solicitar eliminacion de informacion.",
-    markdown: getLegalMarkdown("data-deletion", "es"),
+    markdown: getLegalMarkdown("borrar-correo-lista", "es"),
   },
 };
 
-export default function LegalSimplePage({ doc = "terms" }) {
-  const current = useMemo(() => LEGAL_DOCS[doc] || LEGAL_DOCS.terms, [doc]);
+export default function LegalSimplePage({ doc = "terminos-condiciones-lista" }) {
+  const current = useMemo(
+    () => LEGAL_DOCS[doc] || LEGAL_DOCS["terminos-condiciones-lista"],
+    [doc],
+  );
 
   return (
     <div className="min-h-screen bg-[#F5F2FF] text-[#1F1235]">
@@ -39,28 +42,34 @@ export default function LegalSimplePage({ doc = "terms" }) {
           </div>
           <nav className="flex flex-wrap items-center gap-2 text-sm">
             <Link
-              to="/privacy"
+              to="/ayuda/es/articulo/politicas-privacidad-lista"
               className={`rounded-full px-3 py-1.5 transition-colors ${
-                doc === "privacy" ? "bg-[#5E30A5] text-white" : "text-[#5E30A5] hover:bg-white"
+                doc === "politicas-privacidad-lista"
+                  ? "bg-[#5E30A5] text-white"
+                  : "text-[#5E30A5] hover:bg-white"
               }`}
             >
               Privacidad
             </Link>
             <Link
-              to="/terms"
+              to="/ayuda/es/articulo/terminos-condiciones-lista"
               className={`rounded-full px-3 py-1.5 transition-colors ${
-                doc === "terms" ? "bg-[#5E30A5] text-white" : "text-[#5E30A5] hover:bg-white"
+                doc === "terminos-condiciones-lista"
+                  ? "bg-[#5E30A5] text-white"
+                  : "text-[#5E30A5] hover:bg-white"
               }`}
             >
               Terminos
             </Link>
             <Link
-              to="/delete-data"
+              to="/ayuda/es/articulo/borrar-correo-lista"
               className={`rounded-full px-3 py-1.5 transition-colors ${
-                doc === "delete-data" ? "bg-[#5E30A5] text-white" : "text-[#5E30A5] hover:bg-white"
+                doc === "borrar-correo-lista"
+                  ? "bg-[#5E30A5] text-white"
+                  : "text-[#5E30A5] hover:bg-white"
               }`}
             >
-              Borrado de datos
+              Borrar correo
             </Link>
           </nav>
         </header>

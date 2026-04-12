@@ -1,29 +1,32 @@
 import React, { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import LegalContent from "../../legal/blocks/LegalContent";
-import { getLegalMarkdown } from "@referidos/legal-content";
+import { getLegalMarkdown } from "@referidos/legal-content/prelaunch";
 
 const LEGAL_DOCS = {
-  privacidad: {
+  "politicas-privacidad-lista": {
     title: "Privacidad",
     subtitle: "Como tratamos tus datos en ReferidosAPP.",
-    markdown: getLegalMarkdown("privacy", "es"),
+    markdown: getLegalMarkdown("politicas-privacidad-lista", "es"),
   },
-  terminos: {
+  "terminos-condiciones-lista": {
     title: "Terminos",
     subtitle: "Condiciones de uso de la plataforma.",
-    markdown: getLegalMarkdown("terms", "es"),
+    markdown: getLegalMarkdown("terminos-condiciones-lista", "es"),
   },
-  "borrar-datos": {
-    title: "Borrar datos",
+  "borrar-correo-lista": {
+    title: "Borrar correo de lista",
     subtitle: "Como solicitar eliminacion de datos.",
-    markdown: getLegalMarkdown("data-deletion", "es"),
+    markdown: getLegalMarkdown("borrar-correo-lista", "es"),
   },
 };
 
 export default function LegalDocPage() {
-  const { doc = "terminos" } = useParams();
-  const current = useMemo(() => LEGAL_DOCS[doc] || LEGAL_DOCS.terminos, [doc]);
+  const { doc = "terminos-condiciones-lista" } = useParams();
+  const current = useMemo(
+    () => LEGAL_DOCS[doc] || LEGAL_DOCS["terminos-condiciones-lista"],
+    [doc],
+  );
   const activeDocClass = "text-[#2B174A]";
   const inactiveDocClass = "text-[#5E30A5] hover:text-[#2B174A]";
   const separatorClass =
@@ -39,30 +42,30 @@ export default function LegalDocPage() {
 
           <nav className="flex flex-wrap items-center text-sm font-semibold">
             <Link
-              to="/ayuda/es/articulo/privacidad"
+              to="/ayuda/es/articulo/politicas-privacidad-lista"
               className={`px-2 py-1.5 transition-colors ${
-                doc === "privacidad" ? activeDocClass : inactiveDocClass
+                doc === "politicas-privacidad-lista" ? activeDocClass : inactiveDocClass
               }`}
             >
               Politica de Privacidad
             </Link>
             <span aria-hidden="true" className={separatorClass} />
             <Link
-              to="/ayuda/es/articulo/terminos"
+              to="/ayuda/es/articulo/terminos-condiciones-lista"
               className={`px-2 py-1.5 transition-colors ${
-                doc === "terminos" ? activeDocClass : inactiveDocClass
+                doc === "terminos-condiciones-lista" ? activeDocClass : inactiveDocClass
               }`}
             >
-              Términos y Condiciones
+              Terminos y Condiciones
             </Link>
             <span aria-hidden="true" className={separatorClass} />
             <Link
-              to="/ayuda/es/articulo/borrar-datos"
+              to="/ayuda/es/articulo/borrar-correo-lista"
               className={`px-2 py-1.5 transition-colors ${
-                doc === "borrar-datos" ? activeDocClass : inactiveDocClass
+                doc === "borrar-correo-lista" ? activeDocClass : inactiveDocClass
               }`}
             >
-              Borrar mis datos
+              Borrar mi correo
             </Link>
           </nav>
         </header>

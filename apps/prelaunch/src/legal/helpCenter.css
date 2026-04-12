@@ -15,8 +15,8 @@ body,
   --help-accent: #9d63ef;
   --help-accent-strong: #5f1fb6;
   --help-brand-accent: #294968;
-  --help-action-bg: #294968;
-  --help-action-shadow: rgba(41, 73, 104, 0.18);
+  --help-action-bg: #1a1c2b;
+  --help-action-shadow: rgba(26, 28, 43, 0.18);
   --help-surface: rgba(255, 255, 255, 0.94);
   --help-surface-strong: #ffffff;
   --help-border: rgba(160, 118, 218, 0.18);
@@ -24,9 +24,8 @@ body,
   --help-shadow-soft: 0 8px 24px rgba(124, 87, 184, 0.08);
   --help-text-muted: rgba(31, 23, 41, 0.82);
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(185, 155, 236, 0.14), transparent 42%),
-    linear-gradient(180deg, #fcf6ff 0%, #fbf8ff 32%, #f9f6ff 100%);
+  background: #ffffff url("../assets/shared/page-bg-optimized.png") center top / cover
+    no-repeat;
   color: var(--help-text);
   font-family: "Poppins", sans-serif;
   width: 100%;
@@ -34,8 +33,8 @@ body,
 
 .help-center--consumer {
   --help-brand-accent: #5e30a5;
-  --help-action-bg: #5e30a5;
-  --help-action-shadow: rgba(94, 48, 165, 0.2);
+  --help-action-bg: #1a1c2b;
+  --help-action-shadow: rgba(26, 28, 43, 0.18);
 }
 
 .help-center *,
@@ -127,11 +126,11 @@ body,
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(124, 90, 180, 0.15);
-  box-shadow: 0 8px 22px rgba(118, 81, 176, 0.12);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   overflow: visible;
 }
 

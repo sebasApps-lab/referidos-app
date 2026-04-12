@@ -1,11 +1,11 @@
 import React from "react";
 import LegalLayout from "../LegalLayout";
 import LegalContent from "../blocks/LegalContent";
-import { getLegalMarkdown } from "@referidos/legal-content";
+import { getLegalMarkdown } from "@referidos/legal-content/prelaunch";
 
 const CONTENT = {
-  es: getLegalMarkdown("terms", "es"),
-  en: getLegalMarkdown("terms", "en"),
+  es: getLegalMarkdown("terminos-condiciones-lista", "es"),
+  en: getLegalMarkdown("terminos-condiciones-lista", "en"),
 };
 
 const TITLES = {

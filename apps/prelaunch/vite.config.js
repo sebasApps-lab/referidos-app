@@ -37,7 +37,7 @@ export default defineConfig({
     alias: {
       "@referidos/legal-content": path.resolve(
         __dirname,
-        "../../packages/legal-content/src/index.js"
+        "../../packages/legal-content/src"
       ),
       "@referidos/observability": path.resolve(
         __dirname,
