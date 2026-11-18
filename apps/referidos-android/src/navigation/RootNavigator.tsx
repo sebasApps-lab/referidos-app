@@ -115,19 +115,19 @@ export default function RootNavigator() {
       initialRouteName={startRoute}
       screenOptions={{ headerShown: false }}
     >
-      {!allowAccess || requiresVerificationFlow ? (
+      {startRoute === ROOT_ROUTES.AUTH ? (
         <Stack.Screen name={ROOT_ROUTES.AUTH} component={AuthFlowScreen} />
       ) : null}
-      {allowAccess && !requiresVerificationFlow && role === "cliente" ? (
+      {startRoute === ROOT_ROUTES.CLIENTE ? (
         <Stack.Screen name={ROOT_ROUTES.CLIENTE} component={ClienteTabs} />
       ) : null}
-      {allowAccess && !requiresVerificationFlow && role === "negocio" ? (
+      {startRoute === ROOT_ROUTES.NEGOCIO ? (
         <Stack.Screen name={ROOT_ROUTES.NEGOCIO} component={NegocioTabs} />
       ) : null}
-      {allowAccess && !requiresVerificationFlow && role === "admin" ? (
+      {startRoute === ROOT_ROUTES.ADMIN ? (
         <Stack.Screen name={ROOT_ROUTES.ADMIN} component={AdminStackNavigator} />
       ) : null}
-      {allowAccess && !requiresVerificationFlow && role === "soporte" ? (
+      {startRoute === ROOT_ROUTES.SOPORTE ? (
         <Stack.Screen name={ROOT_ROUTES.SOPORTE} component={SoporteStackNavigator} />
       ) : null}
     </Stack.Navigator>

@@ -9,6 +9,9 @@ const DEFAULT_OPTIONS = {
   },
 };
 
+/**
+ * @param {{ url?: string, anonKey?: string, options?: import("@supabase/supabase-js").SupabaseClientOptions<"public"> }} [config]
+ */
 export function createSupabaseMobileClient({
   url,
   anonKey,
@@ -18,7 +21,10 @@ export function createSupabaseMobileClient({
     throw new Error("Missing mobile supabase config (url/anonKey).");
   }
   return createClient(url, anonKey, {
-    ...DEFAULT_OPTIONS,
     ...options,
+    auth: {
+      ...DEFAULT_OPTIONS.auth,
+      ...options.auth,
+    },
   });
 }

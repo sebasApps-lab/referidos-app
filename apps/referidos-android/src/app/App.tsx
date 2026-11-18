@@ -6,6 +6,10 @@ import {
   I18nManager,
   NativeModules,
   Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -14,7 +18,7 @@ import GlobalLoader from "@shared/ui/GlobalLoader";
 import { useAppStore } from "@shared/store/appStore";
 import ModalHost from "@shared/modals/ModalHost";
 import { MOBILE_ENV } from "@shared/constants/env";
-import { observability } from "@shared/services/mobileApi";
+import { observability, supabase } from "@shared/services/mobileApi";
 
 function readNetworkSummary() {
   const navigatorRef = (globalThis as any)?.navigator || {};
@@ -123,9 +127,11 @@ function installGlobalErrorTracking() {
 export default function App() {
   const bootStatus = useAppStore((state) => state.bootStatus);
   const bootError = useAppStore((state) => state.bootError);
+  const hasCompletedAuthBootstrap = useAppStore((state) => state.hasCompletedAuthBootstrap);
   const role = useAppStore((state) => state.role);
   const onboarding = useAppStore((state) => state.onboarding);
   const bootstrapAuth = useAppStore((state) => state.bootstrapAuth);
+  const signOut = useAppStore((state) => state.signOut);
   const navigationRef = useNavigationContainerRef();
   const appStartAtRef = useRef(Date.now());
   const bootReadyTrackedRef = useRef(false);
@@ -155,7 +161,7 @@ export default function App() {
   }, [navigationRef]);
 
   useEffect(() => {
-    bootstrapAuth();
+    void bootstrapAuth();
   }, [bootstrapAuth]);
 
   useEffect(() => {
@@ -175,13 +181,19 @@ export default function App() {
     }));
 
     const cleanupGlobalErrors = installGlobalErrorTracking();
+    if (AppState.currentState === "active") {
+      void supabase.auth.startAutoRefresh();
+    }
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       observability.setContext({
         app_state: nextState,
         network: readNetworkSummary(),
         device_summary: readDeviceSummary(nextState),
       });
-      if (nextState !== "active") {
+      if (nextState === "active") {
+        void supabase.auth.startAutoRefresh();
+      } else {
+        void supabase.auth.stopAutoRefresh();
         void observability.flush();
       }
     });
@@ -202,6 +214,7 @@ export default function App() {
       clearInterval(heartbeat);
       appStateSub.remove();
       dimensionsSub.remove();
+      void supabase.auth.stopAutoRefresh();
       observability.setContextProvider(null);
       cleanupGlobalErrors();
       void observability.flush();
@@ -235,24 +248,69 @@ export default function App() {
     });
   }, [bootStatus]);
 
-  if (bootStatus === "idle" || bootStatus === "loading") {
+  const isRefreshingAuth = bootStatus === "loading";
+  if (bootStatus === "idle" || (isRefreshingAuth && !hasCompletedAuthBootstrap)) {
     return <GlobalLoader label="Inicializando Referidos Android..." />;
   }
 
   if (bootStatus === "error") {
-    return <GlobalLoader label={`Error de bootstrap: ${bootError || "desconocido"}`} />;
+    return (
+      <View style={styles.recovery}>
+        <Text accessibilityRole="header" style={styles.recoveryTitle}>
+          No se pudo preparar tu sesión
+        </Text>
+        <Text accessibilityLiveRegion="polite" style={styles.recoveryMessage}>
+          {bootError || "Reintenta para continuar."}
+        </Text>
+        <Pressable accessibilityRole="button" onPress={() => void bootstrapAuth()} style={styles.retryButton}>
+          <Text style={styles.retryLabel}>Reintentar</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => void signOut()} style={styles.signOutButton}>
+          <Text style={styles.signOutLabel}>Cerrar sesión en este dispositivo</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer
-        ref={navigationRef}
-        onReady={syncRouteContext}
-        onStateChange={syncRouteContext}
+      <View
+        style={styles.navigation}
+        accessibilityElementsHidden={isRefreshingAuth}
+        importantForAccessibility={isRefreshingAuth ? "no-hide-descendants" : "auto"}
       >
-        <RootNavigator />
-        <ModalHost />
-      </NavigationContainer>
+        <NavigationContainer
+          ref={navigationRef}
+          onReady={syncRouteContext}
+          onStateChange={syncRouteContext}
+        >
+          <RootNavigator />
+          <ModalHost />
+        </NavigationContainer>
+      </View>
+      {isRefreshingAuth && (
+        <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
+          <GlobalLoader label="Comprobando tu sesión..." />
+        </View>
+      )}
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  navigation: { flex: 1 },
+  recovery: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 12,
+    backgroundColor: "#F7F8FC",
+  },
+  recoveryTitle: { color: "#111827", fontSize: 20, fontWeight: "700", textAlign: "center" },
+  recoveryMessage: { color: "#4B5563", fontSize: 14, textAlign: "center" },
+  retryButton: { backgroundColor: "#6D28D9", padding: 12, borderRadius: 8 },
+  retryLabel: { color: "#FFFFFF", fontWeight: "700" },
+  signOutButton: { padding: 12 },
+  signOutLabel: { color: "#5B21B6", fontWeight: "700", textAlign: "center" },
+});

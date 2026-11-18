@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking } from "react-native";
 import {
   AUTH_ROLES,
@@ -79,6 +79,32 @@ async function getCurrentAuthEmail() {
   return session?.user?.email || null;
 }
 
+function pendingRegistrationKey({
+  onboarding,
+  allowAccess,
+  reasons,
+}: Pick<ReturnType<typeof useAppStore.getState>, "onboarding" | "allowAccess" | "reasons">) {
+  const profileId = onboarding?.usuario?.id;
+  if (!profileId || allowAccess || reasons.length !== 1) return null;
+  const [reason] = reasons;
+  if (reason !== "missing_account_status" && reason !== "account_status:pending") return null;
+  return String(profileId);
+}
+
+function emailAuthError(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+  if ("code" in error && error.code === "email_not_confirmed") {
+    return "Confirma tu correo antes de iniciar sesión.";
+  }
+  if ("code" in error && error.code === "invalid_credentials") {
+    return "El correo o la contraseña no son correctos.";
+  }
+  if (error.name === "AuthRetryableFetchError" || error.name === "AbortError") {
+    return "No se pudo conectar con el servicio. Revisa tu conexión y reintenta.";
+  }
+  return error.message || fallback;
+}
+
 export function useAuthEngine() {
   const bootStatus = useAppStore((state) => state.bootStatus);
   const onboarding = useAppStore((state) => state.onboarding);
@@ -91,6 +117,12 @@ export function useAuthEngine() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [registrationConfirmationPending, setRegistrationConfirmationPending] = useState(false);
+  const [validatingRegistration, setValidatingRegistration] = useState(false);
+  const [failedRegistrationKey, setFailedRegistrationKey] = useState<string | null>(null);
+  const emailSubmissionInFlight = useRef(false);
+  const attemptedRegistrationKey = useRef<string | null>(null);
+  const registrationValidationInFlight = useRef(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -250,12 +282,7 @@ export function useAuthEngine() {
     telefono,
   ]);
 
-  const shouldAutoValidateRegistration = useMemo(() => {
-    if (allowAccess) return false;
-    const list = Array.isArray(reasons) ? reasons : [];
-    if (list.length !== 1) return false;
-    return list[0] === "missing_account_status" || list[0] === "account_status:pending";
-  }, [allowAccess, reasons]);
+  const registrationKey = pendingRegistrationKey({ allowAccess, onboarding, reasons });
 
   useEffect(() => {
     if (bootStatus !== "ready") return;
@@ -283,30 +310,51 @@ export function useAuthEngine() {
     );
   }, [allowAccess, bootStatus, onboarding, roleFromOnboarding]);
 
-  useEffect(() => {
-    if (!shouldAutoValidateRegistration) return;
-    let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      setInfo("Validando registro pendiente...");
+  const validatePendingRegistration = useCallback(async (key: string) => {
+    if (registrationValidationInFlight.current) return;
+    registrationValidationInFlight.current = true;
+    setFailedRegistrationKey(null);
+    setValidatingRegistration(true);
+    setError("");
+    setInfo("Validando registro pendiente...");
+    try {
       const result = await mobileApi.auth.runValidateRegistration();
-      if (cancelled) return;
-      await bootstrapAuth();
-      if (!result?.ok) {
-        setError(result?.error || "No se pudo validar el registro");
-      } else if (result?.valid === false) {
-        setError(result?.message || "Registro aun incompleto");
-      } else {
-        setInfo("Registro validado.");
+      if (pendingRegistrationKey(useAppStore.getState()) !== key) return;
+      if (!result?.ok || !result.valid) {
+        setError(result?.message || result?.error || "No se pudo validar el registro.");
+        setFailedRegistrationKey(key);
+        return;
       }
-      setLoading(false);
-    })();
+      await bootstrapAuth();
+      if (pendingRegistrationKey(useAppStore.getState()) === key) {
+        setError("El registro sigue pendiente. Puedes reintentar la validación.");
+        setFailedRegistrationKey(key);
+      }
+    } catch {
+      if (pendingRegistrationKey(useAppStore.getState()) !== key) return;
+      setError("No se pudo validar el registro. Puedes reintentar.");
+      setFailedRegistrationKey(key);
+    } finally {
+      registrationValidationInFlight.current = false;
+      setInfo("");
+      setValidatingRegistration(false);
+    }
+  }, [bootstrapAuth]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [bootstrapAuth, shouldAutoValidateRegistration]);
+  useEffect(() => {
+    if (bootStatus !== "ready") return;
+    if (!registrationKey) {
+      attemptedRegistrationKey.current = null;
+      return;
+    }
+    if (attemptedRegistrationKey.current === registrationKey) return;
+    attemptedRegistrationKey.current = registrationKey;
+    void validatePendingRegistration(registrationKey);
+  }, [bootStatus, registrationKey, validatePendingRegistration]);
+
+  const retryRegistrationValidation = useCallback(async () => {
+    if (registrationKey) await validatePendingRegistration(registrationKey);
+  }, [registrationKey, validatePendingRegistration]);
 
   useEffect(() => {
     let isMounted = true;
@@ -334,6 +382,24 @@ export function useAuthEngine() {
     };
   }, [completeOAuthCallback]);
 
+  const runEmailSubmission = useCallback(async (
+    submit: () => Promise<boolean>,
+    fallback: string,
+  ) => {
+    if (emailSubmissionInFlight.current) return false;
+    emailSubmissionInFlight.current = true;
+    setLoading(true);
+    try {
+      return await submit();
+    } catch (requestError) {
+      setError(emailAuthError(requestError, fallback));
+      return false;
+    } finally {
+      emailSubmissionInFlight.current = false;
+      setLoading(false);
+    }
+  }, []);
+
   const submitLogin = useCallback(async () => {
     setError("");
     setInfo("");
@@ -345,20 +411,21 @@ export function useAuthEngine() {
       setError("Ingresa una contrasena");
       return false;
     }
-    setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (signInError) {
-      setLoading(false);
-      setError(signInError.message || "No se pudo iniciar sesion");
-      return false;
-    }
-    await bootstrapAuth();
-    setLoading(false);
-    return true;
-  }, [bootstrapAuth, email, password]);
+    const fallback = "No se pudo iniciar sesión.";
+    return runEmailSubmission(async () => {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError || !data?.session) {
+        setError(emailAuthError(signInError, fallback));
+        return false;
+      }
+      setPassword("");
+      await bootstrapAuth();
+      return useAppStore.getState().bootStatus === "ready";
+    }, fallback);
+  }, [bootstrapAuth, email, password, runEmailSubmission]);
 
   const submitRegister = useCallback(async () => {
     setError("");
@@ -380,20 +447,31 @@ export function useAuthEngine() {
       return false;
     }
 
-    setLoading(true);
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    });
-    if (signUpError) {
-      setLoading(false);
-      setError(signUpError.message || "No se pudo crear la cuenta");
-      return false;
-    }
-    await bootstrapAuth();
-    setLoading(false);
-    return true;
-  }, [bootstrapAuth, email, password, passwordConfirm]);
+    const fallback = "No se pudo crear la cuenta.";
+    return runEmailSubmission(async () => {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (signUpError) {
+        setError(emailAuthError(signUpError, fallback));
+        return false;
+      }
+      setPassword("");
+      setPasswordConfirm("");
+      if (!data?.session) {
+        setRegistrationConfirmationPending(true);
+        return true;
+      }
+      await bootstrapAuth();
+      return useAppStore.getState().bootStatus === "ready";
+    }, fallback);
+  }, [bootstrapAuth, email, password, passwordConfirm, runEmailSubmission]);
+
+  const continueAfterRegistrationConfirmation = useCallback(() => {
+    setRegistrationConfirmationPending(false);
+    setStep(AUTH_STEPS.EMAIL_LOGIN);
+  }, []);
 
   const startOAuth = useCallback(
     async (
@@ -1009,7 +1087,7 @@ export function useAuthEngine() {
   return {
     step,
     setStep,
-    loading,
+    loading: loading || validatingRegistration,
     error,
     setError,
     info,
@@ -1065,6 +1143,10 @@ export function useAuthEngine() {
     setLng,
     submitLogin,
     submitRegister,
+    registrationConfirmationPending,
+    continueAfterRegistrationConfirmation,
+    canRetryRegistrationValidation: Boolean(registrationKey && registrationKey === failedRegistrationKey),
+    retryRegistrationValidation,
     startOAuth,
     submitRoleSelection,
     submitOwnerProfile,

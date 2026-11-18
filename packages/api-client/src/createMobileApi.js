@@ -9,7 +9,7 @@ import {
   fetchProvincias,
 } from "./address/territory.js";
 import * as support from "./support/supportClient.js";
-import { logEvent } from "./logs/logEvent.js";
+import { invokeWithSession } from "./clients/sessionHelpers.js";
 
 export function createMobileApi(supabase) {
   return {
@@ -57,7 +57,8 @@ export function createMobileApi(supabase) {
       },
     },
     logs: {
-      logEvent: (payload) => logEvent(supabase, payload),
+      logEvent: (payload) =>
+        invokeWithSession(supabase, "log-event", { body: payload }),
     },
   };
 }

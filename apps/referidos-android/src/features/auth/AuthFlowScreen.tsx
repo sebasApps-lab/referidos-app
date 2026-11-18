@@ -71,6 +71,13 @@ export default function AuthFlowScreen() {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <StatusBanners loading={engine.loading} error={engine.error} info={engine.info} />
+        {engine.canRetryRegistrationValidation && (
+          <PrimaryButton
+            label="Reintentar validación del registro"
+            onPress={engine.retryRegistrationValidation}
+            loading={engine.loading}
+          />
+        )}
 
         {engine.step === AUTH_STEPS.WELCOME && (
           <Card title="Bienvenido">
@@ -136,7 +143,19 @@ export default function AuthFlowScreen() {
           </Card>
         )}
 
-        {engine.step === AUTH_STEPS.EMAIL_REGISTER && (
+        {engine.step === AUTH_STEPS.EMAIL_REGISTER && engine.registrationConfirmationPending && (
+          <Card title="Revisa tu correo">
+            <Text style={styles.helper}>
+              Si recibes un enlace de confirmación, ábrelo y luego vuelve para iniciar sesión.
+            </Text>
+            <PrimaryButton
+              label="Ir a iniciar sesión"
+              onPress={engine.continueAfterRegistrationConfirmation}
+            />
+          </Card>
+        )}
+
+        {engine.step === AUTH_STEPS.EMAIL_REGISTER && !engine.registrationConfirmationPending && (
           <Card title="Registro">
             <LabeledInput
               label="Correo"

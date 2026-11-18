@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { supabase } from "@shared/services/mobileApi";
 
 const DEVICE_ID_KEY = "referidos:rn:device-id";
+const SESSION_REGISTRATION_TIMEOUT_MS = 20_000;
 
 async function getOrCreateDeviceId() {
   try {
@@ -54,10 +55,15 @@ async function normalizeFunctionError(error: any) {
     status,
     details,
     error: message,
+    errorType: error?.name,
   };
 }
 
-async function invokeSessionFunction(name: string, body: Record<string, any> = {}) {
+async function invokeSessionFunction(
+  name: string,
+  body: Record<string, any> = {},
+  timeout?: number,
+) {
   const {
     data: { session } = {},
   } = await supabase.auth.getSession();
@@ -72,6 +78,7 @@ async function invokeSessionFunction(name: string, body: Record<string, any> = {
 
   const { data, error } = await supabase.functions.invoke(name, {
     body,
+    ...(timeout ? { timeout } : {}),
     headers: {
       Authorization: `Bearer ${session.access_token}`,
     },
@@ -133,10 +140,11 @@ function mapSession(session: any) {
 export async function registerCurrentSessionDevice() {
   const deviceId = await getOrCreateDeviceId();
   if (!deviceId) return { ok: false, error: "device_id_unavailable" };
-  return invokeSessionFunction("session-register", {
-    device_id: deviceId,
-    platform: Platform.OS,
-  });
+  return invokeSessionFunction(
+    "session-register",
+    { device_id: deviceId, platform: Platform.OS },
+    SESSION_REGISTRATION_TIMEOUT_MS,
+  );
 }
 
 export async function listCurrentUserSessions() {
