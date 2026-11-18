@@ -1,0 +1,189 @@
+# OPS · soporte, telemetría y releases · 3
+
+Plano operativo separado. Los endpoints y helpers de este capítulo pertenecen a su propio proyecto y base de datos.
+
+[Índice Edge Functions](README.md)
+
+## Archivos de este capítulo
+
+- [`versioning-release-sync/index.ts`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts)
+
+## `versioning-release-sync/index.ts`
+
+Coordina ramas y PRs de release y el paquete de workflows de CI. Puede leer checks, crear, refrescar, comentar, cerrar o fusionar el PR autorizado, y sincronizar workflows bajo las condiciones que determina el handler. Permite preparar el commit de destino que después comprueba el ejecutor.
+
+[Abrir archivo fuente](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts)
+
+- **Gateway:** [ajuste de esta función](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/config.toml) y [sección del proyecto](../../../apps/referidos-ops/supabase/config.toml#L57).
+- **Referencias literales al nombre del endpoint:** [versioning-ops-proxy](../../../apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts#L720), [versioning-ops-proxy](../../../apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts#L754), [versioning-ops-proxy](../../../apps/referidos-app/supabase/functions/versioning-ops-proxy/index.ts#L778).
+- **Importaciones locales:** [../_shared/support.ts](../../../apps/referidos-ops/supabase/functions/_shared/support.ts) · `corsHeaders`, `getUsuarioByAuthId`, `jsonResponse`, `requireAuthUser`, `resolveUsuarioProfileFailure`, `supabaseAdmin` | [../_shared/github-auth.ts](../../../apps/referidos-ops/supabase/functions/_shared/github-auth.ts) · `getGithubAuthConfig`.
+- **Dependencias externas:** `https://deno.land/std@0.193.0/http/server.ts`.
+- **Tipos declarados:** [`BranchCheckResult`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L12) (`ok`, `inBranch`, `statusCode`, `statusText`, `mergeBaseSha`, `detail`, `payload`), [`PullRequestSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L22) (`number`, `state`, `draft`, `mergeable`, `merge_state_status`, `head_sha`, `merge_commit_sha`, `head_ref`, `base_ref`, `html_url`), [`CheckItem`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L35) (`name`, `state`, `url`, `source`), [`ChecksSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L42) (`required_green`, `summary_state`, `detect`, `lint`, `test`, `build`, `items`, `lookup_state`, `lookup_detail`, `requested_sha`, `resolved_sha`, `resolved_label`, `attempts`), [`WorkflowPackFile`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1068) (`path`, `content`, `sha`), [`WorkflowPackSnapshot`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1074) (`ref`, `head_sha`, `pack_hash`, `file_count`, `missing_files`).
+
+### Funciones, handlers y clases
+
+- [`asString(value: unknown, fallback = …)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74) · Función. Convierte una entrada en texto utilizable y aplica el fallback recibido cuando la entrada no aporta un valor válido.
+  - **Tipo de retorno declarado:** `string`.
+  - **Dónde se usa:** [`getNestedString` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L95), [`isInternalProxyAuthorized` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L103), [`resolveBranchForEnv` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L120), [`checkCommitInBranch` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L205), [`mapPrSummary` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L238), [`createPullRequest` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L353), 11 más en el código.
+- [`asBoolean(value: unknown, fallback = …)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L79) · Función. Normaliza una opción booleana sin delegar la interpretación al consumidor.
+  - **Tipo de retorno declarado:** `boolean`.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1895).
+- [`asNumber(value: unknown, fallback = …)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L84) · Función. Normaliza un valor numérico con el fallback previsto por el llamador.
+  - **Tipo de retorno declarado:** `number`.
+  - **Dónde se usa:** [`checkCommitInBranch` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L228), [`mapPrSummary` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L237), [`commentOnPullRequest` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1046), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1889).
+- [`getNestedString(input: Record<string, unknown>, path: string[])`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L89) · Función. Obtiene el valor o paso `nested string` del flujo de OPS.
+  - **Tipo de retorno declarado:** `string`.
+  - **Dónde se usa:** [`checkCommitInBranch` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L213), [`mapPrSummary` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L242).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+- [`envVarKey(input: string)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L98) · Función. Implementa el paso `env var key` del flujo de OPS.
+  - **Tipo de retorno declarado:** `string`.
+  - **Dónde se usa:** [`resolveBranchForEnv` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L118).
+- [`isInternalProxyAuthorized(req: Request)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L102) · Función. Resuelve si la solicitud corresponde a un canal interno autorizado. La decisión se usa antes de tomar la ruta operativa.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1855).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **HTTP:** encabezados leídos `x-versioning-proxy-token`.
+  - **Retornos explícitos:** booleanos explícitos.
+  - **Nombres de configuración consultada:** `VERSIONING_PROXY_SHARED_TOKEN`.
+- [`resolveBranchForEnv({ productKey, envKey, kind })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L109) · Función. Determina el valor o paso `branch for env` del flujo de OPS.
+  - **Dónde se usa:** [`resolveBranches` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L147).
+  - **Delega en:** [`envVarKey`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L98), [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Nombres de configuración consultada:** `DEPLOY_BRANCH_DEV`, `DEPLOY_BRANCH_STAGING`, `DEPLOY_BRANCH_PROD`.
+- [`resolveBranches({ productKey, targetEnvKey, sourceEnvKey, sourceBranchInput, targetBranchInput })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L132) · Función. Determina el valor o paso `branches` del flujo de OPS.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2460).
+  - **Delega en:** [`resolveBranchForEnv`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L109).
+  - **Retornos explícitos:** objeto con `sourceBranch`, `targetBranch`.
+- [`checkCommitInBranch({ owner, repo, token, commitSha, branch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L166) · Función, asíncrona. Implementa el paso `check commit in branch` del flujo de OPS.
+  - **Tipo de retorno declarado:** `Promise<BranchCheckResult>`.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2468).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`getNestedString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L89), [`asNumber`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L84).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `inBranch`, `statusCode`, `statusText`, `mergeBaseSha`, `detail`, `payload`.
+- [`mapPrSummary(raw: Record<string, unknown>)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L235) · Función. Traduce el valor o paso `pr summary` del flujo de OPS.
+  - **Tipo de retorno declarado:** `PullRequestSummary`.
+  - **Dónde se usa:** [`fetchOpenPullRequest` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L303), [`createPullRequest` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L364), [`getPullRequestByNumber` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L412), [`closePullRequest` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L991).
+  - **Delega en:** [`asNumber`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L84), [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`getNestedString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L89).
+  - **Retornos explícitos:** objeto con `number`, `state`, `draft`, `mergeable`, `merge_state_status`, `head_sha`, `merge_commit_sha`, `head_ref`, `base_ref`, `html_url`.
+- [`fetchOpenPullRequest({ owner, repo, token, headBranch, baseBranch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L250) · Función, asíncrona. Obtiene el PR abierto que corresponde al cambio del flujo de OPS.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2514).
+  - **Delega en:** [`mapPrSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L235).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `pr`.
+- [`createPullRequest({ owner, repo, token, title, body, headBranch, baseBranch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L307) · Función, asíncrona. Crea o registra el valor o paso `pull request` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1694), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2540).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`mapPrSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L235).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `pr`.
+- [`getPullRequestByNumber({ owner, repo, token, pullNumber })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L368) · Función, asíncrona. Obtiene el valor o paso `pull request by number` del flujo de OPS.
+  - **Dónde se usa:** [`waitPullMergeable` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L433), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2256).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`mapPrSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L235).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `pr`.
+- [`waitPullMergeable({ owner, repo, token, pullNumber, retries, delayMs })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L416) · Función, asíncrona. Consulta el estado de merge hasta poder decidir si el PR está listo.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1723), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2598).
+  - **Delega en:** [`getPullRequestByNumber`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L368).
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `pr`.
+- [`normalizeCheckState(raw: string)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L448) · Función. Normaliza el estado de una comprobación de CI del flujo de OPS.
+  - **Tipo de retorno declarado:** `literal`.
+  - **Dónde se usa:** [`fetchChecksForCommitSha` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L604).
+- [`inferGateState(items: CheckItem[], keywords: string[])`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L455) · Función. Determina el valor o paso `gate state` del flujo de OPS.
+  - **Tipo de retorno declarado:** `literal`.
+  - **Dónde se usa:** [`summarizeChecks` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L472).
+- [`summarizeChecks(items: CheckItem[], meta: Pick<ChecksSummary, literal>)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L465) · Función. Consolida el valor o paso `checks` del flujo de OPS.
+  - **Tipo de retorno declarado:** `ChecksSummary`.
+  - **Dónde se usa:** [`fetchChecksSummary` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L712).
+  - **Delega en:** [`inferGateState`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L455).
+  - **Retornos explícitos:** objeto con `required_green`, `summary_state`, `detect`, `lint`, `test`, `build`, `items`, `lookup_state`, `lookup_detail`, `requested_sha`, `resolved_sha`, `resolved_label`, `attempts`.
+- [`resolveChecksGateError(checks: ChecksSummary)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L502) · Función. Determina el valor o paso `checks gate error` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1776), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2663).
+  - **Retornos explícitos:** objeto con `error`, `detail`.
+- [`fetchChecksForCommitSha({ owner, repo, token, sha, label })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L522) · Función, asíncrona. Consulta los checks asociados al SHA de release en GitHub.
+  - **Dónde se usa:** [`fetchChecksSummary` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L669).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`normalizeCheckState`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L448).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `sha`, `label`, `status`, `error_code`, `detail`, `items`.
+- [`fetchChecksSummary({ owner, repo, token, headSha, mergeCommitSha })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L640) · Función, asíncrona. Obtiene el resumen de comprobaciones de CI del flujo de OPS.
+  - **Dónde se usa:** [`waitForRequiredChecksGreen` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L794), [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1742), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2619).
+  - **Delega en:** [`fetchChecksForCommitSha`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L522), [`summarizeChecks`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L465).
+  - **Integraciones:** `fetchChecksForCommitSha`.
+- [`waitForRequiredChecksGreen({ owner, repo, token, headSha, mergeCommitSha, retries, delayMs })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L777) · Función, asíncrona. Espera a que los checks requeridos del cambio de release estén en estado aceptado.
+  - **Dónde se usa:** [`waitForBranchRequiredChecksGreen` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L865), [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1764).
+  - **Delega en:** [`fetchChecksSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L640).
+  - **Integraciones:** `fetchChecksSummary`.
+  - **Retornos explícitos:** objeto con `checks`, `attempts`, `timed_out`.
+- [`waitForBranchRequiredChecksGreen({ owner, repo, token, branch, retries, delayMs })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L830) · Función, asíncrona. Espera a que los checks requeridos de la rama confirmen que puede continuar la preparación.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2050).
+  - **Delega en:** [`fetchBranchHeadSha`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1112), [`waitForRequiredChecksGreen`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L777).
+  - **Integraciones:** `fetchBranchHeadSha`.
+  - **Retornos explícitos:** objeto con `ok`, `error`, `detail`, `payload`, `head_sha`, `checks`, `attempts`, `timed_out`.
+- [`mergePullRequest({ owner, repo, token, pullNumber, expectedHeadSha })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L890) · Función, asíncrona. Consolida el valor o paso `pull request` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1799), [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2679).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`.
+- [`closePullRequest({ owner, repo, token, pullNumber })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L943) · Función, asíncrona. Implementa el paso `close pull request` del flujo de OPS.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2340).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`mapPrSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L235).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `pr`.
+- [`commentOnPullRequest({ owner, repo, token, pullNumber, body })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L996) · Función, asíncrona. Implementa el paso `comment on pull request` del flujo de OPS.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2289).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`asNumber`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L84).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `comment_id`.
+- [`encodeGithubPath(path: string)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1082) · Función. Implementa el paso `encode github path` del flujo de OPS.
+  - **Dónde se usa:** [`fetchFileAtRef` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1179), [`upsertFileContent` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1368).
+- [`normalizeBase64(value: string)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1090) · Función. Normaliza el valor o paso `base64` del flujo de OPS.
+  - **Dónde se usa:** [`computeWorkflowPackHash` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1107), [`fetchFileAtRef` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1234), [`upsertFileContent` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1361), [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1604).
+- [`sha256Hex(input: string)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1094) · Función, asíncrona. Implementa el paso `sha256 hex` del flujo de OPS.
+  - **Dónde se usa:** [`computeWorkflowPackHash` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1109).
+  - **Integraciones:** `crypto.subtle.digest`.
+- [`computeWorkflowPackHash(files: WorkflowPackFile[])`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1104) · Función, asíncrona. Calcula la huella de los workflows que forman el paquete del flujo de OPS.
+  - **Dónde se usa:** [`loadWorkflowPackSnapshot` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1481).
+  - **Delega en:** [`normalizeBase64`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1090), [`sha256Hex`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1094).
+- [`fetchBranchHeadSha({ owner, repo, token, branch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1112) · Función, asíncrona. Obtiene el SHA actual de la rama del flujo de OPS.
+  - **Dónde se usa:** [`waitForBranchRequiredChecksGreen` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L845), [`loadWorkflowPackSnapshot` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1419), [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1620).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`, `sha`.
+- [`fetchFileAtRef({ owner, repo, token, ref, filePath })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1165) · Función, asíncrona. Obtiene el valor o paso `file at ref` del flujo de OPS.
+  - **Dónde se usa:** [`loadWorkflowPackSnapshot` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1438).
+  - **Delega en:** [`encodeGithubPath`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1082), [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`normalizeBase64`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1090).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `missing`, `status`, `detail`, `payload`, `file`.
+- [`createBranchRef({ owner, repo, token, branchName, headSha })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1240) · Función, asíncrona. Crea o registra el valor o paso `branch ref` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1643).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`.
+- [`deleteBranchRef({ owner, repo, token, branchName })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1292) · Función, asíncrona. Retira o limpia el valor o paso `branch ref` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1833).
+  - **Delega en:** [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Integraciones:** `fetch`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`.
+- [`upsertFileContent({ owner, repo, token, branchName, path, contentBase64, previousSha, commitMessage })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1339) · Función, asíncrona. Actualiza el valor o paso `file content` del flujo de OPS.
+  - **Dónde se usa:** [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1669).
+  - **Delega en:** [`normalizeBase64`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1090), [`encodeGithubPath`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1082), [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74).
+  - **Integraciones:** `fetch`.
+  - **Propiedades de entrada leídas:** `body.sha`.
+  - **Retornos explícitos:** objeto con `ok`, `status`, `detail`, `payload`.
+- [`loadWorkflowPackSnapshot({ owner, repo, token, ref, requireAll })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1406) · Función, asíncrona. Obtiene el conjunto de archivos que representa el paquete de CI del flujo de OPS.
+  - **Dónde se usa:** [`computeWorkflowPackStatus` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1511), [`syncWorkflowPackTarget` · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1590).
+  - **Delega en:** [`fetchBranchHeadSha`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1112), [`fetchFileAtRef`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1165), [`computeWorkflowPackHash`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1104).
+  - **Integraciones:** `fetchBranchHeadSha`, `fetchFileAtRef`.
+  - **Retornos explícitos:** objeto con `ok`, `error`, `detail`, `payload`, `snapshot`, `files`.
+- [`computeWorkflowPackStatus({ owner, repo, token, sourceRef, stagingBranch, productionBranch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1496) · Función, asíncrona. Compara las versiones del paquete de workflows para detectar si necesita sincronización.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1966).
+  - **Delega en:** [`loadWorkflowPackSnapshot`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1406).
+  - **Retornos explícitos:** objeto con `ok`, `data`, `sourceFiles`.
+- [`syncWorkflowPackTarget({ owner, repo, token, sourceRef, sourceFiles, targetBranch })`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1572) · Función, asíncrona. Lleva al destino las actualizaciones del paquete de workflow seleccionadas para el proceso de release.
+  - **Dónde se usa:** [handler HTTP · versioning-release-sync](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2110).
+  - **Delega en:** [`loadWorkflowPackSnapshot`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1406), [`normalizeBase64`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1090), [`fetchBranchHeadSha`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1112), [`createBranchRef`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1240), [`upsertFileContent`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1339), [`createPullRequest`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L307), [`waitPullMergeable`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L416), [`fetchChecksSummary`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L640), [`waitForRequiredChecksGreen`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L777), [`resolveChecksGateError`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L502), [`mergePullRequest`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L890), [`deleteBranchRef`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1292).
+  - **Integraciones:** `fetchBranchHeadSha`, `fetchChecksSummary`.
+  - **Retornos explícitos:** objeto con `ok`, `data`, `error`, `detail`, `payload` · booleanos explícitos.
+- [`handler HTTP(req)`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1843) · Entrada HTTP, asíncrona. Registra la entrada HTTP de `versioning-release-sync` y traduce el resultado del flujo descrito arriba a una respuesta.
+  - **Delega en:** [`corsHeaders`](../../../apps/referidos-ops/supabase/functions/_shared/support.ts#L24), [`jsonResponse`](../../../apps/referidos-ops/supabase/functions/_shared/support.ts#L33), [`isInternalProxyAuthorized`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L102), [`requireAuthUser`](../../../apps/referidos-ops/supabase/functions/_shared/support.ts#L44), [`getUsuarioByAuthId`](../../../apps/referidos-ops/supabase/functions/_shared/support.ts#L55), [`resolveUsuarioProfileFailure`](../../../apps/referidos-ops/supabase/functions/_shared/support.ts#L76), [`asString`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L74), [`asNumber`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L84), [`asBoolean`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L79), [`getGithubAuthConfig`](../../../apps/referidos-ops/supabase/functions/_shared/github-auth.ts#L123), [`computeWorkflowPackStatus`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L1496), [`waitForBranchRequiredChecksGreen`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L830) y 12 más.
+  - **Relaciones consultadas en este cuerpo:** [`version_releases_labeled`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2404) → [20260221_000014_versioning_system.sql](../../../apps/referidos-ops/supabase/migrations/20260221_000014_versioning_system.sql#L350), [20260313_000029_versioning_release_metadata_builds.sql](../../../apps/referidos-ops/supabase/migrations/20260313_000029_versioning_release_metadata_builds.sql#L327) (`select`), [`version_promotions`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2441) → [20260221_000014_versioning_system.sql](../../../apps/referidos-ops/supabase/migrations/20260221_000014_versioning_system.sql#L268) (`select`), [`version_audit_log`](../../../apps/referidos-ops/supabase/functions/versioning-release-sync/index.ts#L2726) → [20260221_000014_versioning_system.sql](../../../apps/referidos-ops/supabase/migrations/20260221_000014_versioning_system.sql#L302) (`insert`).
+  - **Integraciones:** `fetchOpenPullRequest`, `fetchChecksSummary`.
+  - **Propiedades de entrada leídas:** `body.actor`, `body.operation`, `body.pull_number`, `body.comment_body`, `body.source_ref`, `body.sync_staging`, `body.sync_prod`, `body.product_key`, `body.from_env`, `body.to_env`, `body.semver`, `body.source_branch`, `body.target_branch`, `body.check_only`, `body.auto_merge`, `body.create_pr`.
+  - **HTTP:** métodos comparados `OPTIONS`, `POST` · estados de respuesta visibles `200`, `400`, `401`, `403`, `404`, `405`, `409`, `500`, `502` · encabezados leídos `origin`, `authorization` · campos de respuesta `ok`, `error`, `detail`, `payload`, `github_auth_mode`, `operation`, `source_ref`, `source_checks`, `targets`, `status`, `pull_number`, `pr`, `comment_id`, `already_closed` y 12 más.
+  - **Nombres de configuración consultada:** `DEPLOY_BRANCH_DEV`, `DEPLOY_BRANCH_STAGING`, `DEPLOY_BRANCH_PROD`.

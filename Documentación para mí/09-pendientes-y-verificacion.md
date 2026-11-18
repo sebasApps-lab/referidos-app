@@ -1,0 +1,26 @@
+# 09 · Pendientes y verificación
+
+Esta es una lista para retomar trabajo. El estado de permisos, migraciones y despliegues se comprobó en el código local. Una validación de entorno debe confirmar qué SQL y configuración están efectivamente activos.
+
+| Prioridad | Hallazgo | Corrección o información necesaria |
+| --- | --- | --- |
+| Inmediata | `usuarios_insert_self` y `usuarios_update_self` filtran por `id_auth`. `is_admin()` usa el rol de esa misma fila. El efecto depende de los grants de escritura desplegados. | Revisar grants y políticas efectivas por runtime. Proteger campos controlados por servidor y migrar altas y cambios privilegiados a operaciones con autorización explícita. [Políticas](../apps/referidos-app/supabase/migrations/20250205_000003_auth_and_users.sql#L172) · [Rol SQL](../apps/referidos-app/supabase/migrations/20250309_000003_support_system.sql#L495) |
+| Antes de aplicar OPS | La migración local de DLQ recrea una RPC `SECURITY DEFINER` y requiere una decisión explícita sobre su permiso de ejecución. Además elimina raw_event y borra las filas de DLQ que no correspondan al 9 de abril de 2026, según la fecha de Guayaquil. La UI local consume el nuevo contrato. | Revisar permisos de la RPC y de helpers, restringir al rol necesario y coordinar la migración con el panel. Confirmar historial real de OPS, justificar el corte de datos y preparar una estrategia de conservación antes de aplicarla. [Migración](../apps/referidos-ops/supabase/migrations/20260415_000043_ops_telemetry_dlq_metadata_only.sql) · [Panel](../apps/referidos-app/src/admin/dashboard/AdminDashboardDlqEventsPanel.jsx) |
+| Primer clon | Android importa `packages/api-client/src/logs/logEvent.js`. El archivo está en esta máquina pero la regla global `logs` lo deja fuera de Git. | Resolver el origen del archivo, acotar la regla o mover el módulo y confirmar que el checkout nuevo tiene todos los imports móviles. [Import](../packages/api-client/src/createMobileApi.js#L12) · [Ignore](../.gitignore#L2) |
+| Privacidad | Los seeds históricos versionados contienen datos con forma de correo y teléfono cuya procedencia no está establecida. | Confirmar si son sintéticos. Usar datos de prueba sintéticos y evaluar el historial si corresponde. [Seed anterior](../apps/referidos-app/supabase/seed.old) · [Seed ampliado](../apps/referidos-app/supabase/seed1.old) |
+| Antes del siguiente deploy web | Vite genera `.map` ocultos con contenido fuente. El flujo sube sourcemaps y publica el directorio preparado sin una exclusión visible de `.map`. | Inspeccionar qué URLs o archivos sirve Netlify. Separar el material para simbolicación del directorio público si están incluidos. [Vite](../apps/referidos-app/vite.config.js#L60) · [Workflow](../.github/workflows/versioning-deploy-artifact.yml#L623) |
+| Antes de distribuir Android | La confirmación de reauth sensible actualiza un estado local. El PIN usa el almacenamiento y hash de fallback, y la firma local permite una clave de prueba. | Implementar reauth respaldada por servidor, revisar almacenamiento nativo y mantener una firma de distribución identificable. [Reauth](../apps/referidos-android/src/shared/security/localAccessSecurity.ts#L257) · [Almacenamiento RN](../packages/platform-rn/src/storage/secureStorageService.js#L100) · [Gradle](../apps/referidos-android/android/app/build.gradle#L124) |
+| Antes de promover la waitlist | El límite de solicitudes sigue cuando falla su consulta. El enlace de referido de negocio usa una ruta de producción ausente. | Acordar la política de límites, hacerla consistente ante concurrencia y resolver dónde aterriza el referido de negocio. [Endpoint](../apps/referidos-app/supabase/functions/waitlist-signup/index.ts) · [Router Prelaunch](../apps/prelaunch/src/main.jsx) |
+| PWA instalada | `App.jsx` pasa un objeto a `pwaGuard` y el guard usa argumentos posicionales. | Alinear firma y llamada, y comprobar navegación en modo instalado. [Llamada](../apps/referidos-app/src/App.jsx) · [Guard](../apps/referidos-app/src/router/guards/pwaGuard.js) |
+| Mantenimiento | `audit.json` es un corte histórico. El manifiesto incluye `pupeteer` además de `puppeteer`. | Actualizar la auditoría sobre el lockfile vigente y verificar el uso de dependencias antes de retirarlas. [Manifiesto](../package.json) · [Reporte histórico](../audit.json) |
+
+## Qué confirmar cuando se conecten Supabase y Netlify
+
+1. En staging, leer el historial de migraciones, política vigente de perfiles y permisos sobre columnas y RPC. Compararlos con las migraciones del checkout.
+2. En OPS, revisar historial, firma y permisos de las RPC de DLQ y continuidad de la telemetría. La base OPS lleva su propio registro.
+3. En Netlify, identificar los sitios de ReferidosAPP y Prelaunch por entorno. Comparar commit, estado, artefacto y configuración pública de cada deploy.
+4. Solo si hace falta evidencia del entorno de lanzamiento, repetir las consultas de metadatos necesarias en producción.
+
+## Estado de esta revisión
+
+Se documentaron archivos y dependencias locales. El panel de DLQ modificado y la migración OPS sin seguimiento se identifican como trabajo previo de este checkout. No se ejecutaron pruebas de aplicación, builds, migraciones ni despliegues durante la preparación de esta guía.
