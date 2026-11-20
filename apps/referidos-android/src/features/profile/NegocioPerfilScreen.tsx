@@ -2,14 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Linking,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
@@ -17,6 +14,12 @@ import { useModalStore } from "@shared/store/modalStore";
 import { SUPPORT_CHAT_CATEGORIES } from "@shared/constants/supportCategories";
 import { fetchSystemFeatureFlags } from "@shared/services/systemFeatureFlags";
 import AccessSecurityPanel from "./components/AccessSecurityPanel";
+import ProfileSettingsLayout, {
+  profileVerificationLabel,
+  ProfileIdentityCard,
+  ProfileSettingsCard as SectionCard,
+  useProfileSection,
+} from "./components/ProfileSettingsLayout";
 import {
   LinkedProvidersSection,
   NotificationsSection,
@@ -37,8 +40,6 @@ import {
 } from "@shared/services/entityQueries";
 import { deleteCurrentUserAccount } from "@shared/services/accountLifecycle";
 
-type ProfileTab = "cuenta" | "seguridad" | "preferencias" | "ayuda";
-
 function generateClientRequestId() {
   return `rn-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -50,7 +51,7 @@ export default function NegocioPerfilScreen() {
   const openConfirm = useModalStore((state) => state.openConfirm);
   const openAlert = useModalStore((state) => state.openAlert);
   const openPicker = useModalStore((state) => state.openPicker);
-  const [profileTab, setProfileTab] = useState<ProfileTab>("cuenta");
+  const [section, setSection] = useProfileSection();
   const [business, setBusiness] = useState<any | null>(onboarding?.negocio || null);
   const [category, setCategory] = useState("acceso");
   const [summary, setSummary] = useState("");
@@ -69,7 +70,6 @@ export default function NegocioPerfilScreen() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [ticketsError, setTicketsError] = useState("");
-  const [ticketOwnerPublicId, setTicketOwnerPublicId] = useState("");
 
   const usuario = onboarding?.usuario || null;
   const visibleCategories = useMemo(
@@ -140,14 +140,12 @@ export default function NegocioPerfilScreen() {
       }
     }
     if (!ownerPublicId) {
-      setTicketOwnerPublicId("");
       setTickets([]);
       setTicketsError("No se pudo resolver el usuario propietario.");
       setTicketsLoading(false);
       return;
     }
 
-    setTicketOwnerPublicId(ownerPublicId);
     const result = await fetchSupportTicketsByUserPublicId(supabase, ownerPublicId, 20);
     if (!result.ok) {
       setTickets([]);
@@ -266,8 +264,8 @@ export default function NegocioPerfilScreen() {
   }, [openAlert]);
 
   const verificationStatus = String(
-    readFirst(onboarding, ["verification_status"], "sin_verificacion"),
-  );
+    readFirst(onboarding, ["verification_status"], readFirst(usuario, ["verification_status"], "")),
+  ).toLowerCase();
   const emailConfirmed = Boolean(readFirst(onboarding, ["email_confirmed"], false));
 
   const handleOpenTicketWhatsapp = useCallback(
@@ -391,335 +389,331 @@ export default function NegocioPerfilScreen() {
   }, [business, businessDraft.categoria, businessDraft.direccion, businessDraft.nombre, openAlert, ownerDraft.nombre, ownerDraft.telefono, refreshAll, userAuthId]);
 
   return (
-    <ScreenScaffold title="Perfil negocio" subtitle="Cuenta, seguridad y soporte">
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.tabRow}>
-          {(["cuenta", "seguridad", "preferencias", "ayuda"] as ProfileTab[]).map((tab) => (
-            <Pressable
-              key={tab}
-              onPress={() => setProfileTab(tab)}
-              style={[styles.tabChip, profileTab === tab && styles.tabChipActive]}
-            >
-              <Text style={[styles.tabChipText, profileTab === tab && styles.tabChipTextActive]}>
-                {tab}
-              </Text>
+    <ProfileSettingsLayout section={section} onSectionChange={setSection} onSignOut={handleSignOut}>
+      {section === "overview" ? (
+        <>
+          <ProfileIdentityCard
+            title="Identidad del negocio"
+            name={String(readFirst(business, ["nombre", "name"], "Negocio"))}
+            meta={String(readFirst(business, ["categoria_nombre", "categoria"], ""))}
+            avatar={String(readFirst(business, ["imagen", "logo", "avatar_url"], ""))}
+            verified={verificationStatus === "verified"}
+          />
+          <SectionCard title="Estado de la cuenta">
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Acceso</Text>
+              <Text style={styles.infoValue}>{onboarding?.allowAccess ? "Activo" : "Pendiente"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Correo electrónico</Text>
+              <Text style={styles.infoValue}>{emailConfirmed ? "Confirmado" : "Pendiente"}</Text>
+            </View>
+            <View style={styles.actionsRow}>
+              <Pressable accessibilityRole="button" onPress={() => setSection("personal")} style={styles.primaryBtn}>
+                <Text style={styles.primaryBtnText}>Editar datos</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={refreshAll} style={styles.secondaryBtn}>
+                <Text style={styles.secondaryBtnText}>Refrescar</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
+        </>
+      ) : null}
+
+      {section === "personal" ? (
+        <SectionCard title="Datos del negocio y del propietario">
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Propietario</Text>
+            <TextInput
+              value={ownerDraft.nombre}
+              onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, nombre: value }))}
+              style={styles.inlineInput}
+              placeholder="Nombre propietario"
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Correo electrónico</Text>
+            <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "Sin correo")}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Teléfono</Text>
+            <TextInput
+              value={ownerDraft.telefono}
+              onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, telefono: value }))}
+              style={styles.inlineInput}
+              accessibilityLabel="Teléfono"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              placeholder="Teléfono"
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Negocio</Text>
+            <TextInput
+              value={businessDraft.nombre}
+              onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, nombre: value }))}
+              style={styles.inlineInput}
+              placeholder="Nombre negocio"
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Categoría</Text>
+            <TextInput
+              value={businessDraft.categoria}
+              onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, categoria: value }))}
+              style={styles.inlineInput}
+              placeholder="Categoria"
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Dirección</Text>
+            <TextInput
+              value={businessDraft.direccion}
+              onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, direccion: value }))}
+              style={styles.inlineInput}
+              accessibilityLabel="Dirección"
+              placeholder="Dirección"
+            />
+          </View>
+          <View style={styles.actionsRow}>
+            <Pressable accessibilityRole="button" onPress={() => void handleSaveProfile()} style={styles.primaryBtn}>
+              <Text style={styles.primaryBtnText}>Guardar perfil</Text>
             </Pressable>
-          ))}
-        </View>
+            <Pressable accessibilityRole="button" onPress={refreshAll} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Refrescar</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={handleSignOut} style={styles.outlineBtn}>
+              <Text style={styles.outlineBtnText}>Cerrar sesión</Text>
+            </Pressable>
+          </View>
+        </SectionCard>
+      ) : null}
 
-        {profileTab === "cuenta" ? (
-          <>
-            <SectionCard title="Cuenta y negocio">
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Usuario:</Text>
-                <TextInput
-                  value={ownerDraft.nombre}
-                  onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, nombre: value }))}
-                  style={styles.inlineInput}
-                  placeholder="Nombre propietario"
-                />
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Correo:</Text>
-                <Text style={styles.infoValue}>{readFirst(usuario, ["email"], "sin correo")}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Telefono:</Text>
-                <TextInput
-                  value={ownerDraft.telefono}
-                  onChangeText={(value) => setOwnerDraft((prev) => ({ ...prev, telefono: value }))}
-                  style={styles.inlineInput}
-                  placeholder="Telefono"
-                />
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Negocio:</Text>
-                <TextInput
-                  value={businessDraft.nombre}
-                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, nombre: value }))}
-                  style={styles.inlineInput}
-                  placeholder="Nombre negocio"
-                />
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Categoria:</Text>
-                <TextInput
-                  value={businessDraft.categoria}
-                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, categoria: value }))}
-                  style={styles.inlineInput}
-                  placeholder="Categoria"
-                />
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Direccion:</Text>
-                <TextInput
-                  value={businessDraft.direccion}
-                  onChangeText={(value) => setBusinessDraft((prev) => ({ ...prev, direccion: value }))}
-                  style={styles.inlineInput}
-                  placeholder="Direccion"
-                />
-              </View>
-              <View style={styles.actionsRow}>
-                <Pressable onPress={() => void handleSaveProfile()} style={styles.primaryBtn}>
-                  <Text style={styles.primaryBtnText}>Guardar perfil</Text>
-                </Pressable>
-                <Pressable onPress={refreshAll} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Refrescar</Text>
-                </Pressable>
-                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-                </Pressable>
-              </View>
-            </SectionCard>
-            <ProfileBenefitsSection
-              role="negocio"
-              accountLabel={String(readFirst(business, ["nombre"], "Negocio sin completar"))}
-              accountHelper="Mantener datos, direccion y horarios al dia mejora la operacion del canal negocio."
-            />
-            <SectionCard title="Gestionar cuenta" subtitle="Acciones sensibles y estado general">
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Verificacion:</Text>
-                <Text style={styles.infoValue}>{verificationStatus}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email:</Text>
-                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
-              </View>
-              <View style={styles.actionsRow}>
-                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-                </Pressable>
-                <Pressable onPress={handleDeleteAccount} style={styles.dangerBtn}>
-                  <Text style={styles.dangerBtnText}>Eliminar cuenta</Text>
-                </Pressable>
-              </View>
-            </SectionCard>
-          </>
-        ) : null}
+      {section === "benefits" ? (
+        <ProfileBenefitsSection
+          role="negocio"
+          accountLabel={String(readFirst(business, ["nombre"], "Negocio sin completar"))}
+          accountHelper="Mantén actualizados los datos, la dirección y los horarios de tu negocio."
+        />
+      ) : null}
 
-        {profileTab === "seguridad" ? (
-          <>
-            <SectionCard title="Acceso y seguridad" subtitle="Estado aplicable en RN">
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Rol:</Text>
-                <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "negocio"))}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Verificacion:</Text>
-                <Text style={styles.infoValue}>{verificationStatus}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email:</Text>
-                <Text style={styles.infoValue}>{emailConfirmed ? "confirmado" : "pendiente"}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Acceso:</Text>
-                <Text style={styles.infoValue}>{onboarding?.allowAccess ? "permitido" : "bloqueado"}</Text>
-              </View>
-              <View style={styles.actionsRow}>
-                <Pressable onPress={bootstrapAuth} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
-                </Pressable>
-                <Pressable onPress={handleSignOut} style={styles.outlineBtn}>
-                  <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-                </Pressable>
-              </View>
-              <AccessSecurityPanel
-                usuario={usuario}
-                onReload={async () => {
-                  await refreshAll();
-                }}
-              />
-            </SectionCard>
-            <LinkedProvidersSection
-              providers={linkedProviders}
-              primaryProvider={primaryProvider}
-              appleEnabled={appleEnabled}
-            />
-            <SessionsSection onCurrentSessionRevoked={handleSignOut} />
-          </>
-        ) : null}
+      {section === "manage" ? (
+        <>
+          <SectionCard title="Estado de la cuenta">
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Verificación</Text>
+              <Text style={styles.infoValue}>{profileVerificationLabel(verificationStatus)}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Correo electrónico</Text>
+              <Text style={styles.infoValue}>{emailConfirmed ? "Confirmado" : "Pendiente"}</Text>
+            </View>
+            <View style={styles.actionsRow}>
+              <Pressable accessibilityRole="button" onPress={handleSignOut} style={styles.outlineBtn}>
+                <Text style={styles.outlineBtnText}>Cerrar sesión</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
+          <SectionCard title="Zona de riesgo">
+            <View style={styles.actionsRow}>
+              <Pressable accessibilityRole="button" onPress={handleDeleteAccount} style={styles.dangerBtn}>
+                <Text style={styles.dangerBtnText}>Eliminar cuenta</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
+        </>
+      ) : null}
 
-        {profileTab === "preferencias" ? (
-          <>
-            <NotificationsSection role="negocio" />
-            <ProfilePreferencesSection role="negocio" />
-          </>
-        ) : null}
+      {section === "access" ? (
+        <SectionCard title="Acceso y seguridad">
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Rol</Text>
+            <Text style={styles.infoValue}>{String(readFirst(usuario, ["role"], "negocio"))}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Verificación</Text>
+            <Text style={styles.infoValue}>{profileVerificationLabel(verificationStatus)}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Correo electrónico</Text>
+            <Text style={styles.infoValue}>{emailConfirmed ? "Confirmado" : "Pendiente"}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Acceso</Text>
+            <Text style={styles.infoValue}>{onboarding?.allowAccess ? "Permitido" : "Bloqueado"}</Text>
+          </View>
+          <View style={styles.actionsRow}>
+            <Pressable accessibilityRole="button" onPress={bootstrapAuth} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Refrescar estado</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={handleSignOut} style={styles.outlineBtn}>
+              <Text style={styles.outlineBtnText}>Cerrar sesión</Text>
+            </Pressable>
+          </View>
+          <AccessSecurityPanel
+            usuario={usuario}
+            onReload={async () => {
+              await refreshAll();
+            }}
+          />
+        </SectionCard>
+      ) : null}
 
-        {profileTab === "ayuda" ? (
-          <>
-            <ProfileFaqSection audience="negocio" />
+      {section === "providers" ? (
+        <LinkedProvidersSection
+          providers={linkedProviders}
+          primaryProvider={primaryProvider}
+          appleEnabled={appleEnabled}
+        />
+      ) : null}
 
-            <SectionCard title="Ayuda">
-              <View style={styles.actionsRow}>
-                <Pressable onPress={handleOpenSupportEmail} style={styles.outlineBtn}>
-                  <Text style={styles.outlineBtnText}>Soporte por correo</Text>
-                </Pressable>
-              </View>
-            </SectionCard>
+      {section === "sessions" ? <SessionsSection onCurrentSessionRevoked={handleSignOut} /> : null}
+      {section === "notifications" ? <NotificationsSection role="negocio" /> : null}
+      {section === "preferences" ? <ProfilePreferencesSection role="negocio" /> : null}
 
-            <SectionCard title="Soporte negocio" subtitle="Crear ticket y abrir WhatsApp">
-              <View style={styles.categoryPickerRow}>
-                <Text style={styles.categoryLabel}>
-                  Categoria actual:{" "}
-                  {visibleCategories.find((item) => item.id === category)?.label || "sin categoria"}
-                </Text>
-                <Pressable onPress={openCategoryPicker} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Seleccionar</Text>
-                </Pressable>
-              </View>
-              <View style={styles.chipWrap}>
-                {visibleCategories.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => setCategory(item.id)}
-                    style={[styles.chip, category === item.id && styles.chipSelected]}
-                  >
-                    <Text style={[styles.chipText, category === item.id && styles.chipTextSelected]}>
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+      {section === "help" ? (
+        <>
+          <ProfileFaqSection audience="negocio" />
 
-              <TextInput
-                value={summary}
-                onChangeText={setSummary}
-                placeholder="Describe tu caso"
-                style={styles.input}
-              />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+          <SectionCard title="Ayuda">
+            <View style={styles.actionsRow}>
+              <Pressable accessibilityRole="button" onPress={handleOpenSupportEmail} style={styles.outlineBtn}>
+                <Text style={styles.outlineBtnText}>Soporte por correo</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
 
+        </>
+      ) : null}
+
+      {section === "chat" ? (
+        <SectionCard title="Chatear con soporte" subtitle="Crea un ticket para continuar por WhatsApp.">
+          <View style={styles.categoryPickerRow}>
+            <Text style={styles.categoryLabel}>
+              Categoría actual:{" "}
+              {visibleCategories.find((item) => item.id === category)?.label || "Sin categoría"}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={openCategoryPicker} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Seleccionar</Text>
+            </Pressable>
+          </View>
+          <View style={styles.chipWrap}>
+            {visibleCategories.map((item) => (
               <Pressable
-                onPress={handleCreateTicket}
-                disabled={creating}
-                style={[styles.primaryBtn, creating && styles.primaryBtnDisabled]}
+                key={item.id}
+                onPress={() => setCategory(item.id)}
+                style={[styles.chip, category === item.id && styles.chipSelected]}
               >
-                <Text style={styles.primaryBtnText}>
-                  {creating ? "Creando..." : "Crear ticket"}
+                <Text style={[styles.chipText, category === item.id && styles.chipTextSelected]}>
+                  {item.label}
                 </Text>
               </Pressable>
+            ))}
+          </View>
 
-              {created?.wa_link ? (
-                <View style={styles.ticketCreatedWrap}>
-                  <Text style={styles.ticketCreatedTitle}>
-                    Ticket: {readFirst(created, ["thread_public_id", "public_id"], "creado")}
+          <TextInput
+            value={summary}
+            onChangeText={setSummary}
+            placeholder="Describe tu caso"
+            style={styles.input}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            onPress={handleCreateTicket}
+            disabled={creating}
+            style={[styles.primaryBtn, creating && styles.primaryBtnDisabled]}
+          >
+            <Text style={styles.primaryBtnText}>
+              {creating ? "Creando..." : "Crear ticket"}
+            </Text>
+          </Pressable>
+
+          {created?.wa_link ? (
+            <View style={styles.ticketCreatedWrap}>
+              <Text style={styles.ticketCreatedTitle}>
+                Ticket: {readFirst(created, ["thread_public_id", "public_id"], "creado")}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={handleOpenWhatsapp} style={styles.whatsappBtn}>
+                <Text style={styles.whatsappBtnText}>Abrir WhatsApp</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </SectionCard>
+
+      ) : null}
+
+      {section === "tickets" ? (
+        <SectionCard
+          title="Mis tickets"
+          right={
+            <Pressable accessibilityRole="button" onPress={loadTickets} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Recargar</Text>
+            </Pressable>
+          }
+        >
+          {ticketsLoading ? <BlockSkeleton lines={5} compact /> : null}
+          {!ticketsLoading && ticketsError ? (
+            <Text style={styles.error}>{ticketsError}</Text>
+          ) : null}
+          {!ticketsLoading && !ticketsError && tickets.length === 0 ? (
+            <Text style={styles.emptyText}>No hay tickets registrados.</Text>
+          ) : null}
+          {!ticketsLoading && !ticketsError
+            ? tickets.map((ticket, index) => (
+                <View key={`${readFirst(ticket, ["public_id", "id"], index)}-${index}`} style={styles.ticketItem}>
+                  <View style={styles.ticketTop}>
+                    <Text style={styles.ticketCode}>
+                      {readFirst(ticket, ["public_id"], "TKT")}
+                    </Text>
+                    <Text style={styles.ticketStatus}>
+                      {toDisplayStatus(readFirst(ticket, ["status"], "new"))}
+                    </Text>
+                  </View>
+                  <Text style={styles.ticketSummary} numberOfLines={2}>
+                    {readFirst(ticket, ["summary", "resolution"], "Sin resumen")}
                   </Text>
-                  <Pressable onPress={handleOpenWhatsapp} style={styles.whatsappBtn}>
-                    <Text style={styles.whatsappBtnText}>Abrir WhatsApp</Text>
-                  </Pressable>
+                  <Text style={styles.ticketDate}>
+                    {formatDateTime(readFirst(ticket, ["created_at"], null))}
+                  </Text>
+                  <View style={styles.actionsRow}>
+                    {readFirst(ticket, ["wa_link"], "") ? (
+                      <Pressable
+                        onPress={() => void handleOpenTicketWhatsapp(ticket)}
+                        style={styles.secondaryBtn}
+                      >
+                        <Text style={styles.secondaryBtnText}>Abrir WhatsApp</Text>
+                      </Pressable>
+                    ) : null}
+                    {readFirst(ticket, ["status"], "") === "queued" &&
+                    readFirst(ticket, ["personal_queue"], true) === false ? (
+                      <Pressable
+                        onPress={() => handleRequestRetake(ticket)}
+                        disabled={Boolean(readFirst(ticket, ["retake_requested_at"], null))}
+                        style={[
+                          styles.outlineBtn,
+                          Boolean(readFirst(ticket, ["retake_requested_at"], null)) &&
+                            styles.primaryBtnDisabled,
+                        ]}
+                      >
+                        <Text style={styles.outlineBtnText}>
+                          {readFirst(ticket, ["retake_requested_at"], null)
+                            ? "Retomar solicitado"
+                            : "Retomar ticket"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
-              ) : null}
-            </SectionCard>
-
-            <SectionCard
-              title="Mis tickets"
-              subtitle="Solo tickets del usuario propietario del negocio"
-              right={
-                <Pressable onPress={loadTickets} style={styles.secondaryBtn}>
-                  <Text style={styles.secondaryBtnText}>Recargar</Text>
-                </Pressable>
-              }
-            >
-              {ticketOwnerPublicId ? (
-                <Text style={styles.scopeText}>Owner: {ticketOwnerPublicId}</Text>
-              ) : null}
-              {ticketsLoading ? <BlockSkeleton lines={5} compact /> : null}
-              {!ticketsLoading && ticketsError ? (
-                <Text style={styles.error}>{ticketsError}</Text>
-              ) : null}
-              {!ticketsLoading && !ticketsError && tickets.length === 0 ? (
-                <Text style={styles.emptyText}>No hay tickets registrados.</Text>
-              ) : null}
-              {!ticketsLoading && !ticketsError
-                ? tickets.map((ticket, index) => (
-                    <View key={`${readFirst(ticket, ["public_id", "id"], index)}-${index}`} style={styles.ticketItem}>
-                      <View style={styles.ticketTop}>
-                        <Text style={styles.ticketCode}>
-                          {readFirst(ticket, ["public_id"], "TKT")}
-                        </Text>
-                        <Text style={styles.ticketStatus}>
-                          {toDisplayStatus(readFirst(ticket, ["status"], "new"))}
-                        </Text>
-                      </View>
-                      <Text style={styles.ticketSummary} numberOfLines={2}>
-                        {readFirst(ticket, ["summary", "resolution"], "Sin resumen")}
-                      </Text>
-                      <Text style={styles.ticketDate}>
-                        {formatDateTime(readFirst(ticket, ["created_at"], null))}
-                      </Text>
-                      <View style={styles.actionsRow}>
-                        {readFirst(ticket, ["wa_link"], "") ? (
-                          <Pressable
-                            onPress={() => void handleOpenTicketWhatsapp(ticket)}
-                            style={styles.secondaryBtn}
-                          >
-                            <Text style={styles.secondaryBtnText}>Abrir WhatsApp</Text>
-                          </Pressable>
-                        ) : null}
-                        {readFirst(ticket, ["status"], "") === "queued" &&
-                        readFirst(ticket, ["personal_queue"], true) === false ? (
-                          <Pressable
-                            onPress={() => handleRequestRetake(ticket)}
-                            disabled={Boolean(readFirst(ticket, ["retake_requested_at"], null))}
-                            style={[
-                              styles.outlineBtn,
-                              Boolean(readFirst(ticket, ["retake_requested_at"], null)) &&
-                                styles.primaryBtnDisabled,
-                            ]}
-                          >
-                            <Text style={styles.outlineBtnText}>
-                              {readFirst(ticket, ["retake_requested_at"], null)
-                                ? "Retomar solicitado"
-                                : "Retomar ticket"}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))
-                : null}
-            </SectionCard>
-          </>
-        ) : null}
-      </ScrollView>
-    </ScreenScaffold>
+              ))
+            : null}
+        </SectionCard>
+      ) : null}
+    </ProfileSettingsLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 20,
-  },
-  tabRow: {
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 2,
-  },
-  tabChip: {
-    flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    paddingVertical: 8,
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  tabChipActive: {
-    borderColor: "#6D28D9",
-    backgroundColor: "#F5F3FF",
-  },
-  tabChipText: {
-    textTransform: "uppercase",
-    color: "#6B7280",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  tabChipTextActive: {
-    color: "#5B21B6",
-  },
   categoryPickerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -733,23 +727,25 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
-    gap: 6,
+    alignItems: "center",
+    gap: 8,
   },
   infoLabel: {
-    width: 80,
+    width: 112,
     color: "#6B7280",
     fontSize: 12,
   },
   infoValue: {
     flex: 1,
-    color: "#111827",
-    fontSize: 12,
+    color: "#2F1A55",
+    fontSize: 14,
   },
   inlineInput: {
     flex: 1,
+    minHeight: 44,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
+    borderColor: "#E9E2F7",
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     color: "#111827",
@@ -758,12 +754,14 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 2,
   },
   primaryBtn: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
+    backgroundColor: "#5E30A5",
+    borderRadius: 12,
+    paddingHorizontal: 14,
     paddingVertical: 11,
     alignItems: "center",
   },
@@ -879,10 +877,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 12,
-  },
-  scopeText: {
-    color: "#64748B",
-    fontSize: 11,
   },
   emptyText: {
     color: "#6B7280",

@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { logCatalogBreadcrumb } from "./loggingClient";
 import { runtimeConfig } from "../config/runtimeConfig";
+import { resolveAuthRedirectUrl } from "../config/authRedirectUrl";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -19,15 +20,13 @@ async function waitForUser(id_auth, attempts = 12, delay = 500) {
   return null;
 }
 
-const DEFAULT_REDIRECT =
-  typeof window !== "undefined" ? window.location.origin : undefined;
-
 export async function signInWithOAuth(provider, opts = {}) {
-  const {
-    redirectTo = runtimeConfig.authRedirectUrl || DEFAULT_REDIRECT,
-    scopes,
-    queryParams,
-  } = opts;
+  const { redirectTo, scopes, queryParams } = opts;
+  const callbackUrl = resolveAuthRedirectUrl(
+    typeof window !== "undefined" ? window.location.origin : undefined,
+    redirectTo,
+    runtimeConfig.authRedirectUrl,
+  );
   logCatalogBreadcrumb("auth.signin.start", {
     method: "oauth",
     provider: provider || "unknown",
@@ -36,7 +35,7 @@ export async function signInWithOAuth(provider, opts = {}) {
   const { data: res, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo,
+      redirectTo: callbackUrl || undefined,
       scopes,
       queryParams,
       // Redirigimos manualmente para controlar el flujo en UI.

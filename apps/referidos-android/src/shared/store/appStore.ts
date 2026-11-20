@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { resolveOnboardingStep } from "@referidos/domain";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { registerCurrentSessionDevice } from "@shared/services/sessionDevices";
 import { useModalStore } from "@shared/store/modalStore";
@@ -15,7 +16,7 @@ type AppState = {
   hasCompletedAuthBootstrap: boolean;
   role: AppRole;
   allowAccess: boolean;
-  requiresVerificationFlow: boolean;
+  requiresOnboardingFlow: boolean;
   reasons: string[];
   onboarding: any | null;
   justCompletedRegistration: boolean;
@@ -41,7 +42,7 @@ function signedOutState() {
     onboarding: null,
     role: null,
     allowAccess: false,
-    requiresVerificationFlow: false,
+    requiresOnboardingFlow: false,
     reasons: [],
     justCompletedRegistration: false,
     accessMethods: { fingerprint: false, pin: false, password: false },
@@ -158,11 +159,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (previousRole !== resolvedRole) {
         useShellStore.getState().clearSessionCache();
       }
-      const verificationStatus = onboarding?.verification_status || null;
-      const requiresVerificationFlow =
+      const requiresOnboardingFlow =
         Boolean(onboarding?.allowAccess) &&
-        (resolvedRole === "cliente" || resolvedRole === "negocio") &&
-        (verificationStatus === "unverified" || verificationStatus === "in_progress");
+        Boolean(resolveOnboardingStep({ onboarding, role: resolvedRole }));
       const accessMethods = buildAccessMethodsFromUser(onboarding?.usuario || {});
 
       void observability.track({
@@ -173,7 +172,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           flow: "auth_bootstrap",
           role: resolvedRole || null,
           allow_access: Boolean(onboarding?.allowAccess),
-          requires_verification: requiresVerificationFlow,
+          requires_onboarding: requiresOnboardingFlow,
         },
       });
 
@@ -183,7 +182,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         onboarding,
         role: resolvedRole,
         allowAccess: Boolean(onboarding?.allowAccess),
-        requiresVerificationFlow,
+        requiresOnboardingFlow,
         reasons: Array.isArray(onboarding?.reasons) ? onboarding.reasons : [],
         accessMethods,
         bootError: null,

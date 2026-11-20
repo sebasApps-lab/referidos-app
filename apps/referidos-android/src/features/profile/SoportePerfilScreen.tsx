@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
@@ -112,7 +112,7 @@ export default function SoportePerfilScreen() {
   }, [loadState]);
 
   return (
-    <ScreenScaffold title="Soporte perfil" subtitle="Jornada y controles base">
+    <ScreenScaffold onRefresh={loadState} title="Soporte perfil" subtitle="Jornada y controles base">
       <ScrollView contentContainerStyle={styles.content}>
         <SectionCard title="Estado soporte" subtitle="Perfil y sesion de jornada">
           {loading ? <Text style={styles.mutedText}>Cargando...</Text> : null}

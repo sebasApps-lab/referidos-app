@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Image,
+  Keyboard,
   Modal,
   PermissionsAndroid,
   Platform,
@@ -11,16 +13,27 @@ import {
   View,
 } from "react-native";
 import Geolocation from "@react-native-community/geolocation";
-import MapView, { Region } from "react-native-maps";
 import { mobileApi } from "@shared/services/mobileApi";
 import { useModalStore } from "@shared/store/modalStore";
+import AddressMapPicker, { type AddressMapRegion } from "./AddressMapPicker";
+import { authText } from "./AuthStartLayout";
+import BusinessScheduleBlock, { createBusinessSchedule, hasBusinessHours, type BusinessSchedule } from "./BusinessScheduleBlock";
+import {
+  OnboardingInput,
+  OnboardingPrimaryButton,
+  OnboardingSkipButton,
+  OnboardingSubtitle,
+  onboardingColors,
+} from "./OnboardingFormLayout";
+
+const CLIENT_ADDRESS_TAGS = ["Casa", "Oficina", "Trabajo"];
 
 const FALLBACK_COORDS = {
   latitude: -0.2200934426615961,
   longitude: -78.51208009501421,
 };
 
-const FALLBACK_REGION: Region = {
+const FALLBACK_REGION: AddressMapRegion = {
   ...FALLBACK_COORDS,
   latitudeDelta: 0.12,
   longitudeDelta: 0.12,
@@ -62,6 +75,8 @@ type Props = {
     lat: string;
     lng: string;
     isSucursalPrincipal: boolean;
+    referencia?: string;
+    horarios?: BusinessSchedule;
   };
   onChange: {
     setCalles: (v: string) => void;
@@ -74,9 +89,13 @@ type Props = {
     setLat: (v: string) => void;
     setLng: (v: string) => void;
     setIsSucursalPrincipal: (v: boolean) => void;
-    setHorarios?: (v: any) => void;
+    setHorarios?: (value: BusinessSchedule) => void;
+    setReferencia?: (value: string) => void;
   };
   onSubmit: () => Promise<boolean>;
+  onSkip?: () => void;
+  searchModeOpen?: boolean;
+  onSearchModeChange?: (open: boolean) => void;
   showError: (message: string) => void;
 };
 
@@ -97,53 +116,30 @@ function normalizeRegionTitle(value: string) {
     .join(" ");
 }
 
-function buildDefaultSchedule() {
-  return {
-    semanal: {
-      lunes: [{ abre: "10:00", cierra: "18:00" }],
-      martes: [{ abre: "10:00", cierra: "18:00" }],
-      miercoles: [{ abre: "10:00", cierra: "18:00" }],
-      jueves: [{ abre: "10:00", cierra: "18:00" }],
-      viernes: [{ abre: "10:00", cierra: "18:00" }],
-      sabado: [],
-      domingo: [],
-    },
-    excepciones: [],
-  };
-}
-
-function toTimeInput(value: string) {
-  const clean = String(value || "").replace(/[^\d]/g, "").slice(0, 4);
-  if (clean.length <= 2) return clean;
-  return `${clean.slice(0, 2)}:${clean.slice(2)}`;
-}
-
-function toHourMinute(value: string, fallback: string) {
-  const text = String(value || "").trim();
-  if (/^\d{2}:\d{2}$/.test(text)) return text;
-  return fallback;
-}
-
 export default function AddressStepBlock({
   role,
   loading,
   value,
   onChange,
   onSubmit,
+  onSkip,
+  searchModeOpen,
+  onSearchModeChange,
   showError,
 }: Props) {
+  const { setCantonId, setParroquiaId, setHorarios } = onChange;
+  const isBusiness = role === "negocio";
+  const hasCoordinates = Boolean(value.lat.trim() && value.lng.trim()) &&
+    Number.isFinite(Number(value.lat)) && Number.isFinite(Number(value.lng));
   const initialHasAddress = Boolean(
-    String(value.calles || "").trim() &&
-      String(value.sector || "").trim() &&
-      Number.isFinite(Number(value.lat)) &&
-      Number.isFinite(Number(value.lng)),
+    value.calles.trim() && value.sector.trim() && hasCoordinates,
   );
 
   const [phase, setPhase] = useState<"map" | "details">(initialHasAddress ? "details" : "map");
-  const [region, setRegion] = useState<Region>(() => {
+  const [region, setRegion] = useState<AddressMapRegion>(() => {
     const lat = Number(value.lat);
     const lng = Number(value.lng);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    if (hasCoordinates) {
       return {
         latitude: lat,
         longitude: lng,
@@ -153,12 +149,31 @@ export default function AddressStepBlock({
     return FALLBACK_REGION;
   });
   const [searchText, setSearchText] = useState("");
+  const [localSearchOpen, setLocalSearchOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<AddressResult[]>([]);
   const [selected, setSelected] = useState<AddressResult | null>(null);
   const [reverseLoading, setReverseLoading] = useState(false);
-  const [resolvedAddress, setResolvedAddress] = useState<AddressResult | null>(null);
+  const [showMapHint, setShowMapHint] = useState(false);
+  const [customTag, setCustomTag] = useState("");
+  const [editingTag, setEditingTag] = useState(false);
+  const [localReference, setLocalReference] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [editingTerritory, setEditingTerritory] = useState(() => !value.provinciaId || !value.cantonId);
   const openPicker = useModalStore((state) => state.openPicker);
+  const searchOpen = searchModeOpen ?? localSearchOpen;
+  const reference = value.referencia ?? localReference;
+
+  function changeReference(next: string) {
+    setLocalReference(next);
+    onChange.setReferencia?.(next);
+  }
+
+  const setSearchOpen = useCallback((open: boolean) => {
+    setLocalSearchOpen(open);
+    onSearchModeChange?.(open);
+  }, [onSearchModeChange]);
 
   const [territoryLoading, setTerritoryLoading] = useState(true);
   const [territoryError, setTerritoryError] = useState("");
@@ -171,53 +186,9 @@ export default function AddressStepBlock({
   const [deniedModal, setDeniedModal] = useState(false);
   const [unavailableModal, setUnavailableModal] = useState(false);
 
-  const [weekdaysEnabled, setWeekdaysEnabled] = useState(true);
-  const [weekendEnabled, setWeekendEnabled] = useState(false);
-  const [weekdaysOpen, setWeekdaysOpen] = useState("10:00");
-  const [weekdaysClose, setWeekdaysClose] = useState("18:00");
-  const [weekendOpen, setWeekendOpen] = useState("10:00");
-  const [weekendClose, setWeekendClose] = useState("18:00");
-
-  useEffect(() => {
-    if (phase !== "details") return;
-    if (role !== "negocio") return;
-    const weekly = {
-      lunes: weekdaysEnabled ? [{ abre: toHourMinute(weekdaysOpen, "10:00"), cierra: toHourMinute(weekdaysClose, "18:00") }] : [],
-      martes: weekdaysEnabled ? [{ abre: toHourMinute(weekdaysOpen, "10:00"), cierra: toHourMinute(weekdaysClose, "18:00") }] : [],
-      miercoles: weekdaysEnabled ? [{ abre: toHourMinute(weekdaysOpen, "10:00"), cierra: toHourMinute(weekdaysClose, "18:00") }] : [],
-      jueves: weekdaysEnabled ? [{ abre: toHourMinute(weekdaysOpen, "10:00"), cierra: toHourMinute(weekdaysClose, "18:00") }] : [],
-      viernes: weekdaysEnabled ? [{ abre: toHourMinute(weekdaysOpen, "10:00"), cierra: toHourMinute(weekdaysClose, "18:00") }] : [],
-      sabado: weekendEnabled ? [{ abre: toHourMinute(weekendOpen, "10:00"), cierra: toHourMinute(weekendClose, "18:00") }] : [],
-      domingo: weekendEnabled ? [{ abre: toHourMinute(weekendOpen, "10:00"), cierra: toHourMinute(weekendClose, "18:00") }] : [],
-    };
-    onChange.setHorarios?.({ semanal: weekly, excepciones: [] });
-  }, [
-    onChange,
-    phase,
-    role,
-    weekdaysClose,
-    weekdaysEnabled,
-    weekdaysOpen,
-    weekendClose,
-    weekendEnabled,
-    weekendOpen,
-  ]);
-
-  useEffect(() => {
-    if (initialHasAddress) {
-      setResolvedAddress({
-        display_fields: {
-          calles: value.calles,
-          ciudad: value.ciudad,
-          sector: value.sector,
-          provincia_id: value.provinciaId,
-          canton_id: value.cantonId,
-          parroquia_id: value.parroquiaId,
-          parroquia: value.parroquia,
-        },
-      });
-    }
-  }, [initialHasAddress, value.calles, value.cantonId, value.ciudad, value.parroquia, value.parroquiaId, value.provinciaId, value.sector]);
+  const [localSchedule, setLocalSchedule] = useState(createBusinessSchedule);
+  const schedule = value.horarios ?? localSchedule;
+  const hasHours = hasBusinessHours(schedule);
 
   useEffect(() => {
     let mounted = true;
@@ -252,8 +223,8 @@ export default function AddressStepBlock({
     const provinciaId = String(value.provinciaId || "").trim();
     if (!provinciaId) {
       setCantones([]);
-      if (value.cantonId) onChange.setCantonId("");
-      if (value.parroquiaId) onChange.setParroquiaId("");
+      if (value.cantonId) setCantonId("");
+      if (value.parroquiaId) setParroquiaId("");
       return () => {
         mounted = false;
       };
@@ -278,22 +249,22 @@ export default function AddressStepBlock({
         value.cantonId &&
         !rows.some((row: any) => String(row?.id || "") === String(value.cantonId))
       ) {
-        onChange.setCantonId("");
-        onChange.setParroquiaId("");
+        setCantonId("");
+        setParroquiaId("");
       }
     })();
 
     return () => {
       mounted = false;
     };
-  }, [onChange, value.cantonId, value.parroquiaId, value.provinciaId]);
+  }, [setCantonId, setParroquiaId, value.cantonId, value.parroquiaId, value.provinciaId]);
 
   useEffect(() => {
     let mounted = true;
     const cantonId = String(value.cantonId || "").trim();
     if (!cantonId) {
       setParroquias([]);
-      if (value.parroquiaId) onChange.setParroquiaId("");
+      if (value.parroquiaId) setParroquiaId("");
       return () => {
         mounted = false;
       };
@@ -318,20 +289,18 @@ export default function AddressStepBlock({
         value.parroquiaId &&
         !rows.some((row: any) => String(row?.id || "") === String(value.parroquiaId))
       ) {
-        onChange.setParroquiaId("");
+        setParroquiaId("");
       }
     })();
 
     return () => {
       mounted = false;
     };
-  }, [onChange, value.cantonId, value.parroquiaId]);
+  }, [setParroquiaId, value.cantonId, value.parroquiaId]);
 
   useEffect(() => {
     let mounted = true;
-    const hasCoords =
-      Number.isFinite(Number(value.lat)) && Number.isFinite(Number(value.lng));
-    if (phase !== "map" || hasCoords || selected) {
+    if (phase !== "map" || hasCoordinates || selected) {
       return () => {
         mounted = false;
       };
@@ -356,7 +325,7 @@ export default function AddressStepBlock({
     return () => {
       mounted = false;
     };
-  }, [phase, selected, value.lat, value.lng]);
+  }, [hasCoordinates, phase, selected]);
 
   const selectedProvinciaName = useMemo(
     () => provincias.find((item) => item.id === String(value.provinciaId || ""))?.nombre || "",
@@ -376,8 +345,9 @@ export default function AddressStepBlock({
   const mapCanConfirm = useMemo(() => {
     const latChanged = Math.abs(region.latitude - FALLBACK_COORDS.latitude) > 0.0001;
     const lngChanged = Math.abs(region.longitude - FALLBACK_COORDS.longitude) > 0.0001;
-    return latChanged || lngChanged || Boolean(selected);
-  }, [region.latitude, region.longitude, selected]);
+    const zoomed = region.latitudeDelta < FALLBACK_REGION.latitudeDelta * 0.75;
+    return latChanged || lngChanged || zoomed || Boolean(selected);
+  }, [region.latitude, region.latitudeDelta, region.longitude, selected]);
 
   const applyAddressResult = useCallback(
     (address: AddressResult) => {
@@ -409,7 +379,9 @@ export default function AddressStepBlock({
       onChange.setLat(String(lat));
       onChange.setLng(String(lng));
 
-      setResolvedAddress(address);
+      setPostcode(String(fields.postcode || address?.postcode || ""));
+      setEditingTerritory(!nextProvinciaId || !nextCantonId);
+      setSearchOpen(false);
       setRegion({
         latitude: lat,
         longitude: lng,
@@ -422,6 +394,7 @@ export default function AddressStepBlock({
       region.latitude,
       region.longitude,
       selectedParroquiaName,
+      setSearchOpen,
       value.cantonId,
       value.parroquia,
       value.parroquiaId,
@@ -430,45 +403,52 @@ export default function AddressStepBlock({
   );
 
   const handleSearch = useCallback(async () => {
-    const query = String(searchText || "").trim();
+    const query = searchText.trim();
     if (query.length < 4) {
       showError("Ingresa al menos 4 caracteres para buscar direccion.");
       return;
     }
     setSearching(true);
-    const response = await mobileApi.address.search(query, {
-      limit: 8,
-      country: "ec",
-      language: "es",
-    });
-    setSearching(false);
-    if (!response?.ok) {
-      showError(response?.error || "No se pudo buscar direcciones.");
-      setResults([]);
-      return;
+    setSearchOpen(true);
+    setHasSearched(false);
+    setSelected(null);
+    setResults([]);
+    Keyboard.dismiss();
+    try {
+      const response = await mobileApi.address.search(`${query}, Ecuador`, {
+        limit: 6,
+        country: "ec",
+        language: "es",
+      });
+      if (!response?.ok) {
+        showError(response?.error || "No se pudo buscar direcciones.");
+        return;
+      }
+      setHasSearched(true);
+      setResults(Array.isArray(response.results) ? response.results : []);
+    } catch {
+      showError("No se pudo buscar direcciones.");
+    } finally {
+      setSearching(false);
     }
-    setResults(Array.isArray(response.results) ? response.results : []);
-  }, [searchText, showError]);
+  }, [searchText, setSearchOpen, showError]);
 
   const resolveCenterAddress = useCallback(async () => {
     setReverseLoading(true);
     const targetLat = selected?.lat ?? region.latitude;
     const targetLng = selected?.lng ?? region.longitude;
-    const response = await mobileApi.address.reverse(targetLat, targetLng, {
-      language: "es",
-    });
-    setReverseLoading(false);
-    if (!response?.ok || !response?.data) {
-      showError(response?.error || "No se pudo resolver la direccion del punto.");
-      return;
+    try {
+      const response = await mobileApi.address.reverse(targetLat, targetLng, { language: "es" });
+      if (!response?.ok || !response?.data) {
+        showError(response?.error || "No se pudo resolver la dirección del punto.");
+        return;
+      }
+      applyAddressResult({ ...response.data, lat: targetLat, lng: targetLng });
+    } catch {
+      showError("No se pudo resolver la dirección del punto.");
+    } finally {
+      setReverseLoading(false);
     }
-
-    const data = {
-      ...response.data,
-      lat: targetLat,
-      lng: targetLng,
-    };
-    applyAddressResult(data);
   }, [applyAddressResult, region.latitude, region.longitude, selected?.lat, selected?.lng, showError]);
 
   const requestLocation = useCallback(async () => {
@@ -494,6 +474,7 @@ export default function AddressStepBlock({
           longitude,
           ...CLOSE_REGION_DELTA,
         });
+        setShowMapHint(true);
         await mobileApi.address.saveGpsFallback({ lat: latitude, lng: longitude });
       },
       (geoError) => {
@@ -595,67 +576,105 @@ export default function AddressStepBlock({
   }, [onChange, openPicker, parroquias, showError, value.cantonId, value.parroquiaId]);
 
   const handleSubmitDetails = useCallback(async () => {
-    if (role === "negocio") {
-      const anyDayEnabled = weekdaysEnabled || weekendEnabled;
-      if (!anyDayEnabled) {
-        showError("Selecciona al menos un horario para la sucursal.");
-        return;
-      }
+    if (isBusiness && !hasHours) {
+      showError("Selecciona al menos un horario para la sucursal.");
+      return;
     }
     if (!String(value.provinciaId || "").trim() || !String(value.cantonId || "").trim()) {
       showError("Selecciona provincia y canton para completar la direccion.");
       return;
     }
     await onSubmit();
-  }, [onSubmit, role, showError, value.cantonId, value.provinciaId, weekdaysEnabled, weekendEnabled]);
+  }, [hasHours, isBusiness, onSubmit, showError, value.cantonId, value.provinciaId]);
+
+  const customReference = reference && !CLIENT_ADDRESS_TAGS.includes(reference) ? reference : "";
+  const customTagValid = customTag.trim().length >= 2;
+  const territoryNeeded = editingTerritory || !value.provinciaId || !value.cantonId;
+  const confirmDisabled = searchOpen ? !selected : !mapCanConfirm;
 
   return (
     <View style={styles.root}>
       {phase === "map" ? (
         <>
-          <View style={styles.mapWrap}>
-            <MapView
-              style={styles.map}
-              initialRegion={region}
+          <OnboardingSubtitle>
+            {isBusiness
+              ? "Ayúdanos a conectar tu negocio con personas cerca de ti."
+              : "Encuentra lo que más te conviene según tu ubicación."}
+          </OnboardingSubtitle>
+          {!searchOpen && <View style={styles.mapWrap}>
+            <AddressMapPicker
               region={region}
-              onRegionChangeComplete={(next) => setRegion(next)}
+              onRegionChange={(next) => {
+                const zoomHintThreshold = FALLBACK_REGION.latitudeDelta * 0.75;
+                if (region.latitudeDelta >= zoomHintThreshold && next.latitudeDelta < zoomHintThreshold) {
+                  setShowMapHint(true);
+                }
+                setRegion(next);
+              }}
             />
             <View pointerEvents="none" style={styles.centerPinWrap}>
-              <View style={styles.centerPinOuter}>
-                <View style={styles.centerPinInner} />
-              </View>
+              <Image source={require("../assets/address-pin-filled.png")} style={styles.centerPin} />
             </View>
-            <Pressable style={styles.gpsButton} onPress={requestLocation}>
-              <Text style={styles.gpsButtonText}>GPS</Text>
+            {showMapHint && (
+              <View style={styles.mapHint}>
+                <Image source={require("../assets/address-pin.png")} style={styles.hintPin} />
+                <Text style={styles.mapHintCopy}>Asegúrate de señalar el punto correcto y pulsa confirmar.</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Cerrar aviso" onPress={() => setShowMapHint(false)} hitSlop={8}>
+                  <Image source={require("../assets/cross.png")} style={styles.hintClose} />
+                </Pressable>
+              </View>
+            )}
+            <Pressable accessibilityRole="button" accessibilityLabel="Reintentar ubicación" style={styles.gpsButton} onPress={requestLocation}>
+              <Image source={require("../assets/address-compass.png")} style={styles.compass} />
             </Pressable>
-          </View>
-          {loadingStoredGps ? (
-            <Text style={styles.helperText}>Cargando ultima ubicacion GPS guardada...</Text>
-          ) : null}
-          {territoryError ? <Text style={styles.warningText}>{territoryError}</Text> : null}
+          </View>}
+          {!searchOpen && loadingStoredGps && <Text style={styles.helperText}>Cargando última ubicación…</Text>}
 
-          <Text style={styles.label}>Busca direccion</Text>
           <View style={styles.searchRow}>
+            <Image source={require("../assets/address-pin.png")} style={styles.searchPin} />
             <TextInput
+              accessibilityLabel="Buscar dirección"
               value={searchText}
-              onChangeText={setSearchText}
+              onFocus={() => setSearchOpen(true)}
+              onChangeText={(next) => {
+                setSearchText(next);
+                setHasSearched(false);
+                setResults([]);
+                setSelected(null);
+              }}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+              autoCorrect={false}
               style={styles.searchInput}
               placeholder="Busca la direccion si no la encuentras..."
+              placeholderTextColor={onboardingColors.secondary}
             />
-            <Pressable onPress={handleSearch} style={styles.searchButton} disabled={searching}>
-              <Text style={styles.searchButtonText}>{searching ? "..." : "Buscar"}</Text>
-            </Pressable>
+            {!!searchText.trim() && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Buscar dirección"
+                onPress={handleSearch}
+                style={[styles.searchButton, (searching || searchText.trim().length < 4) && styles.primaryButtonDisabled]}
+                disabled={searching || searchText.trim().length < 4}
+              >
+                <Image source={require("../assets/address-search.png")} style={styles.searchIcon} />
+              </Pressable>
+            )}
           </View>
 
-          {results.length ? (
+          {searchOpen && searching && <Text style={styles.helperText}>Buscando...</Text>}
+          {searchOpen && hasSearched && !results.length && <Text style={styles.helperText}>No encontramos resultados.</Text>}
+          {searchOpen && results.length > 0 && (
             <View style={styles.resultsWrap}>
-              <ScrollView style={styles.resultsScroll}>
+              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" style={styles.resultsScroll}>
                 {results.map((item, index) => {
                   const key = String(item.id || `${index}`);
-                  const selectedNow = selected?.id ? selected.id === item.id : false;
+                  const selectedNow = selected === item;
                   return (
                     <Pressable
                       key={key}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: selectedNow }}
                       onPress={() => {
                         setSelected(item);
                         if (Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng))) {
@@ -669,51 +688,36 @@ export default function AddressStepBlock({
                       style={[styles.resultItem, selectedNow && styles.resultItemSelected]}
                     >
                       <Text style={styles.resultTitle} numberOfLines={2}>
-                        {String(item.display_label || item.label || item.raw_label || "Direccion")}
+                        {String(item.display_label || item.label || item.raw_label || "Dirección")}
                       </Text>
                     </Pressable>
                   );
                 })}
               </ScrollView>
             </View>
-          ) : null}
+          )}
 
-          <Pressable
-            onPress={resolveCenterAddress}
-            disabled={!mapCanConfirm || reverseLoading || loading}
-            style={[
-              styles.primaryButton,
-              (!mapCanConfirm || reverseLoading || loading) && styles.primaryButtonDisabled,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>
-              {reverseLoading ? "Confirmando..." : "Confirmar"}
-            </Text>
-          </Pressable>
+          <View style={styles.detailActions}>
+            <OnboardingPrimaryButton
+              label={reverseLoading ? "Confirmando..." : "Confirmar"}
+              onPress={resolveCenterAddress}
+              disabled={confirmDisabled || reverseLoading || loading}
+            />
+            {!isBusiness && onSkip && <OnboardingSkipButton onPress={onSkip} disabled={loading} />}
+          </View>
         </>
       ) : (
         <>
           <View style={styles.detailCard}>
-            <Text style={styles.detailTitle}>Direccion confirmada</Text>
-            <DetailRow
-              label="Provincia"
-              value={String(selectedProvinciaName || value.provinciaId || "-")}
-            />
-            <DetailRow label="Ciudad" value={String(value.ciudad || "-")} />
-            <DetailRow
-              label="Canton"
-              value={String(selectedCantonName || value.cantonId || "-")}
-            />
-            <DetailRow label="Sector" value={String(value.sector || "-")} />
-            <DetailRow label="Calle" value={String(value.calles || "-")} />
-            <DetailRow
-              label="Parroquia"
-              value={String(selectedParroquiaName || value.parroquia || value.parroquiaId || "-")}
-            />
-            <DetailRow label="Lat/Lng" value={`${value.lat || "-"}, ${value.lng || "-"}`} />
+            <DetailRow label="Provincia" value={selectedProvinciaName} />
+            <DetailRow label="Ciudad" value={selectedParroquiaName || value.parroquia || value.ciudad} />
+            {selectedCantonName !== value.ciudad && <DetailRow label="Cantón" value={selectedCantonName} />}
+            <DetailRow label="Sector" value={value.sector} />
+            <DetailRow label="Calle" value={value.calles} />
+            <DetailRow label="Código postal" value={postcode} />
 
-            <View style={styles.territoryWrap}>
-              <Text style={styles.territoryTitle}>Fallback territorial</Text>
+            {territoryNeeded && <View style={styles.territoryWrap}>
+              {territoryError ? <Text style={styles.warningText}>{territoryError}</Text> : null}
               <Pressable
                 onPress={openProvinciaPicker}
                 style={[styles.territoryFieldBtn, territoryLoading && styles.territoryFieldBtnDisabled]}
@@ -732,7 +736,7 @@ export default function AddressStepBlock({
                 ]}
                 disabled={!value.provinciaId || territoryLoading}
               >
-                <Text style={styles.territoryFieldLabel}>Canton</Text>
+                <Text style={styles.territoryFieldLabel}>Cantón</Text>
                 <Text style={styles.territoryFieldValue}>
                   {selectedCantonName || value.cantonId || "Seleccionar"}
                 </Text>
@@ -745,7 +749,7 @@ export default function AddressStepBlock({
                 ]}
                 disabled={!value.cantonId || territoryLoading}
               >
-                <Text style={styles.territoryFieldLabel}>Parroquia</Text>
+                <Text style={styles.territoryFieldLabel}>Ciudad/sector</Text>
                 <Text style={styles.territoryFieldValue}>
                   {selectedParroquiaName || value.parroquia || value.parroquiaId || "Seleccionar"}
                 </Text>
@@ -759,61 +763,116 @@ export default function AddressStepBlock({
                 style={styles.territoryInput}
                 placeholder="Parroquia manual (opcional)"
               />
-            </View>
+            </View>}
+
+            {isBusiness ? (
+              <View style={styles.references}>
+                <Text style={styles.detailLabel}>Referencia (opcional)</Text>
+                <OnboardingInput
+                  accessibilityLabel="Referencia (opcional)"
+                  maxLength={200}
+                  placeholder="Ej: Edificio azul, junto a la panadería"
+                  value={reference}
+                  onChangeText={changeReference}
+                />
+              </View>
+            ) : (
+              <View style={styles.references}>
+                <Text style={styles.detailLabel}>Nombre de la dirección</Text>
+                <View style={styles.tags}>
+                  {CLIENT_ADDRESS_TAGS.map((tag) => (
+                    <Pressable
+                      key={tag}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: reference === tag }}
+                      onPress={() => {
+                        changeReference(tag);
+                        setEditingTag(false);
+                      }}
+                      style={[styles.tag, reference === tag && styles.tagActive]}
+                    >
+                      <Text style={[styles.tagText, reference === tag && styles.tagTextActive]}>{tag}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {editingTag ? (
+                  <View style={styles.customTag}>
+                    <TextInput
+                      autoFocus
+                      accessibilityLabel="Otro nombre de la dirección"
+                      maxLength={25}
+                      value={customTag}
+                      onChangeText={setCustomTag}
+                      placeholder="Otro"
+                      placeholderTextColor="#9C7BD5"
+                      style={styles.customTagInput}
+                    />
+                    {customTagValid && <Pressable accessibilityRole="button" onPress={() => {
+                      changeReference(customTag.trim());
+                      setEditingTag(false);
+                    }} hitSlop={8}>
+                      <Text style={styles.customConfirm}>OK</Text>
+                    </Pressable>}
+                  </View>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Otro nombre de la dirección"
+                    onPress={() => {
+                      setCustomTag(customReference);
+                      setEditingTag(true);
+                    }}
+                    style={[styles.tag, styles.otherTag, !!customReference && styles.tagActive]}
+                  >
+                    <Text style={[styles.tagText, !!customReference && styles.tagTextActive]}>{customReference || "Otro"}</Text>
+                    <Image source={require("../assets/pencil.png")} style={styles.tagPencil} />
+                  </Pressable>
+                )}
+              </View>
+            )}
           </View>
 
-          {role === "negocio" ? (
-            <View style={styles.detailCard}>
-              <Text style={styles.detailTitle}>Horario</Text>
-              <ScheduleRow
-                label="Lunes a viernes"
-                enabled={weekdaysEnabled}
-                onToggle={setWeekdaysEnabled}
-                open={weekdaysOpen}
-                close={weekdaysClose}
-                setOpen={setWeekdaysOpen}
-                setClose={setWeekdaysClose}
-              />
-              <ScheduleRow
-                label="Fin de semana"
-                enabled={weekendEnabled}
-                onToggle={setWeekendEnabled}
-                open={weekendOpen}
-                close={weekendClose}
-                setOpen={setWeekendOpen}
-                setClose={setWeekendClose}
+          {isBusiness && (
+            <View style={styles.scheduleCard}>
+              <BusinessScheduleBlock
+                value={schedule}
+                onChange={(next) => {
+                  setLocalSchedule(next);
+                  setHorarios?.(next);
+                }}
               />
               <Pressable
                 onPress={() => onChange.setIsSucursalPrincipal(!value.isSucursalPrincipal)}
-                style={[styles.toggleChip, value.isSucursalPrincipal && styles.toggleChipActive]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: value.isSucursalPrincipal }}
+                style={styles.branchCheck}
               >
-                <Text style={[styles.toggleChipText, value.isSucursalPrincipal && styles.toggleChipTextActive]}>
-                  {value.isSucursalPrincipal ? "Sucursal principal" : "Sucursal secundaria"}
-                </Text>
+                <View style={[styles.branchBox, value.isSucursalPrincipal && styles.branchBoxChecked]}>
+                  {value.isSucursalPrincipal && <Image source={require("../assets/check.png")} style={styles.branchTick} />}
+                </View>
+                <Text style={styles.detailValue}>Este es mi sucursal principal</Text>
               </Pressable>
             </View>
-          ) : null}
+          )}
 
           <View style={styles.detailActions}>
-            <Pressable onPress={() => setPhase("map")} style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Volver al mapa</Text>
-            </Pressable>
-            <Pressable
+            <OnboardingSkipButton label="Editar dirección" onPress={() => setPhase("map")} disabled={loading} />
+            <OnboardingPrimaryButton
+              label={isBusiness ? "Entrar" : "Continuar"}
+              tone="green"
               onPress={handleSubmitDetails}
-              disabled={loading}
-              style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
-            >
-              <Text style={styles.primaryButtonText}>{loading ? "Guardando..." : role === "negocio" ? "Entrar" : "Continuar"}</Text>
-            </Pressable>
+              disabled={loading || (isBusiness && !hasHours)}
+            />
+            {!isBusiness && onSkip && <OnboardingSkipButton onPress={onSkip} disabled={loading} />}
           </View>
         </>
       )}
 
       <Modal transparent visible={askLocationModal} animationType="fade" onRequestClose={() => setAskLocationModal(false)}>
         <ModalCard
-          title="Ubicacion del negocio"
-          text="Podemos usar tu ubicacion para centrar el mapa cerca de ti. Tambien puedes mover el mapa manualmente."
-          primaryLabel="Usar ubicacion"
+          title="Usar tu ubicación"
+          text="Podemos usar tu ubicación para centrar el mapa cerca de ti. También puedes moverlo manualmente."
+          primaryLabel="Usar ubicación"
           secondaryLabel="Ahora no"
           onPrimary={handleGrantLocation}
           onSecondary={() => setAskLocationModal(false)}
@@ -822,8 +881,8 @@ export default function AddressStepBlock({
 
       <Modal transparent visible={deniedModal} animationType="fade" onRequestClose={() => setDeniedModal(false)}>
         <ModalCard
-          title="Ubicacion desactivada"
-          text="El acceso a la ubicacion esta desactivado en tu dispositivo. Puedes activarlo o ingresar direccion manualmente."
+          title="Ubicación desactivada"
+          text="El acceso a la ubicación está desactivado en tu dispositivo. Puedes activarlo o buscar la dirección manualmente."
           primaryLabel="Entiendo"
           onPrimary={() => setDeniedModal(false)}
         />
@@ -831,8 +890,8 @@ export default function AddressStepBlock({
 
       <Modal transparent visible={unavailableModal} animationType="fade" onRequestClose={() => setUnavailableModal(false)}>
         <ModalCard
-          title="No pudimos obtener tu ubicacion"
-          text="Intenta mover el mapa manualmente o buscar la direccion del negocio."
+          title="No pudimos obtener tu ubicación"
+          text="Intenta mover el mapa manualmente o buscar la dirección."
           primaryLabel="Entiendo"
           onPrimary={() => setUnavailableModal(false)}
         />
@@ -842,56 +901,13 @@ export default function AddressStepBlock({
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}:</Text>
       <Text style={styles.detailValue} numberOfLines={1}>
-        {value || "-"}
+        {value}
       </Text>
-    </View>
-  );
-}
-
-function ScheduleRow({
-  label,
-  enabled,
-  onToggle,
-  open,
-  close,
-  setOpen,
-  setClose,
-}: {
-  label: string;
-  enabled: boolean;
-  onToggle: (value: boolean) => void;
-  open: string;
-  close: string;
-  setOpen: (value: string) => void;
-  setClose: (value: string) => void;
-}) {
-  return (
-    <View style={styles.scheduleRow}>
-      <Pressable onPress={() => onToggle(!enabled)} style={[styles.scheduleToggle, enabled && styles.scheduleToggleEnabled]}>
-        <Text style={[styles.scheduleToggleText, enabled && styles.scheduleToggleTextEnabled]}>
-          {enabled ? "ON" : "OFF"}
-        </Text>
-      </Pressable>
-      <Text style={styles.scheduleLabel}>{label}</Text>
-      <TextInput
-        style={styles.timeInput}
-        value={open}
-        onChangeText={(v) => setOpen(toTimeInput(v))}
-        keyboardType="number-pad"
-        placeholder="10:00"
-      />
-      <Text style={styles.timeDash}>-</Text>
-      <TextInput
-        style={styles.timeInput}
-        value={close}
-        onChangeText={(v) => setClose(toTimeInput(v))}
-        keyboardType="number-pad"
-        placeholder="18:00"
-      />
     </View>
   );
 }
@@ -932,345 +948,86 @@ function ModalCard({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    gap: 10,
+  root: { flexGrow: 1, gap: 12, paddingBottom: 16 },
+  mapWrap: { height: 320, marginHorizontal: -20, marginTop: -20, overflow: "hidden", borderColor: onboardingColors.border, borderTopWidth: 1, borderBottomWidth: 1 },
+  centerPinWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  centerPin: { width: 36, height: 36, marginTop: -36, tintColor: onboardingColors.purple },
+  mapHint: {
+    position: "absolute", left: 0, right: 0, top: 4, flexDirection: "row", alignItems: "center", gap: 12,
+    padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#A4F4CF", backgroundColor: "#ECFDF5",
   },
-  mapWrap: {
-    height: 260,
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  map: {
-    flex: 1,
-  },
-  centerPinWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  centerPinOuter: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: "#6D28D9",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(109,40,217,0.15)",
-  },
-  centerPinInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#6D28D9",
-  },
+  mapHintCopy: { ...authText.caption, flex: 1, color: "#009966" },
+  hintPin: { height: 24, width: 24, tintColor: onboardingColors.green },
+  hintClose: { height: 16, width: 16, tintColor: "#34D399" },
   gpsButton: {
-    position: "absolute",
-    right: 10,
-    bottom: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
+    position: "absolute", right: 12, bottom: 12, width: 36, height: 36,
+    borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: onboardingColors.white, elevation: 4,
   },
-  gpsButtonText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#374151",
-  },
-  helperText: {
-    color: "#6B7280",
-    fontSize: 11,
-  },
-  warningText: {
-    color: "#92400E",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  label: {
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  compass: { width: 24, height: 24 },
+  helperText: { ...authText.caption, color: onboardingColors.muted },
+  warningText: { ...authText.caption, color: onboardingColors.error },
   searchRow: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
+    flexDirection: "row", alignItems: "center", marginHorizontal: -12, minHeight: 38,
+    borderRadius: 8, borderWidth: 1, borderColor: onboardingColors.border, overflow: "hidden",
   },
-  searchInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#111827",
-    fontSize: 13,
-    backgroundColor: "#FFFFFF",
-  },
+  searchPin: { width: 16, height: 16, marginLeft: 12, marginRight: 6, tintColor: "#D1D5DC" },
+  searchInput: { ...authText.small, flex: 1, minHeight: 36, paddingVertical: 7, paddingRight: 8, color: onboardingColors.dark },
   searchButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minWidth: 78,
-    alignItems: "center",
+    width: 40, alignSelf: "stretch", justifyContent: "center", alignItems: "center", backgroundColor: onboardingColors.purple,
   },
-  searchButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  resultsWrap: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    maxHeight: 170,
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-  },
-  resultsScroll: {
-    paddingVertical: 4,
-  },
-  resultItem: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  resultItemSelected: {
-    backgroundColor: "#F5F3FF",
-  },
-  resultTitle: {
-    fontSize: 12,
-    color: "#334155",
-  },
-  primaryButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 13,
-  },
+  searchIcon: { width: 16, height: 16, tintColor: onboardingColors.white, transform: [{ rotate: "-12deg" }] },
+  resultsWrap: { borderRadius: 8, marginHorizontal: -12, maxHeight: 220, overflow: "hidden", backgroundColor: onboardingColors.white },
+  resultsScroll: { paddingVertical: 4 },
+  resultItem: { paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: onboardingColors.border },
+  resultItemSelected: { backgroundColor: onboardingColors.lavender },
+  resultTitle: { ...authText.small, color: onboardingColors.dark },
+  primaryButtonDisabled: { opacity: 0.6 },
   detailCard: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    padding: 12,
-    gap: 8,
+    marginHorizontal: -12, borderWidth: 1, borderColor: "#BBE9CD", borderRadius: 16,
+    backgroundColor: onboardingColors.white, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, gap: 8,
   },
-  detailTitle: {
-    color: "#181B2A",
-    fontSize: 14,
-    fontWeight: "700",
+  detailRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  detailLabel: { ...authText.small, color: onboardingColors.muted },
+  detailValue: { ...authText.small, flex: 1, color: onboardingColors.dark },
+  references: { gap: 8, paddingTop: 4 },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: { borderColor: "#D1D5DC", borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  tagActive: { borderColor: onboardingColors.purple, backgroundColor: onboardingColors.lavender },
+  tagText: { ...authText.caption, color: "#4A5565" },
+  tagTextActive: { color: onboardingColors.purple },
+  otherTag: { flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start" },
+  tagPencil: { width: 12, height: 12, tintColor: onboardingColors.muted },
+  customTag: {
+    alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, minHeight: 38, minWidth: 180,
+    paddingHorizontal: 12, borderWidth: 1, borderRadius: 999, borderColor: onboardingColors.purple, backgroundColor: onboardingColors.lavender,
   },
-  detailRow: {
-    flexDirection: "row",
-    gap: 6,
-    alignItems: "center",
-  },
-  detailLabel: {
-    width: 82,
-    color: "#6B7280",
-    fontSize: 12,
-  },
-  detailValue: {
-    flex: 1,
-    color: "#111827",
-    fontSize: 12,
-  },
-  territoryWrap: {
-    marginTop: 6,
-    gap: 8,
-  },
-  territoryTitle: {
-    color: "#111827",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  territoryFieldBtn: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
-    gap: 2,
-  },
-  territoryFieldBtnDisabled: {
-    opacity: 0.5,
-  },
-  territoryFieldLabel: {
-    color: "#6B7280",
-    fontSize: 11,
-    fontWeight: "600",
-  },
+  customTagInput: { ...authText.caption, flexGrow: 1, color: onboardingColors.purple, paddingVertical: 6 },
+  customConfirm: { ...authText.caption, color: onboardingColors.purple, fontWeight: "600" },
+  territoryWrap: { gap: 8, marginTop: 4 },
+  territoryFieldBtn: { gap: 2 },
+  territoryFieldBtnDisabled: { opacity: 0.5 },
+  territoryFieldLabel: { ...authText.caption, color: onboardingColors.muted, marginLeft: 4 },
   territoryFieldValue: {
-    color: "#111827",
-    fontSize: 12,
-    fontWeight: "600",
+    ...authText.small, minHeight: 38, paddingHorizontal: 12, paddingVertical: 8,
+    color: onboardingColors.dark, borderWidth: 1, borderColor: onboardingColors.border, borderRadius: 8,
   },
   territoryInput: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    color: "#111827",
-    fontSize: 12,
-    backgroundColor: "#FFFFFF",
+    ...authText.small, minHeight: 38, paddingHorizontal: 12, paddingVertical: 8,
+    color: onboardingColors.dark, borderWidth: 1, borderColor: onboardingColors.border, borderRadius: 8,
   },
-  scheduleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  scheduleToggle: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 44,
-    alignItems: "center",
-  },
-  scheduleToggleEnabled: {
-    backgroundColor: "#ECFDF3",
-    borderColor: "#10B981",
-  },
-  scheduleToggleText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#6B7280",
-  },
-  scheduleToggleTextEnabled: {
-    color: "#047857",
-  },
-  scheduleLabel: {
-    flex: 1,
-    color: "#334155",
-    fontSize: 12,
-  },
-  timeInput: {
-    width: 62,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 12,
-    color: "#111827",
-    backgroundColor: "#FFFFFF",
-  },
-  timeDash: {
-    color: "#6B7280",
-    fontSize: 12,
-  },
-  toggleChip: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
-  },
-  toggleChipActive: {
-    borderColor: "#10B981",
-    backgroundColor: "#ECFDF3",
-  },
-  toggleChipText: {
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  toggleChipTextActive: {
-    color: "#047857",
-  },
-  detailActions: {
-    gap: 8,
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  secondaryButtonText: {
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(2,6,23,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  modalCard: {
-    width: "100%",
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    gap: 10,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#181B2A",
-  },
-  modalText: {
-    fontSize: 13,
-    color: "#4B5563",
-    lineHeight: 20,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 4,
-  },
-  modalPrimaryBtn: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  modalPrimaryText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  modalSecondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
-  },
-  modalSecondaryText: {
-    color: "#374151",
-    fontWeight: "700",
-    fontSize: 12,
-  },
+  scheduleCard: { gap: 12, paddingTop: 4 },
+  branchCheck: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8 },
+  branchBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: "#D1D5DC", alignItems: "center", justifyContent: "center" },
+  branchBoxChecked: { backgroundColor: onboardingColors.purple, borderColor: onboardingColors.purple },
+  branchTick: { width: 12, height: 12, tintColor: onboardingColors.white },
+  detailActions: { marginTop: "auto", paddingTop: 4, gap: 4 },
+  modalBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  modalCard: { width: "100%", maxWidth: 384, borderRadius: 16, backgroundColor: onboardingColors.white, padding: 24, gap: 12 },
+  modalTitle: { ...authText.normal, fontSize: 18, lineHeight: 24, fontWeight: "600", color: "#101828" },
+  modalText: { ...authText.small, color: "#4A5565" },
+  modalActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 8, marginTop: 4 },
+  modalPrimaryBtn: { backgroundColor: onboardingColors.purple, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  modalPrimaryText: { ...authText.small, color: onboardingColors.white, fontWeight: "600" },
+  modalSecondaryBtn: { borderWidth: 1, borderColor: onboardingColors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  modalSecondaryText: { ...authText.small, color: onboardingColors.dark, fontWeight: "600" },
 });

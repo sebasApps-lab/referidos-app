@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
+import { staffIcons } from "@features/staff/staffNavigation";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
+import VersioningReleaseDetail, { groupVersioningReleases, releaseIdentity, versionLabel as safeVersionLabel } from "./VersioningReleaseDetail";
 import {
   approveDeployRequest,
   applyReleaseMigrations,
@@ -15,6 +18,7 @@ import {
   fetchDeployRequests,
   fetchDrift,
   fetchEnvConfigVersions,
+  fetchLatestReleases,
   fetchLocalArtifactNodes,
   fetchLocalArtifactSyncRequests,
   fetchPromotionHistory,
@@ -24,7 +28,6 @@ import {
   fetchReleasesByProductEnv,
   fetchVersioningCatalog,
   fetchWorkflowPackStatus,
-  formatVersionLabel,
   previewDevRelease,
   promoteRelease,
   rejectDeployRequest,
@@ -37,25 +40,27 @@ import {
   validateEnvironmentContract,
 } from "@shared/services/versioningService";
 
-type Tab = "overview" | "operations" | "artifacts";
+type Tab = "updates" | "artifacts";
 
 const PRODUCT_PRIORITY = ["referidos_app", "prelaunch_web", "android_app"];
+const ENVIRONMENTS = [
+  { key: "dev", label: "DEVELOPMENT" },
+  { key: "staging", label: "STAGING" },
+  { key: "prod", label: "PRODUCTION" },
+];
 const DEPLOY_ENVS = ["staging", "prod"];
+
+function productLabel(product: any) {
+  const key = safeText(product?.product_key, "");
+  if (key === "referidos_app") return "REFERIDOS PWA";
+  if (key === "prelaunch_web") return "PRELAUNCH WEB";
+  if (key === "android_app") return "ANDROID APP";
+  return safeText(product?.name || key, "APP").toUpperCase();
+}
 
 function safeText(value: any, fallback = "-") {
   const next = String(value || "").trim();
   return next || fallback;
-}
-
-function safeVersionLabel(row: any) {
-  if (
-    Number.isFinite(Number(row?.semver_major)) &&
-    Number.isFinite(Number(row?.semver_minor)) &&
-    Number.isFinite(Number(row?.semver_patch))
-  ) {
-    return formatVersionLabel(row);
-  }
-  return safeText(row?.version_label || row?.semver, "-");
 }
 
 function nextPromoteEnv(envKey: any) {
@@ -90,6 +95,51 @@ function settledError(result: PromiseSettledResult<any>) {
   return String((result.reason as any)?.message || result.reason || "").trim();
 }
 
+function shortHash(value: any, length = 8) {
+  return safeText(value).slice(0, length);
+}
+
+function VersioningTab({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected }} onPress={onPress}
+      style={[styles.tabChip, selected && styles.tabChipActive]}>
+      <Text style={[styles.tabChipText, selected && styles.tabChipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CurrentReleaseCard({ label, release, artifact, deployed, onPress, wide }: {
+  label: string; release: any; artifact: boolean; deployed: boolean; onPress: () => void; wide: boolean;
+}) {
+  const canOpen = Boolean(releaseIdentity(release));
+  const merged = release?.merged === true || release?.merge_state === "merged";
+  const rawStatus = safeText(release?.status, "pending").toLowerCase();
+  const status = rawStatus === "validated" ? "released" : rawStatus === "draft" ? "pending" : rawStatus;
+  return (
+    <View style={[styles.environmentCard, wide && styles.environmentCardWide]}>
+      <View style={styles.environmentHeading}>
+        <Text accessibilityRole="header" style={styles.environmentLabel}>{label}</Text>
+        {canOpen && (
+          <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalle de ${label}`} onPress={onPress} style={styles.inspect}>
+            <Text style={styles.inspectLabel}>Detalle</Text>
+          </Pressable>
+        )}
+      </View>
+      <Text style={styles.releaseVersion}>{safeVersionLabel(release)}</Text>
+      <Text style={styles.metaText}>build {safeText(release?.build_number, artifact ? "artifact" : "-")} · channel {safeText(release?.channel || release?.env_key)}</Text>
+      <View style={styles.releaseStatus}>
+        <Text style={styles.metaText}>{status[0].toUpperCase() + status.slice(1)}</Text>
+        <View style={styles.statusTags}>
+          {artifact && <Text style={styles.statusTag}>built</Text>}
+          {merged && <Text style={styles.statusTag}>merged</Text>}
+          {deployed && <Text style={styles.statusTag}>deployed</Text>}
+        </View>
+      </View>
+      <Text selectable style={styles.metaText}>Commit: {safeText(release?.source_commit_sha)}</Text>
+    </View>
+  );
+}
+
 function InfoCard({
   title,
   lines,
@@ -113,7 +163,15 @@ function InfoCard({
 }
 
 export default function AdminVersioningScreen() {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [screen, setScreen] = useState<"global" | "detail">("global");
+  const [tab, setTab] = useState<Tab>("updates");
+  const { width } = useWindowDimensions();
+  const scroll = useRef<ScrollView>(null);
+  const loadGeneration = useRef(0);
+  const detailGeneration = useRef(0);
+  const selectedProductRef = useRef("referidos_app");
+  const selectedReleaseRef = useRef("");
+  const operationInFlight = useRef(false);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busyKey, setBusyKey] = useState("");
@@ -138,6 +196,7 @@ export default function AdminVersioningScreen() {
   });
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [releases, setReleases] = useState<any[]>([]);
+  const [latestReleases, setLatestReleases] = useState<any[]>([]);
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [deployRequests, setDeployRequests] = useState<any[]>([]);
   const [promotionHistory, setPromotionHistory] = useState<any[]>([]);
@@ -169,12 +228,21 @@ export default function AdminVersioningScreen() {
     [releases],
   );
 
-  const selectedRelease = useMemo(
-    () =>
-      sortedReleases.find((row) => String(row?.id || row?.version_label || "") === selectedReleaseId) ||
-      null,
-    [selectedReleaseId, sortedReleases],
-  );
+  const productOptions = useMemo(() => products.map((product) => ({
+    id: safeText(product?.product_key, ""),
+    label: productLabel(product),
+  })).filter((option) => option.id), [products]);
+
+  const currentEnvironmentRows = useMemo(() => ENVIRONMENTS.map((env) => ({
+    ...env,
+    release: latestReleases.find((row) => row?.product_key === selectedProduct && row?.env_key === env.key)
+      || sortedReleases.find((row) => row?.env_key === env.key),
+  })), [latestReleases, selectedProduct, sortedReleases]);
+
+  const detailReleases = useMemo(() => {
+    const known = new Set(releases.map(releaseIdentity));
+    return releases.concat(latestReleases.filter((row) => row?.product_key === selectedProduct && !known.has(releaseIdentity(row))));
+  }, [latestReleases, releases, selectedProduct]);
 
   const deployRows = useMemo(
     () =>
@@ -183,6 +251,16 @@ export default function AdminVersioningScreen() {
       ),
     [deployRequests, selectedProduct],
   );
+
+  const latestDeploy = useMemo(() => {
+    const latest = new Map<string, any>();
+    const sorted = [...deployRows].sort((left, right) => (Date.parse(right?.created_at) || 0) - (Date.parse(left?.created_at) || 0));
+    for (const row of sorted) {
+      const key = `${safeText(row?.env_key || row?.to_env_key).toLowerCase()}:${safeText(row?.version_label || row?.semver)}`;
+      if (!latest.has(key)) latest.set(key, row);
+    }
+    return latest;
+  }, [deployRows]);
 
   const visibleArtifacts = useMemo(
     () =>
@@ -195,9 +273,13 @@ export default function AdminVersioningScreen() {
   );
 
   const loadReleaseDetails = useCallback(async (row: any, productKey: string) => {
-    const releaseId = safeText(row?.id || row?.release_id, "");
+    const releaseId = releaseIdentity(row);
     if (!releaseId) return;
+    const request = ++detailGeneration.current;
+    selectedReleaseRef.current = releaseId;
     setSelectedReleaseId(releaseId);
+    setReleaseSnapshot(null);
+    setReleaseComponents([]);
     setDetailLoading(true);
     const envKey = String(row?.env_key || "").trim().toLowerCase();
     const semver = safeVersionLabel(row);
@@ -205,6 +287,7 @@ export default function AdminVersioningScreen() {
       fetchReleaseSnapshot({ releaseId, productKey, envKey, semver }),
       fetchReleaseComponents(releaseId),
     ]);
+    if (request !== detailGeneration.current) return;
     setReleaseSnapshot(settledValue(snapshotResult, null));
     setReleaseComponents(settledValue(componentsResult, []));
     const detailError = settledError(snapshotResult) || settledError(componentsResult);
@@ -214,10 +297,13 @@ export default function AdminVersioningScreen() {
 
   const loadAll = useCallback(
     async (productKey?: string) => {
+      const request = ++loadGeneration.current;
+      detailGeneration.current += 1;
       setLoading(true);
       setError("");
       try {
         const catalog = await fetchVersioningCatalog();
+        if (request !== loadGeneration.current) return;
         const productRows = Array.isArray(catalog?.products) ? catalog.products : [];
         const sortedProducts = [...productRows].sort((a, b) => {
           const aIndex = PRODUCT_PRIORITY.indexOf(String(a?.product_key || ""));
@@ -227,10 +313,21 @@ export default function AdminVersioningScreen() {
           }
           return safeText(a?.name, "").localeCompare(safeText(b?.name, ""), "es");
         });
-        const effectiveProduct = productKey || selectedProduct || sortedProducts[0]?.product_key || "referidos_app";
+        const requestedProduct = productKey || selectedProductRef.current;
+        const effectiveProduct = sortedProducts.some((row) => row?.product_key === requestedProduct)
+          ? requestedProduct : sortedProducts[0]?.product_key || requestedProduct;
         const effectiveMeta =
           sortedProducts.find((row) => row?.product_key === effectiveProduct) || null;
 
+        const switched = effectiveProduct !== selectedProductRef.current;
+        selectedProductRef.current = effectiveProduct;
+        if (switched) {
+          selectedReleaseRef.current = "";
+          setSelectedReleaseId("");
+          setPreviewData(null);
+          setDriftRows([]);
+          setMigrationGate(null);
+        }
         setProducts(sortedProducts);
         setSelectedProduct(effectiveProduct);
 
@@ -246,7 +343,10 @@ export default function AdminVersioningScreen() {
           fetchLocalArtifactNodes({ onlyActive: false, limit: 80 }),
           fetchLocalArtifactSyncRequests({ productKey: effectiveProduct, limit: 80 }),
           fetchWorkflowPackStatus({ sourceRef: "dev" }),
+          fetchLatestReleases(),
         ]);
+
+        if (request !== loadGeneration.current) return;
 
         const nextReleases = settledValue<any[]>(results[0], []);
         const nextNodes = settledValue<any[]>(results[6], []);
@@ -260,39 +360,50 @@ export default function AdminVersioningScreen() {
         setLocalNodes(nextNodes);
         setLocalSyncRequests(settledValue(results[7], []));
         setWorkflowStatus(settledValue(results[8], null));
+        setLatestReleases(settledValue(results[9], []));
 
         if (nextNodes.length > 0) {
           setSelectedArtifactNode((current) => current || String(nextNodes[0]?.node_key || ""));
         }
 
-        const firstError = results.map(settledError).find(Boolean);
+        const firstError = results.slice(0, 9).map(settledError).find(Boolean);
         if (firstError) setError(String(firstError));
 
-        if (nextReleases.length > 0) {
-          const current =
-            nextReleases.find((row) => String(row?.id || row?.version_label || "") === selectedReleaseId) ||
-            nextReleases[0];
+        const current = nextReleases.find((row) => releaseIdentity(row) === selectedReleaseRef.current)
+          || groupVersioningReleases(nextReleases)[0]?.canonical;
+        if (current) {
           await loadReleaseDetails(current, effectiveProduct);
         } else {
+          selectedReleaseRef.current = "";
           setSelectedReleaseId("");
           setReleaseSnapshot(null);
           setReleaseComponents([]);
+          setDetailLoading(false);
         }
       } catch (err: any) {
-        setError(String(err?.message || err || "No se pudo cargar versioning."));
+        if (request === loadGeneration.current) {
+          setError(String(err?.message || err || "No se pudo cargar versionado."));
+          setDetailLoading(false);
+        }
       } finally {
-        setLoading(false);
+        if (request === loadGeneration.current) setLoading(false);
       }
     },
-    [loadReleaseDetails, selectedProduct],
+    [loadReleaseDetails],
   );
 
   useEffect(() => {
     void loadAll();
+    return () => {
+      loadGeneration.current += 1;
+      detailGeneration.current += 1;
+    };
   }, [loadAll]);
 
   const runAction = useCallback(
     async (key: string, action: () => Promise<any>, successMessage: string, reloadAfter = true) => {
+      if (operationInFlight.current) return null;
+      operationInFlight.current = true;
       setBusyKey(key);
       setError("");
       setOk("");
@@ -305,26 +416,23 @@ export default function AdminVersioningScreen() {
         setError(String(err?.message || err || "No se pudo completar la operacion."));
         return null;
       } finally {
+        operationInFlight.current = false;
         setBusyKey("");
       }
     },
     [loadAll, selectedProduct],
   );
 
-  const handlePreviewDevRelease = useCallback(async () => {
-    setBusyKey("preview_dev_release");
-    setError("");
-    setOk("");
-    try {
+  const handlePreviewDevRelease = useCallback(() => runAction(
+    "preview_dev_release",
+    async () => {
       const result = await previewDevRelease({ productKey: selectedProduct, ref: "dev" });
       setPreviewData(result || null);
-      setOk("Preview de release cargado.");
-    } catch (err: any) {
-      setError(String(err?.message || err || "No se pudo previsualizar el release."));
-    } finally {
-      setBusyKey("");
-    }
-  }, [selectedProduct]);
+      return result;
+    },
+    "Preview de release cargado.",
+    false,
+  ), [runAction, selectedProduct]);
 
   const handleCreateDevRelease = useCallback(
     async () =>
@@ -344,187 +452,168 @@ export default function AdminVersioningScreen() {
     [devReleaseNotes, runAction, selectedProduct],
   );
 
-  const handleDrift = useCallback(async () => {
-    setBusyKey("drift");
-    setError("");
-    setOk("");
-    try {
+  const handleDrift = useCallback(() => runAction(
+    "drift",
+    async () => {
       const rows = await fetchDrift(selectedProduct, driftFrom, driftTo);
       setDriftRows(Array.isArray(rows) ? rows : []);
-      setOk("Drift cargado.");
-    } catch (err: any) {
-      setError(String(err?.message || err || "No se pudo comparar drift."));
-    } finally {
-      setBusyKey("");
-    }
-  }, [driftFrom, driftTo, selectedProduct]);
+      return rows;
+    },
+    "Drift cargado.",
+    false,
+  ), [driftFrom, driftTo, runAction, selectedProduct]);
+
+  function showScreen(next: "global" | "detail") {
+    setScreen(next);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }
+
+  function selectRelease(row: any) {
+    if (loading || releaseIdentity(row) === selectedReleaseId) return;
+    setError("");
+    void loadReleaseDetails(row, selectedProduct);
+  }
+
+  useFocusEffect(useCallback(() => {
+    if (screen !== "detail") return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      setScreen("global");
+      scroll.current?.scrollTo({ y: 0, animated: false });
+      return true;
+    });
+    return () => listener.remove();
+  }, [screen]));
+
+  const initialized = selectedProductMeta?.initialized === true || Number(selectedProductMeta?.component_count || 0) > 0
+    || selectedProductMeta?.metadata?.versioning?.initialized === true;
+  const workflowCurrent = workflowStatus?.staging?.matches_source === true && workflowStatus?.production?.matches_source === true;
+  const workflowUpdating = busyKey === "workflow_pack_full";
 
   return (
-    <ScreenScaffold title="Admin Versioning" subtitle="Release explorer, promote, deploy y artifacts">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard
-          title="Producto"
-          subtitle="Paridad con versioning-ops-proxy y panel web"
-          right={
-            <Pressable
-              onPress={() => void loadAll(selectedProduct)}
-              disabled={loading}
-              style={[styles.secondaryBtn, loading && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>{loading ? "..." : "Recargar"}</Text>
-            </Pressable>
-          }
-        >
-          <View style={styles.chipsWrap}>
-            {products.map((product) => {
-              const key = safeText(product?.product_key, "");
-              const active = selectedProduct === key;
-              return (
-                <Pressable
-                  key={key}
-                  onPress={() => void loadAll(key)}
-                  style={[styles.chip, active && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {safeText(product?.name || key)}
-                  </Text>
-                </Pressable>
-              );
-            })}
+    <ScreenScaffold
+      onRefresh={loading || busyKey ? undefined : () => { void loadAll(selectedProduct); }}
+      title={screen === "global" ? "Versionado Global" : "Versionado Detalle"}
+      subtitle={screen === "global" ? "Mapa por entorno, drift y promociones de release" : "Releases por app, snapshot de componentes e historial"}
+    >
+      <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.toolbar}>
+          <View accessibilityRole="tablist" style={styles.segment}>
+            <VersioningTab label="Versionado global" selected={screen === "global"} onPress={() => showScreen("global")} />
+            <VersioningTab label="Detalle" selected={screen === "detail"} onPress={() => showScreen("detail")} />
           </View>
-          {selectedProductMeta ? (
-            <Text style={styles.metaText}>
-              product_key: {safeText(selectedProductMeta?.product_key)} | initialized:{" "}
-              {selectedProductMeta?.initialized ? "si" : "no"}
-            </Text>
-          ) : null}
-          {workflowStatus ? (
-            <Text style={styles.metaText}>
-              workflow pack: {safeText(workflowStatus?.status || workflowStatus?.summary)}
-            </Text>
-          ) : null}
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {ok ? <Text style={styles.okText}>{ok}</Text> : null}
-        </SectionCard>
-
-        <View style={styles.tabRow}>
-          {([
-            { id: "overview", label: "Overview" },
-            { id: "operations", label: "Operaciones" },
-            { id: "artifacts", label: "Artifacts" },
-          ] as Array<{ id: Tab; label: string }>).map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => setTab(item.id)}
-              style={[styles.tabChip, tab === item.id && styles.tabChipActive]}
-            >
-              <Text style={[styles.tabChipText, tab === item.id && styles.tabChipTextActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
+          <Pressable accessibilityRole="button" accessibilityLabel="Refrescar versión" onPress={() => void loadAll(selectedProduct)}
+            disabled={loading || Boolean(busyKey)} style={[styles.refresh, (loading || Boolean(busyKey)) && styles.btnDisabled]}>
+            {loading ? <ActivityIndicator size="small" color="#5E30A5" /> : <Image source={staffIcons.refresh} style={styles.refreshIcon} />}
+          </Pressable>
         </View>
 
-        {tab === "overview" ? (
-          <>
-            <SectionCard title="Release development" subtitle="Preview, create release y workflow pack">
-              {loading ? <BlockSkeleton lines={4} compact /> : null}
-              {!loading ? (
-                <>
-                  <TextInput
-                    value={devReleaseNotes}
-                    onChangeText={setDevReleaseNotes}
-                    placeholder="Notas del release"
-                    style={styles.input}
-                  />
-                  <View style={styles.actionsRow}>
-                    <Pressable
-                      onPress={() => void handlePreviewDevRelease()}
-                      disabled={busyKey === "preview_dev_release"}
-                      style={[styles.secondaryBtn, busyKey === "preview_dev_release" && styles.btnDisabled]}
-                    >
-                      <Text style={styles.secondaryBtnText}>Preview</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => void handleCreateDevRelease()}
-                      disabled={busyKey === "create_dev_release"}
-                      style={[styles.primaryBtn, busyKey === "create_dev_release" && styles.btnDisabled]}
-                    >
-                      <Text style={styles.primaryBtnText}>Crear release</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        void runAction(
-                          "workflow_pack_full",
-                          () => syncWorkflowPack({ sourceRef: "dev", syncStaging: true, syncProd: true }),
-                          "Workflow pack sincronizado.",
-                        )
-                      }
-                      disabled={busyKey === "workflow_pack_full"}
-                      style={[styles.outlineBtn, busyKey === "workflow_pack_full" && styles.btnDisabled]}
-                    >
-                      <Text style={styles.outlineBtnText}>Sync workflow pack</Text>
-                    </Pressable>
-                  </View>
-                  {previewData ? (
-                    <InfoCard
-                      title={`Sugerida: ${safeText(previewData?.suggested_semver || previewData?.semver)}`}
-                      lines={[
-                        `source: ${safeText(previewData?.suggestion_source || previewData?.source)}`,
-                        `archivos: ${safeText(previewData?.changed_files_count || previewData?.changedFilesCount || 0)}`,
-                      ]}
-                    />
-                  ) : null}
-                </>
-              ) : null}
-            </SectionCard>
+        {error ? <Text accessibilityLiveRegion="polite" style={styles.errorText}>{error}</Text> : null}
+        {ok ? <Text accessibilityLiveRegion="polite" style={styles.okText}>{ok}</Text> : null}
 
-            <SectionCard title="Release explorer" subtitle="Detalle y componentes de la release seleccionada">
-              {loading ? <BlockSkeleton lines={7} compact /> : null}
-              {!loading && sortedReleases.length === 0 ? (
-                <Text style={styles.emptyText}>Sin releases para este producto.</Text>
-              ) : null}
-              {!loading ? (
-                <>
-                  <View style={styles.chipsWrap}>
-                    {sortedReleases.map((row, index) => {
-                      const rowId = String(row?.id || row?.version_label || index);
-                      const active = selectedReleaseId === rowId;
-                      return (
-                        <Pressable
-                          key={rowId}
-                          onPress={() => void loadReleaseDetails(row, selectedProduct)}
-                          style={[styles.chip, active && styles.chipActive]}
-                        >
-                          <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                            {safeVersionLabel(row)} [{safeText(row?.env_key, "-").toUpperCase()}]
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {detailLoading ? <BlockSkeleton lines={4} compact /> : null}
-                  {!detailLoading && selectedRelease ? (
-                    <InfoCard
-                      title={`${safeVersionLabel(selectedRelease)} [${safeText(selectedRelease?.env_key, "-").toUpperCase()}]`}
-                      lines={[
-                        `status: ${safeText(selectedRelease?.status)} | commit: ${safeText(selectedRelease?.source_commit_sha)}`,
-                        `creado: ${dateLabel(selectedRelease?.created_at)} | canal: ${safeText(selectedRelease?.channel || selectedRelease?.env_key)}`,
-                        `snapshot: ${safeText(releaseSnapshot?.env_key || selectedRelease?.env_key)} | componentes: ${Array.isArray(releaseComponents) ? releaseComponents.length : 0}`,
-                      ]}
-                    />
-                  ) : null}
-                  {releaseComponents.slice(0, 12).map((row, index) => (
-                    <InfoCard
-                      key={`${safeText(row?.component_key || row?.id, String(index))}-${index}`}
-                      title={safeText(row?.component_key || row?.name || row?.id)}
-                      lines={[
-                        `version: ${safeText(row?.version_label || row?.version || row?.revision)}`,
-                        `hash: ${safeText(row?.checksum || row?.hash || row?.artifact_sha)}`,
-                      ]}
+        {screen === "detail" ? (
+          <VersioningReleaseDetail
+            product={selectedProduct}
+            productOptions={productOptions}
+            onProductChange={(key) => { if (!busyKey) void loadAll(key); }}
+            isInitialized={initialized}
+            releases={detailReleases}
+            selectedReleaseId={selectedReleaseId}
+            onReleaseChange={selectRelease}
+            snapshot={releaseSnapshot}
+            components={releaseComponents}
+            loading={loading}
+            detailLoading={detailLoading}
+          />
+        ) : (
+          <>
+            <View accessibilityRole="tablist" style={styles.segment}>
+              <VersioningTab label="Updates" selected={tab === "updates"} onPress={() => setTab("updates")} />
+              <VersioningTab label="Builds" selected={tab === "artifacts"} onPress={() => setTab("artifacts")} />
+            </View>
+
+            {tab === "updates" && (
+              <SectionCard title="Workflow pack" right={(
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void runAction(
+                    "workflow_pack_full",
+                    () => syncWorkflowPack({ sourceRef: "dev", syncStaging: true, syncProd: true }),
+                    "Workflow pack sincronizado.",
+                  )}
+                  disabled={loading || Boolean(busyKey) || workflowCurrent}
+                  style={[styles.primaryBtn, (loading || Boolean(busyKey) || workflowCurrent) && styles.btnDisabled]}
+                >
+                  <Text style={styles.primaryBtnText}>{workflowUpdating ? "Actualizando…" : "Update"}</Text>
+                </Pressable>
+              )}>
+                <View style={styles.workflowRow}>
+                  <Text style={styles.metaText}><Text style={styles.strong}>DEV: </Text>{shortHash(workflowStatus?.source?.pack_hash)}</Text>
+                  <Text style={styles.metaText}><Text style={styles.strong}>PROD: </Text>{shortHash(workflowStatus?.production?.pack_hash)} ({shortHash(workflowStatus?.production?.head_sha, 7)})</Text>
+                  <Text style={workflowCurrent ? styles.workflowOk : styles.workflowWarning}>
+                    {workflowUpdating ? "Actualizando…" : !workflowStatus ? "Sin estado" : workflowCurrent ? "Actualizado" : "Desactualizado"}
+                  </Text>
+                </View>
+              </SectionCard>
+            )}
+
+            <View style={styles.productSection}>
+              <View style={styles.productTitle}>
+                <Image source={staffIcons.activity} style={styles.activityIcon} />
+                <Text accessibilityRole="header" style={styles.productTitleText}>{tab === "updates" ? "Releases actuales" : "Builds"}</Text>
+              </View>
+              <View style={styles.chipsWrap}>
+                {productOptions.map(({ id, label }) => (
+                  <Pressable key={id} accessibilityRole="button" accessibilityState={{ selected: id === selectedProduct }}
+                    disabled={Boolean(busyKey)} onPress={() => { if (id !== selectedProduct) void loadAll(id); }}
+                    style={[styles.chip, id === selectedProduct && styles.chipActive, Boolean(busyKey) && id !== selectedProduct && styles.btnDisabled]}>
+                    <Text style={[styles.chipText, id === selectedProduct && styles.chipTextActive]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {loading ? <SectionCard title="Cargando versionado"><BlockSkeleton lines={4} compact /></SectionCard> : (
+              tab === "updates" && (
+                <View style={[styles.environmentGrid, width >= 880 && styles.environmentGridWide]}>
+                  {currentEnvironmentRows.map(({ key, label, release }) => (
+                    <CurrentReleaseCard
+                      key={key}
+                      label={label}
+                      release={release}
+                      artifact={artifacts.some((row) => Boolean(releaseIdentity(release)) && String(row?.release_id) === releaseIdentity(release))}
+                      deployed={/^(deployed|success)$/i.test(safeText(latestDeploy.get(`${key}:${safeVersionLabel(release)}`)?.deployment_status, ""))}
+                      onPress={() => { selectRelease(release); showScreen("detail"); }}
+                      wide={width >= 880}
                     />
                   ))}
-                </>
+                </View>
+              )
+            )}
+          </>
+        )}
+
+        {screen === "global" && tab === "updates" && !loading ? (
+          <>
+            <SectionCard title="Release development" subtitle="Previsualiza y crea una release de desarrollo">
+              <TextInput value={devReleaseNotes} onChangeText={setDevReleaseNotes} placeholder="Notas del release" style={styles.input} />
+              <View style={styles.actionsRow}>
+                <Pressable accessibilityRole="button" onPress={() => void handlePreviewDevRelease()} disabled={Boolean(busyKey)}
+                  style={[styles.secondaryBtn, Boolean(busyKey) && styles.btnDisabled]}>
+                  <Text style={styles.secondaryBtnText}>Preview</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void handleCreateDevRelease()} disabled={Boolean(busyKey)}
+                  style={[styles.primaryBtn, Boolean(busyKey) && styles.btnDisabled]}>
+                  <Text style={styles.primaryBtnText}>Crear release</Text>
+                </Pressable>
+              </View>
+              {previewData ? (
+                <InfoCard
+                  title={`Sugerida: ${safeText(previewData?.suggested_semver || previewData?.semver)}`}
+                  lines={[
+                    `source: ${safeText(previewData?.suggestion_source || previewData?.source)}`,
+                    `archivos: ${safeText(previewData?.changed_files_count || previewData?.changedFilesCount || 0)}`,
+                  ]}
+                />
               ) : null}
             </SectionCard>
 
@@ -545,7 +634,7 @@ export default function AdminVersioningScreen() {
           </>
         ) : null}
 
-        {tab === "operations" ? (
+        {screen === "global" && tab === "updates" && !loading ? (
           <>
             <SectionCard title="Controles" subtitle="Validaciones, drift y gate de migraciones">
               <View style={styles.actionsRow}>
@@ -702,24 +791,20 @@ export default function AdminVersioningScreen() {
                         <Text style={styles.outlineBtnText}>Sync release</Text>
                       </Pressable>
                       <Pressable
-                        onPress={async () => {
-                          setBusyKey(`gate:${semver}:${selectedDeployEnv}`);
-                          setError("");
-                          setOk("");
-                          try {
+                        onPress={() => void runAction(
+                          `gate:${semver}:${selectedDeployEnv}`,
+                          async () => {
                             const result = await checkReleaseMigrations({
                               productKey: selectedProduct,
                               envKey: selectedDeployEnv,
                               semver,
                             });
                             setMigrationGate(result || null);
-                            setOk(`Gate calculado para ${selectedDeployEnv} ${semver}.`);
-                          } catch (err: any) {
-                            setError(String(err?.message || err || "No se pudo calcular el gate."));
-                          } finally {
-                            setBusyKey("");
-                          }
-                        }}
+                            return result;
+                          },
+                          `Gate calculado para ${selectedDeployEnv} ${semver}.`,
+                          false,
+                        )}
                         style={styles.outlineBtn}
                       >
                         <Text style={styles.outlineBtnText}>Gate migr.</Text>
@@ -844,7 +929,7 @@ export default function AdminVersioningScreen() {
           </>
         ) : null}
 
-        {tab === "artifacts" ? (
+        {screen === "global" && tab === "artifacts" && !loading ? (
           <>
             <SectionCard title="Nodos locales" subtitle="Catalogo local para sync de builds">
               <TextInput value={nodeDraft.nodeKey} onChangeText={(value) => setNodeDraft((prev) => ({ ...prev, nodeKey: value }))} placeholder="node_key" style={styles.input} autoCapitalize="none" />
@@ -885,7 +970,7 @@ export default function AdminVersioningScreen() {
               </View>
             </SectionCard>
 
-            <SectionCard title="Artifacts" subtitle={`${visibleArtifacts.length} filas | nodo: ${selectedArtifactNode || "ninguno"}`}>
+            <SectionCard title="Catálogo de builds" subtitle={`${visibleArtifacts.length} filas · Nodo: ${selectedArtifactNode || "ninguno"}`}>
               <TextInput value={artifactNotes} onChangeText={setArtifactNotes} placeholder="Notas para sync local" style={styles.input} />
               {visibleArtifacts.slice(0, 16).map((row, index) => (
                 <InfoCard
@@ -927,7 +1012,7 @@ export default function AdminVersioningScreen() {
               ) : null}
             </SectionCard>
 
-            <SectionCard title="Sync requests locales" subtitle={`${localSyncRequests.length} filas`}>
+            <SectionCard title="Sincronizaciones locales" subtitle={`${localSyncRequests.length} filas`}>
               {localSyncRequests.slice(0, 16).map((row, index) => {
                 const requestId = safeText(row?.id, String(index));
                 return (
@@ -969,35 +1054,81 @@ export default function AdminVersioningScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
+    gap: 16,
     paddingBottom: 24,
   },
-  tabRow: {
+  toolbar: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  segment: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    flexShrink: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E9E2F7",
+    backgroundColor: "#FFFFFF",
+    padding: 4,
   },
   tabChip: {
-    flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 8,
+    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 8,
+    minHeight: 30,
+    paddingHorizontal: 12,
   },
   tabChipActive: {
-    borderColor: "#5B21B6",
-    backgroundColor: "#F5F3FF",
+    backgroundColor: "#2F1A55",
   },
   tabChipText: {
-    color: "#475569",
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "600",
   },
   tabChipTextActive: {
-    color: "#5B21B6",
+    color: "#FFFFFF",
   },
+  refresh: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E9E2F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  refreshIcon: { width: 14, height: 14, tintColor: "#5E30A5" },
+  workflowRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
+  strong: { color: "#2F1A55", fontWeight: "600" },
+  workflowOk: { fontSize: 12, color: "#047857", fontWeight: "600" },
+  workflowWarning: { fontSize: 12, color: "#92400E", fontWeight: "600" },
+  productSection: { gap: 8 },
+  productTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
+  productTitleText: { fontSize: 18, lineHeight: 24, color: "#2F1A55", fontWeight: "600" },
+  activityIcon: { width: 15, height: 15, tintColor: "#2F1A55" },
+  environmentGrid: { gap: 12 },
+  environmentGridWide: { flexDirection: "row", alignItems: "stretch" },
+  environmentCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E9E2F7",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    gap: 6,
+    elevation: 1,
+  },
+  environmentCardWide: { flex: 1 },
+  environmentHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 4 },
+  environmentLabel: { fontSize: 12, color: "#64748B", letterSpacing: 1.2 },
+  inspect: { borderRadius: 8, borderWidth: 1, borderColor: "#E9E2F7", paddingHorizontal: 8, paddingVertical: 4 },
+  inspectLabel: { fontSize: 11, color: "#5E30A5", fontWeight: "600" },
+  releaseVersion: { color: "#2F1A55", fontSize: 24, lineHeight: 30, fontWeight: "800" },
+  releaseStatus: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 4 },
+  statusTags: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  statusTag: { color: "#047857", backgroundColor: "#D1FAE5", borderRadius: 12, paddingVertical: 3, paddingHorizontal: 7, fontSize: 10, fontWeight: "600", overflow: "hidden" },
   input: {
     borderWidth: 1,
     borderColor: "#CBD5E1",
@@ -1026,23 +1157,23 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#E9E2F7",
     borderRadius: 999,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   chipActive: {
-    borderColor: "#5B21B6",
-    backgroundColor: "#F5F3FF",
+    borderColor: "#2F1A55",
+    backgroundColor: "#2F1A55",
   },
   chipText: {
-    color: "#334155",
-    fontSize: 11,
-    fontWeight: "700",
+    color: "#2F1A55",
+    fontSize: 12,
+    fontWeight: "600",
   },
   chipTextActive: {
-    color: "#5B21B6",
+    color: "#FFFFFF",
   },
   actionsRow: {
     flexDirection: "row",
@@ -1068,7 +1199,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     borderRadius: 9,
-    backgroundColor: "#1D4ED8",
+    backgroundColor: "#2F1A55",
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
@@ -1079,14 +1210,14 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: "#1D4ED8",
+    borderColor: "#E9E2F7",
     borderRadius: 9,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FAF8FF",
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
   secondaryBtnText: {
-    color: "#1D4ED8",
+    color: "#5E30A5",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -1110,11 +1241,21 @@ const styles = StyleSheet.create({
     color: "#B91C1C",
     fontSize: 12,
     fontWeight: "600",
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+    backgroundColor: "#FEF2F2",
   },
   okText: {
     color: "#166534",
     fontSize: 12,
     fontWeight: "600",
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+    backgroundColor: "#F0FDF4",
   },
   emptyText: {
     color: "#64748B",

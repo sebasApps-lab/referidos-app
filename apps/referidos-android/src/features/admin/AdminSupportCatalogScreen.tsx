@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import React, { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import {
   createSupportMacro,
@@ -15,6 +15,9 @@ import {
   updateSupportMacro,
   updateSupportMacroCategory,
 } from "@shared/services/supportOps";
+import { useModalStore } from "@shared/store/modalStore";
+import { SupportBadge, SupportButton, SupportNotice } from "@features/support/SupportTicketUi";
+import { SupportDiagnosticItem, SupportSearchBar, supportDetailStyles as shared } from "@features/support/SupportDiagnosticsUi";
 
 const EMPTY_CATEGORY_FORM = {
   id: "",
@@ -66,6 +69,12 @@ function normalizeMacro(row: any) {
 }
 
 export default function AdminSupportCatalogScreen() {
+  const openPicker = useModalStore((state) => state.openPicker);
+  const openConfirm = useModalStore((state) => state.openConfirm);
+  const [query, setQuery] = useState("");
+  const [panel, setPanel] = useState<"categories" | "macros">("categories");
+  const [editor, setEditor] = useState<"category" | "macro" | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -99,19 +108,6 @@ export default function AdminSupportCatalogScreen() {
     void loadCatalog();
   }, [loadCatalog]);
 
-  const groupedMacros = useMemo(() => {
-    const byCategory = new Map<string, any[]>();
-    macros.forEach((macro) => {
-      const key = macro.category_id || macro.category_code || "general";
-      if (!byCategory.has(key)) byCategory.set(key, []);
-      byCategory.get(key)?.push(macro);
-    });
-    return categories.map((category) => ({
-      ...category,
-      macros: byCategory.get(category.id) || byCategory.get(category.code) || [],
-    }));
-  }, [categories, macros]);
-
   const syncCatalog = useCallback(async () => {
     setSyncing(true);
     setError("");
@@ -122,7 +118,7 @@ export default function AdminSupportCatalogScreen() {
         panelKey: "android_admin_support_catalog",
         forceFull: true,
       });
-      setOk("Sincronizacion de macros ejecutada.");
+      setOk("Solicitud de sincronización enviada.");
       await loadCatalog();
     } catch (err: any) {
       setError(String(err?.message || err || "No se pudo sincronizar macros."));
@@ -154,6 +150,7 @@ export default function AdminSupportCatalogScreen() {
         setOk("Categoria creada.");
       }
       setCategoryForm(EMPTY_CATEGORY_FORM);
+      setEditor(null);
       await syncCatalog();
     } catch (err: any) {
       setError(String(err?.message || err || "No se pudo guardar la categoria."));
@@ -188,6 +185,7 @@ export default function AdminSupportCatalogScreen() {
         setOk("Macro creada.");
       }
       setMacroForm(EMPTY_MACRO_FORM);
+      setEditor(null);
       await syncCatalog();
     } catch (err: any) {
       setError(String(err?.message || err || "No se pudo guardar la macro."));
@@ -197,6 +195,7 @@ export default function AdminSupportCatalogScreen() {
   }, [macroForm, syncCatalog]);
 
   const selectCategory = useCallback((row: any) => {
+    setEditor("category");
     setCategoryForm({
       id: row.id,
       code: row.code,
@@ -207,6 +206,7 @@ export default function AdminSupportCatalogScreen() {
   }, []);
 
   const selectMacro = useCallback((row: any) => {
+    setEditor("macro");
     setMacroForm({
       id: row.id,
       title: row.title,
@@ -287,348 +287,147 @@ export default function AdminSupportCatalogScreen() {
     }
   }, [syncCatalog]);
 
+  const catalogBusy = loading || saving || syncing;
+  const search = query.trim().toLowerCase();
+  const listedCategories = categories.filter((row) => !search || [row.code, row.label, row.description].filter(Boolean).join(" ").toLowerCase().includes(search));
+  const listedMacros = macros.filter((row) => {
+    if (categoryFilter && row.category_id !== categoryFilter && row.category_code !== categoryFilter) return false;
+    return !search || [row.title, row.body, row.thread_status, row.status].filter(Boolean).join(" ").toLowerCase().includes(search);
+  });
+  const selectedCategory = categories.find((row) => row.id === categoryFilter || row.code === categoryFilter);
+
+  function confirmDelete(kind: "category" | "macro", row: any) {
+    openConfirm({
+      title: kind === "category" ? "Eliminar categoría" : "Eliminar macro",
+      message: kind === "category" ? String(row.label || row.code) : String(row.title),
+      confirmLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+      tone: "danger",
+      onConfirm: () => { void (kind === "category" ? removeCategory(row) : removeMacro(row)); },
+    });
+  }
+
   return (
-    <ScreenScaffold title="Admin Support Catalog" subtitle="Categorias y macros runtime de soporte">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard
-          title="Estado"
-          subtitle="CRUD contra support-ops-proxy"
-          right={
-            <Pressable onPress={() => void syncCatalog()} disabled={syncing} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>{syncing ? "..." : "Sync OPS"}</Text>
-            </Pressable>
-          }
-        >
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {ok ? <Text style={styles.okText}>{ok}</Text> : null}
-        </SectionCard>
+    <ScreenScaffold title="Catálogo de macros" subtitle="Consulta y administra las categorías y macros de soporte." onRefresh={catalogBusy ? undefined : () => { void loadCatalog(); }}>
+      <ScrollView key={editor || panel} keyboardShouldPersistTaps="handled" contentContainerStyle={shared.content}>
+        <View style={shared.row}>
+          <SupportButton label="Categorías" selected={!editor && panel === "categories"} kind={!editor && panel === "categories" ? "primary" : "outline"} disabled={saving || syncing} onPress={() => { setEditor(null); setPanel("categories"); }} />
+          <SupportButton label="Macros" selected={!editor && panel === "macros"} kind={!editor && panel === "macros" ? "primary" : "outline"} disabled={saving || syncing} onPress={() => { setEditor(null); setPanel("macros"); }} />
+          <SupportButton label={syncing ? "Sincronizando…" : "Sincronizar catálogo"} disabled={catalogBusy} onPress={() => { void syncCatalog(); }} />
+        </View>
+        {error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+        {ok ? <SupportNotice>{ok}</SupportNotice> : null}
 
-        <SectionCard title={categoryForm.id ? "Editar categoria" : "Nueva categoria"}>
-          <TextInput
-            value={categoryForm.code}
-            onChangeText={(value) => setCategoryForm((prev) => ({ ...prev, code: value }))}
-            placeholder="code"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            value={categoryForm.label}
-            onChangeText={(value) => setCategoryForm((prev) => ({ ...prev, label: value }))}
-            placeholder="label"
-            style={styles.input}
-          />
-          <TextInput
-            value={categoryForm.description}
-            onChangeText={(value) => setCategoryForm((prev) => ({ ...prev, description: value }))}
-            placeholder="description"
-            style={styles.input}
-          />
-          <TextInput
-            value={categoryForm.appTargets}
-            onChangeText={(value) => setCategoryForm((prev) => ({ ...prev, appTargets: value }))}
-            placeholder="app_targets csv"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <View style={styles.actionsRow}>
-            <Pressable onPress={() => void submitCategory()} disabled={saving} style={styles.primaryBtn}>
-              <Text style={styles.primaryBtnText}>{categoryForm.id ? "Guardar categoria" : "Crear categoria"}</Text>
-            </Pressable>
-            {categoryForm.id ? (
-              <Pressable onPress={() => setCategoryForm(EMPTY_CATEGORY_FORM)} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cancelar</Text>
-              </Pressable>
+        {editor === "category" ? (
+          <SectionCard title={categoryForm.id ? "Editar categoría" : "Nueva categoría"}>
+            <CatalogField label="Código" value={categoryForm.code} onChange={(value) => setCategoryForm((prev) => ({ ...prev, code: value }))} />
+            <CatalogField label="Nombre" value={categoryForm.label} onChange={(value) => setCategoryForm((prev) => ({ ...prev, label: value }))} />
+            <CatalogField label="Descripción" value={categoryForm.description} onChange={(value) => setCategoryForm((prev) => ({ ...prev, description: value }))} multiline />
+            <CatalogField label="Aplicaciones, separadas por comas" value={categoryForm.appTargets} onChange={(value) => setCategoryForm((prev) => ({ ...prev, appTargets: value }))} />
+            <View style={shared.row}>
+              <SupportButton label={categoryForm.id ? "Guardar categoría" : "Crear categoría"} kind="primary" disabled={catalogBusy} onPress={() => { void submitCategory(); }} />
+              <SupportButton label="Cancelar" disabled={saving} onPress={() => { setCategoryForm(EMPTY_CATEGORY_FORM); setEditor(null); }} />
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {editor === "macro" ? (
+          <SectionCard title={macroForm.id ? "Editar macro" : "Nueva macro"}>
+            <CatalogField label="Título" value={macroForm.title} onChange={(value) => setMacroForm((prev) => ({ ...prev, title: value }))} />
+            <CatalogField label="Mensaje" value={macroForm.body} onChange={(value) => setMacroForm((prev) => ({ ...prev, body: value }))} multiline />
+            <Text style={styles.fieldLabel}>Categoría</Text>
+            <SupportButton
+              label={categories.find((row) => row.id === macroForm.categoryId)?.label || macroForm.categoryId || "General"}
+              disabled={catalogBusy}
+              onPress={() => openPicker({
+                title: "Categoría de la macro",
+                selectedId: macroForm.categoryId || "__general__",
+                options: [{ id: "__general__", label: "General" }, ...categories.map((row) => ({ id: String(row.id), label: String(row.label) }))],
+                onSelect: (id) => setMacroForm((prev) => ({ ...prev, categoryId: id === "__general__" ? "" : id })),
+              })}
+            />
+            <CatalogField label="Estado requerido del ticket" value={macroForm.threadStatus} onChange={(value) => setMacroForm((prev) => ({ ...prev, threadStatus: value }))} />
+            <CatalogField label="Roles, separados por comas" value={macroForm.audienceRoles} onChange={(value) => setMacroForm((prev) => ({ ...prev, audienceRoles: value }))} />
+            <CatalogField label="Aplicaciones, separadas por comas" value={macroForm.appTargets} onChange={(value) => setMacroForm((prev) => ({ ...prev, appTargets: value }))} />
+            <CatalogField label="Entornos, separados por comas" value={macroForm.envTargets} onChange={(value) => setMacroForm((prev) => ({ ...prev, envTargets: value }))} />
+            <View style={shared.row}>
+              <SupportButton label={macroForm.id ? "Guardar macro" : "Crear macro"} kind="primary" disabled={catalogBusy} onPress={() => { void submitMacro(); }} />
+              <SupportButton label="Cancelar" disabled={saving} onPress={() => { setMacroForm(EMPTY_MACRO_FORM); setEditor(null); }} />
+            </View>
+          </SectionCard>
+        ) : null}
+
+        {!editor ? (
+          <>
+            <SupportSearchBar value={query} onChange={setQuery} placeholder={panel === "categories" ? "Buscar categorías" : "Buscar por macro, mensaje o estado"} loading={catalogBusy} onRefresh={() => { void loadCatalog(); }} />
+            {panel === "macros" && selectedCategory ? (
+              <View style={shared.row}>
+                <Text style={shared.meta}>Categoría: {selectedCategory.label}</Text>
+                <SupportButton label="Todas las macros" onPress={() => setCategoryFilter("")} />
+              </View>
             ) : null}
-          </View>
-        </SectionCard>
 
-        <SectionCard title={macroForm.id ? "Editar macro" : "Nueva macro"}>
-          <TextInput
-            value={macroForm.title}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, title: value }))}
-            placeholder="title"
-            style={styles.input}
-          />
-          <TextInput
-            value={macroForm.body}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, body: value }))}
-            placeholder="body"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            style={[styles.input, styles.textArea]}
-          />
-          <TextInput
-            value={macroForm.categoryId}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, categoryId: value }))}
-            placeholder="category_id"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            value={macroForm.threadStatus}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, threadStatus: value }))}
-            placeholder="thread_status"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            value={macroForm.audienceRoles}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, audienceRoles: value }))}
-            placeholder="audience_roles csv"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            value={macroForm.appTargets}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, appTargets: value }))}
-            placeholder="app_targets csv"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <TextInput
-            value={macroForm.envTargets}
-            onChangeText={(value) => setMacroForm((prev) => ({ ...prev, envTargets: value }))}
-            placeholder="env_targets csv"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-          <View style={styles.actionsRow}>
-            <Pressable onPress={() => void submitMacro()} disabled={saving} style={styles.primaryBtn}>
-              <Text style={styles.primaryBtnText}>{macroForm.id ? "Guardar macro" : "Crear macro"}</Text>
-            </Pressable>
-            {macroForm.id ? (
-              <Pressable onPress={() => setMacroForm(EMPTY_MACRO_FORM)} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Cancelar</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </SectionCard>
-
-        <SectionCard title="Catalogo actual" subtitle={`${categories.length} categorias | ${macros.length} macros`}>
-          {loading ? <BlockSkeleton lines={8} compact /> : null}
-          {!loading && groupedMacros.length === 0 ? (
-            <Text style={styles.emptyText}>No hay categorias ni macros cargadas.</Text>
-          ) : null}
-          {!loading
-            ? groupedMacros.map((category) => (
-                <View key={category.id} style={styles.categoryCard}>
-                  <View style={styles.rowTop}>
-                    <Text style={styles.rowTitle}>{category.label}</Text>
-                    <Text style={[styles.badge, category.status === "active" ? styles.badgeOk : styles.badgeMuted]}>
-                      {String(category.status).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.metaText}>
-                    code: {category.code} | apps: {toCsv(category.app_targets)}
-                  </Text>
-                  <Text style={styles.metaText}>{category.description || "Sin descripcion"}</Text>
-                  <View style={styles.actionsRow}>
-                    <Pressable onPress={() => selectCategory(category)} style={styles.secondaryBtn}>
-                      <Text style={styles.secondaryBtnText}>Editar</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        void updateCategoryStatus(category, category.status === "active" ? "inactive" : "active")
-                      }
-                      style={styles.outlineBtn}
-                    >
-                      <Text style={styles.outlineBtnText}>
-                        {category.status === "active" ? "Inactivar" : "Activar"}
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={() => void removeCategory(category)} style={styles.dangerBtn}>
-                      <Text style={styles.dangerBtnText}>Eliminar</Text>
-                    </Pressable>
-                  </View>
-                  {category.macros.map((macro: any) => (
-                    <View key={macro.id} style={styles.macroCard}>
-                      <View style={styles.rowTop}>
-                        <Text style={styles.rowTitle}>{macro.title}</Text>
-                        <Text style={[styles.badge, macro.status === "published" ? styles.badgeOk : styles.badgeWarn]}>
-                          {String(macro.status).toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={styles.metaText}>
-                        status: {macro.thread_status} | roles: {toCsv(macro.audience_roles)}
-                      </Text>
-                      <Text style={styles.metaText}>
-                        apps: {toCsv(macro.app_targets)} | envs: {toCsv(macro.env_targets)}
-                      </Text>
-                      <Text style={styles.bodyText} numberOfLines={3}>
-                        {macro.body}
-                      </Text>
-                      <View style={styles.actionsRow}>
-                        <Pressable onPress={() => selectMacro(macro)} style={styles.secondaryBtn}>
-                          <Text style={styles.secondaryBtnText}>Editar</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() =>
-                            void updateMacroStatus(
-                              macro,
-                              macro.status === "published" ? "archived" : "published",
-                            )
-                          }
-                          style={styles.outlineBtn}
-                        >
-                          <Text style={styles.outlineBtnText}>
-                            {macro.status === "published" ? "Archivar" : "Publicar"}
-                          </Text>
-                        </Pressable>
-                        <Pressable onPress={() => void removeMacro(macro)} style={styles.dangerBtn}>
-                          <Text style={styles.dangerBtnText}>Eliminar</Text>
-                        </Pressable>
-                      </View>
+            {panel === "categories" ? (
+              <SectionCard title="Categorías" subtitle={listedCategories.length + " resultados"} right={<SupportButton label="Nueva categoría" kind="primary" disabled={catalogBusy} onPress={() => { setCategoryForm(EMPTY_CATEGORY_FORM); setEditor("category"); }} />}>
+                {loading ? <BlockSkeleton lines={6} compact /> : null}
+                {!loading && !listedCategories.length ? <Text style={shared.meta}>No hay categorías para este filtro.</Text> : null}
+                {!loading ? listedCategories.map((row) => (
+                  <SupportDiagnosticItem key={row.id} title={row.label} badge={<SupportBadge tone={row.status === "active" ? "positive" : "neutral"}>{row.status === "active" ? "Activa" : row.status === "inactive" ? "Inactiva" : row.status}</SupportBadge>}>
+                    <Text style={shared.meta}>{row.code} · Aplicaciones: {toCsv(row.app_targets)}</Text>
+                    {row.description ? <Text style={shared.description}>{row.description}</Text> : null}
+                    <View style={shared.row}>
+                      <SupportButton label="Ver macros" onPress={() => { setCategoryFilter(row.id || row.code); setQuery(""); setPanel("macros"); }} />
+                      <SupportButton label="Editar" disabled={catalogBusy} onPress={() => selectCategory(row)} />
+                      <SupportButton label={row.status === "active" ? "Inactivar" : "Activar"} disabled={catalogBusy} onPress={() => { void updateCategoryStatus(row, row.status === "active" ? "inactive" : "active"); }} />
+                      <SupportButton label="Eliminar" disabled={catalogBusy} onPress={() => confirmDelete("category", row)} />
                     </View>
-                  ))}
-                </View>
-              ))
-            : null}
-        </SectionCard>
+                  </SupportDiagnosticItem>
+                )) : null}
+              </SectionCard>
+            ) : (
+              <SectionCard title="Macros" subtitle={listedMacros.length + " resultados"} right={<SupportButton label="Nueva macro" kind="primary" disabled={catalogBusy} onPress={() => { setMacroForm({ ...EMPTY_MACRO_FORM, categoryId: selectedCategory?.id || "" }); setEditor("macro"); }} />}>
+                {loading ? <BlockSkeleton lines={6} compact /> : null}
+                {!loading && !listedMacros.length ? <Text style={shared.meta}>No hay macros para este filtro.</Text> : null}
+                {!loading ? listedMacros.map((row) => (
+                  <SupportDiagnosticItem key={row.id} title={row.title} badge={<SupportBadge tone={row.status === "published" ? "positive" : "warning"}>{row.status === "published" ? "Publicada" : row.status === "archived" ? "Archivada" : row.status === "draft" ? "Borrador" : row.status}</SupportBadge>}>
+                    <Text style={shared.meta}>Estado del ticket: {row.thread_status} · Roles: {toCsv(row.audience_roles)}</Text>
+                    <Text style={shared.meta}>Aplicaciones: {toCsv(row.app_targets)} · Entornos: {toCsv(row.env_targets)}</Text>
+                    <Text numberOfLines={3} style={shared.description}>{row.body}</Text>
+                    <View style={shared.row}>
+                      <SupportButton label="Editar" disabled={catalogBusy} onPress={() => selectMacro(row)} />
+                      <SupportButton label={row.status === "published" ? "Archivar" : "Publicar"} disabled={catalogBusy} onPress={() => { void updateMacroStatus(row, row.status === "published" ? "archived" : "published"); }} />
+                      <SupportButton label="Eliminar" disabled={catalogBusy} onPress={() => confirmDelete("macro", row)} />
+                    </View>
+                  </SupportDiagnosticItem>
+                )) : null}
+              </SectionCard>
+            )}
+          </>
+        ) : null}
       </ScrollView>
     </ScreenScaffold>
   );
 }
 
+function CatalogField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={onChange}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+        style={[styles.input, multiline && styles.textArea]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    fontSize: 13,
-  },
-  textArea: {
-    minHeight: 92,
-  },
-  categoryCard: {
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-    backgroundColor: "#FAF7FF",
-    borderRadius: 12,
-    padding: 10,
-    gap: 6,
-  },
-  macroCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    padding: 10,
-    gap: 4,
-  },
-  rowTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  rowTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  bodyText: {
-    fontSize: 12,
-    color: "#475569",
-  },
-  metaText: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
-  badgeOk: {
-    backgroundColor: "#DCFCE7",
-    color: "#15803D",
-  },
-  badgeWarn: {
-    backgroundColor: "#FEF3C7",
-    color: "#B45309",
-  },
-  badgeMuted: {
-    backgroundColor: "#E2E8F0",
-    color: "#475569",
-  },
-  primaryBtn: {
-    backgroundColor: "#1D4ED8",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  outlineBtn: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  outlineBtnText: {
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  dangerBtn: {
-    backgroundColor: "#B91C1C",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  dangerBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  errorText: {
-    fontSize: 12,
-    color: "#B91C1C",
-    fontWeight: "600",
-  },
-  okText: {
-    fontSize: 12,
-    color: "#166534",
-    fontWeight: "600",
-  },
-  emptyText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
+  field: { gap: 5 },
+  fieldLabel: { color: "#2F1A55", fontSize: 12, fontWeight: "700" },
+  input: { minHeight: 44, borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, color: "#2F1A55", backgroundColor: "#FFFFFF", fontSize: 14 },
+  textArea: { minHeight: 96 },
 });

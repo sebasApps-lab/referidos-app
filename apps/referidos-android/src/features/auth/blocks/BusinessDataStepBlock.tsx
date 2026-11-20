@@ -1,130 +1,101 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-
-type Category = {
-  id: string;
-  label: string;
-};
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { getBusinessCategoryPath } from "../../../../../referidos-app/src/auth/constants/businessCategories.js";
+import { normalizeBusinessName } from "../../../../../referidos-app/src/auth/utils/businessDataUtils.js";
+import { authText } from "./AuthStartLayout";
+import {
+  OnboardingInput,
+  OnboardingLabel,
+  OnboardingPrimaryButton,
+  OnboardingSubtitle,
+  onboardingColors,
+} from "./OnboardingFormLayout";
 
 type Props = {
   nombreNegocio: string;
   categoriaNegocio: string;
-  ruc: string;
-  categories: Category[];
   loading: boolean;
   onNombreNegocioChange: (value: string) => void;
-  onCategoriaChange: (value: string) => void;
-  onRucChange: (value: string) => void;
+  onOpenCategory: () => void;
   onSubmit: () => void;
 };
 
 export default function BusinessDataStepBlock({
   nombreNegocio,
   categoriaNegocio,
-  ruc,
-  categories,
   loading,
   onNombreNegocioChange,
-  onCategoriaChange,
-  onRucChange,
+  onOpenCategory,
   onSubmit,
 }: Props) {
+  const { parentLabel, subLabel } = getBusinessCategoryPath(categoriaNegocio);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Nombre negocio</Text>
-      <TextInput value={nombreNegocio} onChangeText={onNombreNegocioChange} style={styles.input} />
+    <View style={styles.root}>
+      <OnboardingSubtitle>Así te verán tus clientes</OnboardingSubtitle>
 
-      <Text style={styles.label}>RUC (opcional)</Text>
-      <TextInput
-        value={ruc}
-        onChangeText={onRucChange}
-        style={styles.input}
-        keyboardType="number-pad"
-      />
+      <View style={styles.fields}>
+        <View style={styles.nameField}>
+          <OnboardingLabel>Nombre negocio</OnboardingLabel>
+          <OnboardingInput
+            accessibilityLabel="Nombre negocio"
+            autoCapitalize="words"
+            editable={!loading}
+            maxLength={38}
+            value={nombreNegocio}
+            onChangeText={(text) => onNombreNegocioChange(normalizeBusinessName(text))}
+          />
+        </View>
 
-      <Text style={styles.label}>Categoria</Text>
-      <View style={styles.grid}>
-        {categories.map((item) => (
-          <Pressable
-            key={item.id}
-            onPress={() => onCategoriaChange(item.label)}
-            style={[styles.roleChip, categoriaNegocio === item.label && styles.roleChipSelected]}
-          >
-            <Text
-              style={[
-                styles.roleChipText,
-                categoriaNegocio === item.label && styles.roleChipTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        ))}
+        <View style={styles.categoryField}>
+          <OnboardingLabel>Categoría</OnboardingLabel>
+          <CategoryField value={parentLabel || categoriaNegocio} disabled={loading} onPress={onOpenCategory} />
+          {subLabel ? <CategoryField value={subLabel} disabled={loading} onPress={onOpenCategory} /> : null}
+        </View>
       </View>
 
-      <Pressable onPress={onSubmit} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Guardar negocio"}</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        <OnboardingPrimaryButton label="Continuar" onPress={onSubmit} disabled={loading} />
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-  },
-  label: {
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#111827",
-    fontSize: 14,
-    backgroundColor: "#FFFFFF",
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  roleChip: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  roleChipSelected: {
-    borderColor: "#6D28D9",
-    backgroundColor: "#F5F3FF",
-  },
-  roleChipText: {
-    color: "#374151",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  roleChipTextSelected: {
-    color: "#5B21B6",
-  },
-  primaryButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-});
+function CategoryField({ value, disabled, onPress }: { value: string; disabled: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `Editar categoría ${value}` : "Elige una categoría"}
+      disabled={disabled}
+      onPress={onPress}
+      style={styles.category}
+    >
+      <Text style={[styles.categoryLabel, !value && styles.placeholder]}>{value || "Elige una categoría"}</Text>
+      <View style={styles.pencilWrap}>
+        <Image source={require("../assets/pencil.png")} style={styles.pencil} />
+      </View>
+    </Pressable>
+  );
+}
 
+const styles = StyleSheet.create({
+  root: { flexGrow: 1, paddingBottom: 16 },
+  fields: { gap: 24 },
+  nameField: { gap: 4 },
+  categoryField: { gap: 8 },
+  category: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 38,
+    paddingLeft: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: onboardingColors.border,
+    borderRadius: 8,
+  },
+  categoryLabel: { ...authText.small, flex: 1, color: "#101828" },
+  placeholder: { color: onboardingColors.secondary },
+  pencilWrap: { width: 40, alignItems: "center", borderLeftWidth: 1, borderColor: "#000000" },
+  pencil: { width: 16, height: 16 },
+  footer: { marginTop: "auto", paddingTop: 16 },
+});

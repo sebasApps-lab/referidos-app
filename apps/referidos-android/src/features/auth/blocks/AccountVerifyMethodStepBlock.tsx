@@ -1,162 +1,152 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { PasswordFields } from "./AddPasswordStepBlock";
+import { OnboardingPrimaryButton, OnboardingSkipButton } from "./OnboardingFormLayout";
+import { verificationStyles } from "./verificationStyles";
 
 type Props = {
-  showPasswordSetup: boolean;
-  showEmailVerification: boolean;
   hasPassword: boolean;
   hasMfa: boolean;
-  emailConfirmed: boolean;
-  newPassword: string;
-  confirmPassword: string;
   loading?: boolean;
-  onNewPasswordChange: (value: string) => void;
-  onConfirmPasswordChange: (value: string) => void;
-  onSavePassword: () => void;
-  onSendEmail: () => void;
+  onChoosePassword?: () => void;
+  onChooseMfa?: () => void;
   onFinalize: () => void;
   onSkip: () => void;
+  showPasswordSetup?: boolean;
+  showEmailVerification?: boolean;
+  emailConfirmed?: boolean;
+  newPassword?: string;
+  confirmPassword?: string;
+  onNewPasswordChange?: (value: string) => void;
+  onConfirmPasswordChange?: (value: string) => void;
+  onSavePassword?: () => void;
+  onSendEmail?: () => void;
 };
 
 export default function AccountVerifyMethodStepBlock({
-  showPasswordSetup,
-  showEmailVerification,
   hasPassword,
   hasMfa,
-  emailConfirmed,
-  newPassword,
-  confirmPassword,
   loading = false,
+  onChoosePassword,
+  onChooseMfa,
+  onFinalize,
+  onSkip,
+  showPasswordSetup = false,
+  showEmailVerification = false,
+  emailConfirmed = false,
+  newPassword = "",
+  confirmPassword = "",
   onNewPasswordChange,
   onConfirmPasswordChange,
   onSavePassword,
   onSendEmail,
-  onFinalize,
-  onSkip,
 }: Props) {
-  const canFinalize = (() => {
-    if (showEmailVerification && !emailConfirmed) return false;
-    if (showPasswordSetup && !hasPassword && !hasMfa) return false;
-    return true;
-  })();
+  const dedicatedPassword = Boolean(onChoosePassword);
+  const needsEmail = showEmailVerification && !emailConfirmed;
+  const needsMethod = (dedicatedPassword || showPasswordSetup) && !hasPassword && !hasMfa;
 
   return (
-    <View style={styles.container}>
-      {showPasswordSetup ? (
-        <>
-          <Text style={styles.helper}>Asegura tu cuenta agregando una contrasena.</Text>
-          {hasPassword || hasMfa ? (
-            <>
-              {hasPassword ? <Text style={styles.okText}>Contrasena ya configurada.</Text> : null}
-              {hasMfa ? <Text style={styles.okText}>MFA ya configurado.</Text> : null}
-            </>
-          ) : (
-            <>
-              <Text style={styles.label}>Nueva contrasena</Text>
-              <TextInput
-                value={newPassword}
-                onChangeText={onNewPasswordChange}
-                style={styles.input}
-                secureTextEntry
-              />
-              <Text style={styles.label}>Confirmar contrasena</Text>
-              <TextInput
-                value={confirmPassword}
-                onChangeText={onConfirmPasswordChange}
-                style={styles.input}
-                secureTextEntry
-              />
-              <Pressable onPress={onSavePassword} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-                <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Guardar contrasena"}</Text>
-              </Pressable>
-              <Text style={styles.pendingInfo}>
-                MFA se activara en la siguiente fase de seguridad mobile.
-              </Text>
-            </>
-          )}
-        </>
-      ) : null}
+    <View style={verificationStyles.container}>
+      <View style={verificationStyles.content}>
+        <Text accessibilityRole="header" style={verificationStyles.heading}>Elige un método</Text>
+        <Text style={[verificationStyles.body, verificationStyles.center]}>
+          {onChooseMfa || hasMfa
+            ? "Puedes usar cualquiera de estos métodos para asegurar tu cuenta."
+            : "Asegura tu cuenta con una contraseña."}
+        </Text>
 
-      {showEmailVerification ? (
-        <>
-          <Text style={styles.helper}>
-            {emailConfirmed
-              ? "Tu correo ya fue confirmado con exito."
-              : "Debes confirmar tu correo para finalizar."}
-          </Text>
-          {!emailConfirmed ? (
-            <Pressable onPress={onSendEmail} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-              <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Enviar correo"}</Text>
-            </Pressable>
+        <View style={styles.methods}>
+          <MethodOption label="Usar contraseña" active={hasPassword} disabled={loading} onPress={onChoosePassword} />
+          {onChooseMfa || hasMfa ? (
+            <MethodOption label="Verificación de 2 pasos" active={hasMfa} disabled={loading} onPress={onChooseMfa} recommended />
           ) : null}
-        </>
-      ) : null}
+        </View>
 
-      <Pressable onPress={onFinalize} disabled={!canFinalize} style={[styles.primaryButton, !canFinalize && styles.primaryButtonDisabled]}>
-        <Text style={styles.primaryButtonText}>Finalizar</Text>
-      </Pressable>
-      <Pressable onPress={onSkip} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Verificar mas tarde</Text>
-      </Pressable>
+        {!dedicatedPassword && showPasswordSetup && !hasPassword && !hasMfa &&
+          onNewPasswordChange && onConfirmPasswordChange && onSavePassword ? (
+            <PasswordFields
+              newPassword={newPassword}
+              confirmPassword={confirmPassword}
+              loading={loading}
+              onNewPasswordChange={onNewPasswordChange}
+              onConfirmPasswordChange={onConfirmPasswordChange}
+              onSavePassword={onSavePassword}
+            />
+          ) : null}
+
+        {needsEmail && onSendEmail ? (
+          <>
+            <Text style={verificationStyles.body}>Confirma tu correo para continuar.</Text>
+            <OnboardingSkipButton label="Enviar correo" disabled={loading} onPress={onSendEmail} />
+          </>
+        ) : null}
+      </View>
+
+      <View style={verificationStyles.footer}>
+        <OnboardingPrimaryButton label="Continuar" disabled={loading || needsEmail || needsMethod} onPress={onFinalize} />
+        <OnboardingSkipButton label="Verificar más tarde" disabled={loading} onPress={onSkip} />
+      </View>
     </View>
   );
 }
 
+function MethodOption({ label, active, disabled, onPress, recommended = false }: {
+  label: string;
+  active: boolean;
+  disabled: boolean;
+  onPress?: () => void;
+  recommended?: boolean;
+}) {
+  const content = (
+    <>
+      <View style={[styles.methodIcon, active && styles.activeIcon]}>
+        <Image
+          source={recommended ? require("../assets/shield-check.png") : require("../assets/lock.png")}
+          style={[styles.methodMark, active && styles.activeMark]}
+        />
+      </View>
+      <View style={styles.methodLabel}>
+        <Text style={[styles.methodText, active && styles.activeText]}>{label}</Text>
+        {recommended && onPress ? <Text style={styles.recommended}>Recomendado</Text> : null}
+      </View>
+    </>
+  );
+  const style = [styles.method, active && styles.activeMethod];
+
+  if (!onPress) return <View accessibilityLabel={active ? `${label}, configurado` : label} style={style}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled, selected: active }}
+      disabled={disabled}
+      onPress={onPress}
+      style={style}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-  },
-  helper: {
-    color: "#4B5563",
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  okText: {
-    color: "#047857",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  pendingInfo: {
-    color: "#6B7280",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  label: {
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  input: {
+  methods: { flexGrow: 1, justifyContent: "center", gap: 12 },
+  method: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 60,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#111827",
-    fontSize: 14,
-    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  primaryButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  secondaryButton: {
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#6D28D9",
-    fontWeight: "600",
-    fontSize: 13,
-  },
+  activeMethod: { borderColor: "#5E30A5", backgroundColor: "#F7F3FF" },
+  methodIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6" },
+  activeIcon: { backgroundColor: "#E6DBFA" },
+  methodMark: { width: 16, height: 16, tintColor: "#6B7280" },
+  activeMark: { tintColor: "#5E30A5" },
+  methodLabel: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 8 },
+  methodText: { color: "#374151", fontSize: 14, fontWeight: "600" },
+  activeText: { color: "#5E30A5" },
+  recommended: { color: "#047857", backgroundColor: "#D1FAE5", borderRadius: 10, paddingHorizontal: 8, fontSize: 10, lineHeight: 16, fontWeight: "600" },
 });

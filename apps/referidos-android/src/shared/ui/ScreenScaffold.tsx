@@ -13,6 +13,9 @@ export default function ScreenScaffold({ title, subtitle, children }: Props) {
   const route = useRoute();
   const role = useAppStore((state) => state.role);
   const routeName = route?.name || "";
+  if (routeName.startsWith("Cliente") || routeName.startsWith("Negocio")) {
+    return <View style={styles.roleBody}>{children}</View>;
+  }
 
   return (
     <View style={styles.root}>
@@ -28,6 +31,7 @@ export default function ScreenScaffold({ title, subtitle, children }: Props) {
 }
 
 const styles = StyleSheet.create({
+  roleBody: { flex: 1, backgroundColor: "#FAF8FF", paddingHorizontal: 16, paddingTop: 12 },
   root: {
     flex: 1,
     backgroundColor: "#F7F8FC",

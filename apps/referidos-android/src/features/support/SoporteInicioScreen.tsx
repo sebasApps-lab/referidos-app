@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
+import { staffIcons } from "@features/staff/staffNavigation";
 import { supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import {
@@ -97,8 +98,14 @@ export default function SoporteInicioScreen() {
     <ScreenScaffold
       title="Soporte Inicio"
       subtitle="Hub operativo para inbox, jornadas, issues y catalogo de errores"
+      onRefresh={loading ? undefined : loadOverview}
     >
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.welcome}>
+          <Text accessibilityRole="header" style={styles.welcomeTitle}>Bienvenido al panel de soporte</Text>
+          <Text style={styles.welcomeCopy}>Revisa tu jornada y gestiona los tickets de la bandeja.</Text>
+        </View>
+
         <SectionCard
           title="Estado del asesor"
           subtitle="Autorizacion, jornada y capacidad operativa"
@@ -137,35 +144,26 @@ export default function SoporteInicioScreen() {
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Modulos" subtitle="Acceso rapido al alcance soporte vigente">
-          <View style={styles.menuGrid}>
+        <View style={styles.menuGrid}>
             <NavCard
-              title="Inbox"
-              description="Tickets disponibles, asignados y cerrados."
+              title="Inbox operativo"
+              description="Gestiona tickets disponibles, asignados y resueltos desde una sola bandeja."
+              icon={staffIcons.message}
               onPress={() => navigation.navigate(TAB_ROUTES.SOPORTE.INBOX)}
             />
             <NavCard
-              title="Jornadas"
-              description="Historial de autorizaciones, sesiones y eventos."
+              title="Jornadas y sesiones"
+              description="Consulta tu historial, autorización y jornada actual."
+              icon={staffIcons.calendar}
               onPress={() => navigation.navigate(STACK_ROUTES.SOPORTE.JORNADAS)}
             />
             <NavCard
               title="Issues"
-              description="Issues y eventos de observabilidad relacionados."
+              description="Consulta issues y eventos de observabilidad relacionados con soporte."
+              icon={staffIcons.activity}
               onPress={() => navigation.navigate(STACK_ROUTES.SOPORTE.ISSUES)}
             />
-            <NavCard
-              title="Errores"
-              description="Catalogo de codigos observability y soporte."
-              onPress={() => navigation.navigate(STACK_ROUTES.SOPORTE.ERROR_CATALOG)}
-            />
-            <NavCard
-              title="Irregulares"
-              description="Creacion de tickets operativos irregulares."
-              onPress={() => navigation.navigate(TAB_ROUTES.SOPORTE.IRREGULAR)}
-            />
-          </View>
-        </SectionCard>
+        </View>
       </ScrollView>
     </ScreenScaffold>
   );
@@ -183,26 +181,31 @@ function MetricCard({ label, value }: { label: string; value: number }) {
 function NavCard({
   title,
   description,
+  icon,
   onPress,
 }: {
   title: string;
   description: string;
+  icon: ImageSourcePropType;
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.navCard}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.navCard}>
+      <View style={styles.navIconPlate}><Image source={icon} accessible={false} style={styles.navIcon} /></View>
       <Text style={styles.navCardTitle}>{title}</Text>
       <Text style={styles.navCardText}>{description}</Text>
-      <Text style={styles.navCardLink}>Abrir</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: 24,
+    paddingBottom: 48,
   },
+  welcome: { borderRadius: 24, borderColor: "#E9E2F7", borderWidth: 1, backgroundColor: "#FFFFFF", padding: 24, gap: 8 },
+  welcomeTitle: { color: "#2F1A55", fontSize: 24, lineHeight: 32, fontWeight: "800", includeFontPadding: false },
+  welcomeCopy: { color: "#64748B", fontSize: 14, lineHeight: 20, includeFontPadding: false },
   infoWrap: {
     gap: 4,
   },
@@ -240,30 +243,29 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   menuGrid: {
-    gap: 8,
+    gap: 16,
   },
   navCard: {
     borderWidth: 1,
-    borderColor: "#DDD6FE",
-    backgroundColor: "#F9F7FF",
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    borderColor: "#E9E2F7",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+    gap: 8,
   },
+  navIconPlate: { height: 40, width: 40, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#F0EBFF" },
+  navIcon: { width: 18, height: 18, tintColor: "#5E30A5" },
   navCardTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    marginTop: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
     color: "#2F1A55",
   },
   navCardText: {
-    fontSize: 12,
-    color: "#475569",
-  },
-  navCardLink: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#5B21B6",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#64748B",
   },
   secondaryBtn: {
     borderWidth: 1,

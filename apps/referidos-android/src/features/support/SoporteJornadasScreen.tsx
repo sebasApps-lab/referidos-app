@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import {
-  fetchActiveAgentSession,
   fetchSupportAgentEventsHistory,
   fetchSupportAgentProfile,
 } from "@shared/services/supportDeskQueries";
 import { formatDateTime } from "@shared/services/entityQueries";
+import { SupportBadge, SupportButton, SupportNotice } from "./SupportTicketUi";
+import { SupportDiagnosticItem, supportDetailStyles } from "./SupportDiagnosticsUi";
 
 function classifyStatusByWindow(startAt: any, endAt: any) {
   const now = Date.now();
@@ -28,8 +29,8 @@ function classifyStatusByWindow(startAt: any, endAt: any) {
 function eventTitle(eventType: string) {
   if (eventType === "agent_authorized") return "Jornada autorizada";
   if (eventType === "agent_revoked") return "Jornada revocada";
-  if (eventType === "agent_login") return "Sesion iniciada";
-  if (eventType === "agent_logout") return "Sesion finalizada";
+  if (eventType === "agent_login") return "Sesión iniciada";
+  if (eventType === "agent_logout") return "Sesión finalizada";
   return eventType || "Evento";
 }
 
@@ -113,15 +114,15 @@ export default function SoporteJornadasScreen() {
         type: "session",
         status,
         occurred_at: session.start_at || session.last_seen_at,
-        title: session.end_at ? "Sesion finalizada" : "Sesion activa",
+        title: session.end_at ? "Sesión finalizada" : "Sesión activa",
         subtitle: `Inicio: ${formatDateTime(session.start_at)} | Fin: ${
           session.end_at ? formatDateTime(session.end_at) : "En curso"
         }`,
         metadata: [
           `ID: ${session.id}`,
-          `Last seen: ${formatDateTime(session.last_seen_at)}`,
-          `Fin: ${session.end_reason || "manual_end"}`,
+          `Última actividad: ${formatDateTime(session.last_seen_at)}`,
           `Autorizado por: ${actorLabel(session.authorized_by)}`,
+          ...(session.end_reason ? [`Motivo de cierre: ${session.end_reason}`] : []),
         ],
       };
     });
@@ -148,7 +149,7 @@ export default function SoporteJornadasScreen() {
         status: "actual",
         occurred_at: profile.session_request_at || profile.authorized_until || profile.authorized_from,
         title: "Solicitud de jornada pendiente",
-        subtitle: "Tu solicitud sigue en espera de aprobacion.",
+        subtitle: "Tu solicitud sigue en espera de aprobación.",
         metadata: [`Solicitado: ${formatDateTime(profile.session_request_at)}`],
       });
     }
@@ -165,7 +166,7 @@ export default function SoporteJornadasScreen() {
           profile.authorized_until,
         )}`,
         metadata: [
-          `Bloqueado: ${profile.blocked ? "si" : "no"}`,
+          `Bloqueado: ${profile.blocked ? "sí" : "no"}`,
         ],
       });
     }
@@ -181,7 +182,11 @@ export default function SoporteJornadasScreen() {
 
   useEffect(() => {
     setLoading(true);
-    void loadHistory();
+    void loadHistory().catch(() => {
+      setError("No se pudo cargar el historial.");
+      setRows([]);
+      setLoading(false);
+    });
   }, [loadHistory]);
 
   const groupedCount = useMemo(() => {
@@ -192,184 +197,79 @@ export default function SoporteJornadasScreen() {
     };
   }, [rows]);
 
-  const badgeStyleByStatus = useMemo(
-    () => ({
-      actual: styles.badge_actual,
-      futura: styles.badge_futura,
-      pasada: styles.badge_pasada,
-    }),
-    [],
-  );
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadHistory();
-    setRefreshing(false);
+    try {
+      await loadHistory();
+    } catch {
+      setError("No se pudo cargar el historial.");
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadHistory]);
 
   return (
     <ScreenScaffold
-      title="Soporte Jornadas"
-      subtitle="Historial unificado de autorizaciones, sesiones y eventos"
+      title="Jornadas y sesiones"
+      onRefresh={refreshing || loading ? undefined : () => { void onRefresh(); }}
     >
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard
-          title="Resumen"
-          subtitle="Jornadas pasadas, actuales y futuras"
-          right={
-            <Pressable onPress={onRefresh} disabled={loading || refreshing} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>{loading || refreshing ? "..." : "Recargar"}</Text>
-            </Pressable>
-          }
-        >
-          {loading ? <BlockSkeleton lines={3} compact /> : null}
-          {!loading ? (
-            <View style={styles.metricsWrap}>
-              <MetricCard label="Actual" value={groupedCount.actual} />
-              <MetricCard label="Futura" value={groupedCount.futura} />
-              <MetricCard label="Pasada" value={groupedCount.pasada} />
-            </View>
-          ) : null}
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </SectionCard>
-
-        <SectionCard title="Historial">
-          {loading ? <BlockSkeleton lines={8} compact /> : null}
-          {!loading && rows.length === 0 ? (
-            <Text style={styles.emptyText}>No hay jornadas o sesiones registradas.</Text>
-          ) : null}
-          {!loading
-            ? rows.map((row) => (
-                <View key={row.id} style={styles.rowCard}>
-                  <View style={styles.rowTop}>
-                    <Text style={[styles.badge, badgeStyleByStatus[row.status as keyof typeof badgeStyleByStatus]]}>
-                      {String(row.status).toUpperCase()}
-                    </Text>
-                    <Text style={styles.rowMeta}>{formatDateTime(row.occurred_at)}</Text>
-                  </View>
-                  <Text style={styles.rowTitle}>{row.title}</Text>
-                  <Text style={styles.rowSubtitle}>{row.subtitle}</Text>
-                  {Array.isArray(row.metadata)
-                    ? row.metadata.map((item: string) => (
-                        <Text key={`${row.id}-${item}`} style={styles.rowMeta}>
-                          {item}
-                        </Text>
-                      ))
-                    : null}
-                </View>
-              ))
-            : null}
-        </SectionCard>
-      </ScrollView>
+      <FlatList
+        data={loading ? [] : rows}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={supportDetailStyles.content}
+        ListHeaderComponent={(
+          <View style={supportDetailStyles.headerStack}>
+            <SectionCard
+              title="Jornadas y sesiones"
+              subtitle="Historial de autorizaciones, sesiones y eventos."
+              right={(
+                <SupportButton label={refreshing || loading ? "Cargando…" : "Recargar"} disabled={loading || refreshing} onPress={() => { void onRefresh(); }} />
+              )}
+            >
+              <View style={supportDetailStyles.row}>
+                <SupportBadge>Historial unificado</SupportBadge>
+              </View>
+            </SectionCard>
+            {!loading ? (
+              <View style={styles.metricsWrap}>
+                <MetricCard label="Actual" value={groupedCount.actual} color="#047857" />
+                <MetricCard label="Futura" value={groupedCount.futura} color="#5E30A5" />
+                <MetricCard label="Pasada" value={groupedCount.pasada} color="#475569" />
+              </View>
+            ) : null}
+            {error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+            <Text accessibilityRole="header" style={supportDetailStyles.heading}>Historial</Text>
+          </View>
+        )}
+        ListEmptyComponent={loading ? <BlockSkeleton lines={8} compact /> : <Text style={supportDetailStyles.meta}>No hay jornadas o sesiones registradas.</Text>}
+        renderItem={({ item }) => (
+          <SupportDiagnosticItem title={item.title} badge={<SupportBadge tone={item.status === "actual" ? "positive" : item.status === "futura" ? "info" : "neutral"}>{item.status}</SupportBadge>}>
+            <Text style={supportDetailStyles.meta}>
+              {item.type === "session" ? "Sesión" : item.type === "evento" ? "Evento" : "Jornada"} · {formatDateTime(item.occurred_at)}
+            </Text>
+            <Text style={supportDetailStyles.description}>{item.subtitle}</Text>
+            {Array.isArray(item.metadata) ? item.metadata.map((entry: string, index: number) => (
+              <Text key={index} style={supportDetailStyles.meta}>{entry}</Text>
+            )) : null}
+          </SupportDiagnosticItem>
+        )}
+      />
     </ScreenScaffold>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <View style={styles.metricCard}>
-      <Text style={styles.metricValue}>{value}</Text>
       <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, { color }]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  metricsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metricCard: {
-    minWidth: 100,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 2,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-  rowCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    padding: 10,
-    gap: 3,
-  },
-  rowTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
-  badge_actual: {
-    backgroundColor: "#DCFCE7",
-    color: "#15803D",
-  },
-  badge_futura: {
-    backgroundColor: "#F3E8FF",
-    color: "#7E22CE",
-  },
-  badge_pasada: {
-    backgroundColor: "#E2E8F0",
-    color: "#475569",
-  },
-  rowTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  rowSubtitle: {
-    fontSize: 12,
-    color: "#475569",
-  },
-  rowMeta: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  emptyText: {
-    color: "#64748B",
-    fontSize: 12,
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  metricsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  metricCard: { flex: 1, minWidth: 76, padding: 12, borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 16, backgroundColor: "#FFFFFF", gap: 4 },
+  metricValue: { fontSize: 23, fontWeight: "800", color: "#2F1A55" },
+  metricLabel: { color: "#64748B", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8 },
 });

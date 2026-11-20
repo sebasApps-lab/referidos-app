@@ -19,7 +19,9 @@ function assertIncludes(content, needle, label) {
 
 function main() {
   const addressBlock = readText("apps/referidos-android/src/features/auth/blocks/AddressStepBlock.tsx");
+  const mapPicker = readText("apps/referidos-android/src/features/auth/blocks/AddressMapPicker.tsx");
   const scannerBlock = readText("apps/referidos-android/src/features/scanner/NativeQrScannerBlock.tsx");
+  const scannerGateway = readText("apps/referidos-android/src/features/scanner/ScannerGateway.tsx");
   const securityService = readText("apps/referidos-android/src/shared/security/localAccessSecurity.ts");
   const securityStore = readText("apps/referidos-android/src/shared/store/securityStore.ts");
   const appStore = readText("apps/referidos-android/src/shared/store/appStore.ts");
@@ -28,16 +30,26 @@ function main() {
   const createMobileApi = readText("packages/api-client/src/createMobileApi.js");
   const territoryApi = readText("packages/api-client/src/address/territory.js");
 
-  assertIncludes(addressBlock, "MapView", "phase6 map native integration");
+  assertIncludes(addressBlock, "<AddressMapPicker", "phase6 map native integration");
+  assertIncludes(addressBlock, "onRegionChange={(next) =>", "phase6 map selection wiring");
+  assertIncludes(mapPicker, "PanResponder.create(", "phase6 native map gestures");
+  assertIncludes(mapPicker, "current.onRegionChange({", "phase6 native map position updates");
+  assertIncludes(mapPicker, "<Image", "phase6 map tile rendering");
   assertIncludes(addressBlock, "mobileApi.address.getGpsFallback()", "phase6 gps fallback load");
   assertIncludes(addressBlock, "fetchProvincias", "phase6 territory provincias wiring");
   assertIncludes(addressBlock, "fetchCantones", "phase6 territory cantones wiring");
   assertIncludes(addressBlock, "fetchParroquias", "phase6 territory parroquias wiring");
-  assertIncludes(addressBlock, "Fallback territorial", "phase6 territory fallback UI");
+  assertIncludes(addressBlock, "territoryNeeded &&", "phase6 territory fallback visibility");
+  for (const territory of ["Provincia", "Canton", "Parroquia"]) {
+    assertIncludes(addressBlock, `onPress={open${territory}Picker}`, `phase6 fallback ${territory} selection`);
+  }
 
   assertIncludes(scannerBlock, "scanThrottleDelay", "phase6 scanner throttle");
   assertIncludes(scannerBlock, "torchMode", "phase6 scanner torch mode");
-  assertIncludes(scannerBlock, "onError={handleCameraError}", "phase6 scanner error fallback");
+  assertIncludes(scannerBlock, "onError={onError}", "phase6 scanner error callback");
+  assertIncludes(scannerGateway, "onError={() => setCameraFailed(true)}", "phase6 scanner error fallback wiring");
+  assertIncludes(scannerGateway, '!cameraFailed && !manual', "phase6 camera disabled by failure or manual entry");
+  assertIncludes(scannerGateway, "style={styles.manualContainer}", "phase6 scanner manual fallback rendering");
   assertIncludes(scannerBlock, "setPaused", "phase6 scanner pause resume");
   assertIncludes(scannerBlock, "Linterna", "phase6 scanner low-light control");
 

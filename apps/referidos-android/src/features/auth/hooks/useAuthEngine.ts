@@ -8,10 +8,11 @@ import {
   getUserProfileStatus,
   isPhoneValidForCountry,
   parsePhoneWithCountry,
-  resolveRegistrationStep,
+  resolveOnboardingStep,
   resolveVerificationStep,
   toStoragePhone,
   validateEmail,
+  validateRegistrationCode,
   validateRucFromCedula,
 } from "@referidos/domain";
 import { mobileApi, supabase } from "@shared/services/mobileApi";
@@ -30,6 +31,34 @@ const DEFAULT_HORARIOS = {
   },
   excepciones: [],
 };
+
+const VERIFICATION_STEPS = new Set<string>([
+  AUTH_STEPS.BUSINESS_VERIFY,
+  AUTH_STEPS.VERIFY_EMAIL,
+  AUTH_STEPS.ACCOUNT_VERIFY_METHOD,
+  AUTH_STEPS.ADD_PASSWORD,
+  AUTH_STEPS.ADD_MFA,
+]);
+
+const REGISTRATION_CODE_ERRORS: Record<string, string> = {
+  revoked: "Código revocado.",
+  used: "Código ya utilizado.",
+  expired: "Código expirado.",
+  role_mismatch: "El código no corresponde a una cuenta de negocio.",
+};
+
+async function requestBusinessRegistrationCode(code: string, consume: boolean) {
+  const { data, error } = await supabase.functions.invoke("validate-registration-code", {
+    body: { code, expected_role: AUTH_ROLES.NEGOCIO, consume },
+    timeout: 20_000,
+  });
+  const fallback = consume ? "No se pudo usar el código." : "No se pudo validar el código.";
+  if (error) return { ok: false, error: fallback };
+  if (!data?.ok || !data?.valid || (consume && !data?.consumed)) {
+    return { ok: false, error: REGISTRATION_CODE_ERRORS[data?.reason] || "Código de registro inválido." };
+  }
+  return { ok: true };
+}
 
 function parseAuthCallbackParams(url: string) {
   const safeUrl = String(url || "").trim();
@@ -123,11 +152,12 @@ export function useAuthEngine() {
   const emailSubmissionInFlight = useRef(false);
   const attemptedRegistrationKey = useRef<string | null>(null);
   const registrationValidationInFlight = useRef(false);
+  const roleSubmissionInFlight = useRef(false);
+  const businessRegistration = useRef<{ code: string; authId: string } | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -144,6 +174,7 @@ export function useAuthEngine() {
   const [calles, setCalles] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [sector, setSector] = useState("");
+  const [referencia, setReferencia] = useState("");
   const [provinciaId, setProvinciaId] = useState("");
   const [cantonId, setCantonId] = useState("");
   const [parroquiaId, setParroquiaId] = useState("");
@@ -243,6 +274,7 @@ export function useAuthEngine() {
     if (!calles && addressRow?.calles) setCalles(String(addressRow.calles));
     if (!ciudad && addressRow?.ciudad) setCiudad(String(addressRow.ciudad));
     if (!sector && addressRow?.sector) setSector(String(addressRow.sector));
+    if (!referencia && addressRow?.referencia) setReferencia(String(addressRow.referencia));
     if (!provinciaId && addressRow?.provincia_id) {
       setProvinciaId(String(addressRow.provincia_id));
     }
@@ -275,6 +307,7 @@ export function useAuthEngine() {
     nombre,
     nombreNegocio,
     parroquia,
+    referencia,
     parroquiaId,
     provinciaId,
     ruc,
@@ -286,29 +319,19 @@ export function useAuthEngine() {
 
   useEffect(() => {
     if (bootStatus !== "ready") return;
-    if (!onboarding?.ok) {
-      setStep(AUTH_STEPS.EMAIL_LOGIN);
-      return;
-    }
-
-    if (allowAccess) {
-      const verificationStep = resolveVerificationStep({
-        onboarding,
-        role: roleFromOnboarding,
-      });
-      if (verificationStep) {
-        setStep(verificationStep);
+    const resolved = resolveOnboardingStep({ onboarding, role: roleFromOnboarding });
+    if (!resolved) return;
+    setStep((current) => {
+      const status = onboarding?.verification_status || onboarding?.usuario?.verification_status;
+      if (onboarding?.allowAccess && status === "in_progress" &&
+          VERIFICATION_STEPS.has(resolved) && VERIFICATION_STEPS.has(current)) {
+        return current === AUTH_STEPS.VERIFY_EMAIL && onboarding?.email_confirmed
+          ? AUTH_STEPS.ACCOUNT_VERIFY_METHOD
+          : current;
       }
-      return;
-    }
-
-    setStep(
-      resolveRegistrationStep({
-        onboarding,
-        role: roleFromOnboarding,
-      }),
-    );
-  }, [allowAccess, bootStatus, onboarding, roleFromOnboarding]);
+      return resolved;
+    });
+  }, [bootStatus, onboarding, roleFromOnboarding]);
 
   const validatePendingRegistration = useCallback(async (key: string) => {
     if (registrationValidationInFlight.current) return;
@@ -473,6 +496,17 @@ export function useAuthEngine() {
     setStep(AUTH_STEPS.EMAIL_LOGIN);
   }, []);
 
+  const returnToWelcome = useCallback(() => {
+    businessRegistration.current = null;
+    setEmail("");
+    setPassword("");
+    setPasswordConfirm("");
+    setError("");
+    setInfo("");
+    setRegistrationConfirmationPending(false);
+    setStep(AUTH_STEPS.WELCOME);
+  }, []);
+
   const startOAuth = useCallback(
     async (
       provider: "google" | "apple" | "facebook" | "discord" | "twitter" = "google",
@@ -519,61 +553,120 @@ export function useAuthEngine() {
     [],
   );
 
-  const submitRoleSelection = useCallback(async (roleValue: string) => {
+  const validateBusinessRegistrationCode = useCallback(async (input: string) => {
+    const code = input.trim().toUpperCase();
+    businessRegistration.current = null;
+    if (!validateRegistrationCode(code)) return { ok: false, error: "Código de registro inválido." };
+    const { data: { session } } = await supabase.auth.getSession();
+    const authId = session?.user?.id;
+    if (!authId) return { ok: false, error: "No hay una sesión activa." };
+    const result = await requestBusinessRegistrationCode(code, false);
+    if (result.ok) businessRegistration.current = { code, authId };
+    return result;
+  }, []);
+
+  const submitRoleSelection = useCallback(async (roleValue: "cliente" | "negocio") => {
+    if (roleSubmissionInFlight.current) return false;
+    roleSubmissionInFlight.current = true;
     setError("");
     setInfo("");
     setLoading(true);
 
-    const { data: { session } = {} } = await supabase.auth.getSession();
-    const authUserId = session?.user?.id;
-    const authEmail = session?.user?.email || email.trim();
-    if (!authUserId || !authEmail) {
-      setLoading(false);
-      setError("Sesion no valida");
-      return false;
-    }
-
-    const { data: existing, error: existingErr } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("id_auth", authUserId)
-      .maybeSingle();
-    if (existingErr) {
-      setLoading(false);
-      setError(existingErr.message || "No se pudo leer perfil");
-      return false;
-    }
-
-    const accountStatus = roleValue === AUTH_ROLES.NEGOCIO ? "pending" : "active";
-    if (!existing) {
-      const { error: insertErr } = await supabase.from("usuarios").insert({
-        id_auth: authUserId,
-        email: authEmail,
-        role: roleValue,
-        account_status: accountStatus,
-      });
-      if (insertErr) {
-        setLoading(false);
-        setError(insertErr.message || "No se pudo crear perfil");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authUserId = session?.user?.id;
+      const authEmail = session?.user?.email || email.trim();
+      if (!authUserId || !authEmail) {
+        setError("No hay una sesión activa.");
         return false;
       }
-    } else if (!existing.role) {
-      const { error: updateErr } = await supabase
+
+      const isBusiness = roleValue === AUTH_ROLES.NEGOCIO;
+      const invite = businessRegistration.current;
+      if (isBusiness && invite?.authId !== authUserId) {
+        setError("Valida el código de negocio para continuar.");
+        return false;
+      }
+
+      const { data: existing, error: existingError } = await supabase
         .from("usuarios")
-        .update({ role: roleValue, account_status: accountStatus })
-        .eq("id", existing.id);
-      if (updateErr) {
-        setLoading(false);
-        setError(updateErr.message || "No se pudo actualizar perfil");
+        .select("id, role")
+        .eq("id_auth", authUserId)
+        .maybeSingle();
+      if (existingError) {
+        setError("No se pudo leer el perfil.");
         return false;
       }
-    }
+      if (existing?.role && existing.role !== roleValue) {
+        setError("Tu cuenta ya tiene un rol asignado.");
+        return false;
+      }
 
-    setSelectedRole(roleValue);
-    await bootstrapAuth();
-    setLoading(false);
-    return true;
+      const account = { role: roleValue, account_status: isBusiness ? "pending" : "active" };
+      if (!existing || !existing.role) {
+        const { error: saveError } = existing
+          ? await supabase.from("usuarios").update(account).eq("id", existing.id).is("role", null)
+          : await supabase.from("usuarios").insert({
+              ...account,
+              id_auth: authUserId,
+              email: authEmail,
+              ...(isBusiness ? {} : { nombre: authEmail.split("@")[0] }),
+            });
+        if (saveError) {
+          setError("No se pudo guardar el perfil.");
+          return false;
+        }
+      }
+
+      if (isBusiness && invite) {
+        const result = await requestBusinessRegistrationCode(invite.code, true);
+        if (!result.ok) {
+          setError(result.error || "No se pudo usar el código.");
+          return false;
+        }
+        businessRegistration.current = null;
+      }
+      await bootstrapAuth();
+      return useAppStore.getState().bootStatus === "ready";
+    } catch {
+      setError("No se pudo guardar el perfil. Reintenta para continuar.");
+      return false;
+    } finally {
+      roleSubmissionInFlight.current = false;
+      setLoading(false);
+    }
   }, [bootstrapAuth, email]);
+
+  const skipClientDetail = useCallback(async (detail: "profile" | "address") => {
+    setError("");
+    setInfo("");
+    setLoading(true);
+    try {
+      const current = await getCurrentUserRow();
+      if (!current.ok || current.data.role !== AUTH_ROLES.CLIENTE) {
+        setError("No se pudo cargar tu perfil de cliente.");
+        return false;
+      }
+      const changes = detail === "profile"
+        ? { cliente_profile_skipped: true }
+        : { cliente_address_skipped: true };
+      const { error: saveError } = await supabase
+        .from("usuarios")
+        .update(changes)
+        .eq("id", current.data.id);
+      if (saveError) {
+        setError("No se pudo guardar tu elección.");
+        return false;
+      }
+      await bootstrapAuth();
+      return useAppStore.getState().bootStatus === "ready";
+    } catch {
+      setError("No se pudo guardar tu elección.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [bootstrapAuth]);
 
   const submitOwnerProfile = useCallback(async () => {
     setError("");
@@ -701,8 +794,12 @@ export function useAuthEngine() {
       setError("Ingresa provincia y canton");
       return false;
     }
-    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    if (!lat.trim() || !lng.trim() || !Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
       setError("Coordenadas invalidas");
+      return false;
+    }
+    if (!ciudad.trim() && !parroquiaId.trim() && !parroquia.trim()) {
+      setError("Selecciona la ciudad o parroquia.");
       return false;
     }
 
@@ -717,6 +814,7 @@ export function useAuthEngine() {
       calles: calles.trim(),
       ciudad: ciudad.trim() || null,
       sector: sector.trim(),
+      referencia: referencia.trim() || null,
       provincia_id: provinciaId.trim(),
       canton_id: cantonId.trim(),
       parroquia_id: parroquiaId.trim() || null,
@@ -858,6 +956,7 @@ export function useAuthEngine() {
     parroquia,
     parroquiaId,
     provinciaId,
+    referencia,
     sector,
   ]);
 
@@ -900,6 +999,34 @@ export function useAuthEngine() {
     setInfo("");
     return markVerificationStatus("skipped");
   }, [markVerificationStatus]);
+
+  const acceptLegal = useCallback(async (consent: { termsAccepted: true; privacyAccepted: true }) => {
+    if (!consent.termsAccepted || !consent.privacyAccepted) return false;
+    setError("");
+    setLoading(true);
+    try {
+      const current = await getCurrentUserRow();
+      if (!current.ok) {
+        setError("No se pudo obtener tu perfil.");
+        return false;
+      }
+      const { error: saveError } = await supabase
+        .from("usuarios")
+        .update({ terms_accepted: true, privacy_accepted: true })
+        .eq("id", current.data.id);
+      if (saveError) {
+        setError("No se pudo guardar la aceptación.");
+        return false;
+      }
+      await bootstrapAuth();
+      return useAppStore.getState().bootStatus === "ready";
+    } catch {
+      setError("No se pudo guardar la aceptación.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [bootstrapAuth]);
 
   const sendVerificationEmail = useCallback(async () => {
     setError("");
@@ -1091,6 +1218,7 @@ export function useAuthEngine() {
     error,
     setError,
     info,
+    setInfo,
     onboarding,
     role: roleFromOnboarding,
     allowAccess,
@@ -1101,8 +1229,6 @@ export function useAuthEngine() {
     setPassword,
     passwordConfirm,
     setPasswordConfirm,
-    selectedRole,
-    setSelectedRole,
     nombre,
     setNombre,
     apellido,
@@ -1129,6 +1255,8 @@ export function useAuthEngine() {
     setCiudad,
     sector,
     setSector,
+    referencia,
+    setReferencia,
     provinciaId,
     setProvinciaId,
     cantonId,
@@ -1145,15 +1273,19 @@ export function useAuthEngine() {
     submitRegister,
     registrationConfirmationPending,
     continueAfterRegistrationConfirmation,
+    returnToWelcome,
     canRetryRegistrationValidation: Boolean(registrationKey && registrationKey === failedRegistrationKey),
     retryRegistrationValidation,
     startOAuth,
     submitRoleSelection,
+    validateBusinessRegistrationCode,
+    skipClientDetail,
     submitOwnerProfile,
     submitBusinessData,
     submitAddressData,
     startVerification,
     skipVerification,
+    acceptLegal,
     sendVerificationEmail,
     submitBusinessVerificationData,
     savePassword,

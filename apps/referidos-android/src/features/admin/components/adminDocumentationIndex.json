@@ -1,0 +1,112 @@
+{
+  "groups": [
+    {
+      "key": "general",
+      "label": "General del repo"
+    },
+    {
+      "key": "referidos_app",
+      "label": "PWA principal"
+    },
+    {
+      "key": "prelaunch_web",
+      "label": "Prelaunch"
+    },
+    {
+      "key": "android_app",
+      "label": "Android"
+    }
+  ],
+  "docs": [
+    {
+      "id": "repo-readme",
+      "group": "general",
+      "title": "README del monorepo",
+      "pathLabel": "README.md"
+    },
+    {
+      "id": "docs-index",
+      "group": "general",
+      "title": "Indice de documentacion",
+      "pathLabel": "docs/README.md"
+    },
+    {
+      "id": "docs-versioning-core",
+      "group": "general",
+      "title": "Versionado (guia completa)",
+      "pathLabel": "docs/referidos-system/README.md"
+    },
+    {
+      "id": "docs-versioning-quick",
+      "group": "general",
+      "title": "Versionado (atajo)",
+      "pathLabel": "docs/versioning-system.md"
+    },
+    {
+      "id": "docs-versioning-no-pr-netlify",
+      "group": "general",
+      "title": "Versionado sin PR + Netlify (detallado)",
+      "pathLabel": "docs/referidos-system/operacion-sin-pr-netlify.md"
+    },
+    {
+      "id": "docs-envs-secrets",
+      "group": "general",
+      "title": "Entornos y secrets (dev/staging/prod)",
+      "pathLabel": "docs/referidos-system/entornos-y-secrets.md"
+    },
+    {
+      "id": "docs-support-macros-ops-cache",
+      "group": "general",
+      "title": "Soporte macros OPS + cache runtime",
+      "pathLabel": "docs/referidos-system/support-macros-ops-cache.md"
+    },
+    {
+      "id": "pwa-docs-readme",
+      "group": "referidos_app",
+      "title": "PWA: guia de la app",
+      "pathLabel": "apps/referidos-app/docs/README.md"
+    },
+    {
+      "id": "prelaunch-docs-readme",
+      "group": "prelaunch_web",
+      "title": "Prelaunch: guia de la app",
+      "pathLabel": "apps/prelaunch/docs/README.md"
+    },
+    {
+      "id": "android-docs-readme",
+      "group": "android_app",
+      "title": "Android: guia de la app",
+      "pathLabel": "apps/referidos-android/docs/README.md"
+    },
+    {
+      "id": "android-readme",
+      "group": "android_app",
+      "title": "Android: README tecnico",
+      "pathLabel": "apps/referidos-android/README.md"
+    },
+    {
+      "id": "android-migration",
+      "group": "android_app",
+      "title": "Android migration plan",
+      "pathLabel": "docs/android-migration-plan.md"
+    },
+    {
+      "id": "android-parity",
+      "group": "android_app",
+      "title": "Android parity checklist",
+      "pathLabel": "docs/android-parity-checklist.md"
+    },
+    {
+      "id": "android-phase-playbook",
+      "group": "android_app",
+      "title": "Android phase playbook",
+      "pathLabel": "docs/android-phase-playbook.md"
+    },
+    {
+      "id": "android-support-cleanup-pending",
+      "group": "android_app",
+      "title": "Android support cleanup pending",
+      "pathLabel": "docs/referidos-system/android-support-cleanup-pending.md"
+    }
+  ]
+}

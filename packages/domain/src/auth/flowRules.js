@@ -106,3 +106,25 @@ export function resolveVerificationStep({ onboarding, role }) {
   if (!hasPassword || !hasMfa) return AUTH_STEPS.ACCOUNT_VERIFY_METHOD;
   return AUTH_STEPS.ACCOUNT_VERIFY_READY;
 }
+
+export function resolveOnboardingStep({ onboarding, role }) {
+  if (!onboarding?.ok) return AUTH_STEPS.WELCOME;
+  if (!onboarding.allowAccess) return resolveRegistrationStep({ onboarding, role });
+  if (role !== "cliente" && role !== "negocio") return null;
+
+  if (role === "cliente") {
+    const { profilePending, addressPending } = resolveClientPendingSteps(onboarding);
+    if (profilePending) return AUTH_STEPS.USER_PROFILE;
+    if (addressPending) return AUTH_STEPS.USER_ADDRESS;
+  }
+
+  const status = onboarding.verification_status || onboarding.usuario?.verification_status || "unverified";
+  if (status === "unverified" || status === "in_progress") {
+    return resolveVerificationStep({ onboarding: { ...onboarding, verification_status: status }, role });
+  }
+
+  const usuario = onboarding.usuario;
+  return usuario?.terms_accepted && usuario?.privacy_accepted
+    ? null
+    : AUTH_STEPS.ACCOUNT_VERIFY_READY;
+}

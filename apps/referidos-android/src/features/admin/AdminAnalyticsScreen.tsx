@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRoute } from "@react-navigation/native";
 import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import SectionCard from "@features/staff/StaffSectionCard";
 import { fetchAdminPrelaunchMetrics } from "@shared/services/adminOps";
 import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
 
@@ -23,6 +24,40 @@ function formatPercent(value: any) {
 }
 
 export default function AdminAnalyticsScreen() {
+  const route = useRoute();
+  const requested = (route.params as { product?: string } | undefined)?.product;
+  const [product, selectProduct] = useState(requested === "referidos_app" ? "referidos_app" : "prelaunch_web");
+  useEffect(() => {
+    selectProduct(requested === "referidos_app" ? "referidos_app" : "prelaunch_web");
+  }, [requested]);
+  const selector = (
+    <View style={styles.topChips}>
+      {[{ key: "prelaunch_web", title: "Prelaunch" }, { key: "referidos_app", title: "Referidos App" }].map(({ key, title }) => (
+        <Pressable
+          key={key}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: product === key }}
+          onPress={() => selectProduct(key)}
+          style={[styles.filterChip, product === key && styles.filterChipActive]}
+        >
+          <Text style={[styles.filterChipText, product === key && styles.filterChipTextActive]}>{title}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+  if (product === "referidos_app") {
+    return (
+      <AdminCollectionScreen title="Analytics" subtitle="Analytics por app" headerActions={selector}>
+        <SectionCard title="Referidos App">
+          <Text style={styles.filterChipText}>Analytics de esta app próximamente.</Text>
+        </SectionCard>
+      </AdminCollectionScreen>
+    );
+  }
+  return <PrelaunchAnalytics productSelector={selector} />;
+}
+
+function PrelaunchAnalytics({ productSelector }: { productSelector: React.ReactNode }) {
   const [days, setDays] = useState(7);
   const [channel, setChannel] = useState("");
   const [tab, setTab] = useState<(typeof TABS)[number]>("overview");
@@ -31,33 +66,32 @@ export default function AdminAnalyticsScreen() {
   const [error, setError] = useState("");
   const [payload, setPayload] = useState<any | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState("");
+  const [request, setRequest] = useState(0);
 
-  const loadMetrics = useCallback(async () => {
-    if (!refreshing) setLoading(true);
-    try {
-      const result = await fetchAdminPrelaunchMetrics({
-        days,
-        appChannel: channel,
-      });
+  const refreshAll = useCallback(() => {
+    setRefreshing(true);
+    setRequest((key) => key + 1);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    void fetchAdminPrelaunchMetrics({ days, appChannel: channel }).then((result) => {
+      if (!active) return;
       setPayload(result || null);
       setError("");
       setLastUpdatedAt(new Date().toISOString());
-    } catch (metricsError: any) {
+    }).catch((failure) => {
+      if (!active) return;
       setPayload(null);
-      setError(String(metricsError?.message || metricsError || "No se pudo cargar analytics."));
-    }
-    setLoading(false);
-  }, [channel, days, refreshing]);
-
-  const refreshAll = useCallback(async () => {
-    setRefreshing(true);
-    await loadMetrics();
-    setRefreshing(false);
-  }, [loadMetrics]);
-
-  useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
+      setError(failure instanceof Error ? failure.message : "No se pudo cargar analytics.");
+    }).finally(() => {
+      if (!active) return;
+      setLoading(false);
+      setRefreshing(false);
+    });
+    return () => { active = false; };
+  }, [channel, days, request]);
 
   const summary = useMemo(() => {
     return payload?.metrics || {
@@ -98,6 +132,7 @@ export default function AdminAnalyticsScreen() {
       onRefresh={() => void refreshAll()}
       headerActions={
         <View style={styles.topChips}>
+          {productSelector}
           {DAY_OPTIONS.map((value) => {
             const active = value === days;
             return (

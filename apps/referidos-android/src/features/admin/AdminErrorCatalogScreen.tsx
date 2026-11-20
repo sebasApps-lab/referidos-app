@@ -1,146 +1,119 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Text, View } from "react-native";
-import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Text, useWindowDimensions, View } from "react-native";
+import StaffSelect from "@features/staff/StaffSelect";
+import StaffTable, { StaffTableBadge, type StaffTableColumn } from "@features/staff/StaffTable";
+import StaffTablePage, { tableText } from "@features/staff/StaffTablePage";
 import { supabase } from "@shared/services/mobileApi";
 import { fetchSupportErrorCatalog } from "@shared/services/supportDeskQueries";
 import { formatDateTime, readFirst } from "@shared/services/entityQueries";
-import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
+
+const STATUS_OPTIONS = [
+  { id: "todos", label: "Todos" },
+  { id: "pending", label: "Pending" },
+  { id: "defined", label: "Defined" },
+  { id: "ignored", label: "Ignored" },
+] as const;
+
+type StatusFilter = (typeof STATUS_OPTIONS)[number]["id"];
+
+function catalogView(row: Record<string, unknown>) {
+  const context = row.sample_context as Record<string, unknown> | null;
+  return {
+    id: String(readFirst(row, ["id", "error_code"], "")),
+    code: String(readFirst(row, ["error_code"], "unknown_error")),
+    status: String(readFirst(row, ["status"], "pending")).trim().toLowerCase(),
+    total: Number(readFirst(row, ["count_total"], 0)),
+    source: String(readFirst(row, ["source_hint"], "")),
+    route: String(readFirst(row, ["sample_route"], "")),
+    message: String(readFirst(row, ["sample_message"], "")),
+    category: String(readFirst(context, ["category"], "")),
+    lastSeen: readFirst(row, ["last_seen_at"], null),
+  };
+}
+
+type CatalogEntry = ReturnType<typeof catalogView>;
+
+function statusTone(status: string) {
+  if (status === "defined") return "positive";
+  return status === "pending" ? "warning" : "neutral";
+}
 
 export default function AdminErrorCatalogScreen() {
-  const [rows, setRows] = useState<any[]>([]);
+  const { width } = useWindowDimensions();
+  const [rows, setRows] = useState<CatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const activeRequest = useRef(false);
 
-  const loadRows = useCallback(async () => {
-    if (!refreshing) setLoading(true);
-    const result = await fetchSupportErrorCatalog(supabase, 250);
-    if (!result.ok) {
-      setRows([]);
-      setError(result.error || "No se pudo cargar catalogo de errores.");
+  const loadRows = useCallback(async (manual = false) => {
+    if (activeRequest.current) return;
+    activeRequest.current = true;
+    if (manual) setRefreshing(true);
+    try {
+      const result = await fetchSupportErrorCatalog(supabase, 250);
+      if (result.ok) {
+        setRows((result.data || []).map(catalogView));
+        setError("");
+      } else {
+        setError(result.error || "No se pudo cargar el catálogo.");
+      }
+    } catch {
+      setError("No se pudo cargar el catálogo.");
+    } finally {
+      activeRequest.current = false;
       setLoading(false);
-      return;
+      if (manual) setRefreshing(false);
     }
-    setRows(result.data || []);
-    setError("");
-    setLoading(false);
-  }, [refreshing]);
+  }, []);
 
-  const refreshAll = useCallback(async () => {
-    setRefreshing(true);
-    await loadRows();
-    setRefreshing(false);
-  }, [loadRows]);
-
-  useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
+  useEffect(() => { void loadRows(); }, [loadRows]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const code = String(readFirst(row, ["error_code"], "")).toLowerCase();
-      const status = String(readFirst(row, ["status"], "pending")).trim();
-      const message = String(readFirst(row, ["sample_message"], "")).toLowerCase();
-      const route = String(readFirst(row, ["sample_route"], "")).toLowerCase();
-      const category = String(readFirst(row, ["sample_context"], "")).toLowerCase();
-      const matchesQuery =
-        !term ||
-        code.includes(term) ||
-        message.includes(term) ||
-        route.includes(term) ||
-        category.includes(term);
-      const matchesStatus = statusFilter === "todos" || status === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
+    return rows.filter((row) => (
+      (statusFilter === "todos" || row.status === statusFilter) &&
+      [row.code, row.status, row.message, row.route, row.category]
+        .some((value) => value.toLowerCase().includes(term))
+    ));
   }, [query, rows, statusFilter]);
 
-  const metrics = useMemo(() => {
-    const byStatus: Record<string, number> = {
-      pending: 0,
-      defined: 0,
-      ignored: 0,
-    };
-    rows.forEach((row) => {
-      const status = String(readFirst(row, ["status"], "pending")).trim().toLowerCase();
-      if (status in byStatus) byStatus[status] += 1;
-    });
-    return [
-      { label: "Total", value: rows.length },
-      { label: "Pending", value: byStatus.pending },
-      { label: "Defined", value: byStatus.defined },
-      { label: "Ignored", value: byStatus.ignored },
-    ];
-  }, [rows]);
+  const columns: StaffTableColumn<CatalogEntry>[] = [
+    { key: "code", label: "Error code", width: 192, render: (row) => (
+      <View>
+        <Text style={tableText.name} numberOfLines={2}>{row.code}</Text>
+        <Text style={tableText.metadata} numberOfLines={1}>{row.route || "—"}</Text>
+        {width < 768 ? <Text style={tableText.metadata} numberOfLines={2}>{row.message || "—"}</Text> : null}
+      </View>
+    ) },
+    { key: "status", label: "Estado", width: 106, render: (row) => <StaffTableBadge value={row.status} tone={statusTone(row.status)} /> },
+    { key: "total", label: "Total", width: 80, render: (row) => <Text style={tableText.metadata}>{row.total}</Text> },
+    { key: "category", label: "Categoría", width: 118, render: (row) => <Text style={tableText.metadata} numberOfLines={2}>{row.category || "—"}</Text> },
+    { key: "source", label: "Origen", width: 118, render: (row) => <Text style={tableText.metadata} numberOfLines={2}>{row.source || "—"}</Text> },
+  ];
+  if (width >= 768) columns.push(
+    { key: "last", label: "Último visto", width: 148, render: (row) => <Text style={tableText.metadata}>{formatDateTime(row.lastSeen)}</Text> },
+    { key: "sample", label: "Muestra", width: 230, render: (row) => (
+      <Text style={tableText.metadata} numberOfLines={2}>{row.message || "—"}</Text>
+    ) },
+  );
 
   return (
-    <AdminCollectionScreen
-      title="Admin Error Codes"
+    <StaffTablePage
+      title="Error codes"
       subtitle="Errores detectados, pendientes y definidos"
-      searchPlaceholder="Buscar error code, ruta o mensaje"
+      description="Catálogo de códigos de error observados."
+      searchPlaceholder="Buscar por código, estado, ruta o mensaje"
       query={query}
-      onQueryChange={setQuery}
+      onChangeQuery={setQuery}
       loading={loading}
-      refreshing={refreshing}
       error={error}
-      metrics={metrics}
-      filters={[
-        {
-          title: "Estado",
-          selectedId: statusFilter,
-          onSelect: setStatusFilter,
-          options: [
-            { id: "todos", label: "Todos" },
-            { id: "pending", label: "Pending" },
-            { id: "defined", label: "Defined" },
-            { id: "ignored", label: "Ignored" },
-          ],
-        },
-      ]}
-      onRefresh={() => void refreshAll()}
-      emptyText={!loading && filtered.length === 0 ? "No hay errores para este filtro." : ""}
+      filters={<StaffSelect label="Estado" value={statusFilter} options={STATUS_OPTIONS} onSelect={setStatusFilter} />}
+      onRefresh={loading || refreshing ? undefined : () => { void loadRows(true); }}
     >
-      <SectionCard title="Catalogo" subtitle={`Errores encontrados: ${filtered.length}`}>
-        {filtered.length === 0 && !loading ? (
-          <Text style={shared.emptyText}>Sin errores catalogados.</Text>
-        ) : null}
-        <View style={shared.listWrap}>
-          {filtered.map((row, index) => (
-            <View key={`${String(readFirst(row, ["id", "error_code"], index))}-${index}`} style={shared.card}>
-              <Text style={shared.cardTitle}>
-                {String(readFirst(row, ["error_code"], "unknown_error"))}
-              </Text>
-              <View style={shared.badgeRow}>
-                <View style={shared.badge}>
-                  <Text style={shared.badgeText}>
-                    {String(readFirst(row, ["status"], "pending"))}
-                  </Text>
-                </View>
-                <View style={shared.codePill}>
-                  <Text style={shared.codePillText}>
-                    total: {String(readFirst(row, ["count_total"], 0))}
-                  </Text>
-                </View>
-              </View>
-              <Text style={shared.bodyText} numberOfLines={2}>
-                {String(readFirst(row, ["sample_message"], "Sin muestra"))}
-              </Text>
-              <Text style={shared.metaText}>
-                ruta: {String(readFirst(row, ["sample_route"], "-"))}
-              </Text>
-              <Text style={shared.metaText}>
-                source: {String(readFirst(row, ["source_hint"], "-"))}
-              </Text>
-              <Text style={shared.metaText}>
-                ultimo visto: {formatDateTime(readFirst(row, ["last_seen_at"], null))}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
-    </AdminCollectionScreen>
+      <StaffTable columns={columns} rows={filtered} getKey={(row) => row.id} emptyMessage="No hay errores para este filtro." />
+    </StaffTablePage>
   );
 }

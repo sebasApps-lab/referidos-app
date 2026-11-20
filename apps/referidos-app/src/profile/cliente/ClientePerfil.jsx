@@ -347,7 +347,7 @@ export default function ClientePerfil() {
                 toggle: {
                   active: totpEnabled,
                   onChange: () => {
-                    if (mfaLoading) return;
+                    if (mfaLoading || mfaError) return;
                     if (totpEnabled) {
                       openModal("TwoFADisable", {
                         factorId: totpFactorId,
@@ -359,7 +359,7 @@ export default function ClientePerfil() {
                       onComplete: refreshMfa,
                     });
                   },
-                  disabled: mfaLoading,
+                  disabled: mfaLoading || Boolean(mfaError),
                 },
               },
               {
@@ -382,6 +382,9 @@ export default function ClientePerfil() {
               className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-[11px] text-red-500"
             >
               {mfaError}
+              <button type="button" onClick={refreshMfa} className="ml-2 font-semibold text-[#5E30A5]">
+                Reintentar
+              </button>
             </div>
           ) : null,
         ]}

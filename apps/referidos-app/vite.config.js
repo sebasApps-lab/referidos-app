@@ -30,30 +30,8 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['favicon.ico'],
-        manifest: {
-          name: 'Migo App',
-          short_name: 'Migo',
-          description: 'Promociones y referidos con QR',
-          start_url: '/',
-          scope: '/',
-          display: 'standalone',
-          orientation: 'portrait',
-          background_color: '#5E30A5',
-          theme_color: '#5E30A5',
-          icons: [
-            {
-              src: '/icons/icon-192.png',
-              sizes: '192x192',
-              type: 'image/png',
-            },
-            {
-              src: '/icons/icon-512.png',
-              sizes: '512x512',
-              type: 'image/png',
-            },
-          ],
-        },
+        includeAssets: ['favicon.ico', 'icons/icon-192.png', 'icons/icon-512.png'],
+        manifest: false,
       }),
     ],
     build: {

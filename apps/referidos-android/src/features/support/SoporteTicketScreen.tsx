@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { StackActions, useNavigation, useRoute, type NavigationProp, type ParamListBase } from "@react-navigation/native";
 import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
@@ -21,6 +21,7 @@ import {
   normalizeSupportEnvKey,
 } from "@shared/services/supportCatalog";
 import { dispatchSupportMacrosSync } from "@shared/services/supportOps";
+import { SupportBadge, SupportButton, SupportNotice, supportChannelLabel, supportStatusLabel } from "./SupportTicketUi";
 
 const FLOW = {
   START: "screen_1_starting_intro",
@@ -37,6 +38,19 @@ const FLOW = {
 } as const;
 
 const WAIT_MS = 10 * 60 * 1000;
+const STAGES: Record<string, { title: string; description: string }> = {
+  [FLOW.START]: { title: "Empezar atención", description: "Revisa el motivo del ticket antes de atender al usuario." },
+  [FLOW.GUIDE]: { title: "Preparar WhatsApp", description: "Cambia el nombre del contacto en WhatsApp al identificador indicado y confirma el cambio." },
+  [FLOW.OPENING]: { title: "Mensaje de apertura", description: "Envía el primer mensaje al usuario y registra el envío." },
+  [FLOW.OPENING_WAIT]: { title: "Esperando respuesta inicial", description: "Confirma la respuesta del usuario o reabre la apertura." },
+  [FLOW.ACTIVE]: { title: "Resolución del ticket", description: "Registra los mensajes enviados y marca el caso como resuelto cuando corresponda." },
+  [FLOW.ACTIVE_WAIT]: { title: "Seguimiento", description: "Retoma la atención cuando el usuario responda." },
+  [FLOW.CLOSING]: { title: "Preparar el cierre", description: "Envía el mensaje de cierre antes de confirmar el resultado." },
+  [FLOW.CLOSING_WAIT]: { title: "Esperando confirmación", description: "Espera la ventana mínima o continúa la resolución si hay una respuesta pendiente." },
+  [FLOW.CONFIRM]: { title: "Confirmar el cierre", description: "Registra un comentario y selecciona el resultado del cierre." },
+  [FLOW.ISSUE]: { title: "Motivo para continuar", description: "Identifica si el usuario presenta otra inquietud o continúa con el mismo caso." },
+  [FLOW.ISSUE_INFO]: { title: "Solicitar información", description: "Pide la información adicional y vuelve a la resolución." },
+};
 
 function pickFirstString(...values: any[]) {
   for (const value of values) {
@@ -76,21 +90,6 @@ function initialFlow(thread: any, events: any[]) {
   return FLOW.ACTIVE;
 }
 
-function statusLabel(value: any) {
-  const labels: Record<string, string> = {
-    new: "Nuevo",
-    starting: "Empezando",
-    assigned: "Asignado",
-    in_progress: "Resolviendo",
-    waiting_user: "Esperando usuario",
-    queued: "En cola",
-    closing: "Cerrando",
-    closed: "Cerrado",
-    cancelled: "Cancelado",
-  };
-  return labels[String(value || "").trim().toLowerCase()] || String(value || "sin estado");
-}
-
 function formatClock(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -99,17 +98,22 @@ function formatClock(ms: number) {
 }
 
 export default function SoporteTicketScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const route = useRoute<any>();
   const role = useAppStore((state) => state.role);
   const selectedThreadPublicId = useSupportDeskStore((state) => state.selectedThreadPublicId);
   const setSelectedThreadPublicId = useSupportDeskStore((state) => state.setSelectedThreadPublicId);
   const shownRef = useRef(new Set<string>());
+  const loadingRequest = useRef(0);
+  const requestTarget = useRef("");
+  const loadedTicket = useRef("");
+  const actionPending = useRef(false);
   const runtimeEnvKey = useMemo(() => normalizeSupportEnvKey(__DEV__ ? "dev" : "prod", "dev"), []);
   const routeThreadPublicId = String(route?.params?.threadPublicId || "").trim();
   const isAdminTicketRoute =
     role === "admin" || String(route?.name || "") === STACK_ROUTES.ADMIN.SUPPORT_TICKET;
   const [threadIdInput, setThreadIdInput] = useState(selectedThreadPublicId || "");
+  const [lookupOpen, setLookupOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [error, setError] = useState("");
@@ -131,91 +135,102 @@ export default function SoporteTicketScreen() {
 
   const loadCatalog = useCallback(async (forceSync = false) => {
     setCatalogLoading(true);
-    let result = await loadSupportCatalogFromCache({ publishedOnly: true });
-    if (forceSync || result.categories.length === 0 || result.macros.length === 0) {
-      try {
-        await dispatchSupportMacrosSync({ mode: "hot", panelKey: "android_support_ticket" });
-      } catch (syncErr: any) {
-        setCatalogError(String(syncErr?.message || syncErr || "sync_dispatch_failed"));
+    setCatalogError("");
+    try {
+      let result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      if (forceSync || result.categories.length === 0 || result.macros.length === 0) {
+        try {
+          await dispatchSupportMacrosSync({ mode: "hot", panelKey: "android_support_ticket" });
+        } catch (cause) {
+          setCatalogError(cause instanceof Error ? cause.message : "No se pudo actualizar el catálogo.");
+        }
+        result = await loadSupportCatalogFromCache({ publishedOnly: true });
       }
-      result = await loadSupportCatalogFromCache({ publishedOnly: true });
+      setCatalog({ categories: result.categories || [], macros: result.macros || [] });
+      if (!result.categories.length && !result.macros.length && result.error) setCatalogError(String(result.error));
+    } catch {
+      setCatalogError("No se pudo cargar el catálogo de macros.");
+    } finally {
+      setCatalogLoading(false);
     }
-    setCatalog({
-      categories: result.categories || [],
-      macros: result.macros || [],
-    });
-    if (!result.categories.length && !result.macros.length && result.error) {
-      setCatalogError(String(result.error));
-    }
-    setCatalogLoading(false);
   }, []);
 
-  const loadThread = useCallback(async (forcedId?: string) => {
-    const nextId = String(forcedId || threadIdInput || selectedThreadPublicId || "").trim();
+  const loadThread = useCallback(async (ticketId: string) => {
+    const nextId = ticketId.trim();
     if (!nextId) {
       setError("Ingresa o selecciona un ticket para cargar detalle.");
       return;
     }
+    const request = ++loadingRequest.current;
+    requestTarget.current = nextId;
     setLoading(true);
     setError("");
-    const detail = await fetchSupportThreadDetail(supabase, nextId);
-    if (!detail.ok || !detail.data) {
+    try {
+      const detail = await fetchSupportThreadDetail(supabase, nextId);
+      if (request !== loadingRequest.current) return;
+      if (!detail.ok || !detail.data) throw new Error(detail.error || "No se pudo cargar el ticket.");
+      const nextThread = detail.data;
+      const [eventsResult, notesResult, logsResult] = await Promise.all([
+        fetchSupportThreadEvents(supabase, String(nextThread.id || "")),
+        fetchSupportThreadNotes(supabase, String(nextThread.id || "")),
+        fetchSupportLogEvents(supabase, {
+          threadId: String(nextThread.id || ""),
+          userId: String(nextThread.user_id || ""),
+          limit: 60,
+        }),
+      ]);
+      if (request !== loadingRequest.current) return;
+      const nextEvents = eventsResult.ok ? eventsResult.data : [];
+      const publicId = String(nextThread.public_id || nextId);
+      const changedTicket = loadedTicket.current !== publicId;
+      loadedTicket.current = publicId;
+      requestTarget.current = publicId;
+      setThread(nextThread);
+      setThreadIdInput(publicId);
+      setSelectedThreadPublicId(publicId);
+      setLookupOpen(false);
+      setEvents(nextEvents);
+      setNotes(notesResult.ok ? notesResult.data : []);
+      setLogs(logsResult.ok ? logsResult.data : []);
+      setFlow(initialFlow(nextThread, nextEvents));
+      setClosingSentAt(pickFirstString(latestAction(nextEvents, "closing_message_sent")?.created_at));
+      if (changedTicket) {
+        setActiveMacro(null);
+        setNoteDraft("");
+        setClosingComment("");
+        setIssueReason("");
+        setIssueCategory(String(nextThread.category || ""));
+        shownRef.current.clear();
+      }
+    } catch (cause) {
+      if (request !== loadingRequest.current) return;
       setThread(null);
       setEvents([]);
       setNotes([]);
       setLogs([]);
-      setError(detail.error || "No se pudo cargar el ticket.");
-      setLoading(false);
-      return;
+      setError(cause instanceof Error ? cause.message : "No se pudo cargar el ticket.");
+    } finally {
+      if (request === loadingRequest.current) setLoading(false);
     }
-    const nextThread = detail.data;
-    const [eventsResult, notesResult, logsResult] = await Promise.all([
-      fetchSupportThreadEvents(supabase, String(nextThread.id || "")),
-      fetchSupportThreadNotes(supabase, String(nextThread.id || "")),
-      fetchSupportLogEvents(supabase, {
-        threadId: String(nextThread.id || ""),
-        userId: String(nextThread.user_id || ""),
-        limit: 60,
-      }),
-    ]);
-    const nextEvents = eventsResult.ok ? eventsResult.data : [];
-    setThread(nextThread);
-    setThreadIdInput(String(nextThread.public_id || nextId));
-    setSelectedThreadPublicId(String(nextThread.public_id || nextId));
-    setEvents(nextEvents);
-    setNotes(notesResult.ok ? notesResult.data : []);
-    setLogs(logsResult.ok ? logsResult.data : []);
-    setFlow(initialFlow(nextThread, nextEvents));
-    setActiveMacro(null);
-    setClosingComment("");
-    setIssueReason("");
-    setIssueCategory(String(nextThread.category || ""));
-    setClosingSentAt(pickFirstString(latestAction(nextEvents, "closing_message_sent")?.created_at));
-    shownRef.current.clear();
-    setLoading(false);
-  }, [selectedThreadPublicId, setSelectedThreadPublicId, threadIdInput]);
+  }, [setSelectedThreadPublicId]);
 
   useEffect(() => {
     void loadCatalog(false);
   }, [loadCatalog]);
 
+  const incomingThreadId = routeThreadPublicId || selectedThreadPublicId;
   useEffect(() => {
-    if (!routeThreadPublicId) return;
-    setThreadIdInput(routeThreadPublicId);
-    setSelectedThreadPublicId(routeThreadPublicId);
-    void loadThread(routeThreadPublicId);
-  }, [loadThread, routeThreadPublicId, setSelectedThreadPublicId]);
+    if (!incomingThreadId || requestTarget.current === incomingThreadId) return;
+    setThreadIdInput(incomingThreadId);
+    void loadThread(incomingThreadId);
+  }, [incomingThreadId, loadThread]);
 
   useEffect(() => {
-    if (!selectedThreadPublicId) return;
-    setThreadIdInput(selectedThreadPublicId);
-    void loadThread(selectedThreadPublicId);
-  }, [loadThread, selectedThreadPublicId]);
-
-  useEffect(() => {
+    if (flow !== FLOW.CLOSING_WAIT) return;
+    setNowMs(Date.now());
     const timer = globalThis.setInterval(() => setNowMs(Date.now()), 1000);
     return () => globalThis.clearInterval(timer);
-  }, []);
+  }, [flow]);
 
   const macroThread = useMemo(() => {
     if (!thread) return null;
@@ -247,13 +262,23 @@ export default function SoporteTicketScreen() {
   }, [catalog.categories, catalog.macros, macroThread, runtimeEnvKey]);
 
   const selectedMacro = activeMacro || macros[0] || null;
-  const remainingMs = closingSentAt ? Math.max(0, WAIT_MS - (nowMs - new Date(closingSentAt).getTime())) : WAIT_MS;
-  const backRoute = isAdminTicketRoute
-    ? STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL
-    : TAB_ROUTES.SOPORTE.INBOX;
-  const auxRoute = isAdminTicketRoute
-    ? TAB_ROUTES.ADMIN.SOPORTE
-    : STACK_ROUTES.SOPORTE.JORNADAS;
+  const closingStartedMs = Date.parse(closingSentAt);
+  const remainingMs = Number.isFinite(closingStartedMs) ? Math.max(0, WAIT_MS - Math.max(0, nowMs - closingStartedMs)) : WAIT_MS;
+  function openTicketList() {
+    if (isAdminTicketRoute) {
+      navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL);
+    } else {
+      navigation.dispatch(StackActions.popTo(STACK_ROUTES.SOPORTE.TABS, { screen: TAB_ROUTES.SOPORTE.INBOX }));
+    }
+  }
+
+  function openRelatedPanel() {
+    if (isAdminTicketRoute) {
+      navigation.dispatch(StackActions.popTo(STACK_ROUTES.ADMIN.TABS, { screen: TAB_ROUTES.ADMIN.SOPORTE }));
+    } else {
+      navigation.navigate(STACK_ROUTES.SOPORTE.JORNADAS);
+    }
+  }
 
   useEffect(() => {
     if (!thread?.public_id || !macros.length) return;
@@ -283,10 +308,16 @@ export default function SoporteTicketScreen() {
   }, [macros, runtimeEnvKey, thread?.public_id]);
 
   const runAction = useCallback(async (fn: () => Promise<void>) => {
+    if (actionPending.current) return;
+    actionPending.current = true;
     setBusy(true);
+    setError("");
     try {
       await fn();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo completar la acción.");
     } finally {
+      actionPending.current = false;
       setBusy(false);
     }
   }, []);
@@ -335,61 +366,96 @@ export default function SoporteTicketScreen() {
     setNoteDraft("");
     const nextNotes = await fetchSupportThreadNotes(supabase, String(thread?.id || ""));
     if (nextNotes.ok) setNotes(nextNotes.data);
-    await observability.track({
+    void observability.track({
       level: "info",
       category: "audit",
       message: "support_note_added",
       context: { thread_public_id: thread?.public_id },
-    });
+    }).catch(() => {});
   }, [noteDraft, thread?.id, thread?.public_id]);
 
-  if (loading) {
-    return (
-      <ScreenScaffold title="Soporte Ticket" subtitle="Flujo guiado, macros runtime y control operativo">
-        <BlockSkeleton lines={10} />
-      </ScreenScaffold>
-    );
-  }
+  const terminal = thread?.status === "closed" || thread?.status === "cancelled";
+  const stage = STAGES[flow] || STAGES[FLOW.START];
+  const refreshId = String(thread?.public_id || incomingThreadId || "");
 
   return (
-    <ScreenScaffold title="Soporte Ticket" subtitle="Flujo guiado, macros runtime y control operativo">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard title="Buscar ticket">
-          <TextInput value={threadIdInput} onChangeText={setThreadIdInput} style={styles.input} placeholder="Public ID del ticket" autoCapitalize="characters" />
-          <View style={styles.row}>
-            <Pressable onPress={() => void loadThread()} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Cargar ticket</Text></Pressable>
-            <Pressable onPress={() => navigation.navigate(backRoute)} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{isAdminTicketRoute ? "Volver panel" : "Volver inbox"}</Text></Pressable>
-          </View>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </SectionCard>
+    <ScreenScaffold
+      title="Ticket de soporte"
+      onRefresh={refreshId ? () => { if (!loading && !actionPending.current) void loadThread(refreshId); } : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.headingActions}>
+          <SupportButton label={isAdminTicketRoute ? "Volver al panel" : "Volver a la bandeja"} onPress={openTicketList} />
+          {thread && !loading ? (
+            <SupportButton label={lookupOpen ? "Ocultar búsqueda" : "Buscar otro ticket"} disabled={busy} onPress={() => setLookupOpen(!lookupOpen)} />
+          ) : null}
+        </View>
+        {error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+        {(!thread || lookupOpen) && !loading ? (
+          <SectionCard title="Buscar ticket">
+            <TextInput
+              value={threadIdInput}
+              onChangeText={setThreadIdInput}
+              style={styles.input}
+              accessibilityLabel="Identificador público del ticket"
+              placeholder="Identificador público del ticket"
+              placeholderTextColor="#64748B"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="search"
+              onSubmitEditing={() => { if (threadIdInput.trim() && !actionPending.current) void loadThread(threadIdInput); }}
+            />
+            <View style={styles.row}>
+              <SupportButton label="Cargar ticket" kind="primary" disabled={busy || !threadIdInput.trim()} onPress={() => { void loadThread(threadIdInput); }} />
+            </View>
+          </SectionCard>
+        ) : null}
 
-        {thread ? (
+        {loading ? <BlockSkeleton lines={10} /> : thread ? (
           <>
-            <SectionCard title={`Ticket ${String(thread.public_id || "-")}`} subtitle={statusLabel(thread.status)}>
+            <SectionCard title={`Ticket ${String(thread.public_id || "-")}`}>
+              <View style={styles.row}>
+                <SupportBadge tone={thread.status === "closed" ? "positive" : "neutral"}>{supportStatusLabel(thread.status)}</SupportBadge>
+                <SupportBadge tone={thread.request_origin === "anonymous" ? "warning" : "positive"}>
+                  {thread.request_origin === "anonymous" ? "Anónimo" : "Registrado"}
+                </SupportBadge>
+                {thread.origin_source ? <SupportBadge>{String(thread.origin_source).replace(/_/g, " ")}</SupportBadge> : null}
+                {thread.app_channel ? <SupportBadge tone="info">{supportChannelLabel(String(thread.app_channel))}</SupportBadge> : null}
+              </View>
               <Text style={styles.titleText}>{String(thread.summary || "Sin resumen")}</Text>
-              <Text style={styles.metaText}>Categoria: {String(thread.category || "-")} | Severidad: {String(thread.severity || "s2")}</Text>
+              <Text style={styles.metaText}>Categoría: {String(thread.category || "Sin categoría")} · Severidad: {String(thread.severity || "Sin severidad")}</Text>
               <Text style={styles.metaText}>Usuario: {thread.request_origin === "anonymous" ? pickFirstString(thread?.anon_public_id, thread?.user_public_id, "anon") : pickFirstString(thread?.user_public_id, "usuario")}</Text>
-              <Text style={styles.metaText}>Creado: {formatDateTime(thread.created_at || null)} | Actualizado: {formatDateTime(thread.updated_at || thread.created_at || null)}</Text>
+              <Text style={styles.metaText}>Creado: {formatDateTime(thread.created_at || null)}</Text>
+              <Text style={styles.metaText}>Actualizado: {formatDateTime(thread.updated_at || thread.created_at || null)}</Text>
+              {!terminal ? (
+                <View style={styles.row}>
+                  <SupportButton label="Liberar a cola" disabled={busy} onPress={() => void runAction(async () => { await setStatus("queued"); setFlow(FLOW.ACTIVE_WAIT); })} />
+                </View>
+              ) : null}
             </SectionCard>
 
-            <SectionCard title={flow === FLOW.CLOSING_WAIT ? `Espera cierre (${formatClock(remainingMs)})` : "Flujo guiado"}>
-              <Text style={styles.bodyText}>
-                {flow === FLOW.START && "Revisa el ticket y comienza el flujo operativo."}
-                {flow === FLOW.GUIDE && "Confirma el cambio de nombre en WhatsApp antes de escribir."}
-                {flow === FLOW.OPENING && "Usa una macro de apertura y registra el primer mensaje."}
-                {flow === FLOW.OPENING_WAIT && "Espera respuesta inicial o reabre la apertura."}
-                {flow === FLOW.ACTIVE && "Resuelve el caso y registra los mensajes enviados."}
-                {flow === FLOW.ACTIVE_WAIT && "El ticket está en espera o en cola. Retómalo cuando el usuario responda."}
-                {flow === FLOW.CLOSING && "Envía el mensaje de cierre antes de confirmar."}
-                {flow === FLOW.CLOSING_WAIT && "Espera la ventana mínima antes de confirmar cierre."}
-                {flow === FLOW.CONFIRM && "Deja comentario obligatorio y cierra el ticket."}
-                {flow === FLOW.ISSUE && "Define si es nueva inquietud o continuidad del mismo caso."}
-                {flow === FLOW.ISSUE_INFO && "Pide la información adicional y vuelve a resolución."}
-              </Text>
-              {selectedMacro ? (
+            {thread.handoff_required ? (
+              <SupportNotice tone="warning">El asesor anterior liberó este ticket por abandono. Revisa la apertura antes de continuar.</SupportNotice>
+            ) : null}
+
+            {!terminal ? <SectionCard title={stage.title}>
+              <Text style={styles.bodyText}>{stage.description}</Text>
+              {flow === FLOW.GUIDE ? (
+                <View style={styles.focusCard}>
+                  <Text style={styles.metaText}>Identificador del contacto</Text>
+                  <Text selectable style={styles.focusTitle}>{pickFirstString(thread.user_public_id, thread.anon_public_id, "ticket")}</Text>
+                </View>
+              ) : null}
+              {flow === FLOW.CLOSING_WAIT ? (
+                <View style={styles.focusCard}>
+                  <Text style={styles.metaText}>Tiempo restante</Text>
+                  <Text style={styles.clock}>{formatClock(remainingMs)}</Text>
+                </View>
+              ) : null}
+              {selectedMacro && ([FLOW.OPENING, FLOW.ACTIVE, FLOW.CLOSING, FLOW.ISSUE_INFO] as string[]).includes(flow) ? (
                 <View style={styles.focusCard}>
                   <Text style={styles.focusTitle}>{String(selectedMacro.title || "Macro")}</Text>
-                  <Text style={styles.bodyText}>{String(selectedMacro.body || "")}</Text>
+                  <Text selectable style={styles.bodyText}>{String(selectedMacro.body || "")}</Text>
                 </View>
               ) : null}
               {flow === FLOW.CONFIRM ? (
@@ -422,13 +488,10 @@ export default function SoporteTicketScreen() {
                 {flow === FLOW.ISSUE_INFO ? <Pressable disabled={busy} onPress={() => void runAction(async () => { const response = await persistWorkflow("info_message_sent", { reason: issueReason.trim(), category: issueCategory || thread.category || null }); if (!response?.ok) throw new Error(response?.error || "info_message_failed"); setFlow(FLOW.ACTIVE); })} style={styles.primaryBtn}><Text style={styles.primaryBtnText}>Mensaje de info enviado</Text></Pressable> : null}
                 <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("in_progress"); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>En progreso</Text></Pressable>
                 <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("waiting_user"); setFlow(FLOW.ACTIVE_WAIT); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>Esperando usuario</Text></Pressable>
-                <Pressable disabled={busy} onPress={() => void runAction(async () => { await setStatus("queued"); setFlow(FLOW.ACTIVE_WAIT); })} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>Liberar a cola</Text></Pressable>
-                <Pressable onPress={() => navigation.navigate(auxRoute)} style={styles.outlineBtn}><Text style={styles.outlineBtnText}>{isAdminTicketRoute ? "Desk admin" : "Jornadas"}</Text></Pressable>
               </View>
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </SectionCard>
+            </SectionCard> : null}
 
-            <SectionCard title="Macros sugeridas" subtitle={`Disponibles: ${macros.length}`} right={<Pressable onPress={() => void loadCatalog(true)} style={styles.secondaryBtn}><Text style={styles.secondaryBtnText}>{catalogLoading ? "..." : "Refresh"}</Text></Pressable>}>
+            <SectionCard title="Macros sugeridas" right={<SupportButton label={catalogLoading ? "Actualizando…" : "Actualizar"} disabled={catalogLoading} onPress={() => void loadCatalog(true)} />}>
               {catalogError ? <Text style={styles.errorText}>{catalogError}</Text> : null}
               {!macros.length ? <Text style={styles.metaText}>No hay macros publicadas para este estado/app.</Text> : null}
               {macros.map((macro) => (
@@ -454,7 +517,8 @@ export default function SoporteTicketScreen() {
               ))}
             </SectionCard>
 
-            <SectionCard title="Timeline">
+            <SectionCard title="Actividad del ticket">
+              {!events.length ? <Text style={styles.metaText}>Todavía no hay eventos.</Text> : null}
               {events.map((event, index) => (
                 <View key={`${String(event?.id || index)}-${index}`} style={styles.card}>
                   <Text style={styles.cardTitle}>{String(event?.event_type || "evento")}</Text>
@@ -464,7 +528,8 @@ export default function SoporteTicketScreen() {
               ))}
             </SectionCard>
 
-            <SectionCard title="Logs soporte">
+            <SectionCard title="Registros de soporte">
+              {!logs.length ? <Text style={styles.metaText}>Todavía no hay registros.</Text> : null}
               {logs.map((log, index) => (
                 <View key={`${String(log?.id || index)}-${index}`} style={styles.card}>
                   <Text style={styles.metaText}>{String(log?.level || "info")} | {String(log?.category || "log")} | {formatDateTime(log?.occurred_at || log?.created_at || null)}</Text>
@@ -472,6 +537,9 @@ export default function SoporteTicketScreen() {
                 </View>
               ))}
             </SectionCard>
+            <View style={styles.row}>
+              <SupportButton label={isAdminTicketRoute ? "Panel de soporte" : "Jornadas"} onPress={openRelatedPanel} />
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -480,25 +548,27 @@ export default function SoporteTicketScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 12, paddingBottom: 24 },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  input: { borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 10, backgroundColor: "#FFFFFF", color: "#0F172A", paddingHorizontal: 10, paddingVertical: 9, fontSize: 13 },
-  textArea: { minHeight: 88 },
-  primaryBtn: { backgroundColor: "#1D4ED8", borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
+  content: { gap: 20, paddingBottom: 24 },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
+  headingActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
+  input: { minHeight: 44, borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 12, backgroundColor: "#FFFFFF", color: "#2F1A55", paddingHorizontal: 12, paddingVertical: 9, fontSize: 14 },
+  textArea: { minHeight: 92 },
+  primaryBtn: { backgroundColor: "#5E30A5", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, minHeight: 44, justifyContent: "center" },
   primaryBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
-  secondaryBtn: { borderWidth: 1, borderColor: "#1D4ED8", backgroundColor: "#EFF6FF", borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
-  secondaryBtnText: { color: "#1D4ED8", fontWeight: "700", fontSize: 12 },
-  outlineBtn: { borderWidth: 1, borderColor: "#CBD5E1", backgroundColor: "#FFFFFF", borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
-  outlineBtnText: { color: "#334155", fontWeight: "700", fontSize: 12 },
-  warningBtn: { backgroundColor: "#B45309", borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
+  secondaryBtn: { borderWidth: 1, borderColor: "#E9E2F7", backgroundColor: "#F0EBFF", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, minHeight: 44, justifyContent: "center" },
+  secondaryBtnText: { color: "#5E30A5", fontWeight: "700", fontSize: 12 },
+  outlineBtn: { borderWidth: 1, borderColor: "#E9E2F7", backgroundColor: "#FFFFFF", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, minHeight: 44, justifyContent: "center" },
+  outlineBtnText: { color: "#5E30A5", fontWeight: "700", fontSize: 12 },
+  warningBtn: { backgroundColor: "#8A5308", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, minHeight: 44, justifyContent: "center" },
   warningBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
   btnDisabled: { opacity: 0.55 },
   errorText: { fontSize: 12, color: "#B91C1C", fontWeight: "600" },
-  titleText: { fontSize: 14, color: "#0F172A", fontWeight: "600" },
-  metaText: { fontSize: 12, color: "#64748B" },
-  bodyText: { fontSize: 12, color: "#334155", lineHeight: 18 },
-  focusCard: { borderWidth: 1, borderColor: "#E9D5FF", backgroundColor: "#FAF5FF", borderRadius: 12, padding: 12, gap: 6 },
-  focusTitle: { fontSize: 12, fontWeight: "700", color: "#4C1D95" },
-  card: { borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, backgroundColor: "#F8FAFC", padding: 10, gap: 6 },
-  cardTitle: { fontSize: 12, fontWeight: "700", color: "#0F172A" },
+  titleText: { fontSize: 16, color: "#2F1A55", fontWeight: "600", lineHeight: 23 },
+  metaText: { fontSize: 12, color: "#64748B", lineHeight: 17 },
+  bodyText: { fontSize: 13, color: "#334155", lineHeight: 19 },
+  focusCard: { borderWidth: 1, borderColor: "#E9E2F7", backgroundColor: "#FAF8FF", borderRadius: 16, padding: 14, gap: 6 },
+  focusTitle: { fontSize: 14, fontWeight: "700", color: "#2F1A55" },
+  clock: { fontSize: 30, fontWeight: "700", color: "#5E30A5", fontVariant: ["tabular-nums"] },
+  card: { borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 16, backgroundColor: "#FAF8FF", padding: 12, gap: 6 },
+  cardTitle: { fontSize: 13, fontWeight: "700", color: "#2F1A55" },
 });

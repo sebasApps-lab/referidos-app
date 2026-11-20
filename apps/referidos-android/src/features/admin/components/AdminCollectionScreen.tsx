@@ -7,8 +7,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 
 type Metric = {
@@ -71,7 +71,7 @@ export default function AdminCollectionScreen({
   const metricRows = useMemo(() => metrics.slice(0, 8), [metrics]);
 
   return (
-    <ScreenScaffold title={title} subtitle={subtitle}>
+    <ScreenScaffold title={title} subtitle={subtitle} onRefresh={refreshing || loading ? undefined : onRefresh}>
       <ScrollView contentContainerStyle={styles.content}>
         {hasTopBar ? (
           <SectionCard
@@ -156,17 +156,17 @@ export default function AdminCollectionScreen({
 
 const styles = StyleSheet.create({
   content: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: 16,
+    paddingBottom: 48,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
+    borderColor: "#E9E2F7",
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: "#FFFFFF",
-    color: "#0F172A",
+    color: "#2F1A55",
     fontSize: 13,
   },
   actionsRow: {
@@ -176,14 +176,14 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
+    borderColor: "#E9E2F7",
+    backgroundColor: "#F0EBFF",
+    borderRadius: 12,
     paddingHorizontal: 11,
     paddingVertical: 8,
   },
   secondaryBtnText: {
-    color: "#1D4ED8",
+    color: "#5E30A5",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -198,9 +198,9 @@ const styles = StyleSheet.create({
   metricCard: {
     minWidth: 104,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
+    borderColor: "#E9E2F7",
+    borderRadius: 12,
+    backgroundColor: "#FAF8FF",
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 2,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#2F1A55",
   },
   metricLabel: {
     fontSize: 11,
@@ -232,15 +232,15 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#E9E2F7",
     borderRadius: 999,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   chipActive: {
-    borderColor: "#5B21B6",
-    backgroundColor: "#F5F3FF",
+    borderColor: "#5E30A5",
+    backgroundColor: "#F0EBFF",
   },
   chipText: {
     fontSize: 11,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: "#475569",
   },
   chipTextActive: {
-    color: "#5B21B6",
+    color: "#5E30A5",
   },
   errorText: {
     fontSize: 12,

@@ -1,30 +1,29 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Text, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { STACK_ROUTES } from "@navigation/routeKeys";
 import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import SectionCard from "@features/staff/StaffSectionCard";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import {
   fetchSupportAgentEventsHistory,
   fetchSupportAgentsDashboard,
 } from "@shared/services/supportDeskQueries";
 import { formatDateTime, readFirst } from "@shared/services/entityQueries";
-import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
-
-function agentDisplayName(agent: any) {
-  const nombre = String(readFirst(agent?.user, ["nombre"], "")).trim();
-  const apellido = String(readFirst(agent?.user, ["apellido"], "")).trim();
-  const full = `${nombre} ${apellido}`.trim();
-  if (full) return full;
-  return String(readFirst(agent?.user, ["public_id"], agent?.user_id || "agente"));
-}
+import BlockSkeleton from "@shared/ui/BlockSkeleton";
+import { SupportButton, SupportNotice } from "@features/support/SupportTicketUi";
+import { SupportDiagnosticItem, supportDetailStyles as styles } from "@features/support/SupportDiagnosticsUi";
+import { AdminSupportAgentCard, agentDisplayName } from "./components/AdminSupportUi";
 
 export default function AdminSupportAgentsScreen() {
   const navigation = useNavigation<any>();
   const [rows, setRows] = useState<any[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [events, setEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState("");
+  const [panel, setPanel] = useState<"agents" | "history">("agents");
+  const eventRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +31,7 @@ export default function AdminSupportAgentsScreen() {
   const [busyKey, setBusyKey] = useState("");
 
   const loadRows = useCallback(async () => {
-    if (!refreshing) setLoading(true);
+    setLoading(true);
     const result = await fetchSupportAgentsDashboard(supabase, 160);
     if (!result.ok) {
       setRows([]);
@@ -42,37 +41,45 @@ export default function AdminSupportAgentsScreen() {
     }
     const nextRows = result.data || [];
     setRows(nextRows);
-    if (!selectedAgentId && nextRows.length > 0) {
-      setSelectedAgentId(String(readFirst(nextRows[0], ["user_id"], "")));
-    }
+    setSelectedAgentId((current) => current || String(readFirst(nextRows[0], ["user_id"], "")));
     setError("");
     setLoading(false);
-  }, [refreshing, selectedAgentId]);
+  }, []);
 
   const loadEvents = useCallback(async (agentId: string) => {
-    const safeAgentId = String(agentId || "").trim();
-    if (!safeAgentId) {
-      setEvents([]);
-      return;
+    const safeId = agentId.trim();
+    const request = ++eventRequest.current;
+    setEvents([]);
+    setEventsError("");
+    setEventsLoading(Boolean(safeId));
+    if (!safeId) return;
+    try {
+      const result = await fetchSupportAgentEventsHistory(supabase, safeId);
+      if (request !== eventRequest.current) return;
+      setEvents(result.ok ? result.data : []);
+      if (!result.ok) setEventsError(result.error || "No se pudo cargar el historial del asesor.");
+    } catch {
+      if (request === eventRequest.current) setEventsError("No se pudo cargar el historial del asesor.");
+    } finally {
+      if (request === eventRequest.current) setEventsLoading(false);
     }
-    const result = await fetchSupportAgentEventsHistory(supabase, safeAgentId);
-    if (!result.ok) {
-      setEvents([]);
-      setError(result.error || "No se pudo cargar historial del asesor.");
-      return;
-    }
-    setEvents(result.data || []);
   }, []);
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
-    await loadRows();
-    setRefreshing(false);
+    try {
+      await loadRows();
+    } catch {
+      setError("No se pudieron cargar los asesores.");
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadRows]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll]));
 
   useEffect(() => {
     void loadEvents(selectedAgentId);
@@ -178,132 +185,65 @@ export default function AdminSupportAgentsScreen() {
     [refreshAll],
   );
 
+  const selectedAgent = rows.find((agent) => String(agent.user_id) === selectedAgentId);
+
   return (
     <AdminCollectionScreen
-      title="Admin Support Agents"
-      subtitle="Asesores, autorizacion y sesiones"
-      searchPlaceholder="Buscar asesor, public_id o email"
+      key={panel}
+      title="Asesores de soporte"
+      subtitle="Gestiona la autorización y las jornadas de cada asesor."
+      searchPlaceholder="Buscar asesor, ID público o correo"
       query={query}
       onQueryChange={setQuery}
       loading={loading}
       refreshing={refreshing}
       error={error}
       metrics={metrics}
-      onRefresh={() => void refreshAll()}
-      emptyText={!loading && filtered.length === 0 ? "No hay asesores para este filtro." : ""}
+      headerActions={(
+        <View style={styles.row}>
+          <SupportButton label="Asesores" selected={panel === "agents"} kind={panel === "agents" ? "primary" : "outline"} onPress={() => setPanel("agents")} />
+          <SupportButton label="Historial" selected={panel === "history"} kind={panel === "history" ? "primary" : "outline"} disabled={!selectedAgentId} onPress={() => setPanel("history")} />
+        </View>
+      )}
+      onRefresh={() => { void refreshAll(); }}
+      emptyText={panel === "agents" && !loading && filtered.length === 0 ? "No hay asesores para este filtro." : ""}
     >
-      <SectionCard title="Asesores" subtitle={`Resultados: ${filtered.length}`}>
-        <View style={shared.listWrap}>
+      {panel === "agents" && !loading && filtered.length ? (
+        <SectionCard title="Asesores" subtitle={filtered.length + " resultados"}>
           {filtered.map((row, index) => {
             const agentId = String(readFirst(row, ["user_id"], "")).trim();
-            const sessionOpen = Boolean(row?.open_session?.id);
-            const activeTicketId = String(readFirst(row?.active_ticket, ["public_id"], "")).trim();
+            const sessionOpen = Boolean(row.open_session?.id);
+            const activeTicketId = String(readFirst(row.active_ticket, ["public_id"], "")).trim();
             return (
-              <Pressable
-                key={`${agentId || index}-${index}`}
-                onPress={() => setSelectedAgentId(agentId)}
-                style={[
-                  shared.card,
-                  selectedAgentId === agentId && {
-                    borderColor: "#1D4ED8",
-                    backgroundColor: "#EFF6FF",
-                  },
-                ]}
-              >
-                <Text style={shared.cardTitle}>{agentDisplayName(row)}</Text>
-                <Text style={shared.metaText}>
-                  {String(readFirst(row?.user, ["public_id"], "-"))} | {String(readFirst(row?.user, ["email"], "-"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  autorizado: {row?.authorized_for_work ? "si" : "no"} | bloqueado: {row?.blocked ? "si" : "no"}
-                </Text>
-                <Text style={shared.metaText}>
-                  sesion: {sessionOpen ? "activa" : "inactiva"} | solicitud: {String(readFirst(row, ["session_request_status"], "sin solicitud"))}
-                </Text>
+              <AdminSupportAgentCard key={agentId || index} agent={row}>
+                <SupportButton label={row.authorized_for_work ? "Revocar" : "Autorizar"} disabled={!agentId || Boolean(busyKey)} onPress={() => { void updateAuthorization(row, !row.authorized_for_work); }} />
+                <SupportButton label={sessionOpen ? "Cerrar sesión" : "Iniciar sesión"} kind={sessionOpen ? "outline" : "primary"} disabled={!agentId || Boolean(busyKey)} onPress={() => { void (sessionOpen ? endAgentSession(agentId) : startAgentSession(agentId)); }} />
+                {row.session_request_status === "pending" ? (
+                  <SupportButton label="Denegar solicitud" disabled={!agentId || Boolean(busyKey)} onPress={() => { void denyRequest(agentId); }} />
+                ) : null}
                 {activeTicketId ? (
-                  <Text style={shared.metaText}>ticket activo: {activeTicketId}</Text>
+                  <SupportButton label="Ver ticket" onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKET, { threadPublicId: activeTicketId })} />
                 ) : null}
-                {readFirst(row, ["support_phone"], "") ? (
-                  <Text style={shared.metaText}>soporte: {String(readFirst(row, ["support_phone"], "-"))}</Text>
-                ) : null}
-                <View style={shared.actionsRow}>
-                  <Pressable
-                    onPress={() => void updateAuthorization(row, !row?.authorized_for_work)}
-                    disabled={busyKey === `authorize:${agentId}`}
-                    style={[shared.secondaryBtn, busyKey === `authorize:${agentId}` && shared.btnDisabled]}
-                  >
-                    <Text style={shared.secondaryBtnText}>
-                      {row?.authorized_for_work ? "Revocar" : "Autorizar"}
-                    </Text>
-                  </Pressable>
-                  {!sessionOpen ? (
-                    <Pressable
-                      onPress={() => void startAgentSession(agentId)}
-                      disabled={busyKey === `start:${agentId}`}
-                      style={[shared.primaryBtn, busyKey === `start:${agentId}` && shared.btnDisabled]}
-                    >
-                      <Text style={shared.primaryBtnText}>Iniciar sesion</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      onPress={() => void endAgentSession(agentId)}
-                      disabled={busyKey === `end:${agentId}`}
-                      style={[shared.outlineBtn, busyKey === `end:${agentId}` && shared.btnDisabled]}
-                    >
-                      <Text style={shared.outlineBtnText}>Cerrar sesion</Text>
-                    </Pressable>
-                  )}
-                  {String(readFirst(row, ["session_request_status"], "")) === "pending" ? (
-                    <Pressable
-                      onPress={() => void denyRequest(agentId)}
-                      disabled={busyKey === `deny:${agentId}`}
-                      style={[shared.dangerBtn, busyKey === `deny:${agentId}` && shared.btnDisabled]}
-                    >
-                      <Text style={shared.dangerBtnText}>Denegar</Text>
-                    </Pressable>
-                  ) : null}
-                  {activeTicketId ? (
-                    <Pressable
-                      onPress={() =>
-                        navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKET, {
-                          threadPublicId: activeTicketId,
-                        })
-                      }
-                      style={shared.outlineBtn}
-                    >
-                      <Text style={shared.outlineBtnText}>Abrir ticket</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </Pressable>
+                <SupportButton label="Ver historial" disabled={!agentId} onPress={() => { setSelectedAgentId(agentId); setPanel("history"); }} />
+              </AdminSupportAgentCard>
             );
           })}
-        </View>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
 
-      <SectionCard title="Historial del asesor" subtitle={selectedAgentId || "Selecciona un asesor"}>
-        <View style={shared.listWrap}>
-          {selectedAgentId && events.length === 0 ? (
-            <Text style={shared.emptyText}>Sin eventos recientes para este asesor.</Text>
-          ) : null}
-          {events.map((row, index) => (
-            <View key={`${String(readFirst(row, ["id"], index))}-${index}`} style={shared.card}>
-              <Text style={shared.cardTitle}>
-                {String(readFirst(row, ["event_type"], "event"))}
-              </Text>
-              <Text style={shared.metaText}>
-                actor: {String(readFirst(row, ["actor_id"], "-"))}
-              </Text>
-              <Text style={shared.metaText}>
-                fecha: {formatDateTime(readFirst(row, ["created_at"], null))}
-              </Text>
-              <Text style={shared.bodyText}>
-                {JSON.stringify(readFirst(row, ["details"], {}))}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
+      {panel === "history" ? (
+        <SectionCard title="Historial del asesor" subtitle={selectedAgent ? agentDisplayName(selectedAgent) : selectedAgentId}>
+          {eventsLoading ? <BlockSkeleton lines={5} compact /> : null}
+          {eventsError ? <SupportNotice tone="warning">{eventsError}</SupportNotice> : null}
+          {!eventsLoading && !eventsError && !events.length ? <Text style={styles.meta}>No hay eventos recientes.</Text> : null}
+          {!eventsLoading ? events.map((row, index) => (
+            <SupportDiagnosticItem key={String(readFirst(row, ["id"], index))} title={String(readFirst(row, ["event_type"], "Evento"))}>
+              <Text style={styles.meta}>Actor: {String(readFirst(row, ["actor_id"], "—"))} · {formatDateTime(readFirst(row, ["created_at"], null))}</Text>
+              <Text style={styles.description}>{JSON.stringify(readFirst(row, ["details"], {}))}</Text>
+            </SupportDiagnosticItem>
+          )) : null}
+        </SectionCard>
+      ) : null}
     </AdminCollectionScreen>
   );
 }

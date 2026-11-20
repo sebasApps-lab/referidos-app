@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { OnboardingPrimaryButton, OnboardingSkipButton } from "./OnboardingFormLayout";
+import { verificationStyles } from "./verificationStyles";
 
 type Props = {
   emailText: string;
   emailConfirmed: boolean;
   loading?: boolean;
-  onSendEmail: () => void;
+  onSendEmail: () => void | boolean | Promise<void | boolean>;
   onRefresh: () => void;
   onSkip: () => void;
 };
@@ -18,64 +20,57 @@ export default function VerifyEmailStepBlock({
   onRefresh,
   onSkip,
 }: Props) {
+  const [sentEmail, setSentEmail] = useState("");
+  const sent = Boolean(sentEmail && sentEmail === emailText);
+
+  async function sendEmail() {
+    if (loading) return;
+    const success = await onSendEmail();
+    if (success === true) setSentEmail(emailText);
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.helper}>Correo actual: {emailText}</Text>
+    <View style={verificationStyles.container}>
+      <View style={verificationStyles.content}>
+        <Text style={[verificationStyles.body, verificationStyles.center]}>
+          Esto es opcional, pero te ayudará a sacarle más provecho a la app.
+        </Text>
+        {emailConfirmed ? (
+          <View style={verificationStyles.statusCard}>
+            <Text accessibilityLiveRegion="polite" style={verificationStyles.ok}>Correo verificado</Text>
+          </View>
+        ) : (
+          <View style={styles.emailContent}>
+            <View style={verificationStyles.field}>
+              <Text style={verificationStyles.caption}>Verifica tu correo electrónico.</Text>
+              <View style={verificationStyles.fieldFrame}>
+                <Text selectable style={verificationStyles.fieldInput}>{emailText || "Sin correo"}</Text>
+              </View>
+            </View>
+            <Text accessibilityLiveRegion="polite" style={[verificationStyles.caption, verificationStyles.center]}>
+              {sent
+                ? "Revisa tu bandeja de entrada o spam y sigue las instrucciones del correo."
+                : "Te enviaremos un correo para que puedas verificar tu dirección."}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={sendEmail} disabled={loading} style={styles.emailAction}>
+              <Text style={styles.emailActionText}>
+                {loading ? "Procesando…" : sent ? "Reenviar correo" : "Enviar correo"}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
 
-      {emailConfirmed ? (
-        <Text style={styles.okText}>Tu correo ya fue confirmado.</Text>
-      ) : (
-        <Pressable onPress={onSendEmail} disabled={loading} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-          <Text style={styles.primaryButtonText}>{loading ? "Cargando..." : "Enviar correo"}</Text>
-        </Pressable>
-      )}
-
-      <Pressable onPress={onRefresh} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Revisar estado</Text>
-      </Pressable>
-      <Pressable onPress={onSkip} style={styles.secondaryButton}>
-        <Text style={styles.secondaryButtonText}>Verificar mas tarde</Text>
-      </Pressable>
+      <View style={verificationStyles.footer}>
+        <OnboardingPrimaryButton label={emailConfirmed ? "Listo" : "Revisar estado"} disabled={loading} onPress={onRefresh} />
+        <OnboardingSkipButton label="Saltar" disabled={loading} onPress={onSkip} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-  },
-  helper: {
-    color: "#4B5563",
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  okText: {
-    color: "#047857",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  primaryButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  primaryButtonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  secondaryButton: {
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#6D28D9",
-    fontWeight: "600",
-    fontSize: 13,
-  },
+  emailContent: { gap: 16 },
+  emailAction: { minHeight: 44, justifyContent: "center", alignItems: "center" },
+  emailActionText: { color: "#5E30A5", fontSize: 14, lineHeight: 20, fontWeight: "600" },
 });
-

@@ -151,7 +151,6 @@ export default function NegocioPerfil() {
   const showSearchDock = profileView === "tabs";
   const [dockOpenForHeader, setDockOpenForHeader] = useState(showSearchDock);
   const prevShowSearchDockRef = useRef(showSearchDock);
-  const deepLinkAppliedRef = useRef(false);
   const [ownerSessions, setOwnerSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState(null);
@@ -330,7 +329,7 @@ export default function NegocioPerfil() {
                 toggle: {
                   active: totpEnabled,
                   onChange: () => {
-                    if (mfaLoading) return;
+                    if (mfaLoading || mfaError) return;
                     if (totpEnabled) {
                       openModal("TwoFADisable", {
                         factorId: totpFactorId,
@@ -342,7 +341,7 @@ export default function NegocioPerfil() {
                       onComplete: refreshMfa,
                     });
                   },
-                  disabled: mfaLoading,
+                  disabled: mfaLoading || Boolean(mfaError),
                 },
               },
               {
@@ -365,6 +364,9 @@ export default function NegocioPerfil() {
               className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-[11px] text-red-500"
             >
               {mfaError}
+              <button type="button" onClick={refreshMfa} className="ml-2 font-semibold text-[#5E30A5]">
+                Reintentar
+              </button>
             </div>
           ) : null,
         ]}
@@ -1750,15 +1752,13 @@ export default function NegocioPerfil() {
     ]
   );
 
+  const requestedTab = new URLSearchParams(location.search).get("tab");
+  const targetTab = Object.hasOwn(sections, requestedTab) ? requestedTab : null;
   useEffect(() => {
-    if (deepLinkAppliedRef.current) return;
-    const params = new URLSearchParams(location.search);
-    const targetTab = params.get("tab");
-    if (!targetTab || !sections[targetTab]) return;
-    deepLinkAppliedRef.current = true;
+    if (!isActive || !targetTab) return;
     setProfileTab(targetTab);
     setProfileView("panel");
-  }, [location.search, sections, setProfileTab]);
+  }, [isActive, location.key, setProfileTab, targetTab]);
 
   const handleTabChange = useCallback(
     (nextTab) => {

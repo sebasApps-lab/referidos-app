@@ -7,6 +7,7 @@ import {
   NativeModules,
   Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -250,24 +251,32 @@ export default function App() {
 
   const isRefreshingAuth = bootStatus === "loading";
   if (bootStatus === "idle" || (isRefreshingAuth && !hasCompletedAuthBootstrap)) {
-    return <GlobalLoader label="Inicializando Referidos Android..." />;
+    return (
+      <View style={styles.authSurface}>
+        <StatusBar barStyle="light-content" />
+        <Text accessibilityLiveRegion="polite" style={styles.bootLabel}>Cargando...</Text>
+      </View>
+    );
   }
 
   if (bootStatus === "error") {
     return (
-      <View style={styles.recovery}>
-        <Text accessibilityRole="header" style={styles.recoveryTitle}>
-          No se pudo preparar tu sesión
-        </Text>
-        <Text accessibilityLiveRegion="polite" style={styles.recoveryMessage}>
-          {bootError || "Reintenta para continuar."}
-        </Text>
-        <Pressable accessibilityRole="button" onPress={() => void bootstrapAuth()} style={styles.retryButton}>
-          <Text style={styles.retryLabel}>Reintentar</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => void signOut()} style={styles.signOutButton}>
-          <Text style={styles.signOutLabel}>Cerrar sesión en este dispositivo</Text>
-        </Pressable>
+      <View style={styles.authSurface}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.recoveryCard}>
+          <Text accessibilityRole="header" style={styles.recoveryTitle}>
+            No se pudo preparar tu sesión
+          </Text>
+          <Text accessibilityLiveRegion="polite" style={styles.recoveryMessage}>
+            {bootError || "Reintenta para continuar."}
+          </Text>
+          <Pressable accessibilityRole="button" onPress={() => void bootstrapAuth()} style={styles.retryButton}>
+            <Text style={styles.retryLabel}>Reintentar</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => void signOut()} style={styles.signOutButton}>
+            <Text style={styles.signOutLabel}>Cerrar sesión en este dispositivo</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -299,17 +308,18 @@ export default function App() {
 
 const styles = StyleSheet.create({
   navigation: { flex: 1 },
-  recovery: {
+  authSurface: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    gap: 12,
-    backgroundColor: "#F7F8FC",
+    backgroundColor: "#5E30A5",
   },
-  recoveryTitle: { color: "#111827", fontSize: 20, fontWeight: "700", textAlign: "center" },
+  bootLabel: { color: "#FFFFFF", fontSize: 16 },
+  recoveryCard: { width: "100%", maxWidth: 384, backgroundColor: "#FFFFFF", padding: 24, borderRadius: 16, gap: 12, elevation: 8 },
+  recoveryTitle: { color: "#5E30A5", fontSize: 20, fontWeight: "700", textAlign: "center" },
   recoveryMessage: { color: "#4B5563", fontSize: 14, textAlign: "center" },
-  retryButton: { backgroundColor: "#6D28D9", padding: 12, borderRadius: 8 },
+  retryButton: { backgroundColor: "#5E30A5", padding: 12, borderRadius: 8, alignItems: "center" },
   retryLabel: { color: "#FFFFFF", fontWeight: "700" },
   signOutButton: { padding: 12 },
   signOutLabel: { color: "#5B21B6", fontWeight: "700", textAlign: "center" },

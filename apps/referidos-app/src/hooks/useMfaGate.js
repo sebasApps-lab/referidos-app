@@ -1,68 +1,93 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { useModal } from "../modals/useModal";
 import { useAppStore } from "../store/appStore";
-import { getMfaAssuranceLevel } from "../services/mfaService";
+import { isVerifiedFactor, resolveMfaAccess, verifyMfaSession } from "../services/mfaService";
+
+const readSessionLevel = (token) => {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(payload)).aal;
+  } catch {
+    return null;
+  }
+};
 
 export default function useMfaGate({ enabled = true } = {}) {
   const usuario = useAppStore((s) => s.usuario);
   const bootstrap = useAppStore((s) => s.bootstrap);
   const logout = useAppStore((s) => s.logout);
-  const { openModal, activeModal } = useModal();
-  const [checking, setChecking] = useState(false);
-  const [required, setRequired] = useState(false);
-  const mountedRef = useRef(true);
+  const { openModal, closeModal, activeModal } = useModal();
+  const [authRevision, setAuthRevision] = useState(0);
+  const [result, setResult] = useState(null);
+  const attemptRef = useRef(0);
+  const sessionRef = useRef({ token: null, level: null, hasVerifiedFactors: false });
+  const authUserId = usuario?.id_auth;
+  const accountKey = authUserId || usuario?.id;
+  const shouldCheck = enabled && Boolean(usuario) && !bootstrap;
+  const checkKey = shouldCheck ? `${accountKey || "session"}:${authRevision}` : null;
 
-  const resetGate = useCallback(() => {
-    setRequired(false);
-    setChecking(false);
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const token = session?.access_token || null;
+      const level = token ? readSessionLevel(token) : null;
+      const hasVerifiedFactors = Boolean(session?.user?.factors?.some(isVerifiedFactor));
+      const previous = sessionRef.current;
+      const authChanged = ["SIGNED_IN", "SIGNED_OUT"].includes(event) && token !== previous.token;
+      const factorAdded = event === "TOKEN_REFRESHED" && hasVerifiedFactors && !previous.hasVerifiedFactors;
+      // A refreshed token can lose AAL2 when a verified factor is removed.
+      // Decode only to trigger a fresh check. Access is resolved through Supabase.
+      const assuranceDropped = event === "TOKEN_REFRESHED" && previous.level === "aal2" && level !== "aal2";
+      if (authChanged || factorAdded || assuranceDropped) {
+        setAuthRevision((revision) => revision + 1);
+      }
+      sessionRef.current = { token, level, hasVerifiedFactors };
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  const resolveGate = useCallback(async () => {
-    if (!enabled || bootstrap || typeof usuario === "undefined") return;
-    if (!usuario) {
-      resetGate();
-      return;
-    }
-
-    setChecking(true);
-    const result = await getMfaAssuranceLevel();
-    if (!mountedRef.current) return;
-    setChecking(false);
-    if (!result.ok) {
-      setRequired(false);
-      return;
-    }
-    const currentLevel = result.data?.currentLevel;
-    const nextLevel = result.data?.nextLevel;
-    const needsMfa = currentLevel === "aal1" && nextLevel === "aal2";
-    setRequired(needsMfa);
-  }, [bootstrap, enabled, resetGate, usuario]);
+  const refresh = useCallback(async () => {
+    if (!checkKey) return;
+    const attempt = ++attemptRef.current;
+    setResult(null);
+    const access = await resolveMfaAccess(authUserId);
+    if (attempt !== attemptRef.current) return;
+    setResult(access.ok ? { checkKey, ...access.data } : { checkKey, error: access.error });
+  }, [authUserId, checkKey]);
 
   useEffect(() => {
-    mountedRef.current = true;
-    resolveGate();
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [resolveGate]);
+    if (!checkKey) setResult(null);
+    else void refresh();
+    return () => { attemptRef.current += 1; };
+  }, [checkKey, refresh]);
+
+  const current = result?.checkKey === checkKey ? result : null;
+  const checking = Boolean(checkKey && !current);
+  const required = Boolean(current?.required);
+  const error = current?.error ?? "";
+  const checkedAuthUserId = current?.authUserId;
 
   useEffect(() => {
-    if (!required) return;
+    if (!required) {
+      if (activeModal === "TwoFAVerify") closeModal();
+      return;
+    }
     if (activeModal) return;
+    const attempt = attemptRef.current;
     openModal("TwoFAVerify", {
-      onVerified: () => {
-        setRequired(false);
+      authUserId: checkedAuthUserId,
+      onVerified: async () => {
+        const assurance = await verifyMfaSession(checkedAuthUserId);
+        if (!assurance.ok) return assurance;
+        if (attempt !== attemptRef.current) {
+          return { ok: false, error: "La sesión cambió. Vuelve a iniciar sesión." };
+        }
+        setResult({ checkKey, required: false });
+        return assurance;
       },
-      onCancel: async () => {
-        await logout();
-      },
+      onCancel: logout,
     });
-  }, [activeModal, logout, openModal, required]);
+  }, [activeModal, checkedAuthUserId, checkKey, closeModal, logout, openModal, required]);
 
-  return {
-    checking,
-    required,
-    blockAccess: checking || required,
-    refresh: resolveGate,
-  };
+  return { checking, required, error, blockAccess: checking || required || Boolean(error), refresh };
 }

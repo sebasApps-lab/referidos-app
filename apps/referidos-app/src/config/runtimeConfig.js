@@ -1,3 +1,5 @@
+import { resolveAuthRedirectUrl } from "./authRedirectUrl";
+
 const importEnv = import.meta.env || {};
 const browserWindow = typeof window !== "undefined" ? window : null;
 const runtimeWindowConfig = browserWindow?.__REFERIDOS_RUNTIME_CONFIG__ || {};
@@ -63,10 +65,10 @@ const supabaseAnonKey = asString(
   runtimeWindowConfig.supabaseAnonKey,
   asString(importEnv.VITE_SUPABASE_ANON_KEY)
 );
-const redirectFromOrigin = browserWindow ? `${browserWindow.location.origin}/auth` : "";
-const authRedirectUrl = asString(
+const authRedirectUrl = resolveAuthRedirectUrl(
+  browserWindow?.location.origin,
   runtimeWindowConfig.authRedirectUrl,
-  asString(redirectFromOrigin, asString(importEnv.VITE_AUTH_REDIRECT_URL))
+  importEnv.VITE_AUTH_REDIRECT_URL,
 );
 const googleClientId = asString(
   runtimeWindowConfig.googleClientId,

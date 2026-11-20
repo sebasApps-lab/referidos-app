@@ -4,6 +4,7 @@ module.exports = {
     [
       "module-resolver",
       {
+        cwd: __dirname,
         root: ["./src"],
         alias: {
           "@app": "./src/app",

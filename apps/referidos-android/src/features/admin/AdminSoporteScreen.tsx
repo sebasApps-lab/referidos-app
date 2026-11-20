@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { ScrollView, Text, View } from "react-native";
 import { STACK_ROUTES } from "@navigation/routeKeys";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
@@ -13,19 +13,17 @@ import {
   fetchSupportInboxRows,
 } from "@shared/services/supportDeskQueries";
 import { formatDateTime } from "@shared/services/entityQueries";
+import { useModalStore } from "@shared/store/modalStore";
+import { SupportBadge, SupportButton, SupportNotice } from "@features/support/SupportTicketUi";
+import { supportDetailStyles as styles } from "@features/support/SupportDiagnosticsUi";
+import { AdminSupportAgentCard, AdminSupportThreadCard, agentDisplayName } from "./components/AdminSupportUi";
 
 const ACTIVE_THREAD_STATUSES = ["new", "assigned", "in_progress", "waiting_user", "queued"];
 
-function agentDisplayName(agent: any) {
-  const nombre = String(agent?.user?.nombre || "").trim();
-  const apellido = String(agent?.user?.apellido || "").trim();
-  const full = `${nombre} ${apellido}`.trim();
-  if (full) return full;
-  return String(agent?.user?.public_id || agent?.user_id || "agente");
-}
-
 export default function AdminSoporteScreen() {
   const navigation = useNavigation<any>();
+  const openPicker = useModalStore((state) => state.openPicker);
+  const [deskPanel, setDeskPanel] = useState<"tickets" | "agents">("tickets");
   const adminUser = useAppStore((state) => state.onboarding?.usuario || null);
   const adminUserId = String(adminUser?.id || "").trim();
 
@@ -60,8 +58,8 @@ export default function AdminSoporteScreen() {
   );
 
   const loadAll = useCallback(async () => {
-    if (!adminUserId) return;
-    if (!refreshing) setLoading(true);
+    if (!adminUserId) { setLoading(false); return; }
+    setLoading(true);
 
     const [sessionResult, agentsResult, threadsResult] = await Promise.all([
       fetchActiveAgentSession(supabase, adminUserId),
@@ -80,17 +78,23 @@ export default function AdminSoporteScreen() {
     const nextError = sessionResult.error || agentsResult.error || threadsResult.error || "";
     setError(nextError);
     setLoading(false);
-  }, [adminUserId, refreshing]);
+  }, [adminUserId]);
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
-    await loadAll();
-    setRefreshing(false);
+    try {
+      await loadAll();
+    } catch {
+      setError("No se pudo cargar la bandeja de soporte.");
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadAll]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll]));
 
   useEffect(() => {
     if (!sessionActive) return undefined;
@@ -240,291 +244,93 @@ export default function AdminSoporteScreen() {
     [refreshAll],
   );
 
+  function selectAssignee(thread: any) {
+    const id = String(thread.public_id || "").trim();
+    if (!id || !availableAgents.length) return;
+    openPicker({
+      title: "Asignar ticket",
+      options: availableAgents.map((agent) => ({ id: String(agent.user_id), label: agentDisplayName(agent) })),
+      selectedId: thread.assigned_agent_id || null,
+      onSelect: (agentId) => { void handleAssign(id, agentId); },
+    });
+  }
+
   return (
-    <ScreenScaffold title="Admin Soporte" subtitle="Asesores, sesiones y asignacion/reasignacion de tickets">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard title="Modulos soporte admin" subtitle="Desk, asesores, panel tickets y macros">
-          <View style={styles.actionsRow}>
-            <Pressable
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_AGENTS)}
-              style={styles.secondaryBtn}
-            >
-              <Text style={styles.secondaryBtnText}>Asesores</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL)}
-              style={styles.secondaryBtn}
-            >
-              <Text style={styles.secondaryBtnText}>Panel tickets</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_CATALOG)}
-              style={styles.secondaryBtn}
-            >
-              <Text style={styles.secondaryBtnText}>Macros</Text>
-            </Pressable>
+    <ScreenScaffold
+      title="Soporte"
+      subtitle="Gestiona la jornada, los asesores y la cola de tickets."
+      onRefresh={refreshing || loading ? undefined : () => { void refreshAll(); }}
+    >
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        <SectionCard title="Jornada de soporte" subtitle="Inicia tu jornada para operar como asesor.">
+          <View style={styles.row}>
+            <SupportBadge tone={sessionActive ? "positive" : "neutral"}>{sessionActive ? "Jornada activa" : "Jornada inactiva"}</SupportBadge>
+            {adminSession?.start_at ? <Text style={styles.meta}>Inicio: {formatDateTime(adminSession.start_at)}</Text> : null}
+          </View>
+          <View style={styles.row}>
+            <SupportButton
+              label={sessionActive ? "Finalizar jornada" : "Iniciar jornada"}
+              kind={sessionActive ? "outline" : "primary"}
+              disabled={loading || Boolean(busyKey)}
+              onPress={sessionActive ? handleEndAdminSession : handleStartAdminSession}
+            />
+            <SupportButton label={refreshing ? "Cargando…" : "Recargar"} disabled={refreshing || loading} onPress={() => { void refreshAll(); }} />
+          </View>
+          {sessionError ? <SupportNotice tone="warning">{sessionError}</SupportNotice> : null}
+        </SectionCard>
+
+        <SectionCard title="Administración de soporte">
+          <View style={styles.row}>
+            <SupportButton label="Asesores" onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_AGENTS)} />
+            <SupportButton label="Panel de tickets" onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKETS_PANEL)} />
+            <SupportButton label="Catálogo de macros" onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_CATALOG)} />
           </View>
         </SectionCard>
 
-        <SectionCard
-          title="Jornada admin soporte"
-          subtitle="Requerida para operar como asesor/admin en cola"
-          right={
-            <Pressable
-              onPress={refreshAll}
-              disabled={refreshing}
-              style={[styles.secondaryBtn, refreshing && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>{refreshing ? "..." : "Recargar"}</Text>
-            </Pressable>
-          }
-        >
-          {loading ? <BlockSkeleton lines={3} compact /> : null}
-          {!loading ? (
-            <>
-              <Text style={styles.metaText}>Sesion admin: {sessionActive ? "activa" : "inactiva"}</Text>
-              {adminSession?.start_at ? (
-                <Text style={styles.metaText}>
-                  Inicio: {formatDateTime(adminSession.start_at)}
-                </Text>
-              ) : null}
-              {sessionError ? <Text style={styles.errorText}>{sessionError}</Text> : null}
-            </>
-          ) : null}
-          <View style={styles.actionsRow}>
-            {!sessionActive ? (
-              <Pressable
-                onPress={handleStartAdminSession}
-                disabled={busyKey === "admin_session_start"}
-                style={[styles.primaryBtn, busyKey === "admin_session_start" && styles.btnDisabled]}
-              >
-                <Text style={styles.primaryBtnText}>Iniciar jornada admin</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={handleEndAdminSession}
-                disabled={busyKey === "admin_session_end"}
-                style={[styles.outlineBtn, busyKey === "admin_session_end" && styles.btnDisabled]}
-              >
-                <Text style={styles.outlineBtnText}>Finalizar jornada admin</Text>
-              </Pressable>
-            )}
-          </View>
-        </SectionCard>
+        {error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+        <View style={styles.row}>
+          <SupportButton label="Cola de tickets" selected={deskPanel === "tickets"} kind={deskPanel === "tickets" ? "primary" : "outline"} onPress={() => setDeskPanel("tickets")} />
+          <SupportButton label="Asesores en soporte" selected={deskPanel === "agents"} kind={deskPanel === "agents" ? "primary" : "outline"} onPress={() => setDeskPanel("agents")} />
+        </View>
 
-        <SectionCard title="Asesores" subtitle={`Total ${agents.length} | activos ${availableAgents.length}`}>
-          {loading ? <BlockSkeleton lines={8} compact /> : null}
-          {!loading && agents.length === 0 ? (
-            <Text style={styles.emptyText}>Sin asesores registrados en support_agent_profiles.</Text>
-          ) : null}
-          {!loading
-            ? agents.map((agent, index) => {
-                const agentId = String(agent?.user_id || "");
-                const sessionOpen = Boolean(agent?.open_session?.id);
-                const pending = String(agent?.session_request_status || "") === "pending";
-                return (
-                  <View key={`${agentId || index}-${index}`} style={styles.card}>
-                    <Text style={styles.cardTitle}>{agentDisplayName(agent)}</Text>
-                    <Text style={styles.metaText}>
-                      {String(agent?.user?.public_id || "-")} | {String(agent?.user?.role || "-")}
-                    </Text>
-                    <Text style={styles.metaText}>
-                      autorizado: {agent?.authorized_for_work ? "si" : "no"} | bloqueado:{" "}
-                      {agent?.blocked ? "si" : "no"}
-                    </Text>
-                    <Text style={styles.metaText}>sesion: {sessionOpen ? "activa" : "inactiva"}</Text>
-                    {agent?.authorized_until ? (
-                      <Text style={styles.metaText}>
-                        autorizado hasta: {formatDateTime(agent.authorized_until)}
-                      </Text>
-                    ) : null}
-                    {agent?.active_ticket?.public_id ? (
-                      <Text style={styles.metaText}>
-                        ticket activo: {String(agent.active_ticket.public_id)}
-                      </Text>
-                    ) : (
-                      <Text style={styles.metaText}>ticket activo: ninguno</Text>
-                    )}
-
-                    <View style={styles.actionsRow}>
-                      <Pressable
-                        onPress={() => void handleAuthorize(agent, !agent?.authorized_for_work)}
-                        disabled={busyKey === `authorize:${agentId}`}
-                        style={[
-                          styles.secondaryBtn,
-                          busyKey === `authorize:${agentId}` && styles.btnDisabled,
-                        ]}
-                      >
-                        <Text style={styles.secondaryBtnText}>
-                          {agent?.authorized_for_work ? "Revocar" : "Autorizar"}
-                        </Text>
-                      </Pressable>
-
-                      {!sessionOpen ? (
-                        <Pressable
-                          onPress={() => void handleStartAgentSession(agentId)}
-                          disabled={busyKey === `start:${agentId}`}
-                          style={[styles.primaryBtn, busyKey === `start:${agentId}` && styles.btnDisabled]}
-                        >
-                          <Text style={styles.primaryBtnText}>Iniciar sesion</Text>
-                        </Pressable>
-                      ) : (
-                        <Pressable
-                          onPress={() => void handleEndAgentSession(agentId)}
-                          disabled={busyKey === `end:${agentId}`}
-                          style={[styles.outlineBtn, busyKey === `end:${agentId}` && styles.btnDisabled]}
-                        >
-                          <Text style={styles.outlineBtnText}>Cerrar sesion</Text>
-                        </Pressable>
-                      )}
-
-                      {pending ? (
-                        <Pressable
-                          onPress={() => void handleDenyRequest(agentId)}
-                          disabled={busyKey === `deny:${agentId}`}
-                          style={[
-                            styles.outlineBtn,
-                            busyKey === `deny:${agentId}` && styles.btnDisabled,
-                          ]}
-                        >
-                          <Text style={styles.outlineBtnText}>Denegar solicitud</Text>
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              })
-            : null}
-        </SectionCard>
-
-        <SectionCard title="Asignacion/Reasignacion de tickets" subtitle={`Tickets activos: ${activeThreads.length}`}>
-          {loading ? <BlockSkeleton lines={7} compact /> : null}
-          {!loading && activeThreads.length === 0 ? (
-            <Text style={styles.emptyText}>No hay tickets activos para asignar.</Text>
-          ) : null}
-          {!loading
-            ? activeThreads.map((thread, index) => (
-                <View key={`${String(thread?.public_id || index)}-${index}`} style={styles.card}>
-                  <Text style={styles.cardTitle}>{String(thread?.public_id || "TKT")}</Text>
-                  <Text style={styles.metaText}>
-                    {String(thread?.summary || "Sin resumen")}
-                  </Text>
-                  <Text style={styles.metaText}>
-                    estado: {String(thread?.status || "-")} | origen:{" "}
-                    {String(thread?.request_origin || "registered")}
-                  </Text>
-                  <Text style={styles.metaText}>
-                    asignado a: {String(thread?.assigned_agent_id || "sin asignar")}
-                  </Text>
-                  <View style={styles.actionsRow}>
-                    {availableAgents.length === 0 ? (
-                      <Text style={styles.emptyText}>Sin asesores activos para asignar.</Text>
-                    ) : (
-                      availableAgents.map((agent) => {
-                        const agentId = String(agent?.user_id || "");
-                        const buttonKey = `assign:${String(thread?.public_id || "")}:${agentId}`;
-                        return (
-                          <Pressable
-                            key={buttonKey}
-                            onPress={() =>
-                              void handleAssign(String(thread?.public_id || ""), agentId)
-                            }
-                            disabled={busyKey === buttonKey}
-                            style={[styles.secondaryBtn, busyKey === buttonKey && styles.btnDisabled]}
-                          >
-                            <Text style={styles.secondaryBtnText}>
-                              {agentDisplayName(agent)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })
-                    )}
-                  </View>
-                </View>
-              ))
-            : null}
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </SectionCard>
+        {deskPanel === "agents" ? (
+          <SectionCard title="Asesores" subtitle={agents.length + " registrados · " + availableAgents.length + " activos"}>
+            {loading ? <BlockSkeleton lines={5} compact /> : null}
+            {!loading && !agents.length ? <Text style={styles.meta}>No hay asesores registrados.</Text> : null}
+            {!loading ? agents.map((agent, index) => {
+              const id = String(agent.user_id || "");
+              const sessionOpen = Boolean(agent.open_session?.id);
+              return (
+                <AdminSupportAgentCard key={id || index} agent={agent}>
+                  <SupportButton label={agent.authorized_for_work ? "Revocar" : "Autorizar"} disabled={!id || Boolean(busyKey)} onPress={() => { void handleAuthorize(agent, !agent.authorized_for_work); }} />
+                  <SupportButton label={sessionOpen ? "Cerrar sesión" : "Iniciar sesión"} kind={sessionOpen ? "outline" : "primary"} disabled={!id || Boolean(busyKey)} onPress={() => { void (sessionOpen ? handleEndAgentSession(id) : handleStartAgentSession(id)); }} />
+                  {agent.session_request_status === "pending" ? (
+                    <SupportButton label="Denegar solicitud" disabled={!id || Boolean(busyKey)} onPress={() => { void handleDenyRequest(id); }} />
+                  ) : null}
+                </AdminSupportAgentCard>
+              );
+            }) : null}
+          </SectionCard>
+        ) : (
+          <SectionCard title="Cola de tickets" subtitle={activeThreads.length + " activos"}>
+            {loading ? <BlockSkeleton lines={6} compact /> : null}
+            {!loading && !activeThreads.length ? <Text style={styles.meta}>No hay tickets activos para asignar.</Text> : null}
+            {!loading && activeThreads.length > 0 && !availableAgents.length ? (
+              <Text style={styles.meta}>No hay asesores activos para asignar tickets.</Text>
+            ) : null}
+            {!loading ? activeThreads.map((thread, index) => {
+              const id = String(thread.public_id || "");
+              const assigned = agents.find((agent) => agent.user_id === thread.assigned_agent_id);
+              return (
+                <AdminSupportThreadCard key={id || index} thread={thread} assignedLabel={assigned ? agentDisplayName(assigned) : undefined}>
+                  <SupportButton label="Ver ticket" disabled={!id} onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKET, { threadPublicId: id })} />
+                  <SupportButton label={thread.assigned_agent_id ? "Reasignar" : "Asignar"} kind="primary" disabled={!id || !availableAgents.length || Boolean(busyKey)} onPress={() => selectAssignee(thread)} />
+                </AdminSupportThreadCard>
+              );
+            }) : null}
+          </SectionCard>
+        )}
       </ScrollView>
     </ScreenScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 11,
-    padding: 10,
-    backgroundColor: "#F8FAFC",
-    gap: 4,
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  metaText: {
-    fontSize: 11,
-    color: "#475569",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 6,
-  },
-  primaryBtn: {
-    backgroundColor: "#1D4ED8",
-    borderRadius: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  outlineBtn: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  outlineBtnText: {
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  emptyText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  btnDisabled: {
-    opacity: 0.55,
-  },
-});

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import { FlatList, Text, View } from "react-native";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import { supabase } from "@shared/services/mobileApi";
 import { fetchSupportErrorCatalog } from "@shared/services/supportDeskQueries";
 import { formatDateTime } from "@shared/services/entityQueries";
+import { SupportBadge, SupportNotice } from "./SupportTicketUi";
+import { SupportDiagnosticItem, SupportSearchBar, supportDetailStyles as styles } from "./SupportDiagnosticsUi";
 
 const EXTRA_KNOWN_CODES = [
   "method_not_allowed",
@@ -22,213 +23,108 @@ const EXTRA_KNOWN_CODES = [
   "unauthorized",
 ];
 
-function buildFallbackRows() {
-  const now = new Date().toISOString();
-  return EXTRA_KNOWN_CODES.map((code) => ({
-    id: `seed-${code}`,
-    error_code: code,
-    status: "defined",
-    count_total: 0,
-    source_hint: "seed",
-    sample_message: "Catalog seed",
-    sample_route: null,
-    sample_context: {
-      category: "catalog_seed",
-      description: "Codigo sembrado desde contrato observability.",
-    },
-    first_seen_at: now,
-    last_seen_at: now,
-  }));
-}
+type ErrorRow = {
+  id: string;
+  error_code: string;
+  status?: string;
+  count_total?: number;
+  source_hint?: string;
+  sample_message?: string;
+  sample_route?: string;
+  sample_context?: { category?: string; description?: string };
+  last_seen_at?: string;
+  local?: boolean;
+};
 
-function statusStyle(status: string) {
-  if (status === "defined") return styles.statusDefined;
-  if (status === "ignored") return styles.statusIgnored;
-  return styles.statusPending;
+const localRows: ErrorRow[] = EXTRA_KNOWN_CODES.map((code) => ({ id: "seed-" + code, error_code: code, local: true }));
+
+function StatusBadge({ row }: { row: ErrorRow }) {
+  if (row.local) return <SupportBadge>Referencia local</SupportBadge>;
+  if (row.status === "defined") return <SupportBadge tone="positive">Definido</SupportBadge>;
+  if (row.status === "ignored") return <SupportBadge>Ignorado</SupportBadge>;
+  const label = !row.status || row.status === "pending" ? "Pendiente" : row.status;
+  return <SupportBadge tone="warning">{label}</SupportBadge>;
 }
 
 export default function SoporteErrorCatalogScreen() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<ErrorRow[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadRows = useCallback(async () => {
     setLoading(true);
     setError("");
-    const result = await fetchSupportErrorCatalog(supabase, 300);
-    setLoading(false);
-    if (!result.ok) {
-      setRows(buildFallbackRows());
-      setError(result.error || "No se pudo cargar catalogo.");
-      return;
+    try {
+      const result = await fetchSupportErrorCatalog(supabase, 300);
+      if (!result.ok) {
+        setRows(localRows);
+        setError(result.error || "No se pudo cargar el catálogo.");
+        return;
+      }
+      setRows(result.data.length ? result.data : localRows);
+    } catch {
+      setRows(localRows);
+      setError("No se pudo cargar el catálogo.");
+    } finally {
+      setLoading(false);
     }
-    const next = Array.isArray(result.data) ? result.data : [];
-    setRows(next.length ? next : buildFallbackRows());
   }, []);
 
-  useEffect(() => {
-    void loadRows();
-  }, [loadRows]);
+  useEffect(() => { void loadRows(); }, [loadRows]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return rows;
-    return rows.filter((row) => {
-      const haystack = [
-        row.error_code,
-        row.status,
-        row.sample_message,
-        row.sample_route,
-        row.sample_context?.category,
-        row.sample_context?.description,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
+    return rows.filter((row) => [
+      row.error_code,
+      row.status,
+      row.sample_message,
+      row.sample_route,
+      row.sample_context?.category,
+      row.sample_context?.description,
+    ].filter(Boolean).join(" ").toLowerCase().includes(term));
   }, [rows, query]);
 
   return (
-    <ScreenScaffold
-      title="Soporte Catalogo de Errores"
-      subtitle="Codigos observability y contexto de muestra"
-    >
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard
-          title="Busqueda"
-          subtitle="Filtra por code, status, ruta o mensaje"
-          right={
-            <Pressable onPress={loadRows} disabled={loading} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>{loading ? "..." : "Recargar"}</Text>
-            </Pressable>
-          }
-        >
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar por code, status o mensaje"
-            style={styles.input}
-          />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        </SectionCard>
-
-        <SectionCard title="Catalogo" subtitle={`${filtered.length} codigos`}>
-          {loading ? <BlockSkeleton lines={8} compact /> : null}
-          {!loading && filtered.length === 0 ? (
-            <Text style={styles.emptyText}>No hay codigos para el filtro actual.</Text>
-          ) : null}
-          {!loading
-            ? filtered.map((row) => (
-                <View key={row.id} style={styles.rowCard}>
-                  <View style={styles.rowTop}>
-                    <Text style={styles.rowTitle}>{row.error_code}</Text>
-                    <Text style={[styles.statusBadge, statusStyle(String(row.status || "pending"))]}>
-                      {String(row.status || "pending").toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowMeta}>
-                    categoria: {row.sample_context?.category || "-"} | source: {row.source_hint || "-"}
-                  </Text>
-                  <Text style={styles.rowMeta}>
-                    total: {row.count_total || 0} | ultimo visto: {formatDateTime(row.last_seen_at)}
-                  </Text>
-                  <Text style={styles.rowDescription}>
-                    {row.sample_context?.description || row.sample_message || "-"}
-                  </Text>
-                </View>
-              ))
-            : null}
-        </SectionCard>
-      </ScrollView>
+    <ScreenScaffold title="Catálogo de errores" onRefresh={loading ? undefined : () => { void loadRows(); }}>
+      <FlatList
+        data={loading ? [] : filtered}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={(
+          <View style={styles.headerStack}>
+            <SupportSearchBar
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar por código, estado o mensaje"
+              loading={loading}
+              onRefresh={() => { void loadRows(); }}
+            />
+            {error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+            <View style={styles.sectionHeader}>
+              <Text accessibilityRole="header" style={styles.heading}>Catálogo</Text>
+              {!loading ? <Text style={styles.meta}>{filtered.length} códigos</Text> : null}
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={loading ? <BlockSkeleton lines={6} compact /> : <Text style={styles.meta}>No hay códigos para el filtro actual.</Text>}
+        renderItem={({ item }) => (
+          <SupportDiagnosticItem title={item.error_code} badge={<StatusBadge row={item} />}>
+            {item.local ? null : (
+              <>
+                <Text style={styles.meta}>Categoría: {item.sample_context?.category || "—"} · Fuente: {item.source_hint || "—"}</Text>
+                <Text style={styles.meta}>Total: {item.count_total ?? 0} · Último registro: {formatDateTime(item.last_seen_at)}</Text>
+                {item.sample_route ? <Text style={styles.meta}>Ruta: {item.sample_route}</Text> : null}
+                {item.sample_context?.description || item.sample_message ? (
+                  <Text style={styles.description}>{item.sample_context?.description || item.sample_message}</Text>
+                ) : null}
+              </>
+            )}
+          </SupportDiagnosticItem>
+        )}
+      />
     </ScreenScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    fontSize: 13,
-  },
-  rowCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    padding: 10,
-    gap: 3,
-  },
-  rowTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  rowTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  rowMeta: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-  rowDescription: {
-    fontSize: 12,
-    color: "#475569",
-  },
-  statusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
-  statusPending: {
-    backgroundColor: "#FEF3C7",
-    color: "#B45309",
-  },
-  statusDefined: {
-    backgroundColor: "#DCFCE7",
-    color: "#15803D",
-  },
-  statusIgnored: {
-    backgroundColor: "#E2E8F0",
-    color: "#475569",
-  },
-  emptyText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  errorText: {
-    fontSize: 12,
-    color: "#B91C1C",
-    fontWeight: "600",
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-});

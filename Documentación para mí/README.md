@@ -15,6 +15,8 @@ Esta guía te lleva del mapa del producto al código que puedes editar. Describe
 | [07 · Versionado y despliegue](07-versionado-y-despliegue.md) | Entender cómo se prepara, promueve y publica una versión. |
 | [08 · Flujos y guía de cambios](08-flujos-y-guia-de-cambios.md) | Seguir una acción de la pantalla a la base y decidir dónde cambiarla. |
 | [09 · Pendientes y verificación](09-pendientes-y-verificacion.md) | Ordenar correcciones y confirmaciones de entorno. |
+| [10 · Comparación de la PWA y Android](10-comparacion-ui-pwa-android.md) | Revisar la adaptación visual por pantalla y las pruebas realizadas. |
+| [11 · Errores de la PWA en el teléfono](11-errores-pwa-en-telefono.md) | Reproducir los defectos de acceso, promociones, escáner y paneles del personal. |
 | [Referencia por archivo](referencia/README.md) | Ir directamente al archivo, su propósito y sus dependencias. |
 | [Detalle del código](detalle-del-c%C3%B3digo/README.md) | Abrir la referencia de componentes, funciones, objetos SQL y sus consumidores. |
 

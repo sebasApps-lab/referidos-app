@@ -3,6 +3,8 @@ import {
   BottomTabNavigationOptions,
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
+import MobileRoleTabBar from "./MobileRoleTabBar";
+import MobileRoleHeader from "./MobileRoleHeader";
 import { TAB_ROUTES } from "./routeKeys";
 import ClienteInicioScreen from "@features/cliente/ClienteInicioScreen";
 import ClienteEscanerScreen from "@features/cliente/ClienteEscanerScreen";
@@ -75,7 +77,23 @@ function RoleTabNavigator({ role, fallbackRoute, screens }: RoleTabConfig) {
       initialRouteName={initialRouteName}
       detachInactiveScreens={false}
       backBehavior="history"
-      screenOptions={COMMON_TAB_OPTIONS}
+      tabBar={role === "cliente" || role === "negocio"
+        ? (props) => <MobileRoleTabBar {...props} />
+        : () => null}
+      screenOptions={({ route, navigation }) => ({
+        ...COMMON_TAB_OPTIONS,
+        ...((role === "cliente" || role === "negocio") ? {
+          headerShown: true,
+          header: () => (
+            <MobileRoleHeader
+              role={role}
+              routeName={route.name}
+              onNavigate={(nextRoute, params) => navigation.navigate(nextRoute, params ? { ...params, openAt: Date.now() } : undefined)}
+            />
+          ),
+          sceneStyle: { backgroundColor: "#FAF8FF" },
+        } : {}),
+      })}
       screenListeners={{
         state: (event) => {
           const state = event.data.state;
@@ -105,7 +123,7 @@ export function ClienteTabs() {
       fallbackRoute={TAB_ROUTES.CLIENTE.INICIO}
       screens={[
         { name: TAB_ROUTES.CLIENTE.INICIO, label: "Inicio", component: ClienteInicioScreen },
-        { name: TAB_ROUTES.CLIENTE.ESCANER, label: "Escaner", component: ClienteEscanerScreen },
+        { name: TAB_ROUTES.CLIENTE.ESCANER, label: "Escanear", component: ClienteEscanerScreen },
         {
           name: TAB_ROUTES.CLIENTE.HISTORIAL,
           label: "Historial",
@@ -124,7 +142,7 @@ export function NegocioTabs() {
       fallbackRoute={TAB_ROUTES.NEGOCIO.INICIO}
       screens={[
         { name: TAB_ROUTES.NEGOCIO.INICIO, label: "Inicio", component: NegocioInicioScreen },
-        { name: TAB_ROUTES.NEGOCIO.ESCANER, label: "Escaner", component: NegocioEscanerScreen },
+        { name: TAB_ROUTES.NEGOCIO.ESCANER, label: "Escanear", component: NegocioEscanerScreen },
         {
           name: TAB_ROUTES.NEGOCIO.GESTIONAR,
           label: "Gestionar",
@@ -160,7 +178,7 @@ export function SoporteTabs() {
   return (
     <RoleTabNavigator
       role="soporte"
-      fallbackRoute={TAB_ROUTES.SOPORTE.INICIO}
+      fallbackRoute={TAB_ROUTES.SOPORTE.INBOX}
       screens={[
         { name: TAB_ROUTES.SOPORTE.INICIO, label: "Inicio", component: SoporteInicioScreen },
         { name: TAB_ROUTES.SOPORTE.INBOX, label: "Inbox", component: SoporteInboxScreen },

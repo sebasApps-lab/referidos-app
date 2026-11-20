@@ -1,4 +1,4 @@
-﻿import { useCallback } from "react";
+﻿import { useCallback, useRef } from "react";
 import {
   CODE_RE,
   EMAIL_RE,
@@ -8,6 +8,7 @@ import { useAppStore } from "../../store/appStore";
 import { signInWithOAuth, signInWithGoogleIdToken } from "../../services/authService";
 import { supabase } from "../../lib/supabaseClient";
 import { requestGoogleCredential } from "../../utils/googleOneTap";
+import { isPWA } from "../../router/guards/pwaGuard";
 import { AUTH_STEPS } from "../constants/authSteps";
 import {
   buildBirthdateISO,
@@ -24,8 +25,6 @@ import { toTitleCaseEs } from "../../utils/textCase";
 import { runtimeConfig } from "../../config/runtimeConfig";
 
 // Lint purge (no-unused-vars): se elimino `negocioId` temporal en submitBusinessData (bloque crear/actualizar negocio).
-const OAUTH_INTENT_KEY = "oauth_intent";
-const OAUTH_LOGIN_PENDING = "oauth_login_pending";
 const GOOGLE_ONE_TAP_CLIENT_ID =
   runtimeConfig.googleOneTapClientId ||
   runtimeConfig.googleClientId;
@@ -123,10 +122,7 @@ export default function useAuthActions({
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
 
-  const redirectTo =
-    runtimeConfig.authRedirectUrl ||
-    ((typeof window !== "undefined" && `${window.location.origin}/auth`) ||
-      undefined);
+  const oauthInFlight = useRef(false);
 
   const resolveClientSteps = useCallback((state = onboarding) => {
     const steps = state?.client_steps || {};
@@ -726,73 +722,67 @@ export default function useAuthActions({
     setEmailError,
   ]);
 
-  const startOAuth = useCallback(async (provider) => {
-    setEmailError("");
+  const runOAuth = useCallback(async (provider, tryOneTap = false) => {
+    if (oauthInFlight.current) return;
+    oauthInFlight.current = true;
+
+    const useOneTap = Boolean(
+      tryOneTap && GOOGLE_ONE_TAP_CLIENT_ID && window.isSecureContext && !isPWA()
+    );
+    setWelcomeError("");
     setOauthProvider(provider);
     setOauthLoading(true);
+    if (useOneTap) setWelcomeLoading(true);
 
     try {
-      await signInWithOAuth(provider, { redirectTo });
-    } catch (err) {
-      localStorage.removeItem(OAUTH_INTENT_KEY);
-      setEmailError(err?.message || "No se pudo iniciar sesiÃ‡Ã¼n");
+      if (useOneTap) {
+        let signedIn = false;
+        try {
+          const result = await requestGoogleCredential({
+            clientId: GOOGLE_ONE_TAP_CLIENT_ID,
+          });
+          if (result.type === "cancelled") return;
+          if (result.type === "credential") {
+            const data = await signInWithGoogleIdToken({
+              token: result.credential,
+              nonce: result.nonce,
+            });
+            signedIn = Boolean(data?.session);
+          }
+        } catch {
+          // One Tap is optional. Continue with the Google OAuth redirect.
+        }
+
+        if (signedIn) {
+          const result = await bootstrapAuth({ force: true });
+          if (!result?.ok) {
+            setWelcomeError("No pudimos completar el acceso. Intenta de nuevo.");
+          }
+          return;
+        }
+      }
+
+      const result = await signInWithOAuth(provider);
+      if (!result?.redirected) {
+        setWelcomeError("No pudimos abrir el inicio de sesión. Intenta de nuevo.");
+      }
+    } catch {
+      setWelcomeError("No pudimos abrir el inicio de sesión. Intenta de nuevo.");
+    } finally {
+      oauthInFlight.current = false;
       setOauthLoading(false);
       setOauthProvider(null);
+      if (useOneTap) setWelcomeLoading(false);
     }
-  }, [redirectTo, setEmailError, setOauthLoading, setOauthProvider]);
+  }, [bootstrapAuth, setOauthLoading, setOauthProvider, setWelcomeError, setWelcomeLoading]);
 
+  const startOAuth = useCallback((provider) => runOAuth(provider), [runOAuth]);
   const startGoogleOAuth = useCallback(() => startOAuth("google"), [startOAuth]);
   const startFacebookOAuth = useCallback(() => startOAuth("facebook"), [startOAuth]);
   const startAppleOAuth = useCallback(() => startOAuth("apple"), [startOAuth]);
   const startTwitterOAuth = useCallback(() => startOAuth("x"), [startOAuth]);
   const startDiscordOAuth = useCallback(() => startOAuth("discord"), [startOAuth]);
-
-  const startGoogleOneTap = useCallback(async () => {
-    setWelcomeError("");
-    setWelcomeLoading(true);
-    const fallbackToOAuth = async () => {
-      try {
-        await signInWithOAuth("google", { redirectTo });
-        return true;
-      } catch (err) {
-        setWelcomeError(err?.message || "No se pudo iniciar con Google");
-        return false;
-      }
-    };
-
-    if (!GOOGLE_ONE_TAP_CLIENT_ID) {
-      await fallbackToOAuth();
-      return;
-    }
-
-    try {
-      const result = await requestGoogleCredential({
-        clientId: GOOGLE_ONE_TAP_CLIENT_ID,
-      });
-
-      if (!result || result.type !== "credential") {
-        const redirected = await fallbackToOAuth();
-        if (!redirected) {
-          setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
-        }
-        return;
-      }
-
-      localStorage.setItem(OAUTH_LOGIN_PENDING, JSON.stringify({ ts: Date.now() }));
-      await signInWithGoogleIdToken({
-        token: result.credential,
-      });
-
-      await bootstrapAuth({ force: true });
-    } catch {
-      const redirected = await fallbackToOAuth();
-      if (!redirected) {
-        setWelcomeError("No se pudo iniciar con Google. Intenta de nuevo o usa el acceso manual.");
-      }
-    } finally {
-      setWelcomeLoading(false);
-    }
-  }, [bootstrapAuth, redirectTo, setWelcomeError, setWelcomeLoading]);
+  const startGoogleOneTap = useCallback(() => runOAuth("google", true), [runOAuth]);
 
   const startFacebookOneTap = useCallback(() => {}, []);
 

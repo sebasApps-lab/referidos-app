@@ -1,160 +1,148 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Text, View } from "react-native";
-import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import { Pressable, Text, useWindowDimensions, View } from "react-native";
+import StaffSelect from "@features/staff/StaffSelect";
+import StaffSectionCard from "@features/staff/StaffSectionCard";
+import StaffTable, { StaffTableBadge, type StaffTableColumn } from "@features/staff/StaffTable";
+import StaffTablePage, { StaffTableDetails, tableText } from "@features/staff/StaffTablePage";
 import { fetchAdminNegocios } from "@shared/services/adminOps";
 import { formatDateTime, readFirst } from "@shared/services/entityQueries";
-import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
+
+const BUSINESS_STATUSES = [
+  { id: "todos", label: "Todos" },
+  { id: "activo", label: "Activo" },
+  { id: "inactivo", label: "Inactivo" },
+  { id: "suspendido", label: "Suspendido" },
+] as const;
+
+function businessView(row: Record<string, unknown>) {
+  return {
+    id: String(readFirst(row, ["id", "public_id"], "")),
+    publicId: String(readFirst(row, ["public_id", "id"], "—")),
+    name: String(readFirst(row, ["nombre", "razon_social", "name"], "Negocio")),
+    sector: String(readFirst(row, ["sector", "categoria"], "")).trim(),
+    status: String(readFirst(row, ["estado", "status", "account_status"], "activo")).trim().toLowerCase(),
+    address: String(readFirst(row, ["direccion", "ubicacion"], "")),
+    owner: String(readFirst(row, ["propietario_nombre", "nombre_propietario", "usuarioid", "usuario_id"], "Sin propietario")),
+    createdAt: readFirst(row, ["created_at", "fecha_creacion", "fechacreacion"], null),
+    promos: String(readFirst(row, ["promos_activas", "promosActivas", "promosactivas"], "—")),
+    branches: String(readFirst(row, ["sucursales_count", "sucursalesCount", "sucursalescount"], "—")),
+  };
+}
+
+type Business = ReturnType<typeof businessView>;
+
+function businessTone(status: string) {
+  if (status === "activo") return "positive";
+  if (status === "suspendido") return "danger";
+  return status === "inactivo" ? "warning" : "neutral";
+}
 
 export default function AdminNegociosScreen() {
-  const [rows, setRows] = useState<any[]>([]);
+  const { width } = useWindowDimensions();
+  const [rows, setRows] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [sectorFilter, setSectorFilter] = useState("todos");
-  const [statusFilter, setStatusFilter] = useState("todos");
+  const [statusFilter, setStatusFilter] = useState<(typeof BUSINESS_STATUSES)[number]["id"]>("todos");
+  const [selectedId, setSelectedId] = useState("");
 
   const loadRows = useCallback(async () => {
-    if (!refreshing) setLoading(true);
-    const result = await fetchAdminNegocios(100);
-    if (!result.ok) {
-      setRows([]);
-      setError(result.error || "No se pudo cargar negocios.");
+    try {
+      const result = await fetchAdminNegocios(100);
+      if (result.ok) {
+        setRows((result.data || []).map(businessView));
+        setError("");
+      } else {
+        setError(result.error || "No se pudieron cargar los negocios.");
+      }
+    } catch {
+      setError("No se pudieron cargar los negocios.");
+    } finally {
       setLoading(false);
-      return;
     }
-    setRows(result.data || []);
-    setError("");
-    setLoading(false);
-  }, [refreshing]);
+  }, []);
+
+  useEffect(() => { void loadRows(); }, [loadRows]);
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
-    await loadRows();
-    setRefreshing(false);
+    try { await loadRows(); } finally { setRefreshing(false); }
   }, [loadRows]);
 
-  useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
-
-  const sectors = useMemo(() => {
-    return Array.from(
-      new Set(
-        rows
-          .map((row) => String(readFirst(row, ["sector", "categoria"], "")).trim())
-          .filter(Boolean),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
-  }, [rows]);
-
+  const sectors = useMemo(() => Array.from(new Set(rows.map((row) => row.sector).filter(Boolean)))
+    .sort((left, right) => left.localeCompare(right, "es")), [rows]);
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const nombre = String(readFirst(row, ["nombre", "razon_social", "name"], "")).toLowerCase();
-      const sector = String(readFirst(row, ["sector", "categoria"], "")).trim();
-      const status = String(readFirst(row, ["estado", "status", "account_status"], "activo")).trim();
-      const direccion = String(readFirst(row, ["direccion", "ubicacion"], "")).toLowerCase();
-      const owner = String(readFirst(row, ["usuarioid", "usuario_id"], "")).toLowerCase();
-      const matchesQuery =
-        !term ||
-        nombre.includes(term) ||
-        direccion.includes(term) ||
-        owner.includes(term);
-      const matchesSector = sectorFilter === "todos" || sector === sectorFilter;
-      const matchesStatus = statusFilter === "todos" || status === statusFilter;
-      return matchesQuery && matchesSector && matchesStatus;
-    });
+    return rows.filter((row) => (
+      (sectorFilter === "todos" || row.sector === sectorFilter) &&
+      (statusFilter === "todos" || row.status === statusFilter) &&
+      [row.name, row.address, row.owner].some((value) => value.toLowerCase().includes(term))
+    ));
   }, [query, rows, sectorFilter, statusFilter]);
+  const selected = selectedId ? rows.find((row) => row.id === selectedId) : null;
+  const activeCount = rows.filter((row) => row.status === "activo").length;
+  const withAddress = rows.filter((row) => row.address).length;
 
-  const metrics = useMemo(() => {
-    const activeCount = rows.filter((row) =>
-      String(readFirst(row, ["estado", "status", "account_status"], "activo")).trim().toLowerCase() === "activo",
-    ).length;
-    const withAddress = rows.filter((row) => Boolean(readFirst(row, ["direccion", "ubicacion"], ""))).length;
-    return [
-      { label: "Total", value: rows.length },
-      { label: "Activos", value: activeCount },
-      { label: "Con direccion", value: withAddress },
-      { label: "Filtrados", value: filtered.length },
-    ];
-  }, [filtered.length, rows]);
-
-  const filters = useMemo(() => {
-    return [
-      {
-        title: "Sector",
-        selectedId: sectorFilter,
-        onSelect: setSectorFilter,
-        options: [
-          { id: "todos", label: "Todos" },
-          ...sectors.map((sector) => ({ id: sector, label: sector })),
-        ],
-      },
-      {
-        title: "Estado",
-        selectedId: statusFilter,
-        onSelect: setStatusFilter,
-        options: [
-          { id: "todos", label: "Todos" },
-          { id: "activo", label: "Activo" },
-          { id: "inactivo", label: "Inactivo" },
-          { id: "suspendido", label: "Suspendido" },
-        ],
-      },
-    ];
-  }, [sectorFilter, sectors, statusFilter]);
+  const columns: StaffTableColumn<Business>[] = [
+    { key: "business", label: "Negocio", width: 167, render: (row) => (
+      <Pressable accessibilityRole="button" onPress={() => setSelectedId(row.id)}>
+        <Text style={tableText.name} numberOfLines={2}>{row.name}</Text>
+        <Text style={tableText.metadata} numberOfLines={1}>{row.publicId}</Text>
+      </Pressable>
+    ) },
+    { key: "sector", label: "Sector", width: 122, render: (row) => <Text style={tableText.metadata}>{row.sector || "—"}</Text> },
+    { key: "status", label: "Estado", width: 120, render: (row) => <StaffTableBadge value={row.status} tone={businessTone(row.status)} /> },
+    { key: "promos", label: "Promos", width: 90, render: (row) => <Text style={tableText.metadata}>{row.promos}</Text> },
+  ];
+  if (width >= 768) columns.push({ key: "branches", label: "Sucursales", width: 108, render: (row) => <Text style={tableText.metadata}>{row.branches}</Text> });
+  columns.push({ key: "action", label: "Acciones", width: 126, align: "right", render: (row) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalle de ${row.name}`} onPress={() => setSelectedId(row.id)} style={tableText.action}>
+      <Text style={tableText.actionLabel}>Ver detalle</Text>
+    </Pressable>
+  ) });
 
   return (
-    <AdminCollectionScreen
-      title="Admin Negocios"
-      subtitle="Supervision de locales y sucursales"
-      searchPlaceholder="Buscar negocio, direccion o propietario"
-      query={query}
-      onQueryChange={setQuery}
-      loading={loading}
-      refreshing={refreshing}
-      error={error}
-      metrics={metrics}
-      filters={filters}
-      onRefresh={() => void refreshAll()}
-      emptyText={!loading && filtered.length === 0 ? "No hay negocios para este filtro." : ""}
-    >
-      <SectionCard title="Listado" subtitle={`Negocios encontrados: ${filtered.length}`}>
-        {filtered.length === 0 && !loading ? (
-          <Text style={shared.emptyText}>Sin negocios disponibles.</Text>
-        ) : null}
-        <View style={shared.listWrap}>
-          {filtered.map((row, index) => {
-            const nombre = String(readFirst(row, ["nombre", "razon_social", "name"], "Negocio"));
-            const publicId = String(readFirst(row, ["public_id", "id"], "-"));
-            const sector = String(readFirst(row, ["sector", "categoria"], "sin sector"));
-            const status = String(readFirst(row, ["estado", "status", "account_status"], "activo"));
-            const direccion = String(readFirst(row, ["direccion", "ubicacion"], "Sin direccion"));
-            const owner = String(readFirst(row, ["usuarioid", "usuario_id"], "sin propietario"));
-            return (
-              <View key={`${publicId}-${index}`} style={shared.card}>
-                <Text style={shared.cardTitle}>{nombre}</Text>
-                <View style={shared.badgeRow}>
-                  <View style={shared.codePill}>
-                    <Text style={shared.codePillText}>{publicId}</Text>
-                  </View>
-                  <View style={shared.badge}>
-                    <Text style={shared.badgeText}>{status}</Text>
-                  </View>
-                </View>
-                <Text style={shared.metaText}>sector: {sector}</Text>
-                <Text style={shared.metaText}>direccion: {direccion}</Text>
-                <Text style={shared.metaText}>propietario/base: {owner}</Text>
-                <Text style={shared.metaText}>
-                  alta: {formatDateTime(readFirst(row, ["created_at"], null))}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      </SectionCard>
-    </AdminCollectionScreen>
+    <>
+      <StaffTablePage
+        title="Negocios"
+        subtitle="Supervisión de locales y sucursales"
+        description="Vista global de negocios y actividad."
+        searchPlaceholder="Buscar negocio"
+        query={query}
+        onChangeQuery={setQuery}
+        loading={loading}
+        error={error}
+        onRefresh={loading || refreshing ? undefined : refreshAll}
+        filters={(
+          <>
+            <StaffSelect label="Sector" value={sectorFilter} options={[{ id: "todos", label: "Todos" }, ...sectors.map((sector) => ({ id: sector, label: sector }))]} onSelect={setSectorFilter} />
+            <StaffSelect label="Estado" value={statusFilter} options={BUSINESS_STATUSES} onSelect={setStatusFilter} />
+          </>
+        )}
+      >
+        <StaffTable columns={columns} rows={filtered} getKey={(row) => row.id} emptyMessage="No hay negocios para los filtros actuales." />
+        {rows.length > 0 && <Text style={tableText.metadata}>{filtered.length} de {rows.length} negocios · {activeCount} activos · {withAddress} con dirección</Text>}
+      </StaffTablePage>
+      {selected && (
+        <StaffTableDetails caption="Negocio" title={selected.name} onClose={() => setSelectedId("")}>
+          <View style={tableText.badges}>
+            {selected.sector !== "" && <StaffTableBadge value={selected.sector} tone="purple" />}
+            <StaffTableBadge value={selected.status} tone={businessTone(selected.status)} />
+          </View>
+          <StaffSectionCard title="Datos generales">
+            <Text style={tableText.metadata}>ID: {selected.publicId}</Text>
+            <Text style={tableText.metadata}>Propietario: {selected.owner}</Text>
+            <Text style={tableText.metadata}>Promos activas: {selected.promos}</Text>
+            <Text style={tableText.metadata}>Sucursales: {selected.branches}</Text>
+            <Text style={tableText.metadata}>Alta: {formatDateTime(selected.createdAt)}</Text>
+          </StaffSectionCard>
+          <StaffSectionCard title="Ubicación">
+            <Text style={tableText.metadata}>{selected.address || "Sin dirección"}</Text>
+          </StaffSectionCard>
+        </StaffTableDetails>
+      )}
+    </>
   );
 }

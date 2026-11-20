@@ -12,14 +12,9 @@ import "leaflet/dist/leaflet.css";
 import "./index.css"; // si usas Tailwind o estilos globales
 import { registerSW } from "virtual:pwa-register";
 
-const isLocalDevHost =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1" ||
-  window.location.hostname.endsWith(".ngrok-free.dev");
-
-if (import.meta.env.PROD && !isLocalDevHost) {
+if (import.meta.env.PROD && window.isSecureContext) {
   registerSW();
-} else if ("serviceWorker" in navigator) {
+} else if (import.meta.env.DEV && "serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((registration) => {
       registration.unregister();

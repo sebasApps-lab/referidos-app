@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
+import { SessionsSection } from "@features/profile/components/ProfileRuntimePanels";
+import { TAB_ROUTES } from "@navigation/routeKeys";
 import { supabase } from "@shared/services/mobileApi";
 import { useAppStore } from "@shared/store/appStore";
 import { useModalStore } from "@shared/store/modalStore";
@@ -22,12 +23,19 @@ import {
   updatePromoStatusById,
 } from "@shared/services/entityQueries";
 
-type ManageTab = "promos" | "sucursales" | "seguridad";
+const MANAGE_TABS = [
+  { id: "metricas", label: "Métricas", icon: require("@navigation/assets/chart.png") },
+  { id: "dispositivos", label: "Dispositivos", icon: require("@navigation/assets/monitor-smartphone.png") },
+  { id: "grupos", label: "Grupos", icon: require("@navigation/assets/users.png") },
+  { id: "seguridad", label: "Seguridad", icon: require("@navigation/assets/shield-check.png") },
+] as const;
+
+type ManageTab = (typeof MANAGE_TABS)[number]["id"];
 
 function normalizePromoStatus(value: any): "pendiente" | "activo" | "inactivo" {
   const raw = String(value || "").trim().toLowerCase();
-  if (raw.includes("activ")) return "activo";
-  if (raw.includes("pend")) return "pendiente";
+  if (["activo", "activa", "active"].includes(raw)) return "activo";
+  if (raw.startsWith("pend") || raw === "draft") return "pendiente";
   return "inactivo";
 }
 
@@ -40,17 +48,22 @@ function nextPromoStatus(status: string): "pendiente" | "activo" | "inactivo" {
 
 function nextBranchState(current: string): "activo" | "pausado" | "draft" {
   const value = String(current || "").trim().toLowerCase();
-  if (value.includes("activo")) return "pausado";
+  if (value === "activo" || value === "active") return "pausado";
   if (value.includes("paus")) return "draft";
   return "activo";
 }
 
 export default function NegocioGestionarScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute();
+  const creationRequest = (route.params as { createPromo?: number } | undefined)?.createPromo;
   const onboarding = useAppStore((state) => state.onboarding);
+  const signOut = useAppStore((state) => state.signOut);
   const openConfirm = useModalStore((state) => state.openConfirm);
   const openAlert = useModalStore((state) => state.openAlert);
   const openPicker = useModalStore((state) => state.openPicker);
-  const [activeTab, setActiveTab] = useState<ManageTab>("promos");
+  const [activeTab, setActiveTab] = useState<ManageTab>("metricas");
+  const [showPromoForm, setShowPromoForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [promos, setPromos] = useState<any[]>([]);
@@ -135,6 +148,13 @@ export default function NegocioGestionarScreen() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (creationRequest) {
+      setActiveTab("metricas");
+      setShowPromoForm(true);
+    }
+  }, [creationRequest]);
+
   const createPromo = useCallback(async () => {
     setActionMessage("");
     setActionError("");
@@ -161,6 +181,7 @@ export default function NegocioGestionarScreen() {
     setActionMessage("Promocion creada en estado pendiente.");
     setNewPromoTitle("");
     setNewPromoDescription("");
+    setShowPromoForm(false);
     await loadData();
   }, [businessId, loadData, newPromoDescription, newPromoTitle]);
 
@@ -274,65 +295,85 @@ export default function NegocioGestionarScreen() {
     [loadData],
   );
 
+  const activePromos = promos.filter((promo) => normalizePromoStatus(readFirst(promo, ["estado", "status"], "")) === "activo").length;
+  const hasMfa = Boolean(onboarding?.usuario?.mfa_totp_enabled || onboarding?.usuario?.mfa_primary_method);
+  const showCreation = () => {
+    setActiveTab("metricas");
+    setShowPromoForm(true);
+  };
   return (
-    <ScreenScaffold title="Gestionar negocio" subtitle="Promos, sucursales y transiciones">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard
-          title="Control rapido"
-          subtitle={businessId ? `Negocio ID: ${businessId}` : "Sin negocio cargado"}
-          right={
-            <Pressable onPress={loadData} style={styles.refreshButton}>
-              <Text style={styles.refreshText}>Recargar</Text>
-            </Pressable>
-          }
-        >
-          {loading ? <BlockSkeleton lines={3} compact /> : null}
-          {!loading && error ? <Text style={styles.error}>{error}</Text> : null}
-          {!loading && !error ? (
-            <>
-              <View style={styles.kpiRow}>
-                <View style={styles.kpiCard}>
-                  <Text style={styles.kpiLabel}>Promos</Text>
-                  <Text style={styles.kpiValue}>{promos.length}</Text>
-                </View>
-                <View style={styles.kpiCard}>
-                  <Text style={styles.kpiLabel}>Sucursales</Text>
-                  <Text style={styles.kpiValue}>{branches.length}</Text>
-                </View>
-              </View>
-              {actionMessage ? <Text style={styles.ok}>{actionMessage}</Text> : null}
-              {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
-            </>
-          ) : null}
-        </SectionCard>
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={["#5E30A5"]} />}
+      >
+        <View style={styles.heading}>
+          <Text style={styles.eyebrow}>PANEL</Text>
+          <Text accessibilityRole="header" style={styles.title}>Gestionar</Text>
+          <Text style={styles.description}>Controla promociones, equipos y seguridad desde un solo lugar.</Text>
+        </View>
+        <View style={styles.heroActions}>
+          <View style={styles.operationBadge}>
+            <View style={[styles.statusDot, error ? styles.errorDot : loading && styles.loadingDot]} />
+            <Text style={styles.itemMeta}>{loading ? "Actualizando…" : error ? "Consulta pendiente" : "Operación estable"}</Text>
+          </View>
+          <Pressable accessibilityRole="button" onPress={showCreation} style={[styles.primaryButton, styles.newPromoButton]}>
+            <Text style={styles.primaryButtonText}>Nueva promo</Text>
+          </Pressable>
+        </View>
+        <View style={styles.businessBanner}>
+          <Text style={styles.eyebrow}>NEGOCIO</Text>
+          <Text style={styles.businessName}>{onboarding?.negocio?.nombre || "Tu negocio"}</Text>
+          <Text style={styles.itemMeta}>Panel central de gestión y operaciones.</Text>
+        </View>
+        {error || actionError ? <Text accessibilityLiveRegion="polite" style={styles.error}>{actionError || error}</Text> : null}
+        {actionMessage ? <Text accessibilityLiveRegion="polite" style={styles.ok}>{actionMessage}</Text> : null}
 
         <View style={styles.tabRow}>
-          {(["promos", "sucursales", "seguridad"] as ManageTab[]).map((tab) => (
+          {MANAGE_TABS.map((tab) => (
             <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tabChip, activeTab === tab && styles.tabChipActive]}
+              key={tab.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === tab.id }}
+              onPress={() => setActiveTab(tab.id)}
+              style={[styles.tabChip, activeTab === tab.id && styles.tabChipActive]}
             >
-              <Text style={[styles.tabChipText, activeTab === tab && styles.tabChipTextActive]}>
-                {tab}
+              <Image source={tab.icon} style={[styles.tabIcon, activeTab === tab.id && styles.tabIconActive]} />
+              <Text style={[styles.tabChipText, activeTab === tab.id && styles.tabChipTextActive]}>
+                {tab.label}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {activeTab === "promos" ? (
-          <SectionCard title="Promociones (CRUD)">
+        {activeTab === "metricas" ? (
+          <View style={styles.panel}>
+            {!loading && !error && (
+              <View style={styles.kpiRow}>
+                {[["Promos activas", activePromos], ["Sucursales", branches.length]].map(([label, value]) => (
+                  <View key={label} style={styles.kpiCard}>
+                    <Text style={styles.kpiValue}>{value}</Text>
+                    <Text style={styles.kpiLabel}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text accessibilityRole="header" style={styles.itemTitle}>Promociones</Text>
+            {showPromoForm && <>
             <TextInput
               value={newPromoTitle}
               onChangeText={setNewPromoTitle}
               style={styles.input}
-              placeholder="Titulo de la promocion"
+              placeholder="Título de la promoción"
+              placeholderTextColor="#64748B"
             />
             <TextInput
               value={newPromoDescription}
               onChangeText={setNewPromoDescription}
               style={styles.input}
-              placeholder="Descripcion corta"
+              placeholder="Descripción corta"
+              placeholderTextColor="#64748B"
             />
             <Pressable
               onPress={() => {
@@ -345,6 +386,10 @@ export default function NegocioGestionarScreen() {
                 {creatingPromo ? "Creando..." : "Crear promo"}
               </Text>
             </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setShowPromoForm(false)} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+            </Pressable>
+            </>}
 
             {loading ? <BlockSkeleton lines={5} compact /> : null}
             {!loading && !error && promos.length === 0 ? (
@@ -385,11 +430,12 @@ export default function NegocioGestionarScreen() {
                   );
                 })
               : null}
-          </SectionCard>
+          </View>
         ) : null}
 
-        {activeTab === "sucursales" ? (
-          <SectionCard title="Sucursales y direccion">
+        {activeTab === "grupos" ? (
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.itemTitle}>Sucursales y dirección</Text>
             {loading ? <BlockSkeleton lines={4} compact /> : null}
             {!loading && !error && branches.length === 0 ? (
               <Text style={styles.emptyText}>Aun no hay sucursales registradas.</Text>
@@ -420,43 +466,56 @@ export default function NegocioGestionarScreen() {
                   );
                 })
               : null}
-          </SectionCard>
+          </View>
+        ) : null}
+
+        {activeTab === "dispositivos" ? (
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.itemTitle}>Dispositivos</Text>
+            <Text style={styles.itemMeta}>Revisa las sesiones activas de esta cuenta.</Text>
+            <SessionsSection onCurrentSessionRevoked={signOut} />
+          </View>
         ) : null}
 
         {activeTab === "seguridad" ? (
-          <SectionCard title="Seguridad operativa">
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.itemTitle}>Seguridad y accesos</Text>
             <Text style={styles.itemMeta}>
               Revisa dispositivos y permisos antes de canjear en terminales del negocio.
             </Text>
             <View style={styles.securityBox}>
-              <Text style={styles.securityTitle}>Checklist rapido</Text>
-              <Text style={styles.securityItem}>1. Cambia contrasena del propietario periodicamente.</Text>
-              <Text style={styles.securityItem}>2. Mantén 2FA activo para accesos sensibles.</Text>
-              <Text style={styles.securityItem}>3. Revoca sesiones antiguas desde Perfil cuando sea necesario.</Text>
+              <Text style={styles.securityTitle}>Autenticación en dos pasos</Text>
+              <Text style={styles.securityItem}>{hasMfa ? "Configurada" : "Por configurar"}</Text>
             </View>
-          </SectionCard>
+            <Pressable accessibilityRole="button" onPress={() => navigation.navigate(TAB_ROUTES.NEGOCIO.PERFIL)} style={styles.secondaryBtn}>
+              <Text style={styles.secondaryBtnText}>Revisar configuración</Text>
+            </Pressable>
+          </View>
         ) : null}
       </ScrollView>
-    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
   content: {
-    gap: 12,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 28,
   },
-  refreshButton: {
-    backgroundColor: "#F4EEFF",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  refreshText: {
-    color: "#5B21B6",
-    fontWeight: "700",
-    fontSize: 12,
-  },
+  heading: { gap: 8 },
+  eyebrow: { color: "#5E30A599", fontSize: 11, letterSpacing: 2.2 },
+  title: { color: "#3F1F73", fontSize: 24, lineHeight: 32, fontWeight: "800" },
+  description: { color: "#64748B", fontSize: 14, lineHeight: 20 },
+  heroActions: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
+  operationBadge: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#E9E2F7", padding: 10, borderRadius: 12 },
+  statusDot: { width: 8, height: 8, borderRadius: 8, backgroundColor: "#34D399" },
+  errorDot: { backgroundColor: "#EF4444" },
+  loadingDot: { backgroundColor: "#F59E0B" },
+  newPromoButton: { paddingHorizontal: 16 },
+  businessBanner: { marginTop: 20, backgroundColor: "#FAF8FF", borderRadius: 16, borderWidth: 1, borderColor: "#EFE9FA", padding: 16, gap: 3 },
+  businessName: { color: "#2F1A55", fontSize: 18, fontWeight: "600" },
+  panel: { marginTop: 24, gap: 12, backgroundColor: "#FFFFFF", padding: 20, borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 16 },
   kpiRow: {
     flexDirection: "row",
     gap: 8,
@@ -464,48 +523,50 @@ const styles = StyleSheet.create({
   kpiCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#FAFBFF",
+    borderColor: "#E9E2F7",
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#F8F5FF",
   },
   kpiLabel: {
     fontSize: 11,
     color: "#6B7280",
-    textTransform: "uppercase",
   },
   kpiValue: {
     marginTop: 2,
-    fontSize: 14,
+    fontSize: 24,
     fontWeight: "700",
-    color: "#181B2A",
+    color: "#2F1A55",
   },
   tabRow: {
+    marginTop: 24,
     flexDirection: "row",
-    gap: 8,
+    gap: 4,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#E9E2F7",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
   },
   tabChip: {
     flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    paddingVertical: 8,
+    borderRadius: 12,
+    paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    gap: 4,
   },
   tabChipActive: {
-    borderColor: "#6D28D9",
-    backgroundColor: "#F5F3FF",
+    backgroundColor: "#5E30A51A",
   },
+  tabIcon: { width: 18, height: 18, tintColor: "#64748B" },
+  tabIconActive: { tintColor: "#5E30A5", transform: [{ scale: 1.12 }] },
   tabChipText: {
-    textTransform: "uppercase",
     color: "#6B7280",
     fontSize: 11,
     fontWeight: "700",
   },
   tabChipTextActive: {
-    color: "#5B21B6",
+    color: "#5E30A5",
   },
   input: {
     borderWidth: 1,
@@ -518,8 +579,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   primaryButton: {
-    backgroundColor: "#6D28D9",
-    borderRadius: 10,
+    backgroundColor: "#5E30A5",
+    borderRadius: 12,
     paddingVertical: 11,
     alignItems: "center",
   },

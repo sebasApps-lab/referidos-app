@@ -412,14 +412,17 @@ export async function fetchSupportStatusSummary(
 export async function fetchSupportIssuesContext(
   supabase: any,
   limit = 150,
+  { issueId }: { issueId?: string } = {},
 ): Promise<Result<any[]>> {
-  const { data, error } = await supabase
+  const query = supabase
     .from("obs_issues_context")
     .select(
       "id, title, level, status, count_total, count_24h, first_seen_at, last_seen_at, last_release, last_user_display_name, last_user_email",
-    )
+    );
+  const selectedIssue = issueId ? query.eq("id", issueId) : query;
+  const { data, error } = await selectedIssue
     .order("last_seen_at", { ascending: false })
-    .limit(Math.max(10, Math.min(Number(limit) || 150, 300)));
+    .limit(issueId ? 1 : Math.max(10, Math.min(Number(limit) || 150, 300)));
   if (error) return { ok: false, data: [], error: getErrorMessage(error) };
   return { ok: true, data: data || [] };
 }
@@ -427,12 +430,15 @@ export async function fetchSupportIssuesContext(
 export async function fetchSupportIssueEventsContext(
   supabase: any,
   limit = 200,
+  { issueId }: { issueId?: string } = {},
 ): Promise<Result<any[]>> {
-  const { data, error } = await supabase
+  const query = supabase
     .from("obs_events_context")
     .select(
       "id, issue_id, occurred_at, level, event_type, message, error_code, app_id, release_version_label, user_display_name, user_email",
-    )
+    );
+  const selectedEvents = issueId ? query.eq("issue_id", issueId) : query;
+  const { data, error } = await selectedEvents
     .order("occurred_at", { ascending: false })
     .limit(Math.max(20, Math.min(Number(limit) || 200, 400)));
   if (error) return { ok: false, data: [], error: getErrorMessage(error) };

@@ -3,6 +3,7 @@ import {
   getUserProfileStatus,
   isPhoneValidForCountry,
   parsePhoneWithCountry,
+  resolveOnboardingStep,
   resolveRegistrationStep,
   resolveVerificationStep,
   toStoragePhone,
@@ -245,6 +246,47 @@ function runVerificationMatrix() {
   );
 }
 
+function runOnboardingAccessMatrix() {
+  const client = {
+    ok: true,
+    allowAccess: true,
+    verification_status: "skipped",
+    usuario: { role: "cliente" },
+  };
+  const resolveClient = (changes = {}) =>
+    resolveOnboardingStep({ onboarding: { ...client, ...changes }, role: "cliente" });
+
+  assertEqual(resolveClient(), AUTH_STEPS.USER_PROFILE, "gate:client-profile-before-access");
+  const profileSkipped = { profile: { skipped: true } };
+  assertEqual(
+    resolveClient({ client_steps: profileSkipped }),
+    AUTH_STEPS.USER_ADDRESS,
+    "gate:client-address-after-profile-skip",
+  );
+  const clientSteps = { ...profileSkipped, address: { completed: true } };
+  assertEqual(
+    resolveClient({ client_steps: clientSteps }),
+    AUTH_STEPS.ACCOUNT_VERIFY_READY,
+    "gate:client-consent-after-verification-skip",
+  );
+  const accepted = { role: "cliente", terms_accepted: true, privacy_accepted: true };
+  assertEqual(
+    resolveClient({ client_steps: clientSteps, usuario: accepted }),
+    null,
+    "gate:client-ready",
+  );
+  assertEqual(
+    resolveClient({ client_steps: clientSteps, usuario: accepted, verification_status: "in_progress", email_confirmed: false }),
+    AUTH_STEPS.VERIFY_EMAIL,
+    "gate:resume-active-verification",
+  );
+  assertEqual(
+    resolveOnboardingStep({ onboarding: { ok: true, allowAccess: true }, role: "admin" }),
+    null,
+    "gate:admin-ready",
+  );
+}
+
 function runValidationMatrix() {
   const ec = parsePhoneWithCountry("0961234567");
   assertEqual(ec.code, "+593", "phone:ec-code");
@@ -281,6 +323,7 @@ function runValidationMatrix() {
 function main() {
   runRegistrationMatrix();
   runVerificationMatrix();
+  runOnboardingAccessMatrix();
   runValidationMatrix();
   console.log("Phase 2 auth/onboarding parity logic checks: OK");
 }

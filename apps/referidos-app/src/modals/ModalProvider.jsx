@@ -23,7 +23,9 @@ export default function ModalProvider() {
   const isFullScreenOverlay =
     activeModal === "SplashChoiceOverlay" || activeModal === "SplashEmailConfirmation";
   const disableBackdropClose =
-    activeModal === "SplashEmailConfirmation" || activeModal === "ForcePasswordChange";
+    activeModal === "SplashEmailConfirmation" ||
+    activeModal === "ForcePasswordChange" ||
+    ["TwoFAVerify", "TwoFAEnroll", "TwoFADisable"].includes(activeModal);
 
   const updateViewport = useCallback((force = false) => {
     if (!force && viewportLockRef.current) return;

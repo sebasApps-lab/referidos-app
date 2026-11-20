@@ -1,155 +1,126 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, Text, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import StaffSelect from "@features/staff/StaffSelect";
+import StaffTable, { StaffTableBadge, type StaffTableColumn } from "@features/staff/StaffTable";
+import StaffTablePage, { tableText } from "@features/staff/StaffTablePage";
 import { STACK_ROUTES } from "@navigation/routeKeys";
 import { supabase } from "@shared/services/mobileApi";
 import { fetchSupportIssuesContext } from "@shared/services/supportDeskQueries";
 import { formatDateTime, readFirst } from "@shared/services/entityQueries";
-import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
+
+const LEVEL_OPTIONS = [
+  { id: "todos", label: "Todos" },
+  { id: "fatal", label: "Fatal" },
+  { id: "error", label: "Error" },
+  { id: "warn", label: "Warn" },
+  { id: "info", label: "Info" },
+  { id: "debug", label: "Debug" },
+] as const;
+
+type LevelFilter = (typeof LEVEL_OPTIONS)[number]["id"];
+
+function issueView(row: Record<string, unknown>) {
+  return {
+    id: String(readFirst(row, ["id"], "")).trim(),
+    title: String(readFirst(row, ["title"], "Issue")),
+    user: String(readFirst(row, ["last_user_display_name", "last_user_email"], "—")),
+    level: String(readFirst(row, ["level"], "info")).trim().toLowerCase(),
+    status: String(readFirst(row, ["status"], "—")),
+    release: String(readFirst(row, ["last_release"], "—")),
+    total: Number(readFirst(row, ["count_total"], 0)),
+    lastDay: Number(readFirst(row, ["count_24h"], 0)),
+    lastSeen: readFirst(row, ["last_seen_at"], null),
+  };
+}
+
+type Issue = ReturnType<typeof issueView>;
+
+function levelTone(level: string) {
+  if (level === "fatal" || level === "error") return "danger";
+  return level === "warn" ? "warning" : "neutral";
+}
 
 export default function AdminIssuesScreen() {
   const navigation = useNavigation<any>();
-  const [rows, setRows] = useState<any[]>([]);
+  const { width } = useWindowDimensions();
+  const [rows, setRows] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState("todos");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("todos");
+  const activeRequest = useRef(false);
 
-  const loadRows = useCallback(async () => {
-    if (!refreshing) setLoading(true);
-    const result = await fetchSupportIssuesContext(supabase, 180);
-    if (!result.ok) {
-      setRows([]);
-      setError(result.error || "No se pudo cargar issues.");
+  const loadRows = useCallback(async (manual = false) => {
+    if (activeRequest.current) return;
+    activeRequest.current = true;
+    if (manual) setRefreshing(true);
+    try {
+      const result = await fetchSupportIssuesContext(supabase, 180);
+      if (result.ok) {
+        setRows((result.data || []).map(issueView));
+        setError("");
+      } else {
+        setError(result.error || "No se pudieron cargar los issues.");
+      }
+    } catch {
+      setError("No se pudieron cargar los issues.");
+    } finally {
+      activeRequest.current = false;
       setLoading(false);
-      return;
+      if (manual) setRefreshing(false);
     }
-    setRows(result.data || []);
-    setError("");
-    setLoading(false);
-  }, [refreshing]);
+  }, []);
 
-  const refreshAll = useCallback(async () => {
-    setRefreshing(true);
-    await loadRows();
-    setRefreshing(false);
-  }, [loadRows]);
-
-  useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
+  useEffect(() => { void loadRows(); }, [loadRows]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const title = String(readFirst(row, ["title"], "")).toLowerCase();
-      const level = String(readFirst(row, ["level"], "info")).trim().toLowerCase();
-      const status = String(readFirst(row, ["status"], "")).toLowerCase();
-      const release = String(readFirst(row, ["last_release"], "")).toLowerCase();
-      const user = String(readFirst(row, ["last_user_display_name", "last_user_email"], "")).toLowerCase();
-      const matchesQuery =
-        !term ||
-        title.includes(term) ||
-        status.includes(term) ||
-        release.includes(term) ||
-        user.includes(term);
-      const matchesLevel = levelFilter === "todos" || level === levelFilter;
-      return matchesQuery && matchesLevel;
-    });
+    return rows.filter((row) => (
+      (levelFilter === "todos" || row.level === levelFilter) &&
+      [row.title, row.id, row.status, row.level, row.release, row.user]
+        .some((value) => value.toLowerCase().includes(term))
+    ));
   }, [levelFilter, query, rows]);
 
-  const metrics = useMemo(() => {
-    const total24h = rows.reduce((acc, row) => acc + Number(readFirst(row, ["count_24h"], 0) || 0), 0);
-    const fatalOrError = rows.filter((row) => {
-      const level = String(readFirst(row, ["level"], "info")).trim().toLowerCase();
-      return level === "fatal" || level === "error";
-    }).length;
-    return [
-      { label: "Issues", value: rows.length },
-      { label: "Criticos", value: fatalOrError },
-      { label: "Eventos 24h", value: total24h },
-      { label: "Filtrados", value: filtered.length },
-    ];
-  }, [filtered.length, rows]);
+  const columns: StaffTableColumn<Issue>[] = [
+    { key: "issue", label: "Issue", width: 225, render: (row) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Ver eventos de ${row.title}`}
+        disabled={!row.id}
+        onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ISSUE_EVENTS, { issueId: row.id, issueTitle: row.title })}
+      >
+        <Text style={tableText.name} numberOfLines={2}>{row.title}</Text>
+        <Text style={tableText.metadata} numberOfLines={1}>{row.id || "—"}</Text>
+        {width < 768 ? <Text style={tableText.metadata}>{formatDateTime(row.lastSeen)}</Text> : null}
+        <Text style={tableText.actionLabel}>Ver eventos</Text>
+      </Pressable>
+    ) },
+    { key: "user", label: "Usuario", width: 146, render: (row) => <Text style={tableText.metadata} numberOfLines={2}>{row.user}</Text> },
+    { key: "level", label: "Nivel", width: 94, render: (row) => <StaffTableBadge value={row.level} tone={levelTone(row.level)} /> },
+    { key: "status", label: "Estado", width: 110, render: (row) => <Text style={tableText.metadata}>{row.status}</Text> },
+    { key: "count", label: "Eventos", width: 120, render: (row) => <Text style={tableText.metadata}>{row.total} (24h: {row.lastDay})</Text> },
+  ];
+  if (width >= 768) columns.push({ key: "last", label: "Última vez", width: 148, render: (row) => (
+    <Text style={tableText.metadata}>{formatDateTime(row.lastSeen)}</Text>
+  ) });
 
   return (
-    <AdminCollectionScreen
-      title="Admin Issues"
+    <StaffTablePage
+      title="Issues"
       subtitle="Selecciona un issue para ver sus eventos"
-      searchPlaceholder="Buscar issue, release o usuario"
+      description="Agrupación de eventos de observabilidad."
+      searchPlaceholder="Buscar por título, nivel o release"
       query={query}
-      onQueryChange={setQuery}
+      onChangeQuery={setQuery}
       loading={loading}
-      refreshing={refreshing}
       error={error}
-      metrics={metrics}
-      filters={[
-        {
-          title: "Nivel",
-          selectedId: levelFilter,
-          onSelect: setLevelFilter,
-          options: [
-            { id: "todos", label: "Todos" },
-            { id: "fatal", label: "Fatal" },
-            { id: "error", label: "Error" },
-            { id: "warn", label: "Warn" },
-            { id: "info", label: "Info" },
-          ],
-        },
-      ]}
-      onRefresh={() => void refreshAll()}
-      emptyText={!loading && filtered.length === 0 ? "No hay issues para este filtro." : ""}
+      filters={<StaffSelect label="Nivel" value={levelFilter} options={LEVEL_OPTIONS} onSelect={setLevelFilter} />}
+      onRefresh={loading || refreshing ? undefined : () => { void loadRows(true); }}
     >
-      <SectionCard title="Issues" subtitle={`Resultados: ${filtered.length}`}>
-        <View style={shared.listWrap}>
-          {filtered.map((row, index) => {
-            const issueId = String(readFirst(row, ["id"], "")).trim();
-            return (
-              <Pressable
-                key={`${issueId || index}-${index}`}
-                onPress={() =>
-                  navigation.navigate(STACK_ROUTES.ADMIN.ISSUE_EVENTS, {
-                    issueId,
-                    issueTitle: String(readFirst(row, ["title"], "Issue")),
-                  })
-                }
-                style={shared.card}
-              >
-                <Text style={shared.cardTitle}>
-                  {String(readFirst(row, ["title"], "Issue"))}
-                </Text>
-                <View style={shared.badgeRow}>
-                  <View style={shared.badge}>
-                    <Text style={shared.badgeText}>
-                      {String(readFirst(row, ["level"], "info"))}
-                    </Text>
-                  </View>
-                  <View style={shared.codePill}>
-                    <Text style={shared.codePillText}>
-                      24h: {String(readFirst(row, ["count_24h"], 0))}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={shared.metaText}>
-                  estado: {String(readFirst(row, ["status"], "-"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  release: {String(readFirst(row, ["last_release"], "-"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  usuario: {String(readFirst(row, ["last_user_display_name", "last_user_email"], "-"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  ultimo visto: {formatDateTime(readFirst(row, ["last_seen_at"], null))}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </SectionCard>
-    </AdminCollectionScreen>
+      <StaffTable columns={columns} rows={filtered} getKey={(row) => row.id} emptyMessage="No hay issues para este filtro." />
+    </StaffTablePage>
   );
 }

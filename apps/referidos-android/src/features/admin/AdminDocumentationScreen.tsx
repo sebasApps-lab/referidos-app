@@ -1,134 +1,96 @@
-import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
-import { ADMIN_DOC_GROUPS, ADMIN_DOCS_REGISTRY } from "./adminContentRegistry";
+import React, { useMemo, useRef, useState } from "react";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import StaffScreenScaffold from "@features/staff/StaffScreenScaffold";
+import StaffSectionCard from "@features/staff/StaffSectionCard";
+import { ADMIN_DOCS_REGISTRY } from "./adminContentRegistry";
+import { DocumentIndexEntry, DocumentSearch, DocumentSplit } from "./components/AdminDocumentControls";
+import catalog from "./components/adminDocumentationIndex.json";
+
+const PWA_DOCUMENTATION = "https://referidos.app/admin/documentacion";
+const summaries = new Map(ADMIN_DOCS_REGISTRY.map((row) => [row.id as string, row.summary] as const));
 
 export default function AdminDocumentationScreen() {
+  const { width } = useWindowDimensions();
+  const [activeGroup, setActiveGroup] = useState(catalog.groups[0].key);
   const [query, setQuery] = useState("");
+  const [preferredId, setPreferredId] = useState("");
+  const scroll = useRef<ScrollView>(null);
+  const readerOffset = useRef(0);
+  const splitOffset = useRef(0);
+  const visible = useMemo(() => {
+    const filter = query.trim().toLowerCase();
+    return catalog.docs.filter((doc) => doc.group === activeGroup && [doc.title, doc.pathLabel, summaries.get(doc.id)].some((part) =>
+      part?.toLowerCase().includes(filter),
+    )).sort((left, right) => left.title.localeCompare(right.title, "es", { sensitivity: "base" }));
+  }, [activeGroup, query]);
+  const selected = visible.find((doc) => doc.id === preferredId) || visible[0];
 
-  const filteredGroups = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return ADMIN_DOC_GROUPS.map((group) => ({
-      ...group,
-      docs: ADMIN_DOCS_REGISTRY.filter((doc) => doc.group === group.key).filter((doc) => {
-        if (!term) return true;
-        return `${doc.title} ${doc.pathLabel} ${doc.summary}`.toLowerCase().includes(term);
-      }),
-    })).filter((group) => group.docs.length > 0);
-  }, [query]);
+  function chooseDoc(id: string) {
+    setPreferredId(id);
+    if (width < 1100) requestAnimationFrame(() => scroll.current?.scrollTo({
+      y: splitOffset.current + readerOffset.current,
+      animated: true,
+    }));
+  }
+
+  function openReader() {
+    void Linking.openURL(PWA_DOCUMENTATION).catch(() => {
+      Alert.alert("Documentación", "No se pudo abrir el lector de la PWA.");
+    });
+  }
 
   return (
-    <ScreenScaffold title="Admin Documentation" subtitle="Indice Android del set documental vigente">
-      <ScrollView contentContainerStyle={styles.content}>
-        <SectionCard title="Busqueda" subtitle="Filtra por titulo, path o resumen">
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar documento"
-            style={styles.input}
-          />
-        </SectionCard>
+    <StaffScreenScaffold title="Documentación" subtitle="Guías del repo organizadas por ámbito general y por app">
+      <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.filters}>
+          <View accessibilityRole="tablist" style={styles.groups}>
+            {catalog.groups.map(({ key, label }) => {
+              const active = key === activeGroup;
+              return (
+                <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: active }}
+                  onPress={() => setActiveGroup(key)} style={[styles.group, active && styles.groupActive]}>
+                  <Text style={[styles.groupLabel, active && styles.groupLabelActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <DocumentSearch value={query} onChange={setQuery} placeholder="Buscar por título, ruta o resumen…" />
+        </View>
 
-        {filteredGroups.map((group) => (
-          <SectionCard
-            key={group.key}
-            title={group.label}
-            subtitle={`${group.docs.length} documentos`}
-            right={<Text style={styles.groupChip}>{group.key}</Text>}
-          >
-            {group.docs.map((doc) => (
-              <View key={doc.id} style={styles.docCard}>
-                <Text style={styles.docTitle}>{doc.title}</Text>
-                <Text style={styles.pathText}>{doc.pathLabel}</Text>
-                <Text style={styles.summaryText}>{doc.summary}</Text>
-              </View>
-            ))}
-          </SectionCard>
-        ))}
-
-        {filteredGroups.length === 0 ? (
-          <SectionCard title="Sin resultados">
-            <Text style={styles.emptyText}>No hay documentos para el filtro actual.</Text>
-          </SectionCard>
-        ) : null}
-
-        <SectionCard title="Nota operativa">
-          <Text style={styles.summaryText}>
-            En Android este panel actua como indice del set documental que en web se navega
-            desde el panel admin. Los path apuntan al mismo repo y misma documentacion fuente.
-          </Text>
-          <Pressable onPress={() => setQuery("")} style={styles.secondaryBtn}>
-            <Text style={styles.secondaryBtnText}>Limpiar filtro</Text>
-          </Pressable>
-        </SectionCard>
+        <View onLayout={(event) => { splitOffset.current = event.nativeEvent.layout.y; }}>
+          <DocumentSplit index={(
+            <StaffSectionCard title="Documentos">
+              {visible.map((doc) => (
+                <DocumentIndexEntry key={doc.id} title={doc.title} path={doc.pathLabel} active={selected?.id === doc.id}
+                  onPress={() => chooseDoc(doc.id)} />
+              ))}
+              {!visible.length && <Text style={styles.empty}>No hay documentos que coincidan con el filtro.</Text>}
+            </StaffSectionCard>
+          )} reader={selected ? (
+            <StaffSectionCard title={selected.title} subtitle={selected.pathLabel}>
+              <Text style={styles.summary}>{summaries.get(selected.id)}</Text>
+              <Pressable accessibilityRole="link" onPress={openReader} style={styles.readerLink}>
+                <Text style={styles.readerLinkText}>Abrir lector de la PWA</Text>
+              </Pressable>
+            </StaffSectionCard>
+          ) : <StaffSectionCard title="Contenido"><Text style={styles.summary}>Selecciona un documento para visualizar su información.</Text></StaffSectionCard>}
+            onReaderLayout={(offset) => { readerOffset.current = offset; }} />
+        </View>
       </ScrollView>
-    </ScreenScaffold>
+    </StaffScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    fontSize: 13,
-  },
-  groupChip: {
-    borderRadius: 999,
-    backgroundColor: "#F5F3FF",
-    color: "#5B21B6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  docCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
-    padding: 10,
-    gap: 3,
-  },
-  docTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  pathText: {
-    fontSize: 11,
-    color: "#475569",
-    fontWeight: "700",
-  },
-  summaryText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  emptyText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  content: { gap: 16, paddingBottom: 24 },
+  filters: { gap: 12, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: "#E9E2F7", backgroundColor: "#FFFFFF", elevation: 1 },
+  groups: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  group: { paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 12, backgroundColor: "#FFFFFF" },
+  groupActive: { borderColor: "#5E30A5", backgroundColor: "#F4EEFF" },
+  groupLabel: { color: "#475569", fontSize: 12, fontWeight: "600" },
+  groupLabelActive: { color: "#5E30A5" },
+  empty: { padding: 12, borderStyle: "dashed", borderWidth: 1, borderColor: "#E9E2F7", borderRadius: 12, color: "#64748B", fontSize: 12 },
+  summary: { color: "#475569", fontSize: 14, lineHeight: 21 },
+  readerLink: { alignSelf: "flex-start", borderRadius: 12, borderWidth: 1, borderColor: "#E9E2F7", backgroundColor: "#FAF8FF", paddingHorizontal: 12, paddingVertical: 8, marginTop: 4 },
+  readerLinkText: { color: "#5E30A5", fontSize: 12, fontWeight: "600" },
 });

@@ -36,8 +36,14 @@ export const TAB_ROUTES = {
 } as const;
 
 export const STACK_ROUTES = {
+  CLIENTE: {
+    TABS: "ClienteRootTabs",
+    PROMO_DETAIL: "ClientePromoDetail",
+  },
   ADMIN: {
-    TABS: ROOT_ROUTES.ADMIN,
+    TABS: "AdminRootTabs",
+    DASHBOARD: "AdminDashboard",
+    DLQ: "AdminDashboardDlqEvents",
     NEGOCIOS: "AdminNegocios",
     PROMOS: "AdminPromos",
     QRS: "AdminQRs",
@@ -60,7 +66,7 @@ export const STACK_ROUTES = {
     SUPPORT_AGENTS: "AdminSupportAgents",
   },
   SOPORTE: {
-    TABS: ROOT_ROUTES.SOPORTE,
+    TABS: "SoporteRootTabs",
     INICIO: "SoporteInicio",
     JORNADAS: "SoporteJornadas",
     ISSUES: "SoporteIssues",

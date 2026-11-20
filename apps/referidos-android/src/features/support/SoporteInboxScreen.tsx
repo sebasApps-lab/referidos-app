@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { STACK_ROUTES, TAB_ROUTES } from "@navigation/routeKeys";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { STACK_ROUTES } from "@navigation/routeKeys";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import SectionCard from "@features/staff/StaffSectionCard";
 import BlockSkeleton from "@shared/ui/BlockSkeleton";
 import ObservabilityEventFeed from "@shared/ui/ObservabilityEventFeed";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
@@ -11,10 +11,9 @@ import { useAppStore } from "@shared/store/appStore";
 import { useSupportDeskStore } from "@shared/store/supportDeskStore";
 import {
   SUPPORT_ORIGIN_FILTERS,
-  SUPPORT_STATUS_GROUPS,
   SupportOriginFilterId,
-  SupportStatusId,
 } from "@shared/constants/supportDesk";
+import { SupportBadge, SupportButton, SupportNotice, supportChannelLabel, supportStatusLabel } from "./SupportTicketUi";
 import {
   fetchActiveAgentSession,
   fetchSupportAgentProfile,
@@ -22,7 +21,13 @@ import {
   toSupportThreadSubtitle,
 } from "@shared/services/supportDeskQueries";
 
-const ACTIVE_AGENT_STATUSES = ["assigned", "in_progress", "waiting_user"];
+const ACTIVE_AGENT_STATUSES = ["starting", "assigned", "in_progress", "waiting_user", "queued", "closing"];
+const INBOX_GROUPS = [
+  { id: "available", label: "Disponibles" },
+  { id: "assigned", label: "Asignados" },
+  { id: "resolved", label: "Resueltos" },
+] as const;
+type Group = (typeof INBOX_GROUPS)[number]["id"];
 
 export default function SoporteInboxScreen() {
   const navigation = useNavigation<any>();
@@ -35,12 +40,17 @@ export default function SoporteInboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [threads, setThreads] = useState<any[]>([]);
   const [error, setError] = useState("");
-  const [activeStatus, setActiveStatus] = useState<SupportStatusId>("new");
+  const [activeGroup, setActiveGroup] = useState<Group>("available");
   const [activeOrigin, setActiveOrigin] = useState<SupportOriginFilterId>("all");
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState("");
   const [agentProfile, setAgentProfile] = useState<any | null>(null);
   const [activeSession, setActiveSession] = useState<any | null>(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [taking, setTaking] = useState("");
+  const refreshPending = useRef(false);
+  const sessionPending = useRef(false);
+  const takePending = useRef(false);
 
   const usuarioId = String(usuario?.id || "").trim();
   const sessionActive = Boolean(activeSession?.id);
@@ -58,139 +68,149 @@ export default function SoporteInboxScreen() {
 
   const filteredThreads = useMemo(() => {
     return threads.filter((thread) => {
-      if (String(thread?.status || "") !== activeStatus) return false;
-      if (activeOrigin === "all") return true;
-      return String(thread?.request_origin || "registered") === activeOrigin;
+      if (activeOrigin !== "all" && String(thread?.request_origin || "registered") !== activeOrigin) return false;
+      if (activeGroup === "available") return !thread.assigned_agent_id && ["new", "queued"].includes(thread.status);
+      if (activeGroup === "assigned") return String(thread.assigned_agent_id || "") === usuarioId && ACTIVE_AGENT_STATUSES.includes(thread.status);
+      return thread.status === "closed";
     });
-  }, [activeOrigin, activeStatus, threads]);
+  }, [activeGroup, activeOrigin, threads, usuarioId]);
 
   const loadSessionState = useCallback(async () => {
-    if (!usuarioId) return;
+    if (!usuarioId) {
+      setSessionLoading(false);
+      return;
+    }
     setSessionLoading(true);
-    const [profileResult, sessionResult] = await Promise.all([
-      fetchSupportAgentProfile(supabase, usuarioId),
-      fetchActiveAgentSession(supabase, usuarioId),
-    ]);
-    if (!profileResult.ok) {
+    try {
+      const [profileResult, sessionResult] = await Promise.all([
+        fetchSupportAgentProfile(supabase, usuarioId),
+        fetchActiveAgentSession(supabase, usuarioId),
+      ]);
+      setAgentProfile(profileResult.ok ? profileResult.data || null : null);
+      setActiveSession(sessionResult.ok ? sessionResult.data || null : null);
+      setSessionError(profileResult.error || sessionResult.error || "");
+    } catch {
       setAgentProfile(null);
-      setSessionError(profileResult.error || "No se pudo leer perfil de soporte.");
-    } else {
-      setAgentProfile(profileResult.data || null);
-      if (!sessionError) setSessionError("");
-    }
-    if (!sessionResult.ok) {
       setActiveSession(null);
-      if (!profileResult.ok) {
-        setSessionError(profileResult.error || sessionResult.error || "No se pudo leer sesion.");
-      }
-    } else {
-      setActiveSession(sessionResult.data || null);
+      setSessionError("No se pudo cargar la jornada de soporte.");
+    } finally {
+      setSessionLoading(false);
     }
-    setSessionLoading(false);
-  }, [sessionError, usuarioId]);
+  }, [usuarioId]);
 
   const loadThreads = useCallback(async () => {
-    if (!usuarioId) return;
-    if (!refreshing) setLoading(true);
-    const result = await fetchSupportInboxRows(supabase, {
-      isAdmin: false,
-      usuarioId,
-      limit: 120,
-    });
-    if (!result.ok) {
+    if (!usuarioId) {
       setThreads([]);
-      setError(result.error || "No se pudo cargar inbox.");
       setLoading(false);
       return;
     }
-    setThreads(result.data);
-    setError("");
-    setLoading(false);
-  }, [refreshing, usuarioId]);
+    setLoading(true);
+    try {
+      const result = await fetchSupportInboxRows(supabase, { isAdmin: false, usuarioId, limit: 120 });
+      setThreads(result.ok ? result.data : []);
+      setError(result.ok ? "" : result.error || "No se pudo cargar la bandeja.");
+    } catch {
+      setThreads([]);
+      setError("No se pudo cargar la bandeja.");
+    } finally {
+      setLoading(false);
+    }
+  }, [usuarioId]);
 
   const refreshAll = useCallback(async () => {
+    if (refreshPending.current) return;
+    refreshPending.current = true;
     setRefreshing(true);
-    await Promise.all([loadSessionState(), loadThreads()]);
-    setRefreshing(false);
+    try {
+      await Promise.all([loadSessionState(), loadThreads()]);
+    } finally {
+      refreshPending.current = false;
+      setRefreshing(false);
+    }
   }, [loadSessionState, loadThreads]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll]));
 
   useEffect(() => {
     if (!sessionActive) return undefined;
     const timer = setInterval(async () => {
-      const result = await mobileApi.support.pingSession();
-      if (!result?.ok) {
-        setSessionError(result?.error || "No se pudo mantener la jornada activa.");
+      try {
+        const result = await mobileApi.support.pingSession();
+        if (!result?.ok) setSessionError(result?.error || "No se pudo mantener la jornada activa.");
+      } catch {
+        setSessionError("No se pudo comprobar si la jornada sigue activa.");
       }
     }, 30000);
     return () => clearInterval(timer);
   }, [sessionActive]);
 
-  const handleRequestSession = useCallback(async () => {
+  const changeSession = useCallback(async (ending: boolean) => {
+    if (sessionPending.current) return;
+    sessionPending.current = true;
+    setSessionBusy(true);
     setSessionError("");
-    const result = await mobileApi.support.startSession({});
-    if (!result?.ok) {
-      setSessionError(result?.error || "No se pudo enviar solicitud de jornada.");
-      return;
+    const fallback = ending ? "No se pudo finalizar la jornada." : "No se pudo solicitar la jornada.";
+    try {
+      const result = ending
+        ? await mobileApi.support.endSession({ reason: "manual_end" })
+        : await mobileApi.support.startSession({});
+      if (!result?.ok) {
+        setSessionError(result?.error || fallback);
+        return;
+      }
+      void observability.track({
+        level: "info",
+        category: "audit",
+        message: ending ? "support_end_session" : "support_request_session",
+        context: ending ? { role: "soporte" } : { role: "soporte", pending: Boolean(result?.data?.pending) },
+      }).catch(() => {});
+      await Promise.all([loadSessionState(), loadThreads()]);
+    } catch {
+      setSessionError(fallback);
+    } finally {
+      sessionPending.current = false;
+      setSessionBusy(false);
     }
-    await observability.track({
-      level: "info",
-      category: "audit",
-      message: "support_request_session",
-      context: {
-        role: "soporte",
-        pending: Boolean(result?.data?.pending),
-      },
-    });
-    await refreshAll();
-  }, [refreshAll]);
-
-  const handleEndSession = useCallback(async () => {
-    setSessionError("");
-    const result = await mobileApi.support.endSession({ reason: "manual_end" });
-    if (!result?.ok) {
-      setSessionError(result?.error || "No se pudo finalizar la jornada.");
-      return;
-    }
-    await observability.track({
-      level: "info",
-      category: "audit",
-      message: "support_end_session",
-      context: { role: "soporte" },
-    });
-    await refreshAll();
-  }, [refreshAll]);
+  }, [loadSessionState, loadThreads]);
 
   const handleTakeThread = useCallback(
     async (threadPublicId: string) => {
+      if (!threadPublicId || takePending.current || hasActiveThread) return;
       setSessionError("");
       if (!sessionActive) {
         setSessionError("Debes tener jornada activa para tomar tickets.");
         return;
       }
       if (!isAuthorized) {
-        setSessionError("No tienes autorizacion de jornada activa.");
+        setSessionError("No tienes autorización de jornada activa.");
         return;
       }
-      const result = await mobileApi.support.assignThread({
-        thread_public_id: threadPublicId,
-      });
-      if (!result?.ok) {
-        setSessionError(result?.error || "No se pudo tomar ticket.");
-        return;
+      takePending.current = true;
+      setTaking(threadPublicId);
+      try {
+        const result = await mobileApi.support.assignThread({ thread_public_id: threadPublicId });
+        if (!result?.ok) {
+          setSessionError(result?.error || "No se pudo tomar el ticket.");
+          return;
+        }
+        void observability.track({
+          level: "info",
+          category: "audit",
+          message: "support_take_ticket",
+          context: { thread_public_id: threadPublicId },
+        }).catch(() => {});
+        await loadThreads();
+        setActiveGroup("assigned");
+      } catch {
+        setSessionError("No se pudo tomar el ticket.");
+      } finally {
+        takePending.current = false;
+        setTaking("");
       }
-      await observability.track({
-        level: "info",
-        category: "audit",
-        message: "support_take_ticket",
-        context: { thread_public_id: threadPublicId },
-      });
-      await loadThreads();
     },
-    [isAuthorized, loadThreads, sessionActive],
+    [hasActiveThread, isAuthorized, loadThreads, sessionActive],
   );
 
   const openTicket = useCallback(
@@ -198,158 +218,118 @@ export default function SoporteInboxScreen() {
       const safeId = String(threadPublicId || "").trim();
       if (!safeId) return;
       setSelectedThreadPublicId(safeId);
-      navigation.navigate(STACK_ROUTES.SOPORTE.TICKET);
+      navigation.navigate(STACK_ROUTES.SOPORTE.TICKET, { threadPublicId: safeId });
     },
     [navigation, setSelectedThreadPublicId],
   );
 
   return (
-    <ScreenScaffold title="Soporte Inbox" subtitle="Cola operativa con control de jornada y asignacion">
+    <ScreenScaffold
+      title="Inbox de tickets"
+      subtitle="Gestiona tickets según su estado, origen y prioridad."
+      onRefresh={() => { void refreshAll(); }}
+    >
       <ScrollView contentContainerStyle={styles.content}>
         <SectionCard
-          title="Jornada soporte"
-          subtitle="Control de acceso, solicitud y sesion activa"
-          right={
-            <Pressable
-              onPress={refreshAll}
-              disabled={refreshing}
-              style={[styles.secondaryBtn, refreshing && styles.btnDisabled]}
-            >
-              <Text style={styles.secondaryBtnText}>{refreshing ? "..." : "Recargar"}</Text>
-            </Pressable>
-          }
+          title="Jornada de soporte"
+          right={(
+            <SupportButton
+              label={sessionBusy ? "Procesando…" : sessionActive ? "Terminar jornada" : requestPending ? "Volver a solicitar" : isAuthorized ? "Iniciar jornada" : "Solicitar jornada"}
+              onPress={() => { void changeSession(sessionActive); }}
+              kind={sessionActive ? "outline" : "primary"}
+              disabled={refreshing || sessionLoading || sessionBusy}
+            />
+          )}
         >
-          {sessionLoading ? <BlockSkeleton lines={3} compact /> : null}
-
-          {!sessionLoading ? (
-            <View style={styles.statusWrap}>
-              <Text style={styles.statusText}>
-                Perfil:{" "}
-                {agentProfile?.blocked
-                  ? "bloqueado"
-                  : agentProfile?.authorized_for_work
-                    ? "autorizado"
-                    : "sin autorizacion"}
-              </Text>
-              <Text style={styles.statusText}>
-                Sesion: {sessionActive ? "activa" : "inactiva"}
-              </Text>
-              {requestPending ? <Text style={styles.pendingText}>Solicitud pendiente de admin.</Text> : null}
-              {sessionError ? <Text style={styles.errorText}>{sessionError}</Text> : null}
+          {sessionLoading ? <BlockSkeleton lines={2} compact /> : (
+            <View style={styles.row}>
+              <SupportBadge tone={sessionActive ? "positive" : "neutral"}>{sessionActive ? "Jornada activa" : "Jornada inactiva"}</SupportBadge>
+              <SupportBadge tone={isAuthorized ? "positive" : "warning"}>
+                {agentProfile?.blocked ? "Bloqueado" : isAuthorized ? "Autorizado" : "Sin autorización"}
+              </SupportBadge>
+              {requestPending ? <SupportBadge tone="warning">Solicitud pendiente</SupportBadge> : null}
             </View>
-          ) : null}
-
-          <View style={styles.actionsRow}>
-            {!sessionActive ? (
-              <Pressable onPress={handleRequestSession} style={styles.primaryBtn}>
-                <Text style={styles.primaryBtnText}>
-                  {requestPending ? "Solicitar nuevamente" : "Solicitar/Iniciar jornada"}
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={handleEndSession} style={styles.outlineBtn}>
-                <Text style={styles.outlineBtnText}>Finalizar jornada</Text>
-              </Pressable>
-            )}
-          </View>
+          )}
+          {sessionError ? <SupportNotice tone="warning">{sessionError}</SupportNotice> : null}
         </SectionCard>
 
-        <SectionCard title="Filtros inbox">
-          <Text style={styles.filterLabel}>Estado</Text>
-          <View style={styles.chipsWrap}>
-            {SUPPORT_STATUS_GROUPS.map((item) => (
+        <View style={styles.filterGroup}>
+          <View accessibilityLabel="Estado" style={styles.row}>
+            {INBOX_GROUPS.map((group) => (
+              <SupportButton
+                key={group.id}
+                label={group.label}
+                kind={activeGroup === group.id ? "primary" : "outline"}
+                selected={activeGroup === group.id}
+                onPress={() => setActiveGroup(group.id)}
+              />
+            ))}
+          </View>
+          <View accessibilityLabel="Origen" style={styles.row}>
+            {SUPPORT_ORIGIN_FILTERS.map((origin) => (
               <Pressable
-                key={item.id}
-                onPress={() => setActiveStatus(item.id)}
-                style={[styles.chip, activeStatus === item.id && styles.chipActive]}
+                key={origin.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: activeOrigin === origin.id }}
+                onPress={() => setActiveOrigin(origin.id)}
+                style={[styles.origin, activeOrigin === origin.id && styles.originSelected]}
               >
-                <Text style={[styles.chipText, activeStatus === item.id && styles.chipTextActive]}>
-                  {item.label}
+                <Text style={[styles.originText, activeOrigin === origin.id && styles.originTextSelected]}>
+                  {origin.id === "anonymous" ? "Anónimos" : origin.label}
                 </Text>
               </Pressable>
             ))}
           </View>
+        </View>
 
-          <Text style={styles.filterLabel}>Origen</Text>
-          <View style={styles.chipsWrap}>
-            {SUPPORT_ORIGIN_FILTERS.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => setActiveOrigin(item.id)}
-                style={[styles.chip, activeOrigin === item.id && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, activeOrigin === item.id && styles.chipTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+        <SectionCard title="Tickets">
+          {loading ? <BlockSkeleton lines={6} compact /> : null}
+          {!loading && error ? <SupportNotice tone="warning">{error}</SupportNotice> : null}
+          {!loading && !error && !filteredThreads.length ? <Text style={styles.meta}>No hay tickets para estos filtros.</Text> : null}
+          {!loading && !error ? filteredThreads.map((thread, index) => {
+            const id = String(thread.public_id || "");
+            const canTake = ["new", "queued"].includes(thread.status) && !thread.assigned_agent_id;
+            const assignedToMe = String(thread.assigned_agent_id || "") === usuarioId;
+            const anonymous = thread.request_origin === "anonymous";
+            return (
+              <View key={id || index} style={styles.ticketCard}>
+                <View style={styles.ticketTop}>
+                  <Text style={styles.ticketTitle}>{[id, thread.category].filter(Boolean).join(" · ") || "Ticket"}</Text>
+                  {thread.severity ? <Text style={styles.meta}>{String(thread.severity).toUpperCase()}</Text> : null}
+                </View>
+                <Text style={styles.summary}>{String(thread.summary || "Sin resumen")}</Text>
+                <View style={styles.row}>
+                  <SupportBadge tone={anonymous ? "warning" : "positive"}>{anonymous ? "Anónimo" : "Registrado"}</SupportBadge>
+                  {thread.app_channel ? <SupportBadge tone="info">{supportChannelLabel(thread.app_channel)}</SupportBadge> : null}
+                  <SupportBadge>{supportStatusLabel(thread.status)}</SupportBadge>
+                  {thread.handoff_required ? <SupportBadge tone="warning">Abandonado</SupportBadge> : null}
+                </View>
+                <Text style={styles.meta}>{toSupportThreadSubtitle(thread)}</Text>
+                {anonymous && thread.contact_display ? <Text style={styles.meta}>Contacto: {String(thread.contact_display)}</Text> : null}
+                {thread.handoff_required ? <SupportNotice tone="warning">El asesor anterior liberó este ticket por abandono.</SupportNotice> : null}
+                <View style={styles.row}>
+                  <SupportButton
+                    label={assignedToMe && activeGroup === "assigned" ? "Continuar" : "Ver ticket"}
+                    disabled={!id}
+                    onPress={() => openTicket(id)}
+                  />
+                  {canTake ? (
+                    <SupportButton
+                      label={taking === id ? "Asignando…" : "Tomar ticket"}
+                      kind="primary"
+                      disabled={!id || !sessionActive || !isAuthorized || hasActiveThread || Boolean(taking) || sessionBusy}
+                      onPress={() => { void handleTakeThread(id); }}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            );
+          }) : null}
         </SectionCard>
 
-        <SectionCard title="Tickets" subtitle={`Mostrando ${filteredThreads.length} de ${threads.length}`}>
-          {loading ? <BlockSkeleton lines={7} compact /> : null}
-          {!loading && error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {!loading && !error && filteredThreads.length === 0 ? (
-            <Text style={styles.emptyText}>No hay tickets en este estado/origen.</Text>
-          ) : null}
-
-          {!loading && !error
-            ? filteredThreads.map((thread, index) => {
-                const status = String(thread?.status || "new");
-                const assignedToMe = String(thread?.assigned_agent_id || "") === usuarioId;
-                const canTake = status === "new" && !thread?.assigned_agent_id;
-                return (
-                  <View key={`${thread?.public_id || index}-${index}`} style={styles.ticketCard}>
-                    <View style={styles.ticketTop}>
-                      <Text style={styles.ticketCode}>{String(thread?.public_id || "TKT")}</Text>
-                      <Text style={styles.ticketStatus}>{status}</Text>
-                    </View>
-                    <Text style={styles.ticketSummary} numberOfLines={2}>
-                      {String(thread?.summary || "Sin resumen")}
-                    </Text>
-                    <Text style={styles.ticketMeta}>{toSupportThreadSubtitle(thread)}</Text>
-                    <Text style={styles.ticketMeta}>
-                      origen: {String(thread?.request_origin || "registered")} | severidad:{" "}
-                      {String(thread?.severity || "s2")}
-                    </Text>
-                    {thread?.request_origin === "anonymous" && thread?.contact_display ? (
-                      <Text style={styles.ticketMeta}>contacto: {String(thread.contact_display)}</Text>
-                    ) : null}
-
-                    <View style={styles.actionsRow}>
-                      <Pressable onPress={() => openTicket(String(thread?.public_id || ""))} style={styles.secondaryBtn}>
-                        <Text style={styles.secondaryBtnText}>Ver ticket</Text>
-                      </Pressable>
-                      {canTake ? (
-                        <Pressable
-                          onPress={() => handleTakeThread(String(thread?.public_id || ""))}
-                          disabled={!sessionActive || hasActiveThread}
-                          style={[
-                            styles.primaryBtn,
-                            (!sessionActive || hasActiveThread) && styles.btnDisabled,
-                          ]}
-                        >
-                          <Text style={styles.primaryBtnText}>Tomar</Text>
-                        </Pressable>
-                      ) : assignedToMe ? (
-                        <Pressable onPress={() => openTicket(String(thread?.public_id || ""))} style={styles.outlineBtn}>
-                          <Text style={styles.outlineBtnText}>Continuar</Text>
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              })
-            : null}
-        </SectionCard>
-
-        <SectionCard
-          title="Observabilidad soporte"
-          subtitle="Eventos RN de soporte para trazabilidad de inbox"
-        >
+        <SectionCard title="Observabilidad de soporte">
           <ObservabilityEventFeed
-            title="Eventos soporte recientes"
-            subtitle="Filtra por nivel y correlacion request/trace/session."
+            title="Eventos de soporte recientes"
             defaultDomain="support"
             allowedDomains={["support"]}
             limit={30}
@@ -362,145 +342,16 @@ export default function SoporteInboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  statusWrap: {
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    color: "#334155",
-  },
-  pendingText: {
-    fontSize: 12,
-    color: "#7C3AED",
-    fontWeight: "700",
-  },
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  emptyText: {
-    color: "#64748B",
-    fontSize: 12,
-  },
-  filterLabel: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#475569",
-  },
-  chipsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: "#FFFFFF",
-  },
-  chipActive: {
-    borderColor: "#1D4ED8",
-    backgroundColor: "#DBEAFE",
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#334155",
-  },
-  chipTextActive: {
-    color: "#1E3A8A",
-  },
-  ticketCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    padding: 10,
-    gap: 6,
-  },
-  ticketTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-    alignItems: "center",
-  },
-  ticketCode: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#1E3A8A",
-  },
-  ticketStatus: {
-    fontSize: 11,
-    color: "#475569",
-    fontWeight: "700",
-  },
-  ticketSummary: {
-    fontSize: 13,
-    color: "#0F172A",
-    fontWeight: "600",
-  },
-  ticketMeta: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-  actionsRow: {
-    marginTop: 2,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  primaryBtn: {
-    backgroundColor: "#1D4ED8",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryBtnText: {
-    color: "#1D4ED8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  outlineBtn: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  outlineBtnText: {
-    color: "#334155",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  btnDisabled: {
-    opacity: 0.55,
-  },
+  content: { gap: 20, paddingBottom: 24 },
+  row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
+  filterGroup: { gap: 8 },
+  origin: { minHeight: 42, justifyContent: "center", borderRadius: 12, paddingHorizontal: 12 },
+  originSelected: { backgroundColor: "#F0EBFF" },
+  originText: { fontSize: 12, color: "#64748B", fontWeight: "600" },
+  originTextSelected: { color: "#5E30A5" },
+  ticketCard: { backgroundColor: "#FAF8FF", borderRadius: 16, borderWidth: 1, borderColor: "#E9E2F7", padding: 14, gap: 8 },
+  ticketTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  ticketTitle: { flex: 1, color: "#2F1A55", fontWeight: "700", fontSize: 13, lineHeight: 18 },
+  summary: { color: "#475569", fontSize: 14, lineHeight: 20 },
+  meta: { color: "#64748B", fontSize: 12, lineHeight: 18 },
 });

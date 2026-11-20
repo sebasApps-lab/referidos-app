@@ -34,6 +34,8 @@ function main() {
   const adminInicio = readText("apps/referidos-android/src/features/admin/AdminInicioScreen.tsx");
   const adminUsuarios = readText("apps/referidos-android/src/features/admin/AdminUsuariosScreen.tsx");
   const roleTabs = readText("apps/referidos-android/src/navigation/RoleTabs.tsx");
+  const rootNavigator = readText("apps/referidos-android/src/navigation/RootNavigator.tsx");
+  const staffNavigation = readText("apps/referidos-android/src/features/staff/staffNavigation.ts");
   const playbook = readText("docs/android-phase-playbook.md");
 
   assertIncludes(clientePerfil, "mobileApi.support.createThread", "phase8 user support create thread (cliente)");
@@ -63,7 +65,17 @@ function main() {
   assertIncludes(adminSoporte, "support_agent_profiles", "phase8 admin support authorization controls");
 
   assertIncludes(adminInicio, "fetchSupportStatusSummary", "phase8 admin inicio support summary");
-  assertIncludes(adminInicio, "RN_DEFERRED_MODULES", "phase8 admin scope decision surfacing");
+  for (const [route, screen] of [
+    ["NEGOCIOS", "AdminNegociosScreen"],
+    ["PROMOS", "AdminPromosScreen"],
+    ["QRS", "AdminQRsScreen"],
+    ["REPORTES", "AdminReportesScreen"],
+    ["LOGS", "AdminLogsScreen"],
+    ["SISTEMA", "AdminSistemaScreen"],
+  ]) {
+    assertIncludes(rootNavigator, `name={STACK_ROUTES.ADMIN.${route}} component={${screen}}`, `phase8 admin ${route} route registration`);
+    assertIncludes(staffNavigation, `route: admin.${route},`, `phase8 admin ${route} menu access`);
+  }
   assertNotIncludes(adminInicio, "FeaturePlaceholder", "phase8 admin inicio placeholder removed");
 
   assertIncludes(adminUsuarios, "mobileApi.support.createAdminUser", "phase8 admin usuarios create support account");

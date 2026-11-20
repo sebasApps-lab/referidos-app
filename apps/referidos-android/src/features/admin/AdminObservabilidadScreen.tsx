@@ -1,42 +1,27 @@
 import React from "react";
-import { useNavigation } from "@react-navigation/native";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { type NavigationProp, type ParamListBase, useNavigation } from "@react-navigation/native";
+import { Image, Pressable, StyleSheet, Text, type ImageSourcePropType, View } from "react-native";
 import { STACK_ROUTES } from "@navigation/routeKeys";
-import ScreenScaffold from "@shared/ui/ScreenScaffold";
-import SectionCard from "@shared/ui/SectionCard";
+import ScreenScaffold from "@features/staff/StaffScreenScaffold";
+import { staffIcons } from "@features/staff/staffNavigation";
 import ObservabilityEventFeed from "@shared/ui/ObservabilityEventFeed";
 
 export default function AdminObservabilidadScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
 
   return (
     <ScreenScaffold
-      title="Admin Observabilidad"
-      subtitle="Issues, eventos y catalogo de errores para admin."
+      title="Observabilidad"
+      subtitle="Issues, eventos y catálogo de errores"
     >
       <View style={styles.content}>
-        <SectionCard title="Rutas de observabilidad" subtitle="Equivalentes a issues/events/details web">
-          <View style={styles.actions}>
-            <NavCard
-              title="Issues"
-              description="Listado principal de issues."
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ISSUES)}
-            />
-            <NavCard
-              title="Error codes"
-              description="Catalogo de errores observados."
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ERROR_CODES)}
-            />
-            <NavCard
-              title="Logs"
-              description="Auditoria de eventos soporte/obs."
-              onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.LOGS)}
-            />
-          </View>
-        </SectionCard>
+        <View style={styles.actions}>
+          <NavCard title="Issues" primary icon={staffIcons.activity} onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ISSUES)} />
+          <NavCard title="Catálogo de errores" icon={staffIcons.alert} onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.ERROR_CODES)} />
+          <NavCard title="Logs" icon={staffIcons.file} onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.LOGS)} />
+        </View>
         <ObservabilityEventFeed
           title="Eventos recientes"
-          subtitle="Incluye request_id, trace_id, session_id y contexto de ruta/pantalla."
           defaultDomain="all"
           allowedDomains={["observability", "support"]}
           limit={60}
@@ -49,18 +34,19 @@ export default function AdminObservabilidadScreen() {
 
 function NavCard({
   title,
-  description,
+  icon,
   onPress,
+  primary,
 }: {
   title: string;
-  description: string;
+  icon: ImageSourcePropType;
   onPress: () => void;
+  primary?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.cardText}>{description}</Text>
-      <Text style={styles.cardLink}>Abrir</Text>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.link, primary && styles.primaryLink]}>
+      <Image source={icon} style={[styles.icon, primary && styles.primaryIcon]} />
+      <Text style={[styles.linkText, primary && styles.primaryText]}>{title}</Text>
     </Pressable>
   );
 }
@@ -71,29 +57,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
-  card: {
+  link: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
-    borderColor: "#DDD6FE",
-    backgroundColor: "#F9F7FF",
+    borderColor: "#E9E2F7",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 12,
-    gap: 4,
+    minHeight: 44,
+    paddingHorizontal: 12,
   },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2F1A55",
-  },
-  cardText: {
-    fontSize: 12,
-    color: "#475569",
-  },
-  cardLink: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#5B21B6",
-  },
+  primaryLink: { backgroundColor: "#5E30A5", borderColor: "#5E30A5" },
+  icon: { width: 16, height: 16, tintColor: "#5E30A5" },
+  primaryIcon: { tintColor: "#FFFFFF" },
+  linkText: { color: "#5E30A5", fontSize: 13, fontWeight: "600" },
+  primaryText: { color: "#FFFFFF" },
 });

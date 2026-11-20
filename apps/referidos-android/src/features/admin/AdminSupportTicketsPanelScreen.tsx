@@ -1,27 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { STACK_ROUTES } from "@navigation/routeKeys";
 import AdminCollectionScreen from "./components/AdminCollectionScreen";
-import SectionCard from "@shared/ui/SectionCard";
+import SectionCard from "@features/staff/StaffSectionCard";
 import { mobileApi, observability, supabase } from "@shared/services/mobileApi";
 import { useModalStore } from "@shared/store/modalStore";
 import {
   fetchSupportAgentsDashboard,
   fetchSupportInboxRows,
   fetchSupportStatusSummary,
-  toSupportThreadSubtitle,
 } from "@shared/services/supportDeskQueries";
-import { formatDateTime, readFirst } from "@shared/services/entityQueries";
-import { adminRuntimeStyles as shared } from "./components/adminRuntimeStyles";
-
-function agentDisplayName(agent: any) {
-  const nombre = String(readFirst(agent?.user, ["nombre"], "")).trim();
-  const apellido = String(readFirst(agent?.user, ["apellido"], "")).trim();
-  const full = `${nombre} ${apellido}`.trim();
-  if (full) return full;
-  return String(readFirst(agent?.user, ["public_id"], agent?.user_id || "agente"));
-}
+import { readFirst } from "@shared/services/entityQueries";
+import { SupportButton } from "@features/support/SupportTicketUi";
+import { AdminSupportThreadCard, agentDisplayName } from "./components/AdminSupportUi";
 
 export default function AdminSupportTicketsPanelScreen() {
   const navigation = useNavigation<any>();
@@ -37,7 +28,7 @@ export default function AdminSupportTicketsPanelScreen() {
   const [busyKey, setBusyKey] = useState("");
 
   const loadAll = useCallback(async () => {
-    if (!refreshing) setLoading(true);
+    setLoading(true);
     const [rowsResult, agentsResult, summaryResult] = await Promise.all([
       fetchSupportInboxRows(supabase, {
         isAdmin: true,
@@ -53,17 +44,23 @@ export default function AdminSupportTicketsPanelScreen() {
     setSummary(summaryResult.ok ? summaryResult.data : { total: 0, byStatus: {} });
     setError(rowsResult.error || agentsResult.error || summaryResult.error || "");
     setLoading(false);
-  }, [refreshing]);
+  }, []);
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
-    await loadAll();
-    setRefreshing(false);
+    try {
+      await loadAll();
+    } catch {
+      setError("No se pudieron cargar los tickets.");
+      setLoading(false);
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadAll]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll]));
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -163,9 +160,9 @@ export default function AdminSupportTicketsPanelScreen() {
 
   return (
     <AdminCollectionScreen
-      title="Admin Support Tickets"
-      subtitle="Flujo visual y control operativo de tickets"
-      searchPlaceholder="Buscar ticket, actor, categoria o resumen"
+      title="Panel de tickets"
+      subtitle="Consulta el estado de los tickets, asigna asesores y gestiona la cola."
+      searchPlaceholder="Buscar ticket, usuario, categoría o resumen"
       query={query}
       onQueryChange={setQuery}
       loading={loading}
@@ -179,89 +176,43 @@ export default function AdminSupportTicketsPanelScreen() {
           onSelect: setStatusFilter,
           options: [
             { id: "todos", label: "Todos" },
-            { id: "new", label: "New" },
-            { id: "assigned", label: "Assigned" },
-            { id: "in_progress", label: "In progress" },
-            { id: "waiting_user", label: "Waiting user" },
-            { id: "queued", label: "Queued" },
-            { id: "closing", label: "Closing" },
-            { id: "closed", label: "Closed" },
+            { id: "new", label: "Nuevos" },
+            { id: "starting", label: "Empezando" },
+            { id: "assigned", label: "Asignados" },
+            { id: "in_progress", label: "En progreso" },
+            { id: "waiting_user", label: "Esperando al usuario" },
+            { id: "queued", label: "En cola" },
+            { id: "closing", label: "Cerrando" },
+            { id: "closed", label: "Resueltos" },
           ],
         },
       ]}
-      onRefresh={() => void refreshAll()}
+      onRefresh={() => { void refreshAll(); }}
       emptyText={!loading && filtered.length === 0 ? "No hay tickets para este filtro." : ""}
     >
-      <SectionCard title="Tickets" subtitle={`Resultados: ${filtered.length}`}>
-        <View style={shared.listWrap}>
+      {!loading && filtered.length ? (
+        <SectionCard title="Tickets" subtitle={filtered.length + " resultados"}>
           {filtered.map((row, index) => {
-            const threadPublicId = String(readFirst(row, ["public_id"], "")).trim();
+            const id = String(readFirst(row, ["public_id"], "")).trim();
             const status = String(readFirst(row, ["status"], "new"));
+            const agent = agents.find((entry) => entry.user_id === row.assigned_agent_id);
             return (
-              <View key={`${threadPublicId || index}-${index}`} style={shared.card}>
-                <Text style={shared.cardTitle}>{threadPublicId || "TKT"}</Text>
-                <View style={shared.badgeRow}>
-                  <View style={shared.badge}>
-                    <Text style={shared.badgeText}>{status}</Text>
-                  </View>
-                  <View style={shared.codePill}>
-                    <Text style={shared.codePillText}>
-                      {String(readFirst(row, ["category"], "general"))}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={shared.bodyText} numberOfLines={2}>
-                  {String(readFirst(row, ["summary"], "Sin resumen"))}
-                </Text>
-                <Text style={shared.metaText}>{toSupportThreadSubtitle(row)}</Text>
-                <Text style={shared.metaText}>
-                  app: {String(readFirst(row, ["app_channel"], "undetermined"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  agente: {String(readFirst(row, ["assigned_agent_id"], "sin asignar"))}
-                </Text>
-                <Text style={shared.metaText}>
-                  actualizado: {formatDateTime(readFirst(row, ["updated_at", "created_at"], null))}
-                </Text>
-                <View style={shared.actionsRow}>
-                  <Pressable
-                    onPress={() =>
-                      navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKET, {
-                        threadPublicId,
-                      })
-                    }
-                    style={shared.primaryBtn}
-                  >
-                    <Text style={shared.primaryBtnText}>Abrir detalle</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => assignTicket(row)}
-                    disabled={busyKey === `assign:${threadPublicId}` || availableAgents.length === 0}
-                    style={[
-                      shared.secondaryBtn,
-                      (busyKey === `assign:${threadPublicId}` || availableAgents.length === 0) &&
-                        shared.btnDisabled,
-                    ]}
-                  >
-                    <Text style={shared.secondaryBtnText}>
-                      {busyKey === `assign:${threadPublicId}` ? "..." : "Asignar"}
-                    </Text>
-                  </Pressable>
-                  {status !== "queued" && status !== "closed" ? (
-                    <Pressable
-                      onPress={() => void releaseToQueue(row)}
-                      disabled={busyKey === `queue:${threadPublicId}`}
-                      style={[shared.outlineBtn, busyKey === `queue:${threadPublicId}` && shared.btnDisabled]}
-                    >
-                      <Text style={shared.outlineBtnText}>Liberar a cola</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </View>
+              <AdminSupportThreadCard key={id || index} thread={row} assignedLabel={agent ? agentDisplayName(agent) : undefined}>
+                <SupportButton label="Ver ticket" disabled={!id} onPress={() => navigation.navigate(STACK_ROUTES.ADMIN.SUPPORT_TICKET, { threadPublicId: id })} />
+                <SupportButton
+                  label={busyKey === "assign:" + id ? "Asignando…" : row.assigned_agent_id ? "Reasignar" : "Asignar"}
+                  kind="primary"
+                  disabled={!id || Boolean(busyKey) || availableAgents.length === 0}
+                  onPress={() => assignTicket(row)}
+                />
+                {status !== "queued" && status !== "closed" ? (
+                  <SupportButton label="Liberar a cola" disabled={!id || Boolean(busyKey)} onPress={() => { void releaseToQueue(row); }} />
+                ) : null}
+              </AdminSupportThreadCard>
             );
           })}
-        </View>
-      </SectionCard>
+        </SectionCard>
+      ) : null}
     </AdminCollectionScreen>
   );
 }

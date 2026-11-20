@@ -1,14 +1,13 @@
-// src/components/gestionar/sections/Seguridad.jsx
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { KeyRound, Lock, ShieldCheck, Smartphone } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Seguridad() {
   // TEMP lint: splash de montaje mientras completamos el refactor de motion.
   const TEMP_MOTION_SPLASH_TAG = motion.div;
 
   const [settings, setSettings] = useState({
-    twoFactor: true,
     loginAlerts: true,
     deviceLock: false,
   });
@@ -18,12 +17,6 @@ export default function Seguridad() {
   };
 
   const rows = [
-    {
-      key: "twoFactor",
-      title: "Autenticacion en dos pasos",
-      desc: "Protege accesos sensibles con verificacion extra.",
-      Icon: ShieldCheck,
-    },
     {
       key: "loginAlerts",
       title: "Alertas de inicio de sesion",
@@ -58,6 +51,24 @@ export default function Seguridad() {
       </div>
 
       <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F8F5FF] text-[#5E30A5]">
+              <ShieldCheck size={18} aria-hidden="true" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-[#2F1A55]">Autenticación en dos pasos</div>
+              <p className="text-xs text-slate-500">Configura la app autenticadora de tu cuenta.</p>
+            </div>
+          </div>
+          <Link
+            to="/negocio/perfil?tab=twofa"
+            className="shrink-0 rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs font-semibold text-[#5E30A5]"
+            aria-label="Configurar autenticación en dos pasos"
+          >
+            Configurar
+          </Link>
+        </div>
         {rows.map((row) => {
           const enabled = settings[row.key];
           return (

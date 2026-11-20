@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/appStore";
 import AuthView from "./AuthView";
 import AuthBranderHeader from "./blocks/AuthBranderHeader";
@@ -144,8 +144,24 @@ const CLIENT_STEP_COPY = {
   },
 };
 
+function getOAuthCallbackError(search, hash) {
+  const query = new URLSearchParams(search);
+  const fragment = new URLSearchParams(hash.slice(1));
+  const read = (key) => query.get(key) ?? fragment.get(key);
+  if (read("type") === "recovery" || read("code") || read("access_token")) return "";
+
+  const error = read("error");
+  const code = read("error_code");
+  if (!error && !code && !read("error_description")) return "";
+  if (error === "access_denied" || code === "access_denied") {
+    return "El inicio de sesión se canceló o el proveedor no concedió acceso. Puedes volver a intentarlo.";
+  }
+  return "No se pudo completar el inicio de sesión con el proveedor. Vuelve a intentarlo o entra con correo.";
+}
+
 export default function AuthFlow() {
   const location = useLocation();
+  const navigate = useNavigate();
   const usuario = useAppStore((s) => s.usuario);
   const onboarding = useAppStore((s) => s.onboarding);
   const logout = useAppStore((s) => s.logout);
@@ -167,6 +183,15 @@ export default function AuthFlow() {
   useEffect(() => subscribeSystemFeatureFlags(setSystemFlags), []);
 
   const flow = useAuthFlow({ initialStep });
+  const { setStep, setWelcomeError } = flow;
+  const callbackError = getOAuthCallbackError(location.search, location.hash);
+
+  useEffect(() => {
+    if (!callbackError || usuario || onboarding?.ok) return;
+    setStep(AUTH_STEPS.WELCOME);
+    setWelcomeError(callbackError);
+    navigate(location.pathname, { replace: true });
+  }, [callbackError, location.pathname, navigate, onboarding?.ok, setStep, setWelcomeError, usuario]);
   const isVerificationFlowStep = [
     AUTH_STEPS.BUSINESS_VERIFY,
     AUTH_STEPS.ACCOUNT_VERIFY_PROMPT,
@@ -463,8 +488,10 @@ export default function AuthFlow() {
   }, [bootstrapAuth, flow]);
 
   const handleBackToMethod = React.useCallback(async () => {
-    await bootstrapAuth({ force: true });
+    const result = await bootstrapAuth({ force: true });
+    if (!result?.ok) return result;
     flow.goToStep(AUTH_STEPS.ACCOUNT_VERIFY_METHOD);
+    return result;
   }, [bootstrapAuth, flow]);
 
 
