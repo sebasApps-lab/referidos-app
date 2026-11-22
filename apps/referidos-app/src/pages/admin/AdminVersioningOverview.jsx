@@ -5,8 +5,8 @@ import VersioningOverviewPanel from "../../admin/versioning/VersioningOverviewPa
 export default function AdminVersioningOverview() {
   return (
     <AdminLayout
-      title="Versionado Global"
-      subtitle="Mapa por entorno, drift y promociones de release"
+      title="Versionado"
+      subtitle="Releases y publicaciones desde desarrollo hasta producción"
     >
       <VersioningOverviewPanel />
     </AdminLayout>

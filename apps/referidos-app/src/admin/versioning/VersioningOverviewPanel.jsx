@@ -1,10 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Activity,
   ArrowRightLeft,
   ChevronDown,
   CheckCircle2,
   GitCompare,
+  History,
+  LayoutDashboard,
+  Package,
   RefreshCw,
   Rocket,
   ShieldCheck,
@@ -40,12 +44,21 @@ import {
   validateEnvironmentContract,
 } from "./services/versioningService";
 import VersioningArtifactsPanel from "./VersioningArtifactsPanel";
+import VersioningSummary from "./VersioningSummary";
 
 // Lint purge (no-unused-vars): se removio `artifactRowForRelease` en el render de releases por entorno.
 const ENV_OPTIONS = ["dev", "staging", "prod"];
 const DEPLOY_ENV_OPTIONS = ["staging", "prod"];
 const DEPLOYABLE_PRODUCTS = ["referidos_app", "prelaunch_web"];
 const PRODUCT_PRIORITY = ["referidos_app", "prelaunch_web"];
+const VERSIONING_VIEWS = [
+  { key: "resumen", label: "Resumen", Icon: LayoutDashboard },
+  { key: "publicar", label: "Publicar", Icon: Rocket },
+  { key: "solicitudes", label: "Solicitudes", Icon: ShieldCheck },
+  { key: "builds", label: "Builds", Icon: Package },
+  { key: "actividad", label: "Actividad", Icon: Activity },
+  { key: "diagnostico", label: "Diagnóstico", Icon: GitCompare },
+];
 
 function compareProductsForTabs(a, b, isInitialized) {
   const keyA = String(a?.product_key || "");
@@ -71,18 +84,18 @@ function compareProductsForTabs(a, b, isInitialized) {
 
 function normalizeProductLabel(product) {
   const key = String(product?.product_key || "").toLowerCase();
-  if (key === "referidos_app") return "REFERIDOS PWA";
-  if (key === "prelaunch_web") return "PRELAUNCH WEB";
-  if (key === "android_app") return "ANDROID APP";
+  if (key === "referidos_app") return "Referidos PWA";
+  if (key === "prelaunch_web") return "Prelaunch Web";
+  if (key === "android_app") return "Referidos Android";
   if (key === "app") return "APP";
   return String(product?.name || key || "APP").toUpperCase();
 }
 
 function normalizeEnvLabel(envKey) {
   const key = String(envKey || "").toLowerCase();
-  if (key === "prod") return "PRODUCTION";
-  if (key === "staging") return "STAGING";
-  if (key === "dev") return "DEVELOPMENT";
+  if (key === "prod") return "Producción";
+  if (key === "staging") return "Staging";
+  if (key === "dev") return "Desarrollo";
   return String(envKey || "-").toUpperCase();
 }
 
@@ -159,12 +172,12 @@ function deploymentStateFromRequest(row) {
   const deploymentStatus = String(row.deployment_status || "").toLowerCase();
 
   if (deploymentStatus === "success" || deploymentStatus === "deployed") return "deployed";
+  if (deploymentStatus === "failed" || requestStatus === "failed") return "failed";
   if (deploymentStatus === "started") return "running";
   if (requestStatus === "pending") return "pending";
   if (requestStatus === "approved") return "approved";
   if (requestStatus === "rejected") return "rejected";
-  if (requestStatus === "failed" || deploymentStatus === "failed") return "failed";
-  if (requestStatus === "executed") return "running";
+  if (requestStatus === "executed") return "unconfirmed";
   return "not_deployed";
 }
 
@@ -179,13 +192,37 @@ function deploymentStateBadgeClass(state) {
 }
 
 function deploymentStateLabel(state) {
-  if (state === "deployed") return "deployed";
-  if (state === "running") return "running";
-  if (state === "pending") return "pending";
-  if (state === "approved") return "approved";
-  if (state === "failed") return "failed";
-  if (state === "rejected") return "rejected";
-  return "not deployed";
+  if (state === "deployed") return "Publicación registrada";
+  if (state === "running") return "En ejecución";
+  if (state === "pending") return "Pendiente de aprobación";
+  if (state === "approved") return "Aprobada para publicar";
+  if (state === "failed") return "Publicación fallida";
+  if (state === "rejected") return "Solicitud rechazada";
+  if (state === "unconfirmed") return "Resultado sin confirmar";
+  return "Sin publicación registrada";
+}
+
+function DeployEvidenceLinks({ request }) {
+  const metadata = asRecord(request?.metadata);
+  const links = new Map();
+  for (const value of [metadata.github_run_url, request?.logs_url]) {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" || url.username || url.password) continue;
+      const isGithubRun = url.hostname === "github.com" && /\/actions\/runs\/\d+/.test(url.pathname);
+      const isNetlify = url.hostname === "netlify.app" || url.hostname.endsWith(".netlify.app") || url.hostname === "app.netlify.com";
+      links.set(url.href, isGithubRun ? "GitHub Actions" : isNetlify ? "Ver deploy en Netlify" : "Ver enlace registrado");
+    } catch {
+      // Older requests can lack an external URL.
+    }
+  }
+  return links.size ? (
+    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+      {[...links].map(([href, label]) => (
+        <a key={href} href={href} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#5E30A5] underline">{label}</a>
+      ))}
+    </div>
+  ) : null;
 }
 
 function buildEventStatusBadgeClass(status) {
@@ -677,12 +714,16 @@ function VersionCard({
 }
 
 export default function VersioningOverviewPanel() {
-  const [versioningTab, setVersioningTab] = useState("pipeline");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const versioningView = VERSIONING_VIEWS.find(({ key }) => key === searchParams.get("vista"))?.key || "resumen";
+  const [buildsVisited, setBuildsVisited] = useState(false);
+  const [environmentActionsOpen, setEnvironmentActionsOpen] = useState(false);
+  const loadAttemptRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [catalog, setCatalog] = useState({ products: [], environments: [] });
-  const [activeProductKey, setActiveProductKey] = useState("");
+  const [activeProductKey, setActiveProductKey] = useState(() => searchParams.get("producto") || "");
   const [latestReleases, setLatestReleases] = useState([]);
   const [driftFrom, setDriftFrom] = useState("staging");
   const [driftTo, setDriftTo] = useState("prod");
@@ -730,7 +771,7 @@ export default function VersioningOverviewPanel() {
   const [deployMigrationGate, setDeployMigrationGate] = useState(null);
   const [migrationGateActionId, setMigrationGateActionId] = useState("");
   const [migrationApplyActionId, setMigrationApplyActionId] = useState("");
-  const [envValidationState, setEnvValidationState] = useState(null);
+  const [envValidationResult, setEnvValidationState] = useState(null);
   const [envValidationLoading, setEnvValidationLoading] = useState(false);
   const [buildTimelineRows, setBuildTimelineRows] = useState([]);
   const [envConfigRows, setEnvConfigRows] = useState([]);
@@ -738,6 +779,45 @@ export default function VersioningOverviewPanel() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const envValidationState = envValidationResult?.envKey === deployTargetEnv ? envValidationResult : null;
+
+  const productChangeLocked = Boolean(
+    activeDeployTracking || deployingActionId || devReleaseSyncing || creatingDevRelease ||
+    promotingActionId || mergingActionId || syncPipelineActionId || workflowPackSyncing ||
+    migrationApplyActionId || migrationGateActionId || envValidationLoading || backfillActionId ||
+    confirmDialog || devReleaseDraft
+  );
+
+  useEffect(() => {
+    if (versioningView === "builds") setBuildsVisited(true);
+  }, [versioningView]);
+
+  const openView = (key) => {
+    if (key === versioningView) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("vista", key);
+    if (activeProductKey) next.set("producto", activeProductKey);
+    setSearchParams(next);
+  };
+
+  const openEnvironment = (envKey) => {
+    if (envKey !== "dev") {
+      setReleaseOpsMode("deploy");
+      setDeployTargetEnv(envKey);
+    } else {
+      setReleaseOpsMode("promote");
+      setPromoteSourceEnv("dev");
+    }
+    setEnvironmentActionsOpen(true);
+    openView("publicar");
+  };
+
+  const selectProduct = (productKey) => {
+    setActiveProductKey(productKey);
+    const next = new URLSearchParams(searchParams);
+    next.set("producto", productKey);
+    setSearchParams(next, { replace: true });
+  };
 
   const setPromoteProgressForEnv = useCallback((envKey, progress) => {
     const key = String(envKey || "").toLowerCase();
@@ -781,6 +861,7 @@ export default function VersioningOverviewPanel() {
     () => shortHash(workflowPackStatus?.production?.pack_hash, 8),
     [workflowPackStatus]
   );
+  const workflowPackStagingHash = shortHash(workflowPackStatus?.staging?.pack_hash);
   const workflowPackProductionHead = useMemo(
     () => shortHash(workflowPackStatus?.production?.head_sha, 7),
     [workflowPackStatus]
@@ -796,6 +877,7 @@ export default function VersioningOverviewPanel() {
 
   const load = useCallback(
     async (manual = false) => {
+      const attempt = ++loadAttemptRef.current;
       if (manual) setRefreshing(true);
       else setLoading(true);
       setError("");
@@ -812,6 +894,7 @@ export default function VersioningOverviewPanel() {
             sourceRef: "dev",
           }).catch(() => null),
         ]);
+        if (attempt !== loadAttemptRef.current) return;
 
         setCatalog(dataCatalog);
         setLatestReleases(dataLatest);
@@ -868,6 +951,7 @@ export default function VersioningOverviewPanel() {
               limit: 120,
             }),
           ]);
+          if (attempt !== loadAttemptRef.current) return;
           setDriftRows(drift);
           setPromotionHistory(promotions);
           setBuildTimelineRows(Array.isArray(buildTimeline) ? buildTimeline : []);
@@ -879,10 +963,12 @@ export default function VersioningOverviewPanel() {
           setEnvConfigRows([]);
         }
       } catch (err) {
-        setError(err?.message || "No se pudo cargar versionado.");
+        if (attempt === loadAttemptRef.current) setError(err?.message || "No se pudo cargar versionado.");
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (attempt === loadAttemptRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [activeProductKey, driftFrom, driftTo]
@@ -1306,7 +1392,12 @@ export default function VersioningOverviewPanel() {
         );
       }
 
-      setDeployRequests(Array.isArray(requests) ? requests : []);
+      if (Array.isArray(requests)) {
+        setDeployRequests((current) => [
+          ...current.filter((row) => row.product_key !== activeDeployTracking.productKey || row.env_key !== activeDeployTracking.envKey),
+          ...requests,
+        ]);
+      }
       setDeployMessage(detail);
       setDeploySyncRequired(null);
       setActiveDeployRequestId("");
@@ -1323,7 +1414,10 @@ export default function VersioningOverviewPanel() {
       if (cancelled) return;
 
       try {
-        const requests = await fetchDeployRequests();
+        const requests = await fetchDeployRequests({
+          productKey: activeDeployTracking.productKey,
+          envKey: activeDeployTracking.envKey,
+        });
         if (cancelled) return;
 
         const requestRow = (Array.isArray(requests) ? requests : []).find(
@@ -1454,20 +1548,18 @@ export default function VersioningOverviewPanel() {
           }
         }
 
-        if (Date.now() - Number(activeDeployTracking.startedAt || 0) >= MAX_WAIT_MS) {
-          setDeployRequests(Array.isArray(requests) ? requests : []);
-          setDeployMessage(
-            `Se detuvo el polling del deploy (${envKey || "-"} ${versionLabel || "-"}). ` +
-              `Request=${String(requestRow?.status || "-")} deployment_status=${String(
-                requestRow?.deployment_status || "-"
-              )} workflow=${workflowLabel}.`
-          );
-          setActiveDeployRequestId("");
-          setActiveDeployTracking(null);
-          return;
-        }
       } catch {
         // Keep polling on transient fetch errors.
+      }
+
+      if (cancelled) return;
+      if (Date.now() - activeDeployTracking.startedAt >= MAX_WAIT_MS) {
+        const detail = `Resultado sin confirmar para ${activeDeployTracking.semver} en ${normalizeEnvLabel(activeDeployTracking.envKey)}. Consulta la solicitud antes de reintentar.`;
+        setDeployMessage(detail);
+        setApprovalMessage(detail);
+        setActiveDeployRequestId("");
+        setActiveDeployTracking(null);
+        return;
       }
 
       timerId = setTimeout(tick, POLL_INTERVAL_MS);
@@ -2382,10 +2474,11 @@ export default function VersioningOverviewPanel() {
         productKey: activeProductKey,
         envKey: deployTargetEnv,
       });
-      setEnvValidationState(validation);
+      setEnvValidationState({ ...validation, envKey: deployTargetEnv });
       setDeployMessage(validation?.summary || "Validacion de entorno completada.");
     } catch (err) {
       setEnvValidationState({
+        envKey: deployTargetEnv,
         validation_ok: false,
         summary: err?.message || "No se pudo validar entorno.",
         details: err?.payload || null,
@@ -2402,6 +2495,7 @@ export default function VersioningOverviewPanel() {
     source = "history",
     notes = "",
   }) => {
+    if (deployingActionId || activeDeployTracking) return;
     setDeployMessage("");
     if (!activeProductKey || !envKey || !semver) {
       setDeployMessage("Faltan datos para ejecutar deploy.");
@@ -2424,9 +2518,9 @@ export default function VersioningOverviewPanel() {
     setDeployTargetEnv(envKey);
 
     let normalizedRequestId = "";
-    let currentStage = "gate";
+    let currentStage = "request";
     const deployStepStatus = {
-      gate: "running",
+      gate: "pending",
       sync: "pending",
       request: "pending",
       pipeline: "pending",
@@ -2442,12 +2536,40 @@ export default function VersioningOverviewPanel() {
         })
       );
     };
-    updateDeployProgress(
-      "running",
-      `Iniciando deploy de ${semver} hacia ${normalizeEnvLabel(envKey)}...`
-    );
-
     try {
+      const existingRequest = getLatestDeployRequestForVersion(envKey, semver);
+      const existingState = deploymentStateFromRequest(existingRequest);
+      if (existingState === "running" || existingState === "unconfirmed") {
+        setApprovalMessage("Este intento requiere confirmación. Revisa GitHub y Netlify antes de volver a publicar.");
+        openView("solicitudes");
+        return;
+      }
+
+      if (existingState !== "approved") {
+        if (existingState !== "pending") {
+          const requested = await requestDeploy({
+            productKey: activeProductKey,
+            envKey,
+            semver,
+            notes: notes || deployNotes,
+            metadata: { trigger: "admin_list_deploy", source },
+          });
+          const requestId = typeof requested === "string" ? requested : requested?.request_id || requested?.id;
+          if (!requestId) throw new Error("La solicitud no devolvió un identificador. Actualiza Solicitudes antes de reintentar.");
+        }
+
+        setApprovalMessage(`La publicación de ${semver} en ${normalizeEnvLabel(envKey)} espera la aprobación de otro administrador.`);
+        openView("solicitudes");
+        await load(true);
+        return;
+      }
+
+      normalizedRequestId = existingRequest.id;
+      deployStepStatus.request = "success";
+      deployStepStatus.gate = "running";
+      currentStage = "gate";
+      openEnvironment(envKey);
+      updateDeployProgress("running", `Comprobando ${semver} para ${normalizeEnvLabel(envKey)}.`);
       const gateResult = await handleCheckReleaseGateByVersion({
         envKey,
         semver,
@@ -2472,51 +2594,14 @@ export default function VersioningOverviewPanel() {
         semver,
       });
       deployStepStatus.sync = "success";
-      deployStepStatus.request = "running";
-      updateDeployProgress("running", "Release sincronizada. Resolviendo request de deploy...");
-      currentStage = "request";
-
-      const existingRequest = selectedProductDeployRequests.find(
-        (row) =>
-          row.env_key === envKey &&
-          row.version_label === semver &&
-          ["pending", "approved"].includes(String(row.status || "").toLowerCase())
-      );
-
-      if (existingRequest?.id) {
-        normalizedRequestId = existingRequest.id;
-      } else {
-        const requestId = await requestDeploy({
-          productKey: activeProductKey,
-          envKey,
-          semver,
-          actor: "admin-ui-direct",
-          notes: notes || deployNotes,
-          metadata: {
-            trigger: "admin_list_deploy",
-            source,
-          },
-        });
-
-        normalizedRequestId =
-          typeof requestId === "string"
-            ? requestId
-            : requestId?.request_id || requestId?.id || "";
-      }
-
-      if (!normalizedRequestId) {
-        throw new Error("No se pudo resolver request_id para ejecutar deploy.");
-      }
-
-      deployStepStatus.request = "success";
       deployStepStatus.pipeline = "running";
-      updateDeployProgress("running", "Request listo. Ejecutando pipeline de deploy...");
+      updateDeployProgress("running", "Release sincronizada. Iniciando la publicación aprobada en GitHub Actions.");
 
       setActiveDeployRequestId(normalizedRequestId);
       currentStage = "pipeline";
       const result = await triggerDeployPipeline({
         requestId: normalizedRequestId,
-        forceAdminOverride: true,
+        forceAdminOverride: false,
         syncRelease: false,
         syncOnly: false,
       });
@@ -2756,17 +2841,21 @@ export default function VersioningOverviewPanel() {
 
   const requestDeployVersion = useCallback(
     ({ envKey, semver, source = "history", notes = "" }) => {
+      const state = getDeploymentStateForVersion(envKey, semver);
+      const approved = state === "approved";
       openConfirmDialog({
-        title: "Confirmar deploy",
-        copy: `Se ejecutara deploy de ${semver} hacia ${normalizeEnvLabel(envKey)}.`,
-        confirmLabel: "Confirmar",
+        title: approved ? "Confirmar publicación" : "Revisar solicitud de publicación",
+        copy: approved
+          ? `${semver} está aprobada para ${normalizeEnvLabel(envKey)}. Se comprobarán las migraciones y la rama antes de iniciar GitHub Actions.`
+          : `Revisa ${semver} para ${normalizeEnvLabel(envKey)}. La solicitud requiere aprobación antes de iniciar GitHub Actions.`,
+        confirmLabel: approved ? "Publicar" : state === "pending" ? "Ver solicitud" : "Continuar",
         action: {
           type: "deploy",
           payload: { envKey, semver, source, notes },
         },
       });
     },
-    [openConfirmDialog]
+    [getDeploymentStateForVersion, openConfirmDialog]
   );
 
   const requestMergeVersion = useCallback(
@@ -3036,6 +3125,12 @@ export default function VersioningOverviewPanel() {
       await handleSyncRelease();
     } else if (type === "merge-release") {
       await handleMergeRelease(payload || {});
+    } else if (type === "workflow-pack") {
+      await handleSyncWorkflowPack();
+    } else if (type === "apply-migrations") {
+      await handleApplyMigrationsForCurrentGate();
+    } else if (type === "approve-request") {
+      await handleApproveRequest(payload.requestId);
     }
   };
 
@@ -3063,23 +3158,19 @@ export default function VersioningOverviewPanel() {
     }
   };
 
-  const handleApproveRequest = async (requestId, forceAdminOverride = false) => {
+  const handleApproveRequest = async (requestId) => {
     setApprovalMessage("");
     setDeployingActionId(`approve-${requestId}`);
     try {
       const result = await approveDeployRequest({
         requestId,
-        forceAdminOverride,
+        forceAdminOverride: false,
       });
       const status = String(result?.status || "").toLowerCase();
-      if (result?.already_processed || (status && status !== "pending")) {
+      if (result?.already_processed || (status && status !== "approved")) {
         setApprovalMessage(`La solicitud ya no estaba pendiente (estado actual: ${status || "desconocido"}).`);
       } else {
-        setApprovalMessage(
-          forceAdminOverride
-            ? "Solicitud aprobada con admin override."
-            : "Solicitud aprobada correctamente."
-        );
+        setApprovalMessage("Solicitud aprobada. Ya puedes iniciar la publicación.");
       }
       await load(true);
     } catch (err) {
@@ -3090,7 +3181,8 @@ export default function VersioningOverviewPanel() {
   };
 
   const handleRejectRequest = async (requestId) => {
-    const reason = window.prompt("Motivo del rechazo (opcional):", "") || "";
+    const reason = window.prompt("Motivo del rechazo (opcional)", "");
+    if (reason === null) return;
     setApprovalMessage("");
     setDeployingActionId(`reject-${requestId}`);
     try {
@@ -3107,6 +3199,23 @@ export default function VersioningOverviewPanel() {
     }
   };
 
+  const followDeployRequest = (row) => {
+    const metadata = asRecord(row.metadata);
+    setActiveDeployRequestId(row.id);
+    setActiveDeployTracking({
+      requestId: row.id,
+      productKey: row.product_key,
+      envKey: row.env_key,
+      semver: row.version_label,
+      deploymentId: row.deployment_id,
+      logsUrl: row.logs_url,
+      runId: Number(metadata.github_run_id || 0),
+      dispatchStartedAt: metadata.workflow?.dispatched_at || row.executed_at || "",
+      startedAt: Date.now(),
+    });
+    openEnvironment(row.env_key);
+  };
+
   const pipelineChecks = syncPipelineState?.checks || null;
   const pipelinePrNumber = Number(syncPipelineState?.pr?.number || 0);
   const pipelineChecksGreen = pipelineChecks?.required_green === true;
@@ -3121,213 +3230,109 @@ export default function VersioningOverviewPanel() {
     return <span className="inline-block h-[8px] w-[8px] rounded-full border border-slate-300" />;
   };
 
+  const summaryReleases = envCards.map((row) => {
+    const envKey = row.env_key;
+    const isDevelopment = envKey === "dev";
+    const state = getDeploymentStateForVersion(envKey, row.version_label);
+    return {
+      envKey,
+      version: row.id ? row.version_label : "",
+      commit: row.source_commit_sha,
+      build: row.build_number,
+      status: isDevelopment
+        ? artifactReleaseIdSet.has(row.id)
+          ? "Build registrada"
+          : row.id ? "Release registrada" : "Sin preparar"
+        : deploymentStateLabel(state),
+      statusClass: isDevelopment
+        ? (artifactReleaseIdSet.has(row.id) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700")
+        : deploymentStateBadgeClass(state),
+    };
+  });
+  let nextStep = {
+    detail: "Versiones registradas en OPS y estado del último intento de publicación por entorno.",
+    label: "Ver operaciones",
+    onClick: () => openView("publicar"),
+  };
+  if (!isActiveProductInitialized) {
+    nextStep = { detail: "Inicializa el producto en desarrollo para crear releases." };
+  } else if (pendingDeployCount > 0) {
+    nextStep = {
+      detail: `${pendingDeployCount} ${pendingDeployCount === 1 ? "solicitud pendiente" : "solicitudes pendientes"}. Revisa la versión y el entorno antes de aprobar.`,
+      label: "Revisar solicitudes",
+      onClick: () => openView("solicitudes"),
+    };
+  } else if (devPreviewHasPendingRelease) {
+    nextStep = {
+      detail: "Hay cambios en dev listos para revisar antes de crear una release.",
+      label: "Revisar cambios de dev",
+      onClick: () => openEnvironment("dev"),
+    };
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="inline-flex rounded-xl border border-[#E9E2F7] bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setVersioningTab("pipeline")}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-                versioningTab === "pipeline" ? "bg-[#2F1A55] text-white" : "text-slate-500"
-              }`}
-            >
-              Updates
-            </button>
-            <button
-              type="button"
-              onClick={() => setVersioningTab("artifacts")}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-                versioningTab === "artifacts" ? "bg-[#2F1A55] text-white" : "text-slate-500"
-              }`}
-            >
-              Builds
+    <div className="min-w-0 space-y-4">
+      <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 pt-4 sm:px-5">
+        <div className="flex flex-wrap items-end justify-between gap-3 pb-3">
+          <label className="min-w-[180px] grow text-xs font-semibold text-slate-600 sm:max-w-[300px]">
+            Producto
+            <select value={activeProductKey} disabled={loading || !orderedProducts.length || productChangeLocked} onChange={(event) => selectProduct(event.target.value)} className="mt-1 block h-10 w-full rounded-xl border border-[#E9E2F7] bg-white px-3 text-sm font-semibold text-[#2F1A55] disabled:opacity-60">
+              {!orderedProducts.length ? <option value="">Sin productos</option> : null}
+              {orderedProducts.map((product) => (
+                <option key={product.product_key} value={product.product_key} disabled={!product.initializedInDev && product.product_key !== activeProductKey}>
+                  {normalizeProductLabel(product)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={{ pathname: "/admin/versionado/detalle", search: activeProductKey ? "?producto=" + encodeURIComponent(activeProductKey) : "" }} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 text-sm font-semibold text-[#5E30A5] hover:bg-[#FAF8FF]">
+              <History size={15} aria-hidden="true" /> Historial
+            </Link>
+            <button type="button" onClick={() => load(true)} disabled={loading || refreshing} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#E9E2F7] px-3 text-sm font-semibold text-[#5E30A5] hover:bg-[#FAF8FF] disabled:opacity-60">
+              <RefreshCw size={15} className={loading || refreshing ? "animate-spin" : ""} aria-hidden="true" /> Actualizar
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => load(true)}
-          disabled={loading || refreshing}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E9E2F7] text-[#5E30A5] disabled:opacity-60"
-          title="Refrescar"
-        >
-          <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
-        </button>
+        <nav aria-label="Secciones de Versionado" className="-mb-px flex flex-wrap gap-x-3 gap-y-1 border-t border-[#F1EBF8]">
+          {VERSIONING_VIEWS.map(({ key, label, Icon }) => (
+            <button type="button" key={key} aria-current={versioningView === key ? "page" : undefined} onClick={() => openView(key)} className={"inline-flex min-h-11 items-center gap-1.5 border-b-2 px-1 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5E30A5] " + (versioningView === key ? "border-[#5E30A5] text-[#5E30A5]" : "border-transparent text-slate-600 hover:text-[#5E30A5]")}>
+              {React.createElement(Icon, { size: 15, "aria-hidden": true })} {label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {versioningTab === "pipeline" ? (
-        <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
-        <div className="mb-1 text-xs font-semibold text-[#2F1A55]">Workflow pack</div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-            <span>
-              <span className="font-semibold text-[#2F1A55]">DEV:</span>{" "}
-              <span className="font-semibold text-[#2F1A55]">{workflowPackSourceHash}</span>
-            </span>
-            <span className="text-slate-300">|</span>
-            <span>
-              <span className="font-semibold text-[#2F1A55]">PROD:</span>{" "}
-              <span className="font-semibold text-[#2F1A55]">{workflowPackProductionHash}</span>
-              <span className="text-slate-500"> ({workflowPackProductionHead})</span>
-            </span>
-            <span className="text-slate-300">|</span>
-            <span
-              className={
-                workflowPackUpToDate
-                  ? "font-semibold text-emerald-700"
-                  : "font-semibold text-amber-700"
-              }
-            >
-              {workflowPackSyncing
-                ? "Actualizando..."
-                : workflowPackUpToDate
-                  ? "Actualizado"
-                  : "Desactualizado"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleSyncWorkflowPack}
-              disabled={workflowPackSyncing || loading || refreshing || workflowPackUpToDate}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
-              title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
-            >
-              <RefreshCw size={12} className={workflowPackSyncing ? "animate-spin" : ""} />
-              Update
-            </button>
-            <div className="inline-flex h-7 w-7 items-center justify-center">
-              {workflowPackHasExtra ? (
-                <button
-                  type="button"
-                  onClick={() => setWorkflowPackExpanded((current) => !current)}
-                  className="inline-flex h-5 w-5 items-center justify-center text-slate-500"
-                  title={workflowPackExpanded ? "Contraer" : "Expandir"}
-                >
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform ${workflowPackExpanded ? "rotate-180" : ""}`}
-                  />
-                </button>
-              ) : (
-                <span className="inline-block h-5 w-5" />
-              )}
-            </div>
-          </div>
-        </div>
-        {workflowPackExpanded && workflowPackHasExtra ? (
-          <div className="mt-2 space-y-1 text-[11px]">
-            {workflowPackMessage ? (
-              <div className="text-slate-600">{workflowPackMessage}</div>
-            ) : null}
-            {workflowPackProgress && Array.isArray(workflowPackProgress.steps) ? (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {workflowPackProgress.steps.map((step) => {
-                  const stepClass =
-                    step.status === "success"
-                      ? "text-emerald-700"
-                      : step.status === "error"
-                        ? "text-red-700"
-                        : step.status === "running"
-                          ? "text-[#5E30A5]"
-                          : "text-slate-600";
-                  return (
-                    <div key={step.key} className={`inline-flex items-center gap-1.5 ${stepClass}`}>
-                      {renderWorkflowPackStepIcon(step.status)}
-                      <span>{step.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-          {error}
+      {error ? <div role="alert" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
+      {activeDeployTracking?.requestId ? (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          <span><strong>Publicación en seguimiento</strong> · {activeDeployTracking.semver} · {normalizeEnvLabel(activeDeployTracking.envKey)}</span>
+          {versioningView !== "publicar" ? <button type="button" onClick={() => openEnvironment(activeDeployTracking.envKey)} className="font-semibold underline">Ver avance</button> : null}
         </div>
       ) : null}
 
       {loading ? (
-        <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-500">
-          Cargando versionado...
-        </div>
-      ) : versioningTab === "artifacts" ? (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-lg font-semibold text-[#2F1A55]">
-              <Activity size={15} />
-              Builds
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {orderedProducts.map((product) => {
-                const disabled = !product.initializedInDev;
-                return (
-                  <button
-                    key={`artifacts-${product.id}`}
-                    type="button"
-                    onClick={() => {
-                      if (disabled) return;
-                      setActiveProductKey(product.product_key);
-                    }}
-                    disabled={disabled}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                      activeProductKey === product.product_key
-                        ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                        : disabled
-                          ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                          : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                    }`}
-                  >
-                    {normalizeProductLabel(product)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <VersioningArtifactsPanel
-            activeProductKey={activeProductKey}
-          />
-        </>
+        <p role="status" className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-600">Cargando versionado...</p>
+      ) : !activeProductKey ? (
+        !error && <p className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-600">No hay productos registrados.</p>
       ) : (
         <>
-          <div className="space-y-3">
+          <section hidden={versioningView !== "resumen"} aria-label="Resumen de entornos">
+            <VersioningSummary releases={summaryReleases} nextStep={nextStep} onOpenEnvironment={openEnvironment} />
+          </section>
+          <section hidden={versioningView !== "publicar"} aria-labelledby="versioning-publish" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-lg font-semibold text-[#2F1A55]">
-                <Activity size={15} />
-                Releases actuales
+              <div>
+                <h2 id="versioning-publish" className="text-xl font-bold text-[#2F1A55]">Publicar una versión</h2>
+                <p className="mt-1 text-sm text-slate-600">Prepara un build en desarrollo, promuévelo y revisa los controles del destino antes de publicar.</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {orderedProducts.map((product) => {
-                  const disabled = !product.initializedInDev;
-                  return (
-                    <button
-                      key={`pipeline-${product.id}`}
-                      type="button"
-                      onClick={() => {
-                        if (disabled) return;
-                        setActiveProductKey(product.product_key);
-                      }}
-                      disabled={disabled}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                        activeProductKey === product.product_key
-                          ? "border-[#2F1A55] bg-[#2F1A55] text-white"
-                          : disabled
-                            ? "border-[#EEE8F8] bg-[#FAF8FF] text-slate-400"
-                            : "border-[#E9E2F7] bg-white text-[#2F1A55]"
-                      }`}
-                    >
-                      {normalizeProductLabel(product)}
-                    </button>
-                  );
-                })}
-              </div>
+              {devPreviewHasPendingRelease ? (
+                <button type="button" onClick={requestCreateDevRelease} disabled={productChangeLocked} className="rounded-xl bg-[#5E30A5] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">Preparar release de dev</button>
+              ) : null}
             </div>
+            <details open={environmentActionsOpen} onToggle={(event) => setEnvironmentActionsOpen(event.currentTarget.open)} className="rounded-2xl border border-[#E9E2F7] bg-white p-4">
+              <summary className="cursor-pointer font-semibold text-[#2F1A55]">Acciones y avance por entorno</summary>
+              <div className="mt-3">
             <div className="grid items-start gap-4 md:grid-cols-3">
               {envCards.map((row) => {
                 const envKey = String(row.env_key || "").toLowerCase();
@@ -3522,276 +3527,35 @@ export default function VersioningOverviewPanel() {
                 Esta app aun no esta inicializada. Ejecuta bootstrap por producto para habilitar release/promote/deploy.
               </div>
             ) : null}
-          </div>
-
-          <div
-            className={`grid gap-4 md:grid-cols-2 ${
-              isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
-            }`}
-          >
-            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-[#2F1A55]">Timeline de builds</div>
-                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
-                  {buildTimelineRows.length} eventos
-                </span>
               </div>
-              <div className="text-xs text-slate-500">
-                Registro técnico de release, promote, deploy, sync local y callbacks.
-              </div>
-              {buildTimelinePreviewRows.length ? (
-                <div className="space-y-2">
-                  {buildTimelinePreviewRows.map((row, index) => {
-                    const status = String(row?.status || "info").toLowerCase();
-                    const envLabel = normalizeEnvLabel(row?.env_key);
-                    const versionLabel = String(row?.version_label || "-");
-                    return (
-                      <div
-                        key={String(row?.id || row?.event_key || `timeline-${index}`)}
-                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-[11px] font-semibold text-slate-700">
-                            {envLabel} {versionLabel}
-                          </div>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${buildEventStatusBadgeClass(
-                              status
-                            )}`}
-                          >
-                            {status}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-[11px] text-[#2F1A55]">
-                          {String(row?.event_type || "event")}
-                        </div>
-                        {row?.detail ? (
-                          <div className="mt-1 text-[11px] text-slate-500">{String(row.detail)}</div>
-                        ) : null}
-                        <div className="mt-1 text-[10px] text-slate-400">
-                          {formatDate(row?.occurred_at || row?.created_at)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
-                  Sin eventos para esta app.
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-[#2F1A55]">
-                  Versionado de configuracion por entorno
-                </div>
-                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
-                  {envConfigRows.length} versiones
-                </span>
-              </div>
-              <div className="text-xs text-slate-500">
-                Historial de archivos de configuracion runtime por release (app-config.js + hash).
-              </div>
-              {envConfigPreviewRows.length ? (
-                <div className="space-y-2">
-                  {envConfigPreviewRows.map((row, index) => {
-                    const envLabel = normalizeEnvLabel(row?.env_key);
-                    const versionLabel = String(row?.version_label || "-");
-                    const hashShort = shortHash(row?.config_hash_sha256, 10);
-                    const buildNumber =
-                      Number.isFinite(Number(row?.build_number)) && Number(row?.build_number) > 0
-                        ? String(row?.build_number)
-                        : "-";
-                    return (
-                      <div
-                        key={String(row?.id || `config-${index}`)}
-                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-[11px] font-semibold text-slate-700">
-                            {envLabel} {versionLabel}
-                          </div>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                            build {buildNumber}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-[11px] text-[#2F1A55]">
-                          {String(row?.config_key || "app-config.js")}
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-500">sha256: {hashShort}</div>
-                        <div className="mt-1 text-[10px] text-slate-400">
-                          {formatDate(row?.created_at)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
-                  Sin versiones de configuracion registradas.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div
-            className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
-              isActiveProductInitialized ? "" : "opacity-60"
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
-                <ShieldCheck size={15} />
-                Approval gate
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">
-                  Pending: {pendingDeployCount}
-                </span>
-                <span className="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">
-                  Approved: {approvedDeployCount}
-                </span>
-                <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
-                  Executed: {executedDeployCount}
-                </span>
-              </div>
-            </div>
-            <div className="text-xs text-slate-500">
-              Pendientes arriba. Este bloque incluye historial de deploy para la app seleccionada.
-            </div>
-            {approvalMessage ? (
-              <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
-                {approvalMessage}
-              </div>
-            ) : null}
-
-            <Table
-              className="mt-1"
-              columns={[
-                { key: "version", label: "Release" },
-                { key: "status", label: "Estado", align: "center" },
-                { key: "requester", label: "Solicitante" },
-                { key: "approved", label: "Aprobacion" },
-                { key: "deploy", label: "Deploy" },
-                { key: "actions", label: "Acciones", align: "right" },
-              ]}
-            >
-              {sortedDeployRequests.slice(0, 25).map((row) => (
-                <tr key={row.id} className="hover:bg-[#FAF8FF]">
-                  <td className="px-4 py-3">
-                    <div className="text-xs font-semibold text-slate-700">
-                      {row.product_key} / {row.env_key} / {row.version_label}
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      Creado: {formatDate(row.created_at)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusBadgeClass(
-                        row.status
-                      )}`}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
-                    <div>{row.requested_by || "-"}</div>
-                    {row.notes ? (
-                      <div className="mt-1 max-w-[260px] truncate text-[11px] text-slate-500">
-                        {row.notes}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
-                    <div>{row.approved_by || "-"}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {row.approved_at ? formatDate(row.approved_at) : "-"}
-                    </div>
-                    {row.admin_override ? (
-                      <div className="mt-1 inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-slate-700">
-                        admin override
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">
-                    <div>Status deploy: {row.deployment_status || "-"}</div>
-                    <div>ID: {row.deployment_id || "-"}</div>
-                    <div className="text-[11px] text-slate-500">
-                      Ejecutado: {row.executed_at ? formatDate(row.executed_at) : "-"}
-                    </div>
-                    {row.logs_url ? (
-                      <a
-                        href={row.logs_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] font-semibold text-[#5E30A5] underline"
-                      >
-                        Ver logs
-                      </a>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {row.status === "pending" ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleApproveRequest(row.id, true)}
-                            disabled={!isActiveProductInitialized || deployingActionId === `approve-${row.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 disabled:opacity-60"
-                          >
-                            <CheckCircle2 size={12} />
-                            Aprobar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRejectRequest(row.id)}
-                            disabled={!isActiveProductInitialized || deployingActionId === `reject-${row.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-60"
-                          >
-                            <XCircle size={12} />
-                            Rechazar
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </Table>
-          </div>
-
-          <div
+            </details>
+            <div
             className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
               isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
             }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <ArrowRightLeft size={15} />
+              <div role="group" aria-label="Modo de publicación" className="flex flex-wrap items-center gap-1 rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] p-1">
+                <ArrowRightLeft size={15} className="ml-2 text-[#5E30A5]" aria-hidden="true" />
                 <button
                   type="button"
                   onClick={() => setReleaseOpsMode("promote")}
-                  className={`text-sm font-semibold ${
-                    releaseOpsMode === "promote" ? "text-[#2F1A55]" : "text-slate-300"
+                  aria-pressed={releaseOpsMode === "promote"}
+                  className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${
+                    releaseOpsMode === "promote" ? "bg-[#5E30A5] text-white" : "text-[#2F1A55] hover:bg-[#F2ECFF]"
                   }`}
                 >
-                  Promocionar release
+                  Promover versión
                 </button>
-                <span className="text-slate-300">|</span>
                 <button
                   type="button"
                   onClick={() => setReleaseOpsMode("deploy")}
-                  className={`text-sm font-semibold ${
-                    releaseOpsMode === "deploy" ? "text-[#2F1A55]" : "text-slate-300"
+                  aria-pressed={releaseOpsMode === "deploy"}
+                  className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${
+                    releaseOpsMode === "deploy" ? "bg-[#5E30A5] text-white" : "text-[#2F1A55] hover:bg-[#F2ECFF]"
                   }`}
                 >
-                  Deploy
+                  Desplegar versión
                 </button>
               </div>
             </div>
@@ -4207,7 +3971,7 @@ export default function VersioningOverviewPanel() {
                     {!deployMigrationGate?.gate_passed ? (
                       <button
                         type="button"
-                        onClick={handleApplyMigrationsForCurrentGate}
+                        onClick={() => openConfirmDialog({ title: "Aplicar migraciones", copy: `Se enviará a GitHub la aplicación de migraciones en Supabase de ${normalizeEnvLabel(deployTargetEnv)}. Revisa la versión y el destino antes de continuar.`, confirmLabel: "Solicitar migraciones", action: { type: "apply-migrations" } })}
                         disabled={Boolean(migrationApplyActionId)}
                         className="mt-2 inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800 disabled:opacity-60"
                       >
@@ -4274,16 +4038,7 @@ export default function VersioningOverviewPanel() {
                                 ? formatDate(latestRequest.created_at)
                                 : "-"}
                           </div>
-                          {latestRequest?.logs_url ? (
-                            <a
-                              href={latestRequest.logs_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] font-semibold text-[#5E30A5] underline"
-                            >
-                              Ver logs
-                            </a>
-                          ) : null}
+                          <DeployEvidenceLinks request={latestRequest} />
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-2">
@@ -4365,15 +4120,358 @@ export default function VersioningOverviewPanel() {
               </>
             )}
           </div>
+          </section>
+          <section hidden={versioningView !== "solicitudes"} aria-labelledby="versioning-requests" className="space-y-3">
+            <h2 id="versioning-requests" className="text-xl font-bold text-[#2F1A55]">Solicitudes de publicación</h2>
+            <div
+            className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
+              isActiveProductInitialized ? "" : "opacity-60"
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+                <ShieldCheck size={15} />
+                Aprobaciones e historial
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">
+                  Pendientes: {pendingDeployCount}
+                </span>
+                <span className="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">
+                  Aprobadas: {approvedDeployCount}
+                </span>
+                <span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
+                  Ejecutadas: {executedDeployCount}
+                </span>
+              </div>
+            </div>
+            {approvalMessage ? (
+              <div role="status" className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-sm text-slate-700">
+                {approvalMessage}
+              </div>
+            ) : null}
 
-          <div
+            {sortedDeployRequests.length ? <Table
+              className="mt-1"
+              columns={[
+                { key: "version", label: "Release" },
+                { key: "status", label: "Estado", align: "center" },
+                { key: "requester", label: "Solicitante" },
+                { key: "approved", label: "Aprobacion" },
+                { key: "deploy", label: "Deploy" },
+                { key: "actions", label: "Acciones", align: "right" },
+              ]}
+            >
+              {sortedDeployRequests.slice(0, 25).map((row) => (
+                <tr key={row.id} className="hover:bg-[#FAF8FF]">
+                  <td className="px-4 py-3">
+                    <div className="text-xs font-semibold text-slate-700">
+                      {row.product_key} / {row.env_key} / {row.version_label}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Creado: {formatDate(row.created_at)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusBadgeClass(
+                        row.status
+                      )}`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    <div>{row.requested_by || "-"}</div>
+                    {row.notes ? (
+                      <div className="mt-1 max-w-[260px] truncate text-[11px] text-slate-500">
+                        {row.notes}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    <div>{row.approved_by || "-"}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {row.approved_at ? formatDate(row.approved_at) : "-"}
+                    </div>
+                    {row.admin_override ? (
+                      <div className="mt-1 inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] text-slate-700">
+                        admin override
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    <div>Status deploy: {row.deployment_status || "-"}</div>
+                    <div>ID: {row.deployment_id || "-"}</div>
+                    <div className="text-[11px] text-slate-500">
+                      Ejecutado: {row.executed_at ? formatDate(row.executed_at) : "-"}
+                    </div>
+                    <DeployEvidenceLinks request={row} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {row.status === "pending" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openConfirmDialog({ title: "Aprobar publicación", copy: `Autoriza ${row.version_label} para ${normalizeEnvLabel(row.env_key)}. La aprobación permite ejecutar el pipeline.`, confirmLabel: "Aprobar", action: { type: "approve-request", payload: { requestId: row.id } } })}
+                            disabled={!isActiveProductInitialized || Boolean(deployingActionId || activeDeployTracking)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 disabled:opacity-60"
+                          >
+                            <CheckCircle2 size={12} />
+                            Aprobar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectRequest(row.id)}
+                            disabled={!isActiveProductInitialized || Boolean(deployingActionId || activeDeployTracking)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-60"
+                          >
+                            <XCircle size={12} />
+                            Rechazar
+                          </button>
+                        </>
+                      ) : row.status === "approved" && DEPLOYABLE_PRODUCTS.includes(activeProductKey) ? (
+                        <button type="button" onClick={() => requestDeployVersion({ envKey: row.env_key, semver: row.version_label, source: "requests" })} disabled={Boolean(deployingActionId || activeDeployTracking)} className="rounded-lg bg-[#5E30A5] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+                          Publicar
+                        </button>
+                      ) : deploymentStateFromRequest(row) === "running" ? (
+                        <button type="button" onClick={() => followDeployRequest(row)} disabled={Boolean(activeDeployTracking || deployingActionId)} className="rounded-lg border border-[#E9E2F7] px-3 py-1.5 text-xs font-semibold text-[#5E30A5] disabled:opacity-60">
+                          Seguir intento
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table> : <p className="rounded-xl bg-[#FAF8FF] px-3 py-4 text-sm text-slate-600">Todavía no hay solicitudes para este producto.</p>}
+          </div>
+          </section>
+          {(versioningView === "builds" || buildsVisited) && (
+            <section hidden={versioningView !== "builds"} aria-label="Builds guardadas">
+              <VersioningArtifactsPanel activeProductKey={activeProductKey} isActive={versioningView === "builds"} />
+            </section>
+          )}
+          <section hidden={versioningView !== "actividad"} aria-labelledby="versioning-activity" className="space-y-3">
+            <h2 id="versioning-activity" className="text-xl font-bold text-[#2F1A55]">Actividad de releases</h2>
+            <div
+            className={`grid gap-4 md:grid-cols-2 ${
+              isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
+            }`}
+          >
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-[#2F1A55]">Timeline de builds</div>
+                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
+                  {buildTimelineRows.length} eventos
+                </span>
+              </div>
+              <div className="text-xs text-slate-500">
+                Registro técnico de release, promote, deploy, sync local y callbacks.
+              </div>
+              {buildTimelinePreviewRows.length ? (
+                <div className="space-y-2">
+                  {buildTimelinePreviewRows.map((row, index) => {
+                    const status = String(row?.status || "info").toLowerCase();
+                    const envLabel = normalizeEnvLabel(row?.env_key);
+                    const versionLabel = String(row?.version_label || "-");
+                    return (
+                      <div
+                        key={String(row?.id || row?.event_key || `timeline-${index}`)}
+                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-[11px] font-semibold text-slate-700">
+                            {envLabel} {versionLabel}
+                          </div>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${buildEventStatusBadgeClass(
+                              status
+                            )}`}
+                          >
+                            {status}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2F1A55]">
+                          {String(row?.event_type || "event")}
+                        </div>
+                        {row?.detail ? (
+                          <div className="mt-1 text-[11px] text-slate-500">{String(row.detail)}</div>
+                        ) : null}
+                        <div className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(row?.occurred_at || row?.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
+                  Sin eventos para esta app.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-[#2F1A55]">
+                  Versionado de configuracion por entorno
+                </div>
+                <span className="rounded-full bg-[#F2ECFF] px-2 py-0.5 text-[10px] font-semibold text-[#5E30A5]">
+                  {envConfigRows.length} versiones
+                </span>
+              </div>
+              <div className="text-xs text-slate-500">
+                Historial de archivos de configuracion runtime por release (app-config.js + hash).
+              </div>
+              {envConfigPreviewRows.length ? (
+                <div className="space-y-2">
+                  {envConfigPreviewRows.map((row, index) => {
+                    const envLabel = normalizeEnvLabel(row?.env_key);
+                    const versionLabel = String(row?.version_label || "-");
+                    const hashShort = shortHash(row?.config_hash_sha256, 10);
+                    const buildNumber =
+                      Number.isFinite(Number(row?.build_number)) && Number(row?.build_number) > 0
+                        ? String(row?.build_number)
+                        : "-";
+                    return (
+                      <div
+                        key={String(row?.id || `config-${index}`)}
+                        className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-[11px] font-semibold text-slate-700">
+                            {envLabel} {versionLabel}
+                          </div>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            build {buildNumber}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2F1A55]">
+                          {String(row?.config_key || "app-config.js")}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-500">sha256: {hashShort}</div>
+                        <div className="mt-1 text-[10px] text-slate-400">
+                          {formatDate(row?.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#EEE8F8] bg-[#FCFAFF] px-3 py-2 text-xs text-slate-500">
+                  Sin versiones de configuracion registradas.
+                </div>
+              )}
+            </div>
+          </div>
+          </section>
+          <section hidden={versioningView !== "diagnostico"} aria-labelledby="versioning-diagnostics" className="space-y-3">
+            <h2 id="versioning-diagnostics" className="text-xl font-bold text-[#2F1A55]">Diagnóstico</h2>
+            <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs text-slate-600">
+        <div className="mb-1 text-sm font-semibold text-[#2F1A55]">Workflows de GitHub</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              <span className="font-semibold text-[#2F1A55]">DEV:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackSourceHash}</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span>
+              <span className="font-semibold text-[#2F1A55]">STAGING:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackStagingHash}</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span>
+              <span className="font-semibold text-[#2F1A55]">PROD:</span>{" "}
+              <span className="font-semibold text-[#2F1A55]">{workflowPackProductionHash}</span>
+              <span className="text-slate-500"> ({workflowPackProductionHead})</span>
+            </span>
+            <span className="text-slate-300">|</span>
+            <span
+              className={
+                workflowPackUpToDate
+                  ? "font-semibold text-emerald-700"
+                  : "font-semibold text-amber-700"
+              }
+            >
+              {!workflowPackStatus
+                ? "Sin verificar"
+                : workflowPackSyncing
+                ? "Actualizando..."
+                : workflowPackUpToDate
+                  ? "Actualizado"
+                  : "Desactualizado"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => openConfirmDialog({ title: "Sincronizar workflows", copy: "Se prepararán PR de automatización hacia staging y main desde dev. GitHub seguirá evaluando los checks de esas ramas.", confirmLabel: "Sincronizar", action: { type: "workflow-pack" } })}
+              disabled={workflowPackSyncing || loading || refreshing || !workflowPackStatus || workflowPackUpToDate}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#E9E2F7] bg-[#2F1A55] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              title={workflowPackMessage || "Sincronizar workflow pack a staging/main"}
+            >
+              <RefreshCw size={12} className={workflowPackSyncing ? "animate-spin" : ""} />
+              Sincronizar workflows
+            </button>
+            <div className="inline-flex h-7 w-7 items-center justify-center">
+              {workflowPackHasExtra ? (
+                <button
+                  type="button"
+                  onClick={() => setWorkflowPackExpanded((current) => !current)}
+                  className="inline-flex h-5 w-5 items-center justify-center text-slate-500"
+                  title={workflowPackExpanded ? "Contraer" : "Expandir"}
+                >
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform ${workflowPackExpanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+              ) : (
+                <span className="inline-block h-5 w-5" />
+              )}
+            </div>
+          </div>
+        </div>
+        {workflowPackExpanded && workflowPackHasExtra ? (
+          <div className="mt-2 space-y-1 text-[11px]">
+            {workflowPackMessage ? (
+              <div className="text-slate-600">{workflowPackMessage}</div>
+            ) : null}
+            {workflowPackProgress && Array.isArray(workflowPackProgress.steps) ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {workflowPackProgress.steps.map((step) => {
+                  const stepClass =
+                    step.status === "success"
+                      ? "text-emerald-700"
+                      : step.status === "error"
+                        ? "text-red-700"
+                        : step.status === "running"
+                          ? "text-[#5E30A5]"
+                          : "text-slate-600";
+                  return (
+                    <div key={step.key} className={`inline-flex items-center gap-1.5 ${stepClass}`}>
+                      {renderWorkflowPackStepIcon(step.status)}
+                      <span>{step.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        </div>
+            <div
             className={`rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm space-y-3 ${
               isActiveProductInitialized ? "" : "opacity-60 pointer-events-none"
             }`}
           >
             <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
               <GitCompare size={15} />
-              Drift de versiones
+              Diferencias entre entornos
             </div>
             <div className="grid gap-2 sm:grid-cols-4">
               <div className="rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5]">
@@ -4414,7 +4512,7 @@ export default function VersioningOverviewPanel() {
                 }}
                 className="w-40 rounded-xl border border-[#C7B8E8] px-3 py-2 text-xs font-semibold text-[#5E30A5] sm:justify-self-end sm:ml-2"
               >
-                Comparar drift
+                Comparar entornos
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -4457,6 +4555,7 @@ export default function VersioningOverviewPanel() {
               ))}
             </Table>
           </div>
+          </section>
         </>
       )}
 
@@ -4607,9 +4706,9 @@ export default function VersioningOverviewPanel() {
             onClick={closeConfirmDialog}
             className="absolute inset-0 h-full w-full"
           />
-          <div className="relative z-[1201] w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-xl">
-            <div className="text-sm font-semibold text-[#2F1A55]">{confirmDialog.title || "Confirmacion"}</div>
-            <div className="mt-2 text-xs text-slate-600">
+          <div role="dialog" aria-modal="true" aria-labelledby="versioning-confirm-title" aria-describedby="versioning-confirm-copy" className="relative z-[1201] w-full max-w-md rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-xl">
+            <h2 id="versioning-confirm-title" className="text-sm font-semibold text-[#2F1A55]">{confirmDialog.title || "Confirmación"}</h2>
+            <div id="versioning-confirm-copy" className="mt-2 text-sm text-slate-600">
               {confirmDialog.copy || "Confirma esta accion para continuar."}
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">

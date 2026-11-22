@@ -183,7 +183,6 @@ export async function requestDeploy({
   productKey,
   envKey,
   semver,
-  actor = "admin-ui",
   notes = "",
   metadata = {},
 }) {
@@ -191,7 +190,6 @@ export async function requestDeploy({
     productKey,
     envKey,
     semver,
-    actor,
     notes,
     metadata,
   });
@@ -199,13 +197,11 @@ export async function requestDeploy({
 
 export async function approveDeployRequest({
   requestId,
-  actor = "admin-ui",
   forceAdminOverride = false,
   notes = "",
 }) {
   return invokeVersioningOps("approve_deploy_request", {
     requestId,
-    actor,
     forceAdminOverride,
     notes,
   });
@@ -213,12 +209,10 @@ export async function approveDeployRequest({
 
 export async function rejectDeployRequest({
   requestId,
-  actor = "admin-ui",
   reason = "",
 }) {
   return invokeVersioningOps("reject_deploy_request", {
     requestId,
-    actor,
     reason,
   });
 }

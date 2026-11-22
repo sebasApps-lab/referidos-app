@@ -8,7 +8,9 @@ Auditoría del 21 de noviembre de 2026. El flujo usa el código de `dev` en el c
 
 ### Qué pantalla abrir
 
-Entra desde la raíz de la PWA principal y abre **Versionado → Global → Updates** como administrador. Escoge el producto **Referidos App**. **Builds** muestra artefactos y copias locales. **Detalle** reúne componentes, revisiones e historial de una versión. Las rutas internas son `/admin/versionado/global` y `/admin/versionado/detalle`. El menú **Apps** administra el catálogo de aplicaciones que usa Soporte. Los proyectos de hosting se comprueban en Netlify. Prelaunch y Android se eligen como productos aparte. [Rutas de administración](../apps/referidos-app/src/routes.jsx#L291) · [Versionado Global](../apps/referidos-app/src/admin/versioning/VersioningOverviewPanel.jsx#L3120) · [Compilaciones](../apps/referidos-app/src/admin/versioning/VersioningArtifactsPanel.jsx#L209)
+Entra como administrador a **Versionado → Resumen** y elige **Referidos PWA**. **Publicar** reúne las acciones de release, sincronización y migraciones. **Solicitudes** muestra aprobación, ejecución y enlaces a GitHub y Netlify. **Builds** muestra artefactos y copias locales. **Actividad** reúne eventos y configuración por entorno. **Diagnóstico** permite comparar ramas y versiones. **Historial** abre el registro de cada release, con su versión, entorno y revisiones. Las rutas internas siguen siendo `/admin/versionado/global` y `/admin/versionado/detalle`. Prelaunch y Android se eligen como productos aparte. [Rutas de administración](../apps/referidos-app/src/routes.jsx#L291) · [Versionado](../apps/referidos-app/src/admin/versioning/VersioningOverviewPanel.jsx) · [Compilaciones](../apps/referidos-app/src/admin/versioning/VersioningArtifactsPanel.jsx)
+
+Estos nombres corresponden a la interfaz reorganizada en el repositorio. En la versión anterior, **Versionado → Global → Updates** reunía las operaciones en una sola vista. El menú **Apps** administra el catálogo que usa Soporte. [Catálogo de Apps](../apps/referidos-app/src/admin/apps/services/supportAppsService.js)
 
 ```mermaid
 flowchart LR

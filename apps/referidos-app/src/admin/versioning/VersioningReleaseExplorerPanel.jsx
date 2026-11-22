@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { History, Layers3, RefreshCw } from "lucide-react";
 import Table from "../../components/ui/Table";
 import {
@@ -12,6 +12,11 @@ import {
 
 const DEFAULT_PRODUCT_KEY = "referidos_app";
 const ENV_ORDER = ["dev", "staging", "prod"];
+const ENV_LABEL = {
+  dev: "Desarrollo",
+  staging: "Staging",
+  prod: "Producción",
+};
 const ENV_RANK = {
   dev: 1,
   staging: 2,
@@ -36,20 +41,23 @@ function semverRowSortDesc(a, b) {
 }
 
 function normalizeEnvList(rows) {
-  const envSet = new Set(
-    (rows || [])
-      .map((row) => String(row.env_key || "").toLowerCase())
-      .filter(Boolean)
-  );
-  return ENV_ORDER.filter((env) => envSet.has(env));
+  const envs = [...new Set(rows.map(releaseEnv).filter(Boolean))];
+  return [
+    ...ENV_ORDER.filter((env) => envs.includes(env)),
+    ...envs.filter((env) => !ENV_ORDER.includes(env)),
+  ];
+}
+
+function releaseEnv(row) {
+  return String(row?.env_key || "").trim().toLowerCase();
 }
 
 function pickCanonicalRelease(rows) {
   if (!rows?.length) return null;
   return rows.reduce((winner, current) => {
     if (!winner) return current;
-    const winnerRank = ENV_RANK[String(winner.env_key || "").toLowerCase()] || 0;
-    const currentRank = ENV_RANK[String(current.env_key || "").toLowerCase()] || 0;
+    const winnerRank = ENV_RANK[releaseEnv(winner)] || 0;
+    const currentRank = ENV_RANK[releaseEnv(current)] || 0;
     if (currentRank !== winnerRank) return currentRank > winnerRank ? current : winner;
     const winnerTs = new Date(winner.created_at || 0).getTime();
     const currentTs = new Date(current.created_at || 0).getTime();
@@ -118,231 +126,277 @@ function stateBadge(state) {
   );
 }
 
-export default function VersioningReleaseExplorerPanel() {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState("");
-  const [releaseGroups, setReleaseGroups] = useState([]);
-  const [selectedReleaseVersion, setSelectedReleaseVersion] = useState("");
-  const [components, setComponents] = useState([]);
-  const [selectedComponentId, setSelectedComponentId] = useState("");
-  const [historyRows, setHistoryRows] = useState([]);
-  const selectedProductMeta = useMemo(
-    () => products.find((product) => product.product_key === selectedProduct) || null,
-    [products, selectedProduct]
-  );
+function useExplorerRead(requestKey, read, errorMessage) {
+  const [result, setResult] = useState(null);
 
-  const selectedRelease = useMemo(
-    () => releaseGroups.find((group) => group.versionLabel === selectedReleaseVersion) || null,
-    [releaseGroups, selectedReleaseVersion]
+  useEffect(() => {
+    if (!requestKey) return undefined;
+    let current = true;
+
+    async function load() {
+      try {
+        const data = await read();
+        if (current) setResult({ requestKey, data, error: "" });
+      } catch (error) {
+        if (current) setResult({ requestKey, data: null, error: error?.message || errorMessage });
+      }
+    }
+
+    void load();
+    return () => {
+      current = false;
+    };
+  }, [requestKey, read, errorMessage]);
+
+  const activeResult = requestKey && result?.requestKey === requestKey ? result : null;
+  return {
+    data: activeResult?.data ?? null,
+    error: activeResult?.error || "",
+    loading: Boolean(requestKey && !activeResult),
+  };
+}
+
+function ReadNotice({ error, children }) {
+  return (
+    <p
+      role={error ? "alert" : "status"}
+      className={`rounded-xl border px-3 py-2 text-xs ${
+        error ? "border-red-100 bg-red-50 text-red-600" : "border-[#E9E2F7] bg-[#FAF8FF] text-slate-600"
+      }`}
+    >
+      {error || children}
+    </p>
   );
+}
+
+function formatDate(value) {
+  const date = new Date(value || "");
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("es-EC") : "—";
+}
+
+const FILTER_CLASS =
+  "w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-700 disabled:bg-[#FAF8FF] disabled:text-slate-500";
+const SECTION_CLASS = "space-y-3 rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm sm:p-5";
+
+export default function VersioningReleaseExplorerPanel({ initialProductKey = "" }) {
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [selection, setSelection] = useState(() => ({
+    productKey: initialProductKey,
+    version: "",
+    env: "",
+    componentId: "",
+    productChange: 0,
+    releaseChange: 0,
+    componentChange: 0,
+  }));
+
+  // Descendant requests are scoped to their parent's result and selection generation.
+  const catalogKey = `catalog:${refreshCount}`;
+  const catalog = useExplorerRead(
+    catalogKey,
+    fetchVersioningCatalog,
+    "No se pudo cargar el catálogo de versionado."
+  );
+  const products = catalog.data?.products || [];
+  const selectedProduct =
+    products.find((product) => product.product_key === selection.productKey) ||
+    products.find((product) => product.product_key === DEFAULT_PRODUCT_KEY) ||
+    products[0];
+  const productKey = selectedProduct?.product_key || "";
   const isInitialized =
-    Boolean(selectedProductMeta?.initialized) ||
-    Number(selectedProductMeta?.component_count || 0) > 0;
+    Boolean(selectedProduct?.initialized) || Number(selectedProduct?.component_count || 0) > 0;
 
-  const loadCatalog = async () => {
-    const catalog = await fetchVersioningCatalog();
-    setProducts(catalog.products || []);
-    if (!selectedProduct && catalog.products?.length) {
-      const defaultProduct =
-        catalog.products.find((product) => product.product_key === DEFAULT_PRODUCT_KEY)?.product_key ||
-        catalog.products[0].product_key;
-      setSelectedProduct(defaultProduct);
-    }
-  };
+  const releasesKey = productKey ? `${catalogKey}:${selection.productChange}:${productKey}` : "";
+  const readReleases = useCallback(() => fetchReleasesByProductEnv(productKey, ""), [productKey]);
+  const releases = useExplorerRead(
+    releasesKey,
+    readReleases,
+    "No se pudieron cargar las releases del producto."
+  );
+  const releaseGroups = useMemo(() => groupReleasesByVersion(releases.data), [releases.data]);
+  const selectedGroup =
+    releaseGroups.find((group) => group.versionLabel === selection.version) || releaseGroups[0];
+  const selectedEnv = selectedGroup?.envs.includes(selection.env)
+    ? selection.env
+    : releaseEnv(selectedGroup?.canonical);
+  const selectedRelease = selectedGroup
+    ? pickCanonicalRelease(selectedGroup.rows.filter((row) => releaseEnv(row) === selectedEnv))
+    : null;
+  const releaseId = selectedRelease?.id || "";
 
-  const loadReleases = async (productKey) => {
-    if (!productKey) {
-      setReleaseGroups([]);
-      setSelectedReleaseVersion("");
-      return;
-    }
-    const rows = await fetchReleasesByProductEnv(productKey, "");
-    const grouped = groupReleasesByVersion(rows);
-    setReleaseGroups(grouped);
-    if (!grouped.find((group) => group.versionLabel === selectedReleaseVersion)) {
-      setSelectedReleaseVersion(grouped[0]?.versionLabel || "");
-    }
-  };
+  const componentsKey = releases.data && (releaseId || isInitialized)
+    ? `${releasesKey}:${selection.releaseChange}:${releaseId || "component-catalog"}`
+    : "";
+  const readComponents = useCallback(
+    () => (releaseId ? fetchReleaseComponents(releaseId) : fetchComponentCatalog(productKey)),
+    [releaseId, productKey]
+  );
+  const snapshot = useExplorerRead(componentsKey, readComponents, "No se pudieron cargar los componentes.");
+  const components = snapshot.data || [];
+  const selectedComponent = components.find((row) => row.component_id === selection.componentId) || components[0];
+  const componentId = selectedComponent?.component_id || "";
 
-  const loadComponents = async (releaseGroup) => {
-    const releaseId = releaseGroup?.canonical?.id || "";
-    let rows = [];
-    if (releaseId) {
-      rows = await fetchReleaseComponents(releaseId);
-    } else if (selectedProduct && isInitialized) {
-      rows = await fetchComponentCatalog(selectedProduct);
-    }
-    setComponents(rows);
-    if (!rows.find((row) => row.component_id === selectedComponentId)) {
-      setSelectedComponentId(rows[0]?.component_id || "");
-    }
-  };
+  const historyKey = componentId ? `${componentsKey}:${selection.componentChange}:${componentId}` : "";
+  const readHistory = useCallback(() => fetchComponentHistory(componentId, 30), [componentId]);
+  const history = useExplorerRead(historyKey, readHistory, "No se pudo cargar el historial del componente.");
+  const historyRows = history.data || [];
 
-  const loadHistory = async (componentId) => {
-    if (!componentId) {
-      setHistoryRows([]);
-      return;
-    }
-    const rows = await fetchComponentHistory(componentId, 30);
-    setHistoryRows(rows);
-  };
+  const refreshInProgress = catalog.loading || releases.loading || snapshot.loading || history.loading;
+  const snapshotLoading = catalog.loading || releases.loading || snapshot.loading;
 
-  const load = async (manual = false) => {
-    if (manual) setRefreshing(true);
-    else setLoading(true);
-    setError("");
-    try {
-      await loadCatalog();
-    } catch (err) {
-      setError(err?.message || "No se pudo cargar catalogo de versionado.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  function chooseProduct(productKey) {
+    setSelection((current) => ({
+      ...current,
+      productKey,
+      version: "",
+      env: "",
+      componentId: "",
+      productChange: current.productChange + 1,
+    }));
+  }
 
-  useEffect(() => {
-    load(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function chooseRelease(choice) {
+    setSelection((current) => ({
+      ...current,
+      ...choice,
+      releaseChange: current.releaseChange + 1,
+    }));
+  }
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        await loadReleases(selectedProduct);
-      } catch (err) {
-        setError(err?.message || "No se pudieron cargar releases.");
-      }
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProduct]);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        await loadComponents(selectedRelease);
-      } catch (err) {
-        setError(err?.message || "No se pudieron cargar componentes.");
-      }
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRelease, selectedProduct, isInitialized]);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        await loadHistory(selectedComponentId);
-      } catch (err) {
-        setError(err?.message || "No se pudo cargar historial de componente.");
-      }
-    };
-    run();
-  }, [selectedComponentId]);
+  function chooseComponent(nextId) {
+    if (nextId === componentId) return;
+    setSelection((current) => ({
+      ...current,
+      componentId: nextId,
+      componentChange: current.componentChange + 1,
+    }));
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <select
-            value={selectedProduct}
-            onChange={(event) => setSelectedProduct(event.target.value)}
-            className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
+      <section aria-labelledby="versioning-filters" className={SECTION_CLASS}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="versioning-filters" className="text-base font-semibold text-[#2F1A55]">Seleccionar release</h2>
+          <button
+            type="button"
+            onClick={() => setRefreshCount((count) => count + 1)}
+            disabled={refreshInProgress}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-xs font-semibold text-[#5E30A5] hover:bg-[#FAF8FF] disabled:opacity-60"
           >
-            {products.map((product) => (
-              <option key={product.id} value={product.product_key}>
-                {product.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedReleaseVersion}
-            onChange={(event) => setSelectedReleaseVersion(event.target.value)}
-            disabled={!isInitialized || releaseGroups.length === 0}
-            className="rounded-xl border border-[#E9E2F7] px-3 py-2 text-xs text-slate-700"
-          >
-            {isInitialized && releaseGroups.length > 0 ? (
-              releaseGroups.map((group) => (
-                <option key={group.versionLabel} value={group.versionLabel}>
-                  {group.versionLabel} [{group.envs.map((env) => env.toUpperCase()).join(" / ") || "-"}]
-                </option>
-              ))
-            ) : (
-              <option value="">Sin release (pendiente)</option>
-            )}
-          </select>
+            <RefreshCw size={14} className={refreshInProgress ? "animate-spin" : ""} aria-hidden="true" />
+            {refreshInProgress ? "Cargando…" : "Actualizar"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => load(true)}
-          disabled={loading || refreshing}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E9E2F7] text-[#5E30A5] disabled:opacity-60"
-          title="Refrescar"
-        >
-          <RefreshCw size={14} className={loading || refreshing ? "animate-spin" : ""} />
-        </button>
-      </div>
 
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-          {error}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="space-y-1 text-xs font-semibold text-slate-600">
+            <span>Producto</span>
+            <select value={productKey} onChange={(event) => chooseProduct(event.target.value)} disabled={!products.length} className={FILTER_CLASS}>
+              {!products.length ? <option value="">{catalog.loading ? "Cargando productos…" : "Sin productos"}</option> : null}
+              {products.map((product) => (
+                <option key={product.id} value={product.product_key}>{product.name || product.product_key}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-slate-600">
+            <span>Versión</span>
+            <select
+              value={selectedGroup?.versionLabel || ""}
+              onChange={(event) => chooseRelease({ version: event.target.value, env: "" })}
+              disabled={!releaseGroups.length}
+              className={FILTER_CLASS}
+            >
+              {!releaseGroups.length ? <option value="">{releases.loading ? "Cargando versiones…" : "Sin releases"}</option> : null}
+              {releaseGroups.map((group) => (
+                <option key={group.versionLabel} value={group.versionLabel}>{group.versionLabel}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-slate-600">
+            <span>Entorno del snapshot</span>
+            <select
+              value={selectedEnv}
+              onChange={(event) => chooseRelease({ version: selectedGroup.versionLabel, env: event.target.value })}
+              disabled={!selectedGroup?.envs.length}
+              className={FILTER_CLASS}
+            >
+              {!selectedGroup?.envs.length ? <option value="">Sin entorno</option> : null}
+              {selectedGroup?.envs.map((env) => (
+                <option key={env} value={env}>{ENV_LABEL[env] || env}</option>
+              ))}
+            </select>
+          </label>
         </div>
-      ) : null}
-      {!loading && !isInitialized ? (
-        <div className="rounded-xl border border-[#E9E2F7] bg-[#FAF8FF] px-3 py-2 text-xs text-slate-600">
-          Esta app aun no esta inicializada en versionado. Ejecuta bootstrap por producto para habilitar releases.
-        </div>
-      ) : null}
 
-      {loading ? (
-        <div className="rounded-2xl border border-[#E9E2F7] bg-white px-4 py-6 text-sm text-slate-500">
-          Cargando explorer...
+        {catalog.error || releases.error ? <ReadNotice error={catalog.error || releases.error} /> : null}
+        {selectedProduct && !isInitialized && !releaseGroups.length && !releases.loading && !releases.error ? (
+          <ReadNotice>Esta app aún no está inicializada en versionado. Ejecuta bootstrap por producto para habilitar releases.</ReadNotice>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="release-snapshot" className={SECTION_CLASS}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="release-snapshot" className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+            <Layers3 size={15} aria-hidden="true" />
+            Snapshot de componentes
+          </h2>
+          {selectedRelease ? (
+            <span className="rounded-full bg-[#F2ECFF] px-3 py-1 text-xs font-semibold text-[#5E30A5]">
+              {selectedGroup.versionLabel} · {ENV_LABEL[selectedEnv] || selectedEnv}
+            </span>
+          ) : null}
         </div>
-      ) : (
-        <>
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
-              <Layers3 size={15} />
-              Snapshot de componentes
+        {selectedRelease ? (
+          <dl className="grid gap-3 rounded-xl bg-[#FAF8FF] p-3 text-xs sm:grid-cols-[minmax(0,2fr)_1fr_1fr]">
+            <div>
+              <dt className="font-semibold text-slate-600">Commit de origen</dt>
+              <dd className="mt-1 break-all font-mono text-slate-700">{selectedRelease.source_commit_sha || "—"}</dd>
             </div>
-            <div className="mt-2 text-xs text-slate-500">
-              Release seleccionada:{" "}
-              <strong>
-                {selectedRelease
-                  ? `${selectedRelease.versionLabel} (${selectedRelease.envs.map((env) => env.toUpperCase()).join(" / ")})`
-                  : isInitialized
-                    ? "Sin release (pendiente)"
-                    : "-"}
-              </strong>
+            <div>
+              <dt className="font-semibold text-slate-600">Estado</dt>
+              <dd className="mt-1 text-slate-700">{selectedRelease.status || "—"}</dd>
             </div>
+            <div>
+              <dt className="font-semibold text-slate-600">Fecha de creación</dt>
+              <dd className="mt-1 text-slate-700">{formatDate(selectedRelease.created_at)}</dd>
+            </div>
+          </dl>
+        ) : null}
+
+        {snapshotLoading ? (
+          <ReadNotice>Cargando componentes…</ReadNotice>
+        ) : snapshot.error ? (
+          <ReadNotice error={snapshot.error} />
+        ) : components.length ? (
+          <>
+            <p className="text-xs text-slate-500">
+              {selectedRelease ? "Selecciona un componente para consultar sus revisiones." : "Últimas revisiones del catálogo mientras el producto no tenga releases."}
+            </p>
             <Table
-              className="mt-3"
               columns={[
                 { key: "component", label: "Componente" },
                 { key: "type", label: "Tipo", align: "center" },
                 { key: "state", label: "Estado", align: "center" },
-                { key: "revision", label: "Revision", align: "right" },
+                { key: "revision", label: "Revisión", align: "right" },
                 { key: "bump", label: "Bump", align: "center" },
                 { key: "commit", label: "Commit" },
               ]}
             >
               {components.map((row) => {
-                const state = resolveComponentState(row);
+                const selected = componentId === row.component_id;
                 return (
                   <tr
                     key={`${row.component_id}-${row.revision_id}`}
-                    className={`hover:bg-[#FAF8FF] cursor-pointer ${
-                      selectedComponentId === row.component_id ? "bg-[#F4EEFF]" : ""
-                    }`}
-                    onClick={() => setSelectedComponentId(row.component_id)}
+                    className={`cursor-pointer hover:bg-[#FAF8FF] ${selected ? "bg-[#F4EEFF]" : ""}`}
+                    onClick={() => chooseComponent(row.component_id)}
                   >
-                    <td className="px-4 py-3 text-xs text-slate-700">{row.component_key}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <button type="button" aria-pressed={selected} className="rounded text-left font-semibold text-[#5E30A5] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2">
+                        {row.component_key}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-center text-xs text-slate-600">{row.component_type}</td>
-                    <td className="px-4 py-3 text-center">{stateBadge(state)}</td>
+                    <td className="px-4 py-3 text-center">{stateBadge(resolveComponentState(row))}</td>
                     <td className="px-4 py-3 text-right text-xs font-semibold text-[#2F1A55]">
                       r{row.revision_no}
                     </td>
@@ -352,48 +406,55 @@ export default function VersioningReleaseExplorerPanel() {
                 );
               })}
             </Table>
-          </div>
+          </>
+        ) : (
+          <ReadNotice>{selectedRelease ? "Esta release no tiene componentes registrados." : "No hay un snapshot de componentes para mostrar."}</ReadNotice>
+        )}
+      </section>
 
-          <div className="rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
-              <History size={15} />
-              Historial del componente
-            </div>
-            <div className="mt-2 text-xs text-slate-500">
-              Componente seleccionado: <strong>{selectedComponentId || "-"}</strong>
-            </div>
-            <Table
-              className="mt-3"
-              columns={[
-                { key: "revision", label: "Revision", align: "right" },
-                { key: "state", label: "Estado", align: "center" },
-                { key: "bump", label: "Bump", align: "center" },
-                { key: "branch", label: "Branch" },
-                { key: "commit", label: "Commit" },
-                { key: "date", label: "Fecha" },
-              ]}
-            >
-              {historyRows.map((row) => {
-                const state = resolveComponentState(row);
-                return (
-                  <tr key={row.id} className="hover:bg-[#FAF8FF]">
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-[#2F1A55]">
-                      r{row.revision_no}
-                    </td>
-                    <td className="px-4 py-3 text-center">{stateBadge(state)}</td>
-                    <td className="px-4 py-3 text-center text-xs text-slate-600">{row.bump_level}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600">{row.source_branch}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{row.source_commit_sha}</td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      {new Date(row.created_at).toLocaleString("es-EC")}
-                    </td>
-                  </tr>
-                );
-              })}
-            </Table>
+      <section aria-labelledby="component-revisions" className={SECTION_CLASS}>
+        <h2 id="component-revisions" className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+          <History size={15} aria-hidden="true" />
+          Historial de revisiones
+        </h2>
+        {selectedComponent ? (
+          <div className="space-y-0.5 break-all text-xs text-slate-500">
+            <p className="font-semibold text-slate-700">{selectedComponent.component_key}</p>
+            <p className="font-mono">{componentId}</p>
           </div>
-        </>
-      )}
+        ) : null}
+        {history.loading || snapshotLoading ? (
+          <ReadNotice>Cargando revisiones…</ReadNotice>
+        ) : history.error ? (
+          <ReadNotice error={history.error} />
+        ) : historyRows.length ? (
+          <Table
+            columns={[
+              { key: "revision", label: "Revisión", align: "right" },
+              { key: "state", label: "Estado", align: "center" },
+              { key: "bump", label: "Bump", align: "center" },
+              { key: "branch", label: "Rama" },
+              { key: "commit", label: "Commit" },
+              { key: "date", label: "Fecha" },
+            ]}
+          >
+            {historyRows.map((row) => (
+              <tr key={row.id} className="hover:bg-[#FAF8FF]">
+                <td className="px-4 py-3 text-right text-xs font-semibold text-[#2F1A55]">
+                  r{row.revision_no}
+                </td>
+                <td className="px-4 py-3 text-center">{stateBadge(resolveComponentState(row))}</td>
+                <td className="px-4 py-3 text-center text-xs text-slate-600">{row.bump_level}</td>
+                <td className="px-4 py-3 text-xs text-slate-600">{row.source_branch}</td>
+                <td className="px-4 py-3 font-mono text-xs text-slate-500">{row.source_commit_sha}</td>
+                <td className="px-4 py-3 text-xs text-slate-500">{formatDate(row.created_at)}</td>
+              </tr>
+            ))}
+          </Table>
+        ) : (
+          <ReadNotice>{selectedComponent ? "No hay revisiones registradas para este componente." : "Selecciona un componente del snapshot para ver sus revisiones."}</ReadNotice>
+        )}
+      </section>
     </div>
   );
 }

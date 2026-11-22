@@ -575,7 +575,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         p_product_key: productKey,
         p_env_key: normalizedEnv,
         p_semver: semver,
-        p_actor: asString(payload.actor, actor),
+        p_actor: actor,
         p_notes: notes || null,
         p_metadata: metadata,
       });
@@ -590,7 +590,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
 
       const { data, error } = await opsAdmin.rpc("versioning_approve_deploy_request", {
         p_request_id: requestId,
-        p_actor: asString(payload.actor, actor),
+        p_actor: actor,
         p_force_admin_override: forceAdminOverride,
         p_notes: notes || null,
       });
@@ -619,7 +619,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
       const reason = asString(payload.reason);
       const { data, error } = await opsAdmin.rpc("versioning_reject_deploy_request", {
         p_request_id: requestId,
-        p_actor: asString(payload.actor, actor),
+        p_actor: actor,
         p_reason: reason || null,
       });
       if (error) throw new Error(error.message);
@@ -638,7 +638,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
 
       const { data, error } = await opsAdmin.rpc("versioning_execute_deploy_request", {
         p_request_id: requestId,
-        p_actor: asString(payload.actor, actor),
+        p_actor: actor,
         p_status: status,
         p_deployment_id: deploymentId || null,
         p_logs_url: logsUrl || null,
@@ -660,7 +660,7 @@ async function handleAction(action: string, payload: JsonObject, actor: string) 
         sync_only: asBoolean(payload.syncOnly, false),
         source_branch: asString(payload.sourceBranch) || null,
         target_branch: asString(payload.targetBranch) || null,
-        actor: asString(payload.actor, actor),
+        actor,
       });
 
       if (!result.ok) {
