@@ -57,7 +57,6 @@ const NAV_GROUPS = [
       { label: "Datos", to: "/admin/datos", Icon: BarChart3 },
       { label: "Analytics", to: "/admin/dashboard/analytics", Icon: BarChart3 },
       { label: "Versionado", to: "/admin/versionado/global", Icon: GitBranch },
-      { label: "Historial de releases", to: "/admin/versionado/detalle", Icon: Layers3 },
       { label: "Documentacion", to: "/admin/documentacion", Icon: BookOpen },
       { label: "Legal", to: "/admin/legal", Icon: Scale },
       { label: "Sistema", to: "/admin/sistema", Icon: Settings },
@@ -75,7 +74,9 @@ export default function AdminSidebar({
   const location = useLocation();
 
   const isActive = (path) =>
-    location.pathname === path || location.pathname.startsWith(`${path}/`);
+    path === "/admin/versionado/global"
+      ? location.pathname.startsWith("/admin/versionado/")
+      : location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <>

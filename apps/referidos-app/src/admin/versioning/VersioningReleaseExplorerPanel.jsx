@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { History, Layers3, RefreshCw } from "lucide-react";
 import Table from "../../components/ui/Table";
 import {
@@ -178,7 +178,9 @@ const FILTER_CLASS =
   "w-full rounded-xl border border-[#E9E2F7] bg-white px-3 py-2 text-sm text-slate-700 disabled:bg-[#FAF8FF] disabled:text-slate-500";
 const SECTION_CLASS = "space-y-3 rounded-2xl border border-[#E9E2F7] bg-white p-4 shadow-sm sm:p-5";
 
-export default function VersioningReleaseExplorerPanel({ initialProductKey = "" }) {
+function ReleaseExplorer({ initialProductKey, fixedProductKey }) {
+  const id = useId();
+  const hasFixedProduct = fixedProductKey !== undefined;
   const [refreshCount, setRefreshCount] = useState(0);
   const [selection, setSelection] = useState(() => ({
     productKey: initialProductKey,
@@ -198,11 +200,12 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
     "No se pudo cargar el catálogo de versionado."
   );
   const products = catalog.data?.products || [];
-  const selectedProduct =
-    products.find((product) => product.product_key === selection.productKey) ||
-    products.find((product) => product.product_key === DEFAULT_PRODUCT_KEY) ||
-    products[0];
-  const productKey = selectedProduct?.product_key || "";
+  const requestedProductKey = hasFixedProduct ? fixedProductKey : selection.productKey;
+  const requestedProduct = products.find((product) => product.product_key === requestedProductKey);
+  const selectedProduct = hasFixedProduct
+    ? requestedProduct
+    : requestedProduct || products.find((product) => product.product_key === DEFAULT_PRODUCT_KEY) || products[0];
+  const productKey = hasFixedProduct ? fixedProductKey : selectedProduct?.product_key || "";
   const isInitialized =
     Boolean(selectedProduct?.initialized) || Number(selectedProduct?.component_count || 0) > 0;
 
@@ -274,9 +277,9 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby="versioning-filters" className={SECTION_CLASS}>
+      <section aria-labelledby={`${id}-filters`} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="versioning-filters" className="text-base font-semibold text-[#2F1A55]">Seleccionar release</h2>
+          <h2 id={`${id}-filters`} className="text-base font-semibold text-[#2F1A55]">Seleccionar release</h2>
           <button
             type="button"
             onClick={() => setRefreshCount((count) => count + 1)}
@@ -288,16 +291,18 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
           </button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="space-y-1 text-xs font-semibold text-slate-600">
-            <span>Producto</span>
-            <select value={productKey} onChange={(event) => chooseProduct(event.target.value)} disabled={!products.length} className={FILTER_CLASS}>
-              {!products.length ? <option value="">{catalog.loading ? "Cargando productos…" : "Sin productos"}</option> : null}
-              {products.map((product) => (
-                <option key={product.id} value={product.product_key}>{product.name || product.product_key}</option>
-              ))}
-            </select>
-          </label>
+        <div className={`grid gap-3 ${hasFixedProduct ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+          {!hasFixedProduct ? (
+            <label className="space-y-1 text-xs font-semibold text-slate-600">
+              <span>Producto</span>
+              <select value={productKey} onChange={(event) => chooseProduct(event.target.value)} disabled={!products.length} className={FILTER_CLASS}>
+                {!products.length ? <option value="">{catalog.loading ? "Cargando productos…" : "Sin productos"}</option> : null}
+                {products.map((product) => (
+                  <option key={product.id} value={product.product_key}>{product.name || product.product_key}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label className="space-y-1 text-xs font-semibold text-slate-600">
             <span>Versión</span>
             <select
@@ -334,9 +339,9 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
         ) : null}
       </section>
 
-      <section aria-labelledby="release-snapshot" className={SECTION_CLASS}>
+      <section aria-labelledby={`${id}-snapshot`} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="release-snapshot" className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+          <h2 id={`${id}-snapshot`} className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
             <Layers3 size={15} aria-hidden="true" />
             Snapshot de componentes
           </h2>
@@ -412,8 +417,8 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
         )}
       </section>
 
-      <section aria-labelledby="component-revisions" className={SECTION_CLASS}>
-        <h2 id="component-revisions" className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
+      <section aria-labelledby={`${id}-revisions`} className={SECTION_CLASS}>
+        <h2 id={`${id}-revisions`} className="flex items-center gap-2 text-sm font-semibold text-[#2F1A55]">
           <History size={15} aria-hidden="true" />
           Historial de revisiones
         </h2>
@@ -456,5 +461,15 @@ export default function VersioningReleaseExplorerPanel({ initialProductKey = "" 
         )}
       </section>
     </div>
+  );
+}
+
+export default function VersioningReleaseExplorerPanel({ initialProductKey = "", fixedProductKey }) {
+  return (
+    <ReleaseExplorer
+      key={fixedProductKey === undefined ? "independent" : `fixed:${fixedProductKey}`}
+      fixedProductKey={fixedProductKey}
+      initialProductKey={initialProductKey}
+    />
   );
 }
