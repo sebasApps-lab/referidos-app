@@ -1,10 +1,39 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
+import { deployCallbackPayload, postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
 
 const OPS_URL = "https://ops.example.test";
 const ENDPOINT = `${OPS_URL}/functions/v1/versioning-deploy-callback`;
 const TOKEN = "callback-test-token";
+
+test("keeps release and artifact identity bound across callback phases", () => {
+  const env = {
+    REQUEST_ID: "request", DEPLOY_EXECUTION_ID: "gha-100-request1", RELEASE_ID_RAW: "promoted-release",
+    ARTIFACT_ID_RAW: "original-artifact", ARTIFACT_SHA256_RAW: "checksum", GITHUB_RUN_ID: "123",
+    WORKFLOW_OUTCOME: "failure",
+  };
+  const started = deployCallbackPayload(env, { start: true });
+  const confirmed = deployCallbackPayload(env, { deployInvoked: true, deploymentId: "netlify-deploy" });
+  assert.equal(started.status, "started");
+  assert.equal(started.deployment_id, env.DEPLOY_EXECUTION_ID);
+  assert.equal(confirmed.status, "success");
+  assert.equal(confirmed.publication_status, "published");
+  assert.equal(confirmed.deployment_id, "netlify-deploy");
+  assert.equal(confirmed.deploy_execution_id, started.deploy_execution_id);
+  assert.equal(confirmed.metadata.workflow_outcome, "failure");
+  assert.equal(confirmed.metadata.artifact_id, started.metadata.artifact_id);
+  assert.equal(confirmed.metadata.release_id, started.metadata.release_id);
+});
+
+test("reports an uncertain Netlify attempt separately from an error before invoking it", () => {
+  const env = { DEPLOY_EXECUTION_ID: "gha-100-request1", WORKFLOW_OUTCOME: "failure" };
+  const beforeDeploy = deployCallbackPayload(env);
+  const ambiguous = deployCallbackPayload(env, { deployInvoked: true });
+  assert.equal(beforeDeploy.publication_status, "not_published");
+  assert.equal(ambiguous.publication_status, "not_confirmed");
+  assert.equal(ambiguous.deployment_id, env.DEPLOY_EXECUTION_ID);
+  assert.equal(ambiguous.status, "failed");
+});
 
 test("derives the fixed callback endpoint from the configured OPS origin", () => {
   assert.equal(resolveDeployCallbackUrl(`${OPS_URL}/`), ENDPOINT);

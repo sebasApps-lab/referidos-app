@@ -208,6 +208,11 @@ function asRecord(value) {
 
 function deploymentStateFromRequest(row) {
   if (!row) return "not_deployed";
+  const metadata = asRecord(row.metadata);
+  const publicationStatus = metadata.publication?.status;
+  const reconciliationStatus = metadata.ops_reconciliation?.status;
+  if (publicationStatus === "published" && reconciliationStatus !== "complete") return "published_incomplete";
+  if (publicationStatus === "not_confirmed" || reconciliationStatus === "incomplete") return "unconfirmed";
   const requestStatus = String(row.status || "").toLowerCase();
   const deploymentStatus = String(row.deployment_status || "").toLowerCase();
 
@@ -223,7 +228,7 @@ function deploymentStateFromRequest(row) {
 
 function deploymentStateBadgeClass(state) {
   if (state === "deployed") return "bg-emerald-100 text-emerald-700";
-  if (state === "running") return "bg-amber-100 text-amber-700";
+  if (["running", "published_incomplete", "unconfirmed"].includes(state)) return "bg-amber-100 text-amber-700";
   if (state === "pending") return "bg-amber-100 text-amber-700";
   if (state === "approved") return "bg-indigo-100 text-indigo-700";
   if (state === "failed") return "bg-red-100 text-red-700";
@@ -233,6 +238,7 @@ function deploymentStateBadgeClass(state) {
 
 function deploymentStateLabel(state) {
   if (state === "deployed") return "Publicación registrada";
+  if (state === "published_incomplete") return "Publicado en Netlify · OPS pendiente";
   if (state === "running") return "En ejecución";
   if (state === "pending") return "Pendiente de aprobación";
   if (state === "approved") return "Aprobada para publicar";
@@ -1271,7 +1277,7 @@ export default function VersioningOverviewPanel() {
           requestRow?.logs_url || activeDeployTracking.logsUrl || ""
         ).trim();
         const deploymentId = String(
-          requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
+          requestMetadata.publication?.netlify_deploy_id || requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
         ).trim();
         const workflowRunId =
           Number(activeDeployTracking.runId || 0) || Number(requestMetadata.github_run_id || 0);
@@ -1303,14 +1309,12 @@ export default function VersioningOverviewPanel() {
           activeDeployTracking.semver,
           createDeployProgress({
             status:
-              deployState === "failed" || runState === "error"
+              deployState === "deployed"
+                ? "success"
+                : deployState === "failed" || runState === "error"
                 ? "error"
-                : deployState === "deployed"
-                  ? "success"
-                  : "running",
-            detail: `${workflowLabel}. Request=${String(requestRow?.status || "-")} deployment_status=${String(
-              requestRow?.deployment_status || "-"
-            )}.`,
+                : "running",
+            detail: `${workflowLabel}. ${deploymentStateLabel(deployState)}.`,
             stepStatus: {
               gate: "success",
               sync: "success",
@@ -1353,13 +1357,24 @@ export default function VersioningOverviewPanel() {
           return;
         }
 
+        if (deployState === "published_incomplete" || (deployState === "unconfirmed" && requestMetadata.publication)) {
+          await finalizeDeployTracking({
+            requests,
+            status: "error",
+            detail: deployState === "published_incomplete"
+              ? `Netlify confirmó ${deploymentId}. OPS aún debe conciliar el intento. Consulta la evidencia antes de continuar.`
+              : "El resultado en Netlify sigue sin confirmar. Consulta el intento original antes de continuar.",
+            logsUrl,
+          });
+          return;
+        }
+
         if (runState === "error") {
           await finalizeDeployTracking({
             requests,
             status: "error",
             detail:
-              `Workflow de deploy finalizado con error (${envKey || "-"} ${versionLabel || "-"}). ` +
-              `run=${run?.run_number || "-"} deployment_id=${deploymentId || "-"}.`,
+              `GitHub informó un error y falta la confirmación de publicación para ${versionLabel} en ${normalizeEnvLabel(envKey)}. Consulta el intento original.`,
             logsUrl: String(run?.html_url || logsUrl || "").trim(),
           });
           return;
@@ -2337,7 +2352,7 @@ export default function VersioningOverviewPanel() {
     try {
       const existingRequest = getLatestDeployRequestForVersion(envKey, semver);
       const existingState = deploymentStateFromRequest(existingRequest);
-      if (existingState === "running" || existingState === "unconfirmed") {
+      if (["running", "unconfirmed", "published_incomplete"].includes(existingState)) {
         setApprovalMessage("Este intento requiere confirmación. Revisa GitHub y Netlify antes de volver a publicar.");
         openView("solicitudes");
         return;
@@ -3220,6 +3235,9 @@ export default function VersioningOverviewPanel() {
   } else if (stageState === "unconfirmed") {
     stageNext = "El pipeline se inició, pero falta confirmar el resultado de la publicación.";
     action = stageAction("Revisar solicitud", () => openView("solicitudes"));
+  } else if (stageState === "published_incomplete") {
+    stageNext = "Netlify confirmó la publicación. Revisa la evidencia de la solicitud para completar la conciliación en OPS.";
+    action = stageAction("Revisar solicitud", () => openView("solicitudes"));
   } else if (stageState === "deployed") {
     stageNext = `OPS registró una publicación exitosa de esta versión en ${normalizeEnvLabel(publishEnv)}.`;
     action = publishEnv === "staging" ? stageAction("Continuar a Producción", () => goToStage("prod"))
@@ -3726,8 +3744,14 @@ export default function VersioningOverviewPanel() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      <div>Status deploy: {row.deployment_status || "-"}</div>
-                      <div>ID: {row.deployment_id || "-"}</div>
+                      <div>{deploymentStateLabel(deploymentStateFromRequest(row))}</div>
+                      <div>Intento {row.deployment_id || "sin ID"}</div>
+                      {row.metadata?.publication?.netlify_deploy_id ? (
+                        <div>Netlify {row.metadata.publication.netlify_deploy_id}</div>
+                      ) : null}
+                      {row.metadata?.ops_reconciliation?.reason ? (
+                        <div>Conciliación {row.metadata.ops_reconciliation.reason}</div>
+                      ) : null}
                       <div className="text-[11px] text-slate-500">
                         Ejecutado: {row.executed_at ? formatDate(row.executed_at) : "-"}
                       </div>

@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "https://deno.land/std@0.193.0/http/server.ts": "./edge-fixture.ts",
+    "../../../apps/referidos-ops/supabase/functions/_shared/support.ts": "./edge-fixture.ts"
+  }
+}

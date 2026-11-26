@@ -51,6 +51,9 @@ permissions:
 jobs:
   deploy-artifact:
     runs-on: ubuntu-latest
+    concurrency:
+      group: versioning-artifact-${{ inputs.product_key }}-${{ inputs.env_key }}
+      cancel-in-progress: false
     env:
       PRODUCT_KEY: ${{ inputs.product_key }}
       ENV_KEY: ${{ inputs.env_key }}
@@ -89,6 +92,14 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
       VERSIONING_ARTIFACTS_BUCKET: ${{ secrets.VERSIONING_ARTIFACTS_BUCKET }}
     steps:
+      - name: Comprobar intento único
+        shell: bash
+        run: |
+          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
+            echo "Consulta y concilia el intento original antes de intentar otra publicación."
+            exit 1
+          fi
+
       - name: Checkout de las herramientas del workflow
         uses: actions/checkout@v4
         with:
@@ -307,66 +318,13 @@ jobs:
             tenant_name="${OBS_TENANT_NAME_PROD:-}"
           fi
 
-          if [[ -z "$tenant_id" && -z "$tenant_name" ]]; then
-            echo "Configura OBS_TENANT_ID u OBS_TENANT_NAME para el entorno destino."
+          if [[ -z "$tenant_id" || -z "$tenant_name" ]]; then
+            echo "Configura el ID y nombre can?nicos del tenant de observability de este entorno."
             exit 1
           fi
 
           echo "tenant_id=${tenant_id}" >> "$GITHUB_OUTPUT"
           echo "tenant_name=${tenant_name}" >> "$GITHUB_OUTPUT"
-
-      - name: Registrar run de workflow en backend
-        continue-on-error: true
-        shell: bash
-        env:
-          OPS_URL: ${{ secrets.SUPABASE_URL }}
-          VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
-          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CALLBACK_ACTOR: ${{ inputs.actor }}
-        run: |
-          set -euo pipefail
-
-          export LOGS_URL_FINAL="${GITHUB_RUN_URL}"
-          export ACTOR_FINAL="${CALLBACK_ACTOR:-${WORKFLOW_ACTOR:-github-actions}}"
-
-          node --input-type=module <<'NODE'
-          import { postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
-
-          (async () => {
-            const payload = {
-              request_id: process.env.REQUEST_ID,
-              status: "started",
-              deployment_id: process.env.DEPLOY_EXECUTION_ID || "",
-              logs_url: process.env.LOGS_URL_FINAL || "",
-              actor: process.env.ACTOR_FINAL || "github-actions",
-              metadata: {
-                trigger: "github_workflow_artifact_exact",
-                product_key: process.env.PRODUCT_KEY,
-                env_key: process.env.ENV_KEY,
-                semver: process.env.SEMVER,
-                source_commit_sha: process.env.SOURCE_COMMIT_SHA,
-                source_branch: process.env.SOURCE_BRANCH || null,
-                target_branch: process.env.TARGET_BRANCH || null,
-                github_run_id: process.env.GITHUB_RUN_ID,
-                github_run_number: process.env.GITHUB_RUN_NUMBER,
-                github_run_url: process.env.GITHUB_RUN_URL,
-                github_repository: process.env.GITHUB_REPOSITORY,
-                workflow_id: "versioning-deploy-artifact.yml",
-              },
-            };
-
-            await postDeployCallback({
-              opsUrl: process.env.OPS_URL,
-              requestedUrl: process.env.CALLBACK_URL,
-              token: process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
-              payload,
-            });
-            console.log("Callback started ok");
-          })().catch((error) => {
-            console.error(error?.message || error);
-            process.exit(1);
-          });
-          NODE
 
       - name: Resolver el artefacto exacto de la release
         id: artifact_meta
@@ -398,6 +356,63 @@ jobs:
             const outputValue = String(value ?? "");
             if (/[\r\n]/.test(outputValue)) throw new Error("Metadatos de artefacto no válidos.");
             appendFileSync(process.env.GITHUB_OUTPUT, key + "=" + outputValue + "\n");
+          }
+          NODE
+
+      - name: Verificar destinos autorizados
+        shell: bash
+        env:
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+          RUNTIME_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
+          RUNTIME_SUPABASE_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
+          OBS_SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
+          OBS_PROJECT_REF_STAGING: ${{ vars.VERSIONING_OBS_PROJECT_REF_STAGING }}
+          OBS_PROJECT_REF_PROD: ${{ vars.VERSIONING_OBS_PROJECT_REF_PROD }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { validateSupabaseDestinations, verifyNetlifyDestination } from "./tooling/versioning/deploy-destination.mjs";
+          const productKey = process.env.PRODUCT_KEY;
+          const envKey = process.env.ENV_KEY;
+          validateSupabaseDestinations({
+            productKey, envKey,
+            runtimeUrl: process.env.RUNTIME_SUPABASE_URL,
+            runtimeKey: process.env.RUNTIME_SUPABASE_KEY,
+            obsUrl: process.env.OBS_SUPABASE_URL,
+            obsProjectRef: envKey === "staging" ? process.env.OBS_PROJECT_REF_STAGING : process.env.OBS_PROJECT_REF_PROD,
+          });
+          await verifyNetlifyDestination({
+            productKey, envKey, siteId: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN,
+          });
+          NODE
+
+      - name: Vincular el intento de GitHub en OPS
+        id: start
+        shell: bash
+        env:
+          OPS_URL: ${{ secrets.SUPABASE_URL }}
+          VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
+          RELEASE_ID_RAW: ${{ steps.deploy_request.outputs.release_id }}
+          RELEASE_TENANT_ID: ${{ steps.deploy_request.outputs.tenant_id }}
+          ARTIFACT_ID_RAW: ${{ steps.artifact_meta.outputs.artifact_id }}
+          ARTIFACT_SHA256_RAW: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { deployCallbackPayload, postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
+          const env = process.env;
+          const confirmation = await postDeployCallback({
+            opsUrl: env.OPS_URL, requestedUrl: env.CALLBACK_URL, token: env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
+            payload: deployCallbackPayload(env, { start: true }),
+          });
+          if (confirmation.request_id !== env.REQUEST_ID || confirmation.status !== "started" ||
+              confirmation.duplicate !== false || confirmation.publication !== null ||
+              confirmation.reconciliation?.github_run_attempt !== env.GITHUB_RUN_ATTEMPT ||
+              confirmation.reconciliation?.github_run_id !== env.GITHUB_RUN_ID ||
+              confirmation.reconciliation?.deploy_execution_id !== env.DEPLOY_EXECUTION_ID) {
+            throw new Error("OPS no autorizó este intento exacto de GitHub.");
           }
           NODE
 
@@ -606,26 +621,102 @@ jobs:
           }
           NODE
 
+      - name: Revalidar la release y el artefacto antes de publicar
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          REGISTERED_ARTIFACT_ID: ${{ steps.artifact_meta.outputs.artifact_id }}
+          REGISTERED_ARTIFACT_SHA: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
+          REGISTERED_ARTIFACT_SIZE: ${{ steps.artifact_meta.outputs.artifact_size_bytes }}
+          REGISTERED_ARTIFACT_PROVIDER: ${{ steps.artifact_meta.outputs.artifact_provider }}
+          REGISTERED_ARTIFACT_BUCKET: ${{ steps.artifact_meta.outputs.artifact_bucket }}
+          REGISTERED_ARTIFACT_PATH: ${{ steps.artifact_meta.outputs.artifact_path }}
+          REGISTERED_ARTIFACT_NAME: ${{ steps.artifact_meta.outputs.artifact_name }}
+          REGISTERED_ARTIFACT_RUN: ${{ steps.artifact_meta.outputs.artifact_run_id }}
+          REGISTERED_GITHUB_ARTIFACT_ID: ${{ steps.artifact_meta.outputs.github_artifact_id }}
+          REGISTERED_RELEASE_ID: ${{ steps.deploy_request.outputs.release_id }}
+          REGISTERED_TENANT_ID: ${{ steps.deploy_request.outputs.tenant_id }}
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { getSupabaseAdminClient } from "./tooling/versioning/supabase-client.mjs";
+          import { assertBoundDeployAttempt, resolveReleaseForDeploy, resolveArtifactMetadata, metadataOutputs } from "./tooling/versioning/release-artifact-integrity.mjs";
+
+          const env = process.env;
+          const input = JSON.parse(readFileSync(join(env.RUNNER_TEMP, "versioning-deploy-request.json"), "utf8"));
+          const supabase = getSupabaseAdminClient();
+          const bound = await resolveReleaseForDeploy(supabase, input, { attempts: 1 });
+          const artifact = metadataOutputs(await resolveArtifactMetadata(supabase, bound), {
+            githubRepository: env.GITHUB_REPOSITORY, defaultBucket: env.VERSIONING_ARTIFACTS_BUCKET,
+          });
+          if (bound.release.id !== env.REGISTERED_RELEASE_ID || bound.request.tenant_id !== env.REGISTERED_TENANT_ID ||
+              artifact.artifact_id !== env.REGISTERED_ARTIFACT_ID || artifact.artifact_sha256 !== env.REGISTERED_ARTIFACT_SHA ||
+              artifact.artifact_size_bytes !== env.REGISTERED_ARTIFACT_SIZE || artifact.artifact_provider !== env.REGISTERED_ARTIFACT_PROVIDER ||
+              artifact.artifact_bucket !== env.REGISTERED_ARTIFACT_BUCKET || artifact.artifact_path !== env.REGISTERED_ARTIFACT_PATH ||
+              artifact.artifact_name !== env.REGISTERED_ARTIFACT_NAME || artifact.artifact_run_id !== env.REGISTERED_ARTIFACT_RUN ||
+              artifact.github_artifact_id !== env.REGISTERED_GITHUB_ARTIFACT_ID) {
+            throw new Error("La identidad registrada cambió después de preparar el ZIP.");
+          }
+          await assertBoundDeployAttempt(supabase, bound, artifact.artifact_id, artifact.artifact_sha256, {
+            githubRunId: env.GITHUB_RUN_ID, netlifySiteId: env.NETLIFY_SITE_ID,
+          });
+          NODE
+
       - name: Deploy artifact a Netlify
         id: deploy
         shell: bash
+        env:
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+          NETLIFY_FILTER: ${{ steps.plan.outputs.netlify_filter }}
+          PUBLISH_DIR: ${{ steps.build.outputs.publish_dir }}
         run: |
           set -euo pipefail
-
+          # The uploader used its own dist copy. Never serve the verified ZIP's source maps.
+          test "$PUBLISH_DIR" = "downloaded-artifact"
+          find "$PUBLISH_DIR" -type f -name '*.map' -delete
+          : > "$RUNNER_TEMP/versioning-publication-invoked"
           npx --yes netlify-cli@latest deploy \
-            --filter "${{ steps.plan.outputs.netlify_filter }}" \
-            --site "${{ steps.plan.outputs.site_id }}" \
-            --auth "${NETLIFY_AUTH_TOKEN}" \
-            --dir "${{ steps.build.outputs.publish_dir }}" \
+            --filter "$NETLIFY_FILTER" \
+            --site "$NETLIFY_SITE_ID" \
+            --auth "$NETLIFY_AUTH_TOKEN" \
+            --dir "$PUBLISH_DIR" \
             --prod \
-            --message "versioning:${PRODUCT_KEY}:${ENV_KEY}:${SEMVER}:${SOURCE_COMMIT_SHA}" \
-            --json > deploy-output.json
+            --message "versioning:$PRODUCT_KEY:$ENV_KEY:$SEMVER:$SOURCE_COMMIT_SHA:$DEPLOY_EXECUTION_ID:$GITHUB_RUN_ID" \
+            --json > "$RUNNER_TEMP/versioning-netlify-output.json"
 
-          node -e "const fs=require('fs');const out=JSON.parse(fs.readFileSync('deploy-output.json','utf8'));const id=out.id||out.deploy_id||out.deployId||'';const url=out.deploy_ssl_url||out.deploy_url||out.url||'';if(!id){console.error('deploy-output sin id');console.error(JSON.stringify(out,null,2));process.exit(1);}fs.appendFileSync(process.env.GITHUB_OUTPUT, 'deployment_id='+id+'\\n');if(url){fs.appendFileSync(process.env.GITHUB_OUTPUT, 'logs_url='+url+'\\n');}"
+      - name: Confirmar publicación activa en Netlify
+        id: publication
+        if: ${{ always() && steps.deploy.outcome != 'skipped' && steps.start.outcome == 'success' }}
+        shell: bash
+        env:
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { readNetlifyDeployId, verifyNetlifyDestination } from "./tooling/versioning/deploy-destination.mjs";
+          const env = process.env;
+          let output;
+          try {
+            output = JSON.parse(readFileSync(join(env.RUNNER_TEMP, "versioning-netlify-output.json"), "utf8"));
+          } catch {
+            throw new Error("La publicación no devolvió un ID verificable. Consulta el intento antes de reintentar.");
+          }
+          const { deploymentId } = await verifyNetlifyDestination({
+            productKey: env.PRODUCT_KEY, envKey: env.ENV_KEY, siteId: env.NETLIFY_SITE_ID, token: env.NETLIFY_AUTH_TOKEN,
+            expectedDeployId: readNetlifyDeployId(output),
+          });
+          appendFileSync(env.GITHUB_OUTPUT, "deployment_id=" + deploymentId + "\n");
+          NODE
 
       - name: Crear tag de produccion
         id: tag_prod
-        if: ${{ success() && inputs.env_key == 'prod' }}
+        if: ${{ success() && steps.publication.outcome == 'success' && inputs.env_key == 'prod' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -634,6 +725,10 @@ jobs:
           git fetch --tags origin
 
           if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null; then
+            if [[ "$(git rev-parse "refs/tags/${tag_name}^{commit}")" != "$SOURCE_COMMIT_SHA" ]]; then
+              echo "El tag existente corresponde a otro commit. La publicación ya confirmada conserva su resultado."
+              exit 1
+            fi
             echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
             echo "tag_created=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -646,100 +741,57 @@ jobs:
           echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
           echo "tag_created=true" >> "$GITHUB_OUTPUT"
 
-      - name: Finalizar deploy en backend
-        if: ${{ always() && steps.deploy_request.outcome == 'success' }}
+      - name: Registrar evidencia de publicación en OPS
+        if: ${{ always() && steps.start.outcome == 'success' }}
         shell: bash
         env:
           OPS_URL: ${{ secrets.SUPABASE_URL }}
           VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
+          RELEASE_ID_RAW: ${{ steps.deploy_request.outputs.release_id }}
+          RELEASE_TENANT_ID: ${{ steps.deploy_request.outputs.tenant_id }}
           ARTIFACT_ID_RAW: ${{ steps.artifact_meta.outputs.artifact_id }}
+          ARTIFACT_SHA256_RAW: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
+          NETLIFY_SITE_ID: ${{ steps.plan.outputs.site_id }}
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ARTIFACT_NAME_RAW: ${{ steps.artifact_meta.outputs.artifact_name }}
           ARTIFACT_RUN_ID_RAW: ${{ steps.artifact_meta.outputs.artifact_run_id }}
           ARTIFACT_REPOSITORY_RAW: ${{ steps.artifact_meta.outputs.artifact_repo }}
-          ARTIFACT_SHA256_RAW: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
-          FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
-          DEPLOYMENT_ID_RAW: ${{ steps.deploy.outputs.deployment_id }}
-          DEPLOY_LOGS_URL_RAW: ${{ steps.deploy.outputs.logs_url }}
+          WORKFLOW_OUTCOME: ${{ job.status }}
+          NETLIFY_DEPLOY_ID: ${{ steps.publication.outputs.deployment_id }}
           TAG_NAME_RAW: ${{ steps.tag_prod.outputs.tag_name }}
           TAG_CREATED_RAW: ${{ steps.tag_prod.outputs.tag_created }}
-          RELEASE_ID_RAW: ${{ steps.deploy_request.outputs.release_id }}
           BUILD_NUMBER_RAW: ${{ steps.deploy_request.outputs.release_build_number }}
           CHANNEL_RAW: ${{ steps.deploy_request.outputs.release_channel }}
           RUNTIME_CONFIG_KEY_RAW: ${{ steps.runtime_config.outputs.runtime_config_key }}
           RUNTIME_CONFIG_SHA256_RAW: ${{ steps.runtime_config.outputs.runtime_config_sha256 }}
           RUNTIME_CONFIG_PAYLOAD_RAW: ${{ steps.runtime_config.outputs.runtime_config_payload }}
-          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CALLBACK_ACTOR: ${{ inputs.actor }}
         run: |
           set -euo pipefail
-
-          deployment_id="${DEPLOYMENT_ID_RAW:-$DEPLOY_EXECUTION_ID}"
-          logs_url="${DEPLOY_LOGS_URL_RAW:-$GITHUB_RUN_URL}"
-          actor="${CALLBACK_ACTOR:-${WORKFLOW_ACTOR:-github-actions}}"
-
-          export DEPLOYMENT_ID_FINAL="${deployment_id}"
-          export LOGS_URL_FINAL="${logs_url}"
-          export ACTOR_FINAL="${actor}"
-
           node --input-type=module <<'NODE'
-          import { postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
-
-          (async () => {
-            const buildNumber = Number(process.env.BUILD_NUMBER_RAW || 0);
-            let runtimeConfigPayload = null;
-            try {
-              runtimeConfigPayload = process.env.RUNTIME_CONFIG_PAYLOAD_RAW
-                ? JSON.parse(process.env.RUNTIME_CONFIG_PAYLOAD_RAW)
-                : null;
-            } catch {
-              runtimeConfigPayload = null;
-            }
-            const payload = {
-              request_id: process.env.REQUEST_ID,
-              status: process.env.FINAL_STATUS || "failed",
-              deployment_id: process.env.DEPLOYMENT_ID_FINAL || "",
-              logs_url: process.env.LOGS_URL_FINAL || "",
-              actor: process.env.ACTOR_FINAL || "github-actions",
-              metadata: {
-                trigger: "github_workflow_artifact_exact",
-                product_key: process.env.PRODUCT_KEY,
-                env_key: process.env.ENV_KEY,
-                semver: process.env.SEMVER,
-                source_commit_sha: process.env.SOURCE_COMMIT_SHA,
-                source_branch: process.env.SOURCE_BRANCH || null,
-                target_branch: process.env.TARGET_BRANCH || null,
-                release_id: process.env.RELEASE_ID_RAW || null,
-                build_number: Number.isFinite(buildNumber) && buildNumber > 0 ? buildNumber : null,
-                channel: process.env.CHANNEL_RAW || process.env.ENV_KEY || null,
-                github_run_id: process.env.GITHUB_RUN_ID,
-                github_run_number: process.env.GITHUB_RUN_NUMBER,
-                github_run_url: process.env.GITHUB_RUN_URL,
-                github_repository: process.env.GITHUB_REPOSITORY,
-                tag_name: process.env.TAG_NAME_RAW || null,
-                tag_created: process.env.TAG_CREATED_RAW || null,
-                artifact_id: process.env.ARTIFACT_ID_RAW || null,
-                artifact_name: process.env.ARTIFACT_NAME_RAW || null,
-                artifact_run_id: process.env.ARTIFACT_RUN_ID_RAW || null,
-                artifact_repository: process.env.ARTIFACT_REPOSITORY_RAW || null,
-                artifact_checksum_sha256: process.env.ARTIFACT_SHA256_RAW || null,
-                runtime_config: {
-                  config_key: process.env.RUNTIME_CONFIG_KEY_RAW || "app-config.js",
-                  config_format: "json",
-                  config_hash_sha256: process.env.RUNTIME_CONFIG_SHA256_RAW || null,
-                  payload: runtimeConfigPayload,
-                },
-              },
-            };
-
-            await postDeployCallback({
-              opsUrl: process.env.OPS_URL,
-              requestedUrl: process.env.CALLBACK_URL,
-              token: process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
-              payload,
-            });
-            console.log("Callback ok");
-          })().catch((error) => {
-            console.error(error.message);
-            process.exit(1);
+          import { appendFileSync, existsSync } from "node:fs";
+          import { join } from "node:path";
+          import { deployCallbackPayload, postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
+          const env = process.env;
+          const payload = deployCallbackPayload(env, {
+            deployInvoked: existsSync(join(env.RUNNER_TEMP, "versioning-publication-invoked")),
+            deploymentId: env.NETLIFY_DEPLOY_ID || null,
           });
+          const summary = [
+            "### Evidencia de publicación",
+            "- Solicitud: " + payload.request_id,
+            "- Intento OPS: " + payload.deploy_execution_id,
+            "- Release: " + payload.metadata.release_id,
+            "- Commit: " + payload.metadata.source_commit_sha,
+            "- Artefacto: " + payload.metadata.artifact_id,
+            "- SHA-256: " + payload.metadata.artifact_checksum_sha256,
+            "- Publicación en Netlify: " + payload.publication_status,
+          ];
+          if (env.NETLIFY_DEPLOY_ID) summary.push("- Deploy ID: " + env.NETLIFY_DEPLOY_ID);
+          appendFileSync(env.GITHUB_STEP_SUMMARY, summary.join("\n") + "\n");
+          const result = await postDeployCallback({
+            opsUrl: env.OPS_URL, requestedUrl: env.CALLBACK_URL, token: env.VERSIONING_DEPLOY_CALLBACK_TOKEN, payload,
+          });
+          if (result.reconciliation?.status !== "complete") {
+            throw new Error("OPS no completó la conciliación. Conserva la evidencia anterior y consulta el intento original.");
+          }
           NODE

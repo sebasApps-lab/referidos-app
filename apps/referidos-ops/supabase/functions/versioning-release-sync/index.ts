@@ -1061,6 +1061,8 @@ const WORKFLOW_PACK_PATHS = [
   "apps/referidos-ops/supabase/functions/_shared/deploy-callback-url.mjs",
   "tooling/versioning/apply-changeset.mjs",
   "tooling/versioning/deploy-callback.mjs",
+  "tooling/versioning/deploy-destination.mjs",
+  "tooling/versioning/historical-release-registry.json",
   "tooling/versioning/detect-changes.mjs",
   "tooling/versioning/prepare-release-artifact.py",
   "tooling/versioning/promote-release.mjs",

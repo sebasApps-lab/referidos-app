@@ -1,0 +1,54 @@
+name: CI Versioning (Offline)
+
+on:
+  pull_request:
+  push:
+    branches: [dev, staging, main]
+
+permissions:
+  contents: read
+
+jobs:
+  versioning-offline:
+    name: Versioning offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uploader and Edge test dependencies
+        run: npm ci --ignore-scripts --workspaces=false --omit=dev --no-audit --no-fund
+
+      - name: Run versioning, callback, retention and sourcemap suites
+        run: node --test tooling/versioning/*.test.mjs tooling/observability/upload-sourcemaps.test.mjs
+
+      - name: Run ZIP preparation suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_file in tooling/versioning/test-*.py; do
+            python -B "$test_file"
+          done
+
+      - name: Exercise the OPS callback through its Edge handler
+        env:
+          DENO_NO_UPDATE_CHECK: "1"
+        run: >-
+          node node_modules/deno/bin.cjs test --no-config --no-lock --no-remote --no-npm --no-check
+          --import-map=tooling/versioning/deploy-callback-integration/imports.json
+          --allow-env=VERSIONING_DEPLOY_CALLBACK_TOKEN,OBS_RELEASE_SYNC_TOKEN,OBS_RELEASE_SYNC_URL_STAGING,OBS_RELEASE_SYNC_TENANT_HINT
+          tooling/versioning/deploy-callback-integration/handler_test.ts

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 const REQUEST_FIELDS = [
   "id", "tenant_id", "product_id", "env_id", "release_id", "product_key", "env_key",
   "version_label", "status", "deployment_id", "deployment_status",
@@ -6,7 +8,7 @@ const RELEASE_FIELDS = [
   "id", "tenant_id", "product_key", "env_key", "build_number", "channel",
   "source_commit_sha", "version_label",
 ].join(", ");
-const RELEASE_IDENTITY_FIELDS = "id, tenant_id, product_id, env_id, source_commit_sha";
+const RELEASE_IDENTITY_FIELDS = "id, tenant_id, product_id, env_id, source_commit_sha, created_at";
 const ARTIFACT_FIELDS = [
   "id", "tenant_id", "product_id", "release_id", "product_key", "env_key",
   "version_label", "commit_sha", "artifact_name", "artifact_provider", "artifact_path",
@@ -28,6 +30,10 @@ const DEFAULT_BUCKET = "versioning-artifacts";
 const STORAGE_BUCKET = /^[a-z0-9_-]+$/i;
 const AUTHENTICATED_DEPLOY = Symbol("authenticated deploy");
 const MAX_PROMOTIONS_PER_RELEASE = 500;
+const historicalRegistry = JSON.parse(readFileSync(new URL("./historical-release-registry.json", import.meta.url), "utf8"));
+const historicalCutoff = Date.parse(historicalRegistry.cutoff);
+const verifiedReleases = new Map(historicalRegistry.releases.map((release) => [release.id, release]));
+const verifiedArtifacts = new Map(historicalRegistry.artifacts.map((artifact) => [artifact.id, artifact]));
 
 export class ArtifactIntegrityError extends Error {
   constructor(code, message) {
@@ -43,6 +49,21 @@ function fail(code, message) {
 
 function isMatch(value, pattern) {
   return typeof value === "string" && !/[\r\n]/.test(value) && pattern.test(value);
+}
+
+export function assertReleaseArtifactWritable(release) {
+  if (!PRODUCT_KEYS.has(release.product_key)) return;
+  const createdAt = Date.parse(release.created_at);
+  if (!Number.isFinite(createdAt) || !Number.isFinite(historicalCutoff) ||
+      createdAt < historicalCutoff || verifiedReleases.has(release.id)) {
+    fail("historical_artifact_write_forbidden", "Recupera únicamente el ZIP original mediante una revisión de procedencia.");
+  }
+}
+
+export function assertStorageArtifactWritable(bucket, path) {
+  if (historicalRegistry.artifacts.some((record) => record.bucket === bucket && record.path === path)) {
+    fail("historical_storage_write_forbidden", "El objeto está protegido por el registro histórico.");
+  }
 }
 
 function normalizeInput(input) {
@@ -118,6 +139,18 @@ async function readRelease(supabase, expected, request, { id, envKey, envId, err
       identity.source_commit_sha.toLowerCase() !== expected.sourceCommitSha ||
       (envId !== undefined && identity.env_id !== envId)) {
     fail(errorCode, "La referencia a tenant, producto y entorno no coincide con la release vinculada.");
+  }
+  const createdAt = Date.parse(identity.created_at);
+  if (!Number.isFinite(createdAt) || !Number.isFinite(historicalCutoff)) {
+    fail("historical_release_date_unverified", "No se pudo verificar la fecha registrada de la release.");
+  }
+  const verified = verifiedReleases.get(id);
+  if (createdAt < historicalCutoff || verified) {
+    const artifact = verifiedArtifacts.get(verified?.artifact_id);
+    if (!artifact || verified.product !== expected.productKey || verified.env !== release.env_key ||
+        verified.semver !== expected.semver || artifact.source_commit_sha !== expected.sourceCommitSha) {
+      fail("historical_release_ineligible", "La release histórica no tiene evidencia exacta aprobada.");
+    }
   }
   return release;
 }
@@ -199,13 +232,33 @@ export function releaseOutputs(boundRelease) {
   };
 }
 
+export async function assertBoundDeployAttempt(supabase, boundRelease, artifactId, checksum, {
+  githubRunId, netlifySiteId,
+}) {
+  assertBoundRelease(boundRelease);
+  const { request, expected } = boundRelease;
+  const row = await readSingle(
+    supabase, "version_deploy_requests", "id, deployment_id, status, deployment_status, metadata", "id", request.id,
+  );
+  const attempt = row?.metadata?.callback_attempt;
+  if (!row || row.deployment_id !== expected.deployExecutionId || row.status !== "executed" ||
+      row.deployment_status !== "started" || row.metadata?.publication != null ||
+      !attempt || attempt.github_run_id !== githubRunId || attempt.github_run_attempt !== "1" ||
+      attempt.netlify_site_id !== netlifySiteId || attempt.tenant_id !== request.tenant_id ||
+      attempt.release_id !== request.release_id || attempt.artifact_id !== artifactId ||
+      attempt.artifact_checksum_sha256 !== checksum || attempt.source_commit_sha !== expected.sourceCommitSha ||
+      attempt.env_key !== expected.envKey || attempt.product_key !== expected.productKey || attempt.semver !== expected.semver) {
+    fail("deploy_attempt_mismatch", "El intento, tenant, release, destino y artefacto ya no coinciden con la autorización de OPS.");
+  }
+}
+
 function positiveInteger(value) {
   const result = typeof value === "number" ? value : typeof value === "string" && /^[1-9]\d*$/.test(value) ? Number(value) : NaN;
   return Number.isSafeInteger(result) && result > 0 ? String(result) : "";
 }
 
 function artifactBackfill(message) {
-  fail("artifact_backfill_required", message + " Genera el artefacto de nuevo para la release exacta en Dev.");
+  fail("artifact_backfill_required", message + " Comprueba la procedencia y los bytes originales del ZIP exacto.");
 }
 
 function assertArtifactMatch(artifact, boundRelease, ownerRelease) {
@@ -273,14 +326,28 @@ export async function resolveArtifactMetadata(supabase, boundRelease) {
   assertBoundRelease(boundRelease);
   let currentRelease = boundRelease.release;
   for (let hop = 0; hop < ENV_RANK.size; hop++) {
+    const currentPin = verifiedReleases.get(currentRelease.id);
     const artifact = await readSingle(
       supabase, "version_release_artifacts_labeled", ARTIFACT_FIELDS, "release_id", currentRelease.id,
     );
     if (artifact) {
       assertArtifactMatch(artifact, boundRelease, currentRelease);
+      const pinned = verifiedReleases.get(boundRelease.release.id) ?? currentPin;
+      if (pinned) {
+        const record = verifiedArtifacts.get(pinned.artifact_id);
+        if (currentPin?.predecessor_id || pinned.artifact_id !== artifact.id || record.owner_release_id !== artifact.release_id ||
+            record.provider !== artifact.artifact_provider || record.bucket !== artifact.metadata?.storage_bucket ||
+            record.path !== artifact.artifact_path || record.sha256 !== artifact.checksum_sha256.toLowerCase() ||
+            record.size_bytes !== Number(artifact.size_bytes)) {
+          fail("historical_artifact_mismatch", "El ZIP no coincide con la identidad y los bytes verificados en la auditoría.");
+        }
+      }
       return Object.freeze({ ...artifact });
     }
     const predecessor = await resolvePredecessor(supabase, boundRelease, currentRelease);
+    if (currentPin && currentPin.predecessor_id !== (predecessor?.id ?? null)) {
+      fail("historical_lineage_mismatch", "El origen de promoción difiere de la cadena verificada.");
+    }
     if (!predecessor) {
       artifactBackfill("No hay un artefacto asociado a la release ni a su cadena registrada de promociones.");
     }

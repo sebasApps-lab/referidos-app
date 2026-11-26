@@ -9,11 +9,13 @@ import {
 } from "../_shared/support.ts";
 import { getGithubAuthConfig } from "../_shared/github-auth.ts";
 import { resolveDeployCallbackUrl } from "../_shared/deploy-callback-url.mjs";
+import { readDeployReconciliation } from "../_shared/deploy-attempt.mjs";
 
 type JsonObject = Record<string, unknown>;
 
 type DeployRequestRow = {
   id: string;
+  tenant_id: string;
   release_id: string;
   product_key: string;
   env_key: string;
@@ -642,12 +644,12 @@ serve(async (req) => {
     actor = `admin:${asString(usuario.id) || asString(user.id)}`;
   }
 
-  if (!["dispatch", "status"].includes(operation)) {
+  if (!["dispatch", "status", "reconciliation"].includes(operation)) {
     return jsonResponse(
       {
         ok: false,
         error: "invalid_operation",
-        detail: "operation permitido: dispatch | status",
+        detail: "operation permitido: dispatch | status | reconciliation",
       },
       400,
       cors
@@ -667,13 +669,24 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestErr } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, release_id, product_key, env_key, version_label, status, requested_by, admin_override, deployment_id, deployment_status, logs_url, metadata")
+    .select("id, tenant_id, release_id, product_key, env_key, version_label, status, requested_by, admin_override, deployment_id, deployment_status, logs_url, metadata")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<DeployRequestRow>();
 
   if (requestErr || !requestRow) {
     return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
+  }
+
+  if (operation === "reconciliation") {
+    return jsonResponse({
+      ok: true,
+      operation,
+      request_id: requestId,
+      request_status: requestRow.status,
+      deployment_status: requestRow.deployment_status,
+      ...readDeployReconciliation(requestRow.metadata, requestRow.deployment_id),
+    }, 200, cors);
   }
 
   if (!["staging", "prod"].includes(requestRow.env_key)) {
@@ -731,7 +744,20 @@ serve(async (req) => {
     const runIdFromBody = asNumber(body.run_id, 0);
     const requestMetadata =
       requestRow.metadata && typeof requestRow.metadata === "object" ? requestRow.metadata : {};
-    const runId = runIdFromBody || asNumber(requestMetadata.github_run_id, 0);
+    const reconciliation = readDeployReconciliation(requestMetadata, requestRow.deployment_id);
+    const boundRunId = asNumber(reconciliation.reconciliation?.github_run_id, 0);
+    if (requestRow.deployment_id && requestMetadata.deploy_execution_id === requestRow.deployment_id && !boundRunId) {
+      return jsonResponse({
+        ok: true,
+        operation,
+        request_id: requestId,
+        run: null,
+        jobs: [],
+        detail: "El intento aún no ha confirmado un run de GitHub Actions.",
+        ...reconciliation,
+      }, 200, cors);
+    }
+    const runId = boundRunId || runIdFromBody || asNumber(requestMetadata.github_run_id, 0);
     const dispatchStartedAt =
       asString(body.dispatch_started_at) ||
       getNestedString(requestMetadata as Record<string, unknown>, ["workflow", "dispatched_at"]);
@@ -753,6 +779,7 @@ serve(async (req) => {
           error: resolved.error || "workflow_status_failed",
           detail: resolved.detail || "No se pudo consultar estado del workflow de deploy.",
           status: resolved.status || 500,
+          ...reconciliation,
         },
         502,
         cors
@@ -770,6 +797,7 @@ serve(async (req) => {
         jobs: resolved.jobs,
         summary: resolved.summary,
         detail: resolved.detail,
+        ...reconciliation,
       },
       200,
       cors
@@ -909,7 +937,7 @@ serve(async (req) => {
     );
   }
 
-  let mergeSummary: Record<string, unknown> = {
+  const mergeSummary: Record<string, unknown> = {
     source_branch: sourceBranch,
     target_branch: targetBranch,
     source_env_key: sourceEnvKey || null,
@@ -961,6 +989,31 @@ serve(async (req) => {
       200,
       cors
     );
+  }
+
+  const targetRequests = () => supabaseAdmin.from("version_deploy_requests_labeled")
+    .select("id")
+    .eq("tenant_id", requestRow.tenant_id)
+    .eq("product_key", requestRow.product_key)
+    .eq("env_key", requestRow.env_key)
+    .neq("id", requestId)
+    .limit(1);
+  const [startedRequests, unfinishedRequests] = await Promise.all([
+    targetRequests().eq("deployment_status", "started"),
+    targetRequests().in("status", ["executed", "failed"])
+      .in("metadata->ops_reconciliation->>status", ["pending", "incomplete"]),
+  ]);
+  if (startedRequests.error || unfinishedRequests.error) {
+    return jsonResponse({ ok: false, error: "deploy_inflight_check_failed" }, 503, cors);
+  }
+  const unresolvedRequest = startedRequests.data?.[0] || unfinishedRequests.data?.[0];
+  if (unresolvedRequest) {
+    return jsonResponse({
+      ok: false,
+      error: "deploy_reconciliation_required",
+      detail: "El destino tiene un intento sin cierre verificable. Revisa la conciliación antes de publicar.",
+      active_request_id: unresolvedRequest.id,
+    }, 409, cors);
   }
 
   const callbackBaseUrl = resolveOpsBaseUrl();
@@ -1059,12 +1112,18 @@ serve(async (req) => {
       p_metadata: {
         trigger: "admin_panel_pipeline",
         deploy_mode: "github_artifact_exact",
+        deploy_execution_id: deployExecutionId,
+        callback_attempt: null,
+        publication: null,
+        ops_reconciliation: null,
+        github_run_id: null,
         force_admin_override: forceAdminOverride,
         source_commit_sha: sourceCommitSha,
         merge: mergeSummary,
         workflow: {
           id: workflowId,
           ref: workflowRef,
+          repository: `${githubOwner}/${githubRepo}`,
           callback_url: callbackUrl,
           dispatched_at: new Date().toISOString(),
         },

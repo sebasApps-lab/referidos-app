@@ -51,6 +51,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Cargar política de artefactos del workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_dir="$RUNNER_TEMP/versioning-release-policy"
+          mkdir -p "$policy_dir"
+          if ! git cat-file -e "${GITHUB_WORKFLOW_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$GITHUB_WORKFLOW_SHA"
+          fi
+          for file in release-artifact-integrity.mjs historical-release-registry.json; do
+            git show "$GITHUB_WORKFLOW_SHA:tooling/versioning/$file" > "$policy_dir/$file"
+          done
+
       - name: Install dependencies
         run: npm ci
 
@@ -223,7 +236,7 @@ jobs:
 
               const { data: byId, error: byIdError } = await supabase
                 .from("version_releases_labeled")
-                .select("id, product_key, env_key, version_label, source_commit_sha")
+                .select("id, product_key, env_key, version_label, source_commit_sha, created_at")
                 .eq("id", releaseId)
                 .limit(1)
                 .maybeSingle();
@@ -238,7 +251,7 @@ jobs:
             } else {
               const { data: byHead, error: byHeadError } = await supabase
                 .from("version_releases_labeled")
-                .select("id, product_key, env_key, version_label, source_commit_sha")
+                .select("id, product_key, env_key, version_label, source_commit_sha, created_at")
                 .eq("product_key", product)
                 .eq("env_key", "dev")
                 .eq("source_commit_sha", headCommitSha)
@@ -254,6 +267,12 @@ jobs:
               data = byHead;
             }
 
+            const { assertReleaseArtifactWritable } = await import(
+              require("node:url").pathToFileURL(require("node:path").join(
+                process.env.RUNNER_TEMP, "versioning-release-policy", "release-artifact-integrity.mjs"
+              ))
+            );
+            assertReleaseArtifactWritable(data);
             const resolvedProduct = String(data.product_key || product || "product").trim().toLowerCase();
 
             const safeVersion = String(data.version_label || "0.0.0")
@@ -422,6 +441,12 @@ jobs:
             const sha = sanitize(String(process.env.SOURCE_COMMIT_SHA || "").slice(0, 12), "nosha");
             const artifactFile = sanitize(process.env.ARTIFACT_FILE || "bundle.zip", "bundle.zip");
             const artifactPath = `${productKey}/${versionLabel}/${sha}/${artifactFile}`;
+            const { assertStorageArtifactWritable } = await import(
+              require("node:url").pathToFileURL(path.join(
+                process.env.RUNNER_TEMP, "versioning-release-policy", "release-artifact-integrity.mjs"
+              ))
+            );
+            assertStorageArtifactWritable(bucket, artifactPath);
 
             const supabase = createClient(url, key, {
               auth: { persistSession: false, autoRefreshToken: false },
