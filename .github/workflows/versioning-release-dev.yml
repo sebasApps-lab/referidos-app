@@ -231,7 +231,10 @@ jobs:
                 throw new Error(byIdError?.message || "Release not found for backfill");
               }
               data = byId;
-              commitSha = String(byId.source_commit_sha || "").trim() || headCommitSha;
+              commitSha = String(byId.source_commit_sha || "").trim().toLowerCase();
+              if (!/^[a-f0-9]{40}$/.test(commitSha) || commitSha !== headCommitSha.toLowerCase()) {
+                throw new Error("El backfill requiere hacer checkout del SHA completo registrado para la release.");
+              }
             } else {
               const { data: byHead, error: byHeadError } = await supabase
                 .from("version_releases_labeled")
@@ -511,6 +514,8 @@ jobs:
                   version_label: process.env.VERSION_LABEL,
                   storage_bucket: process.env.STORAGE_BUCKET || "versioning-artifacts",
                   storage_path: process.env.STORAGE_PATH || null,
+                  storage_deleted_at: null,
+                  storage_deleted_by: null,
                   backup_artifact_id: process.env.ARTIFACT_ID || null,
                   backup_artifact_url: process.env.ARTIFACT_URL || null,
                 },

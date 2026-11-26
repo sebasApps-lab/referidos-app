@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { corsHeaders, jsonResponse, supabaseAdmin } from "../_shared/support.ts";
+import { callbackArtifactLookup, verifyCallbackArtifact } from "../_shared/deploy-callback-artifact.mjs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -478,14 +479,16 @@ serve(async (req) => {
 
   const { data: requestRow, error: requestLookupError } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, tenant_id, release_id, product_key, env_key, version_label")
+    .select("id, tenant_id, release_id, product_id, product_key, env_id, env_key, version_label")
     .eq("id", requestId)
     .limit(1)
     .maybeSingle<{
       id: string;
       tenant_id: string;
       release_id: string;
+      product_id: string;
       product_key: string;
+      env_id: string;
       env_key: string;
       version_label: string;
     }>();
@@ -551,6 +554,47 @@ serve(async (req) => {
     );
   }
 
+  let verifiedArtifact: { artifactId: string; sourceCommitSha: string } | null = null;
+  if (status === "success") {
+    const lookup = callbackArtifactLookup(metadata, requestRow.release_id);
+    if (!lookup) {
+      return jsonResponse({ ok: false, error: "invalid_callback_artifact_id" }, 400, cors);
+    }
+
+    const [releaseLookup, artifactLookup] = await Promise.all([
+      supabaseAdmin.from("version_releases")
+        .select("id, tenant_id, product_id, env_id, source_commit_sha")
+        .eq("id", requestRow.release_id)
+        .maybeSingle(),
+      supabaseAdmin.from("version_release_artifacts_labeled")
+        .select("id, tenant_id, product_id, product_key, release_id, version_label, semver, commit_sha, checksum_sha256, artifact_provider, metadata")
+        .eq(lookup.column, lookup.value)
+        .maybeSingle(),
+    ]);
+    if (releaseLookup.error || artifactLookup.error) {
+      return jsonResponse({ ok: false, error: "callback_artifact_lookup_failed" }, 500, cors);
+    }
+
+    const verification = verifyCallbackArtifact({
+      request: requestRow,
+      release: releaseLookup.data,
+      artifact: artifactLookup.data,
+      lookup,
+      metadata,
+    });
+    if (!verification.ok) {
+      return jsonResponse({
+        ok: false,
+        error: "callback_artifact_verification_failed",
+        detail: verification.reason,
+      }, 409, cors);
+    }
+
+    verifiedArtifact = verification;
+    metadata.artifact_id = verification.artifactId;
+    metadata.source_commit_sha = verification.sourceCommitSha;
+  }
+
   let obsReleaseSyncResult: JsonObject | null = null;
   const workflowRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
   const workflowRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
@@ -569,7 +613,7 @@ serve(async (req) => {
     metadata,
   });
 
-  if (status === "success") {
+  if (verifiedArtifact) {
     try {
       obsReleaseSyncResult = await runObsReleaseSync({
         requestId,
@@ -638,7 +682,7 @@ serve(async (req) => {
   let artifactHeadResult: JsonObject | null = null;
   let artifactGcResult: JsonObject | null = null;
   let envConfigResult: JsonObject | null = null;
-  if (status === "success") {
+  if (verifiedArtifact) {
     const prNumber = Number(
       metadata.pr_number ?? metadata.pull_number ?? metadata.pull_request_number ?? 0
     );
@@ -701,13 +745,18 @@ serve(async (req) => {
       },
     });
 
-    const { data: artifactHeadId, error: artifactHeadError } = await supabaseAdmin.rpc(
-      "versioning_mark_env_artifact_head",
-      {
-        p_release_id: asString(requestRow.release_id),
-        p_actor: actor,
-      }
-    );
+    const { artifactId, sourceCommitSha } = verifiedArtifact;
+    const { error: artifactHeadError } = await supabaseAdmin
+      .from("version_artifact_env_heads")
+      .upsert({
+        tenant_id: requestRow.tenant_id,
+        product_id: requestRow.product_id,
+        env_id: requestRow.env_id,
+        release_id: requestRow.release_id,
+        artifact_id: artifactId,
+        updated_by: actor,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "tenant_id,product_id,env_id" });
     if (artifactHeadError) {
       return jsonResponse(
         {
@@ -723,9 +772,26 @@ serve(async (req) => {
       );
     }
 
+    const { error: artifactAuditError } = await supabaseAdmin.from("version_audit_log").insert({
+      tenant_id: requestRow.tenant_id,
+      actor,
+      action: "mark_env_artifact_head",
+      entity_type: "version_artifact_env_heads",
+      entity_id: artifactId,
+      payload: {
+        release_id: requestRow.release_id,
+        env_id: requestRow.env_id,
+        semver: requestRow.version_label,
+        source_commit_sha: sourceCommitSha,
+      },
+    });
+    if (artifactAuditError) {
+      console.error("mark_env_artifact_head_audit_failed", { code: artifactAuditError.code, artifact_id: artifactId });
+    }
+
     artifactHeadResult = {
       ok: true,
-      artifact_id: asString(artifactHeadId),
+      artifact_id: artifactId,
       release_id: asString(requestRow.release_id),
       env_key: asString(requestRow.env_key),
     };
@@ -734,7 +800,7 @@ serve(async (req) => {
       tenantId: asString(requestRow.tenant_id),
       releaseId: asString(requestRow.release_id),
       deployRequestId: requestId,
-      artifactId: asString(artifactHeadId || metadata.artifact_id),
+      artifactId,
       eventKey: `deploy-callback:${requestId}:artifact-head`,
       eventType: "artifact.head_marked",
       status: "success",
@@ -754,9 +820,6 @@ serve(async (req) => {
       const runtimeConfigHash = asString(runtimeConfig.config_hash_sha256);
       const runtimeConfigKey = asString(runtimeConfig.config_key, "app-config.js");
       const runtimeConfigFormat = asString(runtimeConfig.config_format, "json");
-      const releaseArtifactId = asUuid(
-        asString(metadata.artifact_id) || asString(artifactHeadId)
-      );
       const { data: configVersionId, error: configVersionError } = await supabaseAdmin.rpc(
         "versioning_register_env_config_version",
         {
@@ -766,8 +829,8 @@ serve(async (req) => {
           p_config_format: runtimeConfigFormat,
           p_config_payload: runtimeConfigPayload,
           p_config_hash_sha256: runtimeConfigHash || null,
-          p_source_commit_sha: asString(metadata.source_commit_sha) || null,
-          p_artifact_id: releaseArtifactId,
+          p_source_commit_sha: sourceCommitSha,
+          p_artifact_id: artifactId,
           p_metadata: {
             source: "versioning-deploy-artifact",
             request_id: requestId,
@@ -802,7 +865,7 @@ serve(async (req) => {
         tenantId: asString(requestRow.tenant_id),
         releaseId: asString(requestRow.release_id),
         deployRequestId: requestId,
-        artifactId: asString(releaseArtifactId || ""),
+        artifactId,
         eventKey: `deploy-callback:${requestId}:runtime-config-versioned`,
         eventType: "config.versioned",
         status: "success",

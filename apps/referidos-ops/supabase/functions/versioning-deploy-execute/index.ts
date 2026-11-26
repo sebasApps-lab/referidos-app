@@ -8,6 +8,7 @@ import {
   supabaseAdmin,
 } from "../_shared/support.ts";
 import { getGithubAuthConfig } from "../_shared/github-auth.ts";
+import { resolveDeployCallbackUrl } from "../_shared/deploy-callback-url.mjs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -65,15 +66,6 @@ function isInternalProxyAuthorized(req: Request) {
 
 function envVarKey(input: string): string {
   return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
-}
-
-function resolveWorkflowCallbackUrl() {
-  const explicit = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_URL"));
-  if (explicit) return explicit;
-
-  const supabaseUrl = asString(Deno.env.get("SUPABASE_URL") ?? Deno.env.get("URL"));
-  if (!supabaseUrl) return "";
-  return `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/versioning-deploy-callback`;
 }
 
 function resolveOpsBaseUrl() {
@@ -971,19 +963,35 @@ serve(async (req) => {
     );
   }
 
-  const callbackUrl = resolveWorkflowCallbackUrl();
-  if (!callbackUrl) {
+  const callbackBaseUrl = resolveOpsBaseUrl();
+  if (!callbackBaseUrl) {
     return jsonResponse(
       {
         ok: false,
         error: "missing_callback_url",
-        detail:
-          "Define VERSIONING_DEPLOY_CALLBACK_URL o usa SUPABASE_URL/URL para construir el callback.",
+        detail: "Configura SUPABASE_URL/URL con el origen HTTPS del proyecto OPS.",
       },
       500,
       cors
     );
   }
+  let callbackUrl: string;
+  try {
+    const configuredCallbackUrl = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_URL"));
+    callbackUrl = resolveDeployCallbackUrl(callbackBaseUrl, configuredCallbackUrl || undefined);
+  } catch {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "invalid_callback_destination",
+        detail:
+          "El callback debe usar el origen HTTPS de OPS y su ruta fija. Revisa SUPABASE_URL y VERSIONING_DEPLOY_CALLBACK_URL.",
+      },
+      500,
+      cors
+    );
+  }
+
   const callbackToken = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_TOKEN"));
   if (!callbackToken) {
     return jsonResponse(

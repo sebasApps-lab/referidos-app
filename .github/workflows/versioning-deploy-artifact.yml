@@ -32,7 +32,7 @@ on:
         required: false
         type: string
       callback_url:
-        description: "URL de callback para finalizar deploy"
+        description: "URL exacta del callback de OPS configurado"
         required: true
         type: string
       deploy_execution_id:
@@ -63,7 +63,6 @@ jobs:
       DEPLOY_EXECUTION_ID: ${{ inputs.deploy_execution_id }}
       WORKFLOW_ACTOR: ${{ inputs.actor }}
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
       NETLIFY_SITE_ID_REFERIDOS_APP_STAGING: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_STAGING }}
       NETLIFY_SITE_ID_REFERIDOS_APP_PROD: ${{ secrets.NETLIFY_SITE_ID_REFERIDOS_APP_PROD }}
       NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING: ${{ secrets.NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING }}
@@ -90,6 +89,65 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
       VERSIONING_ARTIFACTS_BUCKET: ${{ secrets.VERSIONING_ARTIFACTS_BUCKET }}
     steps:
+      - name: Checkout de las herramientas del workflow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.workflow_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validar destino del callback
+        shell: bash
+        env:
+          OPS_URL: ${{ secrets.SUPABASE_URL }}
+          VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { resolveDeployCallbackUrl } from "./tooling/versioning/deploy-callback.mjs";
+          if (!process.env.CALLBACK_URL || !process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN?.trim()) {
+            throw new Error("Falta el destino o la credencial del callback de OPS.");
+          }
+          resolveDeployCallbackUrl(process.env.OPS_URL, process.env.CALLBACK_URL);
+          NODE
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verificar solicitud y release en OPS
+        id: deploy_request
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { appendFileSync, writeFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { getSupabaseAdminClient } from "./tooling/versioning/supabase-client.mjs";
+          import { resolveReleaseForDeploy, releaseOutputs } from "./tooling/versioning/release-artifact-integrity.mjs";
+
+          const bound = await resolveReleaseForDeploy(getSupabaseAdminClient(), {
+            requestId: process.env.REQUEST_ID,
+            productKey: process.env.PRODUCT_KEY,
+            envKey: process.env.ENV_KEY,
+            semver: process.env.SEMVER,
+            sourceCommitSha: process.env.SOURCE_COMMIT_SHA,
+            deployExecutionId: process.env.DEPLOY_EXECUTION_ID,
+          });
+          writeFileSync(join(process.env.RUNNER_TEMP, "versioning-deploy-request.json"), JSON.stringify(bound.expected), { mode: 0o600 });
+          for (const [key, value] of Object.entries(releaseOutputs(bound))) {
+            const outputValue = String(value ?? "");
+            if (/[\r\n]/.test(outputValue)) throw new Error("Metadatos de release no válidos.");
+            appendFileSync(process.env.GITHUB_OUTPUT, key + "=" + outputValue + "\n");
+          }
+          NODE
+
       - name: Validar input y resolver plan
         id: plan
         shell: bash
@@ -243,47 +301,37 @@ jobs:
 
           if [[ "$env_key" == "staging" ]]; then
             tenant_id="${OBS_TENANT_ID_STAGING:-}"
-            tenant_name="${OBS_TENANT_NAME_STAGING:-ReferidosAPP}"
+            tenant_name="${OBS_TENANT_NAME_STAGING:-}"
           else
             tenant_id="${OBS_TENANT_ID_PROD:-}"
-            tenant_name="${OBS_TENANT_NAME_PROD:-ReferidosAPP}"
+            tenant_name="${OBS_TENANT_NAME_PROD:-}"
+          fi
+
+          if [[ -z "$tenant_id" && -z "$tenant_name" ]]; then
+            echo "Configura OBS_TENANT_ID u OBS_TENANT_NAME para el entorno destino."
+            exit 1
           fi
 
           echo "tenant_id=${tenant_id}" >> "$GITHUB_OUTPUT"
           echo "tenant_name=${tenant_name}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout commit exacto
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.source_commit_sha }}
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Registrar run de workflow en backend
         continue-on-error: true
         shell: bash
         env:
+          OPS_URL: ${{ secrets.SUPABASE_URL }}
+          VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
           GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CALLBACK_ACTOR: ${{ inputs.actor }}
         run: |
           set -euo pipefail
 
-          if [[ -z "${CALLBACK_URL}" || -z "${VERSIONING_DEPLOY_CALLBACK_TOKEN}" ]]; then
-            echo "Callback start skipped: missing CALLBACK_URL or VERSIONING_DEPLOY_CALLBACK_TOKEN"
-            exit 0
-          fi
-
           export LOGS_URL_FINAL="${GITHUB_RUN_URL}"
           export ACTOR_FINAL="${CALLBACK_ACTOR:-${WORKFLOW_ACTOR:-github-actions}}"
 
-          node <<'NODE'
+          node --input-type=module <<'NODE'
+          import { postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
+
           (async () => {
             const payload = {
               request_id: process.env.REQUEST_ID,
@@ -307,28 +355,20 @@ jobs:
               },
             };
 
-            const res = await fetch(process.env.CALLBACK_URL, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-versioning-callback-token": process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
-              },
-              body: JSON.stringify(payload),
+            await postDeployCallback({
+              opsUrl: process.env.OPS_URL,
+              requestedUrl: process.env.CALLBACK_URL,
+              token: process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
+              payload,
             });
-
-            const text = await res.text();
-            if (!res.ok) {
-              throw new Error(`callback_started_failed(${res.status}): ${text}`);
-            }
-
-            console.log("Callback started ok", text || "{}");
+            console.log("Callback started ok");
           })().catch((error) => {
             console.error(error?.message || error);
             process.exit(1);
           });
           NODE
 
-      - name: Resolve release artifact metadata
+      - name: Resolver el artefacto exacto de la release
         id: artifact_meta
         shell: bash
         env:
@@ -336,108 +376,59 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
+          if ! git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$SOURCE_COMMIT_SHA"
+          fi
+          git cat-file -e "${SOURCE_COMMIT_SHA}^{commit}"
 
-          node <<'NODE'
-          const fs = require("fs");
-          const { createClient } = require("@supabase/supabase-js");
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { getSupabaseAdminClient } from "./tooling/versioning/supabase-client.mjs";
+          import { resolveReleaseForDeploy, resolveArtifactMetadata, metadataOutputs } from "./tooling/versioning/release-artifact-integrity.mjs";
 
-          (async () => {
-            const url = process.env.SUPABASE_URL;
-            const key = process.env.SUPABASE_SECRET_KEY;
-            const requestId = process.env.REQUEST_ID;
-            if (!url || !key || !requestId) {
-              throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY/REQUEST_ID");
-            }
-
-            const supabase = createClient(url, key, {
-              auth: { persistSession: false, autoRefreshToken: false },
-            });
-
-            const { data: requestRow, error: requestError } = await supabase
-              .from("version_deploy_requests_labeled")
-              .select("id, release_id, product_key, env_key, version_label")
-              .eq("id", requestId)
-              .limit(1)
-              .maybeSingle();
-            if (requestError || !requestRow?.release_id) {
-              throw new Error(requestError?.message || "deploy_request_not_found");
-            }
-
-            const { data: releaseRow, error: releaseError } = await supabase
-              .from("version_releases_labeled")
-              .select("id, build_number, channel, source_commit_sha, version_label")
-              .eq("id", requestRow.release_id)
-              .limit(1)
-              .maybeSingle();
-            if (releaseError || !releaseRow?.id) {
-              throw new Error(releaseError?.message || "release_row_not_found");
-            }
-
-            const { data: artifactRow, error: artifactError } = await supabase
-              .from("version_release_artifacts_labeled")
-              .select("id, artifact_name, artifact_provider, artifact_path, metadata, github_run_id, github_repository, product_key, env_key, version_label, commit_sha")
-              .eq("release_id", requestRow.release_id)
-              .limit(1)
-              .maybeSingle();
-            let resolvedArtifact = artifactRow;
-            if (!resolvedArtifact?.id) {
-              const { data: fallbackArtifact, error: fallbackError } = await supabase
-                .from("version_release_artifacts_labeled")
-                .select("id, artifact_name, artifact_provider, artifact_path, metadata, github_run_id, github_repository, product_key, env_key, version_label, commit_sha")
-                .eq("product_key", String(requestRow.product_key || ""))
-                .eq("version_label", String(requestRow.version_label || ""))
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              if (fallbackError || !fallbackArtifact?.id) {
-                throw new Error(fallbackError?.message || artifactError?.message || "release_artifact_not_found");
-              }
-              resolvedArtifact = fallbackArtifact;
-            }
-            if (!resolvedArtifact?.artifact_name || !resolvedArtifact?.artifact_provider) {
-              throw new Error("release_artifact_invalid");
-            }
-
-            const repo = String(resolvedArtifact.github_repository || "").trim() || process.env.GITHUB_REPOSITORY;
-            const metadata =
-              resolvedArtifact.metadata && typeof resolvedArtifact.metadata === "object"
-                ? resolvedArtifact.metadata
-                : {};
-            const storageBucket =
-              String(metadata.storage_bucket || "").trim() ||
-              String(process.env.VERSIONING_ARTIFACTS_BUCKET || "").trim() ||
-              "versioning-artifacts";
-            const out = process.env.GITHUB_OUTPUT;
-            if (!out) throw new Error("Missing GITHUB_OUTPUT");
-            fs.appendFileSync(out, `artifact_id=${resolvedArtifact.id}\n`);
-            fs.appendFileSync(out, `artifact_name=${resolvedArtifact.artifact_name}\n`);
-            fs.appendFileSync(out, `artifact_provider=${resolvedArtifact.artifact_provider}\n`);
-            fs.appendFileSync(out, `artifact_path=${resolvedArtifact.artifact_path || ""}\n`);
-            fs.appendFileSync(out, `artifact_bucket=${storageBucket}\n`);
-            fs.appendFileSync(out, `artifact_run_id=${resolvedArtifact.github_run_id || ""}\n`);
-            fs.appendFileSync(out, `artifact_repo=${repo}\n`);
-            fs.appendFileSync(out, `artifact_commit_sha=${resolvedArtifact.commit_sha || ""}\n`);
-            fs.appendFileSync(out, `release_id=${requestRow.release_id || ""}\n`);
-            fs.appendFileSync(out, `release_build_number=${releaseRow.build_number || ""}\n`);
-            fs.appendFileSync(out, `release_channel=${releaseRow.channel || requestRow.env_key || ""}\n`);
-            fs.appendFileSync(out, `release_version_label=${releaseRow.version_label || requestRow.version_label || ""}\n`);
-          })().catch((error) => {
-            console.error(error.message || error);
-            process.exit(1);
-          });
+          const input = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, "versioning-deploy-request.json"), "utf8"));
+          const supabase = getSupabaseAdminClient();
+          const bound = await resolveReleaseForDeploy(supabase, input, { attempts: 1 });
+          const artifact = await resolveArtifactMetadata(supabase, bound);
+          for (const [key, value] of Object.entries(metadataOutputs(artifact, {
+            githubRepository: process.env.GITHUB_REPOSITORY,
+            defaultBucket: process.env.VERSIONING_ARTIFACTS_BUCKET,
+          }))) {
+            const outputValue = String(value ?? "");
+            if (/[\r\n]/.test(outputValue)) throw new Error("Metadatos de artefacto no válidos.");
+            appendFileSync(process.env.GITHUB_OUTPUT, key + "=" + outputValue + "\n");
+          }
           NODE
 
-      - name: Download release artifact from GitHub Actions
+      - name: Descargar el artefacto exacto de GitHub Actions
         if: ${{ steps.artifact_meta.outputs.artifact_provider == 'github_actions' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ steps.artifact_meta.outputs.artifact_name }}
-          run-id: ${{ steps.artifact_meta.outputs.artifact_run_id }}
-          repository: ${{ steps.artifact_meta.outputs.artifact_repo }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: downloaded-artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_REPO: ${{ steps.artifact_meta.outputs.artifact_repo }}
+          ARTIFACT_RUN_ID: ${{ steps.artifact_meta.outputs.artifact_run_id }}
+          GITHUB_ARTIFACT_ID: ${{ steps.artifact_meta.outputs.github_artifact_id }}
+          GITHUB_ARTIFACT_NAME: ${{ steps.artifact_meta.outputs.github_artifact_name }}
+        run: |
+          set -euo pipefail
+          artifact_endpoint="repos/${ARTIFACT_REPO}/actions/artifacts/${GITHUB_ARTIFACT_ID}"
+          gh api "$artifact_endpoint" > "$RUNNER_TEMP/versioning-github-artifact.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { validateGitHubArtifact } from "./tooling/versioning/release-artifact-integrity.mjs";
 
-      - name: Download release artifact from Supabase Storage
+          const record = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, "versioning-github-artifact.json"), "utf8"));
+          validateGitHubArtifact(record, {
+            artifactId: process.env.GITHUB_ARTIFACT_ID,
+            artifactName: process.env.GITHUB_ARTIFACT_NAME,
+            runId: process.env.ARTIFACT_RUN_ID,
+          });
+          NODE
+          gh api "$artifact_endpoint/zip" > "$RUNNER_TEMP/versioning-release.zip"
+
+      - name: Descargar el artefacto exacto de Supabase Storage
         if: ${{ steps.artifact_meta.outputs.artifact_provider == 'supabase_storage' }}
         shell: bash
         env:
@@ -445,51 +436,43 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           ARTIFACT_BUCKET: ${{ steps.artifact_meta.outputs.artifact_bucket }}
           ARTIFACT_PATH: ${{ steps.artifact_meta.outputs.artifact_path }}
+          ARTIFACT_SIZE: ${{ steps.artifact_meta.outputs.artifact_size_bytes }}
         run: |
           set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { getSupabaseAdminClient } from "./tooling/versioning/supabase-client.mjs";
 
-          node <<'NODE'
-          const fs = require("fs");
-          const path = require("path");
-          const { createClient } = require("@supabase/supabase-js");
-
-          (async () => {
-            const url = process.env.SUPABASE_URL;
-            const key = process.env.SUPABASE_SECRET_KEY;
-            const bucket = String(process.env.ARTIFACT_BUCKET || "").trim() || "versioning-artifacts";
-            const artifactPath = String(process.env.ARTIFACT_PATH || "").trim();
-            if (!url || !key) throw new Error("Missing SUPABASE_URL/SUPABASE_SECRET_KEY");
-            if (!artifactPath) throw new Error("Missing ARTIFACT_PATH for supabase_storage provider");
-
-            const supabase = createClient(url, key, {
-              auth: { persistSession: false, autoRefreshToken: false },
-            });
-
-            const { data, error } = await supabase.storage.from(bucket).download(artifactPath);
-            if (error || !data) throw new Error(error?.message || "artifact_storage_download_failed");
-
-            const archivePath = path.resolve("downloaded-artifact.zip");
-            const outDir = path.resolve("downloaded-artifact");
-            const arrayBuffer = await data.arrayBuffer();
-            fs.writeFileSync(archivePath, Buffer.from(arrayBuffer));
-            fs.rmSync(outDir, { recursive: true, force: true });
-            fs.mkdirSync(outDir, { recursive: true });
-            console.log(`ARTIFACT_DOWNLOADED archive=${archivePath}`);
-          })().catch((error) => {
-            console.error(error.message || error);
-            process.exit(1);
-          });
+          const { data, error } = await getSupabaseAdminClient().storage
+            .from(process.env.ARTIFACT_BUCKET).download(process.env.ARTIFACT_PATH);
+          if (error || !data) throw new Error("No se pudo descargar el ZIP registrado desde OPS.");
+          if (data.size !== Number(process.env.ARTIFACT_SIZE)) {
+            throw new Error("El tamaño del ZIP descargado no coincide con el registro de OPS.");
+          }
+          writeFileSync(join(process.env.RUNNER_TEMP, "versioning-release.zip"), Buffer.from(await data.arrayBuffer()));
           NODE
 
-          unzip -q "downloaded-artifact.zip" -d "downloaded-artifact"
-
-      - name: Validate artifact provider
-        if: ${{ steps.artifact_meta.outputs.artifact_provider != 'github_actions' && steps.artifact_meta.outputs.artifact_provider != 'supabase_storage' }}
+      - name: Verificar integridad y extraer ZIP
         shell: bash
+        env:
+          ARTIFACT_PROVIDER: ${{ steps.artifact_meta.outputs.artifact_provider }}
+          ARTIFACT_SHA256: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
+          ARTIFACT_SIZE: ${{ steps.artifact_meta.outputs.artifact_size_bytes }}
         run: |
           set -euo pipefail
-          echo "Provider no soportado: ${{ steps.artifact_meta.outputs.artifact_provider }}"
-          exit 1
+          provider_args=()
+          case "$ARTIFACT_PROVIDER" in
+            github_actions) provider_args+=(--github-wrapper) ;;
+            supabase_storage) ;;
+            *) echo "Proveedor del artefacto no admitido."; exit 1 ;;
+          esac
+          python3 tooling/versioning/prepare-release-artifact.py \
+            --archive "$RUNNER_TEMP/versioning-release.zip" \
+            --output downloaded-artifact \
+            --checksum "$ARTIFACT_SHA256" \
+            --size "$ARTIFACT_SIZE" \
+            "${provider_args[@]}"
 
       - name: Prepare publish dir from artifact
         id: build
@@ -520,6 +503,28 @@ jobs:
 
           echo "publish_dir=${source_dir}" >> "$GITHUB_OUTPUT"
 
+      - name: Upload sourcemaps + registrar release metadata
+        id: sourcemaps
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
+          SUPABASE_SECRET_KEY: ${{ steps.obs.outputs.obs_secret }}
+          OBS_TENANT_ID: ${{ steps.obs_tenant.outputs.tenant_id }}
+          OBS_TENANT_NAME: ${{ steps.obs_tenant.outputs.tenant_name }}
+          APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          APP_VERSION: ${{ inputs.semver }}
+          BUILD_ID: ${{ inputs.source_commit_sha }}
+          APP_ENV: ${{ inputs.env_key }}
+          VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
+          VITE_APP_VERSION: ${{ inputs.semver }}
+          VITE_BUILD_ID: ${{ inputs.source_commit_sha }}
+          VITE_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
+          VITE_ENV: ${{ inputs.env_key }}
+        run: |
+          set -euo pipefail
+          node tooling/observability/upload-sourcemaps.mjs --app "${{ steps.plan.outputs.upload_app }}"
+
       - name: Generar runtime app-config.js
         id: runtime_config
         shell: bash
@@ -529,13 +534,13 @@ jobs:
           RUNTIME_ENV_KEY: ${{ inputs.env_key }}
           RUNTIME_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
           RUNTIME_APP_VERSION: ${{ inputs.semver }}
-          RUNTIME_BUILD_NUMBER: ${{ steps.artifact_meta.outputs.release_build_number }}
+          RUNTIME_BUILD_NUMBER: ${{ steps.deploy_request.outputs.release_build_number }}
           RUNTIME_BUILD_ID: ${{ inputs.source_commit_sha }}
-          RUNTIME_RELEASE_ID: ${{ steps.artifact_meta.outputs.release_id }}
+          RUNTIME_RELEASE_ID: ${{ steps.deploy_request.outputs.release_id }}
           RUNTIME_ARTIFACT_ID: ${{ steps.artifact_meta.outputs.artifact_id }}
-          RUNTIME_RELEASE_CHANNEL: ${{ steps.artifact_meta.outputs.release_channel }}
+          RUNTIME_RELEASE_CHANNEL: ${{ steps.deploy_request.outputs.release_channel }}
           RUNTIME_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
-          RUNTIME_TENANT_HINT: ${{ steps.obs_tenant.outputs.tenant_name }}
+          RUNTIME_TENANT_HINT: ${{ steps.sourcemaps.outputs.tenant_name }}
           RUNTIME_SUPABASE_URL: ${{ steps.vite_supabase.outputs.vite_supabase_url }}
           RUNTIME_SUPABASE_ANON_KEY: ${{ steps.vite_supabase.outputs.vite_supabase_anon_key }}
         run: |
@@ -550,6 +555,7 @@ jobs:
           const productKey = process.env.RUNTIME_PRODUCT_KEY;
           const runtimeBuildNumber = String(process.env.RUNTIME_BUILD_NUMBER || "").trim();
           const runtimeBuildId = runtimeBuildNumber || String(process.env.RUNTIME_BUILD_ID || "").trim();
+          if (!process.env.RUNTIME_TENANT_HINT) throw new Error("Falta el nombre del tenant verificado.");
           const baseConfig = {
             appEnv: process.env.RUNTIME_ENV_KEY,
             appId: process.env.RUNTIME_APP_ID,
@@ -560,7 +566,7 @@ jobs:
             artifactId: process.env.RUNTIME_ARTIFACT_ID || null,
             releaseChannel: process.env.RUNTIME_RELEASE_CHANNEL || process.env.RUNTIME_ENV_KEY || null,
             sourceCommitSha: process.env.RUNTIME_SOURCE_COMMIT_SHA,
-            defaultTenantId: process.env.RUNTIME_TENANT_HINT || "ReferidosAPP",
+            defaultTenantId: process.env.RUNTIME_TENANT_HINT,
             supabaseUrl: process.env.RUNTIME_SUPABASE_URL,
           };
 
@@ -599,28 +605,6 @@ jobs:
             fs.appendFileSync(output, "EOF\n");
           }
           NODE
-
-      - name: Upload sourcemaps + registrar release metadata
-        id: sourcemaps
-        shell: bash
-        env:
-          SUPABASE_URL: ${{ steps.obs.outputs.obs_url }}
-          SUPABASE_SECRET_KEY: ${{ steps.obs.outputs.obs_secret }}
-          OBS_TENANT_ID: ${{ steps.obs_tenant.outputs.tenant_id }}
-          OBS_TENANT_NAME: ${{ steps.obs_tenant.outputs.tenant_name }}
-          APP_ID: ${{ steps.plan.outputs.obs_app_id }}
-          APP_VERSION: ${{ inputs.semver }}
-          BUILD_ID: ${{ inputs.source_commit_sha }}
-          APP_ENV: ${{ inputs.env_key }}
-          VITE_APP_ID: ${{ steps.plan.outputs.obs_app_id }}
-          VITE_APP_VERSION: ${{ inputs.semver }}
-          VITE_BUILD_ID: ${{ inputs.source_commit_sha }}
-          VITE_SOURCE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
-          VITE_COMMIT_SHA: ${{ inputs.source_commit_sha }}
-          VITE_ENV: ${{ inputs.env_key }}
-        run: |
-          set -euo pipefail
-          node tooling/observability/upload-sourcemaps.mjs --app "${{ steps.plan.outputs.upload_app }}"
 
       - name: Deploy artifact a Netlify
         id: deploy
@@ -663,17 +647,24 @@ jobs:
           echo "tag_created=true" >> "$GITHUB_OUTPUT"
 
       - name: Finalizar deploy en backend
-        if: ${{ always() }}
+        if: ${{ always() && steps.deploy_request.outcome == 'success' }}
         shell: bash
         env:
+          OPS_URL: ${{ secrets.SUPABASE_URL }}
+          VERSIONING_DEPLOY_CALLBACK_TOKEN: ${{ secrets.VERSIONING_DEPLOY_CALLBACK_TOKEN }}
+          ARTIFACT_ID_RAW: ${{ steps.artifact_meta.outputs.artifact_id }}
+          ARTIFACT_NAME_RAW: ${{ steps.artifact_meta.outputs.artifact_name }}
+          ARTIFACT_RUN_ID_RAW: ${{ steps.artifact_meta.outputs.artifact_run_id }}
+          ARTIFACT_REPOSITORY_RAW: ${{ steps.artifact_meta.outputs.artifact_repo }}
+          ARTIFACT_SHA256_RAW: ${{ steps.artifact_meta.outputs.artifact_sha256 }}
           FINAL_STATUS: ${{ job.status == 'success' && 'success' || 'failed' }}
           DEPLOYMENT_ID_RAW: ${{ steps.deploy.outputs.deployment_id }}
           DEPLOY_LOGS_URL_RAW: ${{ steps.deploy.outputs.logs_url }}
           TAG_NAME_RAW: ${{ steps.tag_prod.outputs.tag_name }}
           TAG_CREATED_RAW: ${{ steps.tag_prod.outputs.tag_created }}
-          RELEASE_ID_RAW: ${{ steps.artifact_meta.outputs.release_id }}
-          BUILD_NUMBER_RAW: ${{ steps.artifact_meta.outputs.release_build_number }}
-          CHANNEL_RAW: ${{ steps.artifact_meta.outputs.release_channel }}
+          RELEASE_ID_RAW: ${{ steps.deploy_request.outputs.release_id }}
+          BUILD_NUMBER_RAW: ${{ steps.deploy_request.outputs.release_build_number }}
+          CHANNEL_RAW: ${{ steps.deploy_request.outputs.release_channel }}
           RUNTIME_CONFIG_KEY_RAW: ${{ steps.runtime_config.outputs.runtime_config_key }}
           RUNTIME_CONFIG_SHA256_RAW: ${{ steps.runtime_config.outputs.runtime_config_sha256 }}
           RUNTIME_CONFIG_PAYLOAD_RAW: ${{ steps.runtime_config.outputs.runtime_config_payload }}
@@ -681,16 +672,6 @@ jobs:
           CALLBACK_ACTOR: ${{ inputs.actor }}
         run: |
           set -euo pipefail
-
-          if [[ -z "${CALLBACK_URL}" ]]; then
-            echo "CALLBACK_URL vacio"
-            exit 1
-          fi
-
-          if [[ -z "${VERSIONING_DEPLOY_CALLBACK_TOKEN}" ]]; then
-            echo "Falta secret VERSIONING_DEPLOY_CALLBACK_TOKEN en GitHub"
-            exit 1
-          fi
 
           deployment_id="${DEPLOYMENT_ID_RAW:-$DEPLOY_EXECUTION_ID}"
           logs_url="${DEPLOY_LOGS_URL_RAW:-$GITHUB_RUN_URL}"
@@ -700,10 +681,10 @@ jobs:
           export LOGS_URL_FINAL="${logs_url}"
           export ACTOR_FINAL="${actor}"
 
-          node <<'NODE'
+          node --input-type=module <<'NODE'
+          import { postDeployCallback } from "./tooling/versioning/deploy-callback.mjs";
+
           (async () => {
-            const callbackUrl = process.env.CALLBACK_URL;
-            const callbackToken = process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN;
             const buildNumber = Number(process.env.BUILD_NUMBER_RAW || 0);
             let runtimeConfigPayload = null;
             try {
@@ -736,10 +717,11 @@ jobs:
                 github_repository: process.env.GITHUB_REPOSITORY,
                 tag_name: process.env.TAG_NAME_RAW || null,
                 tag_created: process.env.TAG_CREATED_RAW || null,
-                artifact_id: "${{ steps.artifact_meta.outputs.artifact_id }}" || null,
-                artifact_name: "${{ steps.artifact_meta.outputs.artifact_name }}" || null,
-                artifact_run_id: "${{ steps.artifact_meta.outputs.artifact_run_id }}" || null,
-                artifact_repository: "${{ steps.artifact_meta.outputs.artifact_repo }}" || null,
+                artifact_id: process.env.ARTIFACT_ID_RAW || null,
+                artifact_name: process.env.ARTIFACT_NAME_RAW || null,
+                artifact_run_id: process.env.ARTIFACT_RUN_ID_RAW || null,
+                artifact_repository: process.env.ARTIFACT_REPOSITORY_RAW || null,
+                artifact_checksum_sha256: process.env.ARTIFACT_SHA256_RAW || null,
                 runtime_config: {
                   config_key: process.env.RUNTIME_CONFIG_KEY_RAW || "app-config.js",
                   config_format: "json",
@@ -749,34 +731,15 @@ jobs:
               },
             };
 
-            const res = await fetch(callbackUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-versioning-callback-token": callbackToken,
-              },
-              body: JSON.stringify(payload),
+            await postDeployCallback({
+              opsUrl: process.env.OPS_URL,
+              requestedUrl: process.env.CALLBACK_URL,
+              token: process.env.VERSIONING_DEPLOY_CALLBACK_TOKEN,
+              payload,
             });
-
-            const text = await res.text();
-            let parsed = {};
-            try {
-              parsed = text ? JSON.parse(text) : {};
-            } catch {
-              parsed = { raw: text };
-            }
-
-            if (!res.ok || parsed.ok === false) {
-              console.error("Callback failed", {
-                status: res.status,
-                parsed,
-              });
-              process.exit(1);
-            }
-
-            console.log("Callback ok", parsed);
+            console.log("Callback ok");
           })().catch((error) => {
-            console.error("Callback exception", error);
+            console.error(error.message);
             process.exit(1);
           });
           NODE
