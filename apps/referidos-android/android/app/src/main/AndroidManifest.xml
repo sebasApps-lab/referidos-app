@@ -7,7 +7,7 @@
 
     <application
       android:name=".MainApplication"
-      android:label="@string/app_name"
+      android:label="${referidosAppLabel}"
       android:icon="@mipmap/ic_launcher"
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
@@ -15,7 +15,7 @@
       android:supportsRtl="true">
       <activity
         android:name=".MainActivity"
-        android:label="@string/app_name"
+        android:label="${referidosAppLabel}"
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
@@ -29,10 +29,20 @@
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
             <data
-                android:scheme="referidosandroid"
+                android:scheme="${referidosAuthScheme}"
                 android:host="auth"
                 android:pathPrefix="/callback" />
         </intent-filter>
       </activity>
+      <provider
+        android:name=".promos.PromoExportProvider"
+        android:authorities="${applicationId}.promo-exports"
+        android:enabled="${referidosPromoProviderEnabled}"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+          android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/promo_export_paths" />
+      </provider>
     </application>
 </manifest>

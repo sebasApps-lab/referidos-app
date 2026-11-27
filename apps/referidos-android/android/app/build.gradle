@@ -2,6 +2,8 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+def promosBeta = (findProperty("referidosPromosBeta") ?: "false").toString().toBoolean()
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -36,8 +38,8 @@ react {
     //   The name of the generated asset file containing your JS bundle
     // bundleAssetName = "MyApplication.android.bundle"
     //
-    // Monorepo guardrail: release bundle entry must be this app's index.js.
-    entryFile = file("../../index.js")
+    // Keep the authenticated app and the local beta on independent bundle entry points.
+    entryFile = promosBeta ? file("../../index.promos.js") : file("../../index.js")
     //
     //   A list of extra flags to pass to the 'bundle' commands.
     //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
@@ -72,6 +74,7 @@ def releaseKeyPassword =
     findProperty("android.release.keyPassword") ?: System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
 
 def hasReleaseSigning =
+    !promosBeta &&
     releaseStoreFile &&
     releaseStorePassword &&
     releaseKeyAlias &&
@@ -102,6 +105,15 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        buildConfigField "boolean", "PROMOS_BETA", promosBeta.toString()
+        manifestPlaceholders = [
+            referidosAppLabel: promosBeta ? "Referidos Promos" : "@string/app_name",
+            referidosAuthScheme: promosBeta ? "referidospromosbeta" : "referidosandroid",
+            referidosPromoProviderEnabled: promosBeta.toString()
+        ]
+        if (promosBeta) {
+            applicationIdSuffix ".promosbeta"
+        }
     }
     signingConfigs {
         debug {
@@ -125,7 +137,7 @@ android {
         }
         release {
             // Uses non-debug keystore when release signing props are provided.
-            // Fallback to debug keystore keeps local smoke builds unblocked.
+            // The local beta and smoke builds use the debug keystore.
             signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
