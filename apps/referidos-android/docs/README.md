@@ -8,6 +8,8 @@
 
 App hermana Android (React Native) dentro del mismo monorepo.
 
+[Ejecutar y probar Referidos Promos Beta](promos-beta.md)
+
 ## Comandos utiles
 
 Desde raiz del repo:
