@@ -1068,6 +1068,7 @@ const WORKFLOW_PACK_PATHS = [
   "tooling/versioning/promote-release.mjs",
   "tooling/versioning/record-deployment.mjs",
   "tooling/versioning/release-artifact-integrity.mjs",
+  "tooling/versioning/shared.mjs",
   "tooling/observability/upload-sourcemaps.mjs",
 ];
 
