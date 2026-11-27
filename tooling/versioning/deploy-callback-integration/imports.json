@@ -1,6 +1,9 @@
 {
   "imports": {
     "https://deno.land/std@0.193.0/http/server.ts": "./edge-fixture.ts",
-    "../../../apps/referidos-ops/supabase/functions/_shared/support.ts": "./edge-fixture.ts"
+    "https://esm.sh/@supabase/supabase-js@2": "./obs-runtime-fixture.ts",
+    "../../../apps/referidos-app/supabase/functions/_shared/observability.ts": "./obs-runtime-fixture.ts",
+    "../../../apps/referidos-ops/supabase/functions/_shared/support.ts": "./edge-fixture.ts",
+    "../../../apps/referidos-ops/supabase/functions/_shared/github-auth.ts": "./edge-fixture.ts"
   }
 }

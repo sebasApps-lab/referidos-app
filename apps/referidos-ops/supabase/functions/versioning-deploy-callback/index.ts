@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { corsHeaders, jsonResponse, supabaseAdmin } from "../_shared/support.ts";
-import { callbackArtifactLookup, verifyCallbackArtifact } from "../_shared/deploy-callback-artifact.mjs";
+import { type DeployRequest, verifyArtifactForRequest } from "../_shared/deploy-artifact-check.ts";
+import { handleDurableDeployCallback } from "../_shared/deploy-durable-callback.mjs";
+import { runObsReleaseSync } from "../_shared/deploy-obs-sync.ts";
 import { classifyDeployCallback, readDeployReconciliation } from "../_shared/deploy-attempt.mjs";
 
 type JsonObject = Record<string, unknown>;
 
 const CALLBACK_HEADER = "x-versioning-callback-token";
-const DEFAULT_TENANT_HINT = "ReferidosAPP";
 
 function asString(value: unknown, fallback = "") {
   if (typeof value !== "string") return fallback;
@@ -29,120 +30,12 @@ function asUuid(value: unknown): string | null {
     : null;
 }
 
-function envVarKey(input: string): string {
-  return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
-}
-
 function corsWithCallbackHeader(origin: string | null) {
   const base = corsHeaders(origin);
   const current = base["Access-Control-Allow-Headers"] || "";
   return {
     ...base,
     "Access-Control-Allow-Headers": `${current}, ${CALLBACK_HEADER}`,
-  };
-}
-
-function mapProductToAppId(productKey: string) {
-  switch (productKey) {
-    case "referidos_app":
-      return "referidos-app";
-    case "prelaunch_web":
-      return "prelaunch";
-    case "android_app":
-      return "android-app";
-    default:
-      return productKey || "referidos-app";
-  }
-}
-
-function resolveObsReleaseSyncUrl(envKey: string) {
-  const envToken = envVarKey(envKey);
-  const explicit = asString(Deno.env.get(`OBS_RELEASE_SYNC_URL_${envToken}`));
-  if (explicit) return explicit;
-  const legacy = asString(Deno.env.get(`VERSIONING_RUNTIME_URL_${envToken}`));
-  if (legacy) return legacy;
-  return "";
-}
-
-async function runObsReleaseSync({
-  requestId,
-  releaseId,
-  productKey,
-  envKey,
-  versionLabel,
-  deploymentId,
-  actor,
-}: {
-  requestId: string;
-  releaseId: string;
-  productKey: string;
-  envKey: string;
-  versionLabel: string;
-  deploymentId: string;
-  actor: string;
-}) {
-  const syncToken = asString(Deno.env.get("OBS_RELEASE_SYNC_TOKEN"));
-  if (!syncToken) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "missing_obs_release_sync_token",
-      detail: "Define OBS_RELEASE_SYNC_TOKEN en referidos-ops.",
-    };
-  }
-
-  const runtimeUrl = resolveObsReleaseSyncUrl(envKey);
-  if (!runtimeUrl) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "missing_obs_release_sync_url",
-      detail: `Define OBS_RELEASE_SYNC_URL_${envVarKey(envKey)} en referidos-ops.`,
-    };
-  }
-
-  const endpoint = `${runtimeUrl.replace(/\/+$/, "")}/functions/v1/obs-release-sync`;
-  const tenantHint = asString(Deno.env.get("OBS_RELEASE_SYNC_TENANT_HINT"), DEFAULT_TENANT_HINT);
-  const appId = mapProductToAppId(productKey);
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    signal: AbortSignal.timeout(15_000),
-    headers: {
-      "Content-Type": "application/json",
-      "x-obs-release-sync-token": syncToken,
-    },
-    body: JSON.stringify({
-      tenant_hint: tenantHint,
-      app_id: appId,
-      product_key: productKey,
-      env_key: envKey,
-      semver: versionLabel,
-      release_id: releaseId,
-      actor,
-      metadata: {
-        trigger: "versioning-deploy-callback",
-        request_id: requestId,
-        deployment_id: deploymentId || null,
-      },
-    }),
-  });
-
-  const raw = await response.text();
-  let payload: JsonObject = {};
-  try {
-    payload = raw ? (JSON.parse(raw) as JsonObject) : {};
-  } catch {
-    payload = { raw };
-  }
-
-  return {
-    ok: response.ok && payload.ok !== false,
-    skipped: false,
-    status: response.status,
-    url: endpoint,
-    detail: asString(payload.detail, response.ok ? "ok" : "obs_release_sync_failed"),
-    payload,
   };
 }
 
@@ -208,22 +101,6 @@ async function emitBuildEvent({
   }
 }
 
-type DeployRequest = {
-  id: string;
-  tenant_id: string;
-  product_id: string;
-  product_key: string;
-  release_id: string;
-  env_id: string;
-  env_key: string;
-  version_label: string;
-  status: string;
-  deployment_status: string;
-  deployment_id: string;
-  updated_at: string;
-  metadata: JsonObject | null;
-};
-
 async function claimRequest(request: DeployRequest, metadata: JsonObject, logsUrl: string) {
   const { data, error } = await supabaseAdmin
     .from("version_deploy_requests")
@@ -236,72 +113,6 @@ async function claimRequest(request: DeployRequest, metadata: JsonObject, logsUr
     .select("id")
     .maybeSingle();
   return { claimed: Boolean(data?.id), failed: Boolean(error) };
-}
-
-async function verifyArtifactForRequest(request: DeployRequest, metadata: JsonObject) {
-  const lookup = callbackArtifactLookup(metadata, request.release_id);
-  if (!lookup) return { ok: false, reason: "invalid_callback_artifact_id" } as const;
-
-  const [releaseLookup, artifactLookup] = await Promise.all([
-    supabaseAdmin.from("version_releases")
-      .select("id, tenant_id, product_id, env_id, source_commit_sha")
-      .eq("id", request.release_id)
-      .maybeSingle(),
-    supabaseAdmin.from("version_release_artifacts_labeled")
-      .select("id, tenant_id, product_id, product_key, release_id, version_label, semver, commit_sha, checksum_sha256, artifact_provider, metadata")
-      .eq(lookup.column, lookup.value)
-      .maybeSingle(),
-  ]);
-  if (releaseLookup.error || artifactLookup.error) return { ok: false, reason: "callback_artifact_lookup_failed" } as const;
-
-  const verified = verifyCallbackArtifact({
-    request,
-    release: releaseLookup.data,
-    artifact: artifactLookup.data,
-    lookup,
-    metadata,
-  });
-  if (!verified.ok) return verified;
-  if (lookup.column === "release_id") {
-    const { data: promotions, error } = await supabaseAdmin.from("version_promotions")
-      .select("from_release_id").eq("to_release_id", request.release_id).limit(1);
-    return !error && promotions?.length === 0
-      ? verified
-      : { ok: false, reason: "promoted_callback_requires_artifact_id" } as const;
-  }
-
-  // Recheck ownership in OPS itself. An explicit ID identifies an artifact, not its promotional ancestry.
-  const environments = ["dev", "staging", "prod"];
-  let currentId = request.release_id;
-  let rank = environments.indexOf(request.env_key);
-  while (rank >= 0) {
-    const direct = await supabaseAdmin.from("version_release_artifacts_labeled")
-      .select("id").eq("release_id", currentId).maybeSingle();
-    if (direct.error) return { ok: false, reason: "callback_artifact_lookup_failed" } as const;
-    if (direct.data?.id === verified.artifactId && currentId === artifactLookup.data?.release_id) return verified;
-    if (direct.data || rank === 0) break;
-
-    const { data: promotions, count, error } = await supabaseAdmin.from("version_promotions")
-      .select("from_release_id, tenant_id, product_id", { count: "exact" })
-      .eq("to_release_id", currentId).limit(500);
-    if (error || !promotions || count !== promotions.length || promotions.length >= 500 ||
-        promotions.some((row) => row.tenant_id !== request.tenant_id || row.product_id !== request.product_id)) break;
-    const sources = new Set(promotions.map((row) => asUuid(row.from_release_id)));
-    const [sourceId] = sources;
-    if (sources.size !== 1 || !sourceId) break;
-
-    const source = await supabaseAdmin.from("version_releases_labeled")
-      .select("id, tenant_id, env_key, product_key, version_label, source_commit_sha").eq("id", sourceId).maybeSingle();
-    const row = source.data;
-    if (source.error || !row || row.id !== sourceId || row.tenant_id !== request.tenant_id ||
-        row.product_key !== request.product_key || row.version_label !== request.version_label ||
-        asString(row.source_commit_sha).toLowerCase() !== verified.sourceCommitSha) break;
-    const sourceRank = environments.indexOf(row.env_key);
-    if (sourceRank < 0 || sourceRank >= rank) break;
-    currentId = sourceId;
-    rank = sourceRank;
-  }
-  return { ok: false, reason: "callback_artifact_lineage_mismatch" } as const;
 }
 
 async function recordReconciliation(
@@ -506,7 +317,7 @@ serve(async (req) => {
   const body = asObject(await req.json().catch(() => ({})));
   const requestId = asUuid(body.request_id);
   const status = asString(body.status);
-  if (!requestId || !["started", "success", "failed"].includes(status)) {
+  if (!requestId || !["started", "prepared", "success", "failed"].includes(status)) {
     return jsonResponse({ ok: false, error: "invalid_callback_request" }, 400, cors);
   }
 
@@ -517,6 +328,12 @@ serve(async (req) => {
     .maybeSingle<DeployRequest>();
   if (requestError) return jsonResponse({ ok: false, error: "deploy_request_lookup_failed" }, 500, cors);
   if (!request) return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
+
+  if (request.metadata?.deploy_attempt_protocol === "durable_v1") {
+    const result = await handleDurableDeployCallback({ database: supabaseAdmin, request, body, verifyArtifact: verifyArtifactForRequest });
+    return jsonResponse(result.body, result.status, cors);
+  }
+  if (status === "prepared") return jsonResponse({ ok: false, error: "durable_attempt_required" }, 409, cors);
 
   const decision = classifyDeployCallback(request, body);
   const requestMetadata = asObject(request.metadata);

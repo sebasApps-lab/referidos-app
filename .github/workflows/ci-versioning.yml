@@ -52,3 +52,55 @@ jobs:
           --import-map=tooling/versioning/deploy-callback-integration/imports.json
           --allow-env=VERSIONING_DEPLOY_CALLBACK_TOKEN,OBS_RELEASE_SYNC_TOKEN,OBS_RELEASE_SYNC_URL_STAGING,OBS_RELEASE_SYNC_TENANT_HINT
           tooling/versioning/deploy-callback-integration/handler_test.ts
+
+      - name: Exercise OPS reconciliation authorization
+        env:
+          DENO_NO_UPDATE_CHECK: "1"
+        run: >-
+          node node_modules/deno/bin.cjs test --no-config --no-lock --no-remote --no-npm --no-check
+          --import-map=tooling/versioning/deploy-callback-integration/imports.json
+          --allow-env=VERSIONING_DEPLOY_RECONCILE_TOKEN,VERSIONING_DEPLOY_CALLBACK_TOKEN,VERSIONING_DEPLOY_RECONCILE_ENVS,NETLIFY_AUTH_TOKEN
+          tooling/versioning/deploy-callback-integration/reconciliation_handler_test.ts
+
+      - name: Exercise independent OBS receipt and recovery
+        env:
+          DENO_NO_UPDATE_CHECK: "1"
+        run: >-
+          node node_modules/deno/bin.cjs test --no-config --no-lock --no-remote --no-npm --no-check
+          --import-map=tooling/versioning/deploy-callback-integration/imports.json
+          --allow-env=VERSIONING_OPS_URL,VERSIONING_OPS_SECRET_KEY,OBS_RELEASE_SYNC_TOKEN,OBS_RELEASE_SYNC_URL_STAGING,OBS_RELEASE_SYNC_TENANT_HINT
+          tooling/versioning/deploy-callback-integration/obs_release_sync_test.ts
+
+  versioning-postgres:
+    name: Versioning PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: versioning-fixture
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Apply OPS versioning migrations and run SQL regressions
+        env:
+          VERSIONING_TEST_POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+          VERSIONING_TEST_POSTGRES_PASSWORD: versioning-fixture
+        run: node tooling/versioning/run-ops-postgres-tests.mjs

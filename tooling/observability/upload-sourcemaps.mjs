@@ -113,6 +113,20 @@ async function resolveTenant(supabase, hints) {
   return { id, name: data.name };
 }
 
+export async function verifySourcemapTenant({ env = process.env, createSupabase = createClient } = {}) {
+  const hints = readTenantHints(env);
+  const url = env.SUPABASE_URL;
+  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+
+  const supabase = createSupabase(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const tenant = await resolveTenant(supabase, hints);
+  if (env.GITHUB_OUTPUT) {
+    await fs.appendFile(env.GITHUB_OUTPUT, `tenant_name=${tenant.name}\ntenant_id=${tenant.id}\n`, "utf-8");
+  }
+  return tenant;
+}
+
 function buildReleaseLocation({ tenant_id, app_id, app_version, build_id, env }) {
   const releaseKey = safeSegment(`${app_id}@${app_version}+${build_id}`);
   const releasePath = `tenants/${tenant_id}/apps/${safeSegment(app_id)}/envs/${safeSegment(env)}/releases/${releaseKey}`;
@@ -398,7 +412,8 @@ export async function uploadSourcemaps({
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  uploadSourcemaps().then((result) => {
+  const verifyOnly = process.argv.slice(2).includes("--verify-tenant-only");
+  (verifyOnly ? verifySourcemapTenant() : uploadSourcemaps()).then((result) => {
     console.log(JSON.stringify(result, null, 2));
   }).catch((error) => {
     console.error(error?.message || error);

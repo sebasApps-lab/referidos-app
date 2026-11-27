@@ -4,12 +4,17 @@ export { resolveDeployCallbackUrl };
 
 const CALLBACK_TIMEOUT_MS = 30_000;
 
-export function deployCallbackPayload(env, { start = false, deployInvoked = false, deploymentId = null } = {}) {
+export function netlifyDeployTitle(env) {
+  return ["versioning", env.PRODUCT_KEY, env.ENV_KEY, env.SEMVER, env.SOURCE_COMMIT_SHA,
+    env.DEPLOY_EXECUTION_ID, env.GITHUB_RUN_ID].join(":");
+}
+
+export function deployCallbackPayload(env, { start = false, prepared = false, deployInvoked = false, deploymentId = null } = {}) {
   const publicationStatus = deploymentId ? "published" : deployInvoked ? "not_confirmed" : "not_published";
   const payload = {
     request_id: env.REQUEST_ID,
     deploy_execution_id: env.DEPLOY_EXECUTION_ID,
-    status: start ? "started" : publicationStatus === "published" ? "success" : "failed",
+    status: start ? "started" : prepared ? "prepared" : publicationStatus === "published" ? "success" : "failed",
     deployment_id: deploymentId ?? env.DEPLOY_EXECUTION_ID,
     logs_url: env.GITHUB_RUN_URL,
     actor: env.WORKFLOW_ACTOR || "github-actions",
@@ -36,7 +41,7 @@ export function deployCallbackPayload(env, { start = false, deployInvoked = fals
   };
 
   if (start) return payload;
-  payload.publication_status = publicationStatus;
+  if (!prepared) payload.publication_status = publicationStatus;
   const buildNumber = Number(env.BUILD_NUMBER_RAW || 0);
   let runtimeConfig = null;
   if (env.RUNTIME_CONFIG_PAYLOAD_RAW) {
@@ -48,11 +53,14 @@ export function deployCallbackPayload(env, { start = false, deployInvoked = fals
   }
   Object.assign(payload.metadata, {
     workflow_outcome: env.WORKFLOW_OUTCOME,
+    sourcemap_outcome: env.SOURCEMAP_OUTCOME || null,
     build_number: Number.isSafeInteger(buildNumber) && buildNumber > 0 ? buildNumber : null,
     channel: env.CHANNEL_RAW || env.ENV_KEY,
     artifact_name: env.ARTIFACT_NAME_RAW,
     artifact_run_id: env.ARTIFACT_RUN_ID_RAW || null,
     artifact_repository: env.ARTIFACT_REPOSITORY_RAW || null,
+    netlify_deploy_title: netlifyDeployTitle(env),
+    reported_netlify_deploy_id: env.REPORTED_NETLIFY_DEPLOY_ID || null,
     tag_name: env.TAG_NAME_RAW || null,
     tag_created: env.TAG_CREATED_RAW || null,
     runtime_config: {
@@ -60,9 +68,21 @@ export function deployCallbackPayload(env, { start = false, deployInvoked = fals
       config_format: "json",
       config_hash_sha256: env.RUNTIME_CONFIG_SHA256_RAW || null,
       payload: runtimeConfig,
+      ...(prepared ? { payload_json: env.RUNTIME_CONFIG_PAYLOAD_RAW } : {}),
     },
   });
   return payload;
+}
+
+export function assertDeployCallbackAcknowledged(confirmation, env, phase) {
+  const attempt = confirmation.reconciliation;
+  if (confirmation.request_id !== env.REQUEST_ID || confirmation.status !== phase ||
+      confirmation.duplicate !== false || confirmation.publication !== null ||
+      (phase === "prepared" && confirmation.publish_authorized !== true) ||
+      attempt?.github_run_attempt !== env.GITHUB_RUN_ATTEMPT ||
+      attempt?.github_run_id !== env.GITHUB_RUN_ID || attempt?.deploy_execution_id !== env.DEPLOY_EXECUTION_ID) {
+    throw new Error("OPS no autorizó este intento exacto de GitHub.");
+  }
 }
 
 export async function postDeployCallback({ opsUrl, requestedUrl, token, payload, fetchImpl = fetch }) {

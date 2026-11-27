@@ -59,7 +59,7 @@ Deno.env.set("OBS_RELEASE_SYNC_URL_STAGING", "https://runtime.example.test");
 Deno.env.set("OBS_RELEASE_SYNC_TENANT_HINT", "Fixture Tenant");
 globalThis.fetch = () => Promise.resolve(Response.json({ ok: true }));
 
-function fixture({ headFails = false, origin = "exact" } = {}) {
+function fixture({ headFails = false, origin = "exact", durable = false } = {}) {
   let version = 0;
   let available = true;
   const changes: Array<{ operation: string; values: Row }> = [];
@@ -78,7 +78,14 @@ function fixture({ headFails = false, origin = "exact" } = {}) {
       deploy_mode: "github_artifact_exact",
       source_commit_sha: identity.source_commit_sha,
       workflow: { repository: identity.github_repository },
+      ...(durable ? { deploy_attempt_protocol: "durable_v1" } : {}),
     } as Row,
+  };
+  const attempt: Row = {
+    execution_id: executionId, request_id: requestId, callback_binding: null,
+    dispatch_spec: { netlify_site_id: identity.netlify_site_id, netlify_site_name: "testing-goplip",
+      workflow: { repository: identity.github_repository } },
+    publish_authorized: false, publication_status: "none", reconciliation_status: "pending",
   };
   const artifact = {
     id: identity.artifact_id,
@@ -125,6 +132,10 @@ function fixture({ headFails = false, origin = "exact" } = {}) {
         },
         maybeSingle() {
           if (table === "version_deploy_requests_labeled") return { data: structuredClone(row) };
+          if (table === "version_deploy_attempts" && durable) {
+            assert.deepEqual(filters, [["execution_id", executionId], ["request_id", requestId]]);
+            return { data: structuredClone(attempt) };
+          }
           if (table === "version_releases") return { data: release };
           if (table === "version_releases_labeled") {
             assert.deepEqual(filters, [["id", owner.id]]);
@@ -160,6 +171,27 @@ function fixture({ headFails = false, origin = "exact" } = {}) {
     },
     rpc(name, args) {
       changes.push({ operation: name, values: args });
+      if (durable) {
+        const respond = (extra: Row = {}) => ({ data: { ok: true, attempt: structuredClone(attempt), ...extra } });
+        if (name === "versioning_claim_deploy_attempt") {
+          attempt.callback_binding = args.p_binding;
+          return respond();
+        }
+        if (name === "versioning_prepare_deploy_attempt") {
+          if (attempt.publish_authorized) return respond({ duplicate: true, publish_authorized: false });
+          attempt.prepared_metadata = args.p_metadata;
+          attempt.publish_authorized = true;
+          return respond({ duplicate: false, publish_authorized: true });
+        }
+        if (name === "versioning_record_deploy_publication") {
+          const state = args.p_publication as Row;
+          assert.equal(state.status, "not_confirmed");
+          attempt.publication = state;
+          attempt.publication_status = state.status;
+          return respond();
+        }
+        throw new Error(`Unexpected durable RPC ${name}`);
+      }
       if (name === "versioning_finalize_deploy_request") {
         assert.equal(args.p_deployment_id, executionId);
         applyUpdates({ deployment_status: args.p_status, metadata: args.p_metadata });
@@ -181,6 +213,29 @@ function fixture({ headFails = false, origin = "exact" } = {}) {
     },
   };
 }
+
+Deno.test("durable Edge callback durably binds, permits one publish and records the report without official writes", async () => {
+  const env = fixture({ durable: true });
+  const payload = { ...configPayload, appId: "referidos-app", appVersion: identity.semver, buildNumber: "12", releaseChannel: identity.env_key };
+  const prepared = {
+    ...started, status: "prepared", metadata: { ...identity,
+      netlify_deploy_title: `versioning:${identity.product_key}:${identity.env_key}:${identity.semver}:${identity.source_commit_sha}:${executionId}:${identity.github_run_id}`,
+      runtime_config: { ...runtimeConfig(payload), payload_json: JSON.stringify(payload) }, build_number: 12, channel: identity.env_key,
+    },
+  };
+  assert.equal((await env.post(prepared)).status, 409);
+  assert.equal((await (await env.post(started)).json()).reconciliation.github_run_id, identity.github_run_id);
+  assert.equal((await (await env.post(prepared)).json()).publish_authorized, true);
+  assert.equal((await (await env.post(prepared)).json()).publish_authorized, false);
+  const final = await (await env.post(published)).json();
+  assert.equal(final.publication.status, "not_confirmed");
+  assert.equal(final.publication.netlify_deploy_id, null);
+  assert.equal(final.reconciliation.status, "pending");
+  assert.equal(env.row.deployment_status, "started");
+  assert.deepEqual(env.changes.map(({ operation }) => operation), [
+    "versioning_claim_deploy_attempt", "versioning_prepare_deploy_attempt", "versioning_prepare_deploy_attempt", "versioning_record_deploy_publication",
+  ]);
+});
 
 Deno.test("an explicit artifact ID still requires a unique promotional provenance", async () => {
   for (const origin of ["missing", "ambiguous"]) {

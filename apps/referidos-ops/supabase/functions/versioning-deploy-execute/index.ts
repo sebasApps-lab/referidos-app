@@ -10,6 +10,7 @@ import {
 import { getGithubAuthConfig } from "../_shared/github-auth.ts";
 import { resolveDeployCallbackUrl } from "../_shared/deploy-callback-url.mjs";
 import { readDeployReconciliation } from "../_shared/deploy-attempt.mjs";
+import { dispatchReservedDeployAttempt } from "../_shared/deploy-dispatch.mjs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -48,6 +49,11 @@ type MigrationGateResult = {
 };
 
 const INTERNAL_PROXY_HEADER = "x-versioning-proxy-token";
+const NETLIFY_TARGETS = {
+  referidos_app: { staging: "referidosapp-staging", prod: "referidosapp" },
+  prelaunch_web: { staging: "testing-goplip", prod: "join-goplip" },
+} as const;
+const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 function asString(value: unknown, fallback = ""): string {
   if (typeof value !== "string") return fallback;
@@ -143,6 +149,48 @@ function getNestedString(input: Record<string, unknown>, path: string[]): string
 function asNumber(value: unknown, fallback = 0): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
+}
+
+async function readOperationalState(request: DeployRequestRow) {
+  const legacy = readDeployReconciliation(request.metadata, request.deployment_id);
+  if (request.metadata?.deploy_attempt_protocol !== "durable_v1") {
+    return { ...legacy, official_close: { status: "unverified" }, rollback_reference: null };
+  }
+
+  const { data: attempt, error } = await supabaseAdmin.from("version_deploy_attempts")
+    .select("execution_id, release_id, source_commit_sha, netlify_site_id, dispatch_state, callback_binding, publish_authorized, publication, reconciliation_status, reconciliation_reason, observability_status, retry_count, next_check_at, closed_at")
+    .eq("request_id", request.id).eq("execution_id", request.deployment_id).maybeSingle();
+  if (error || !attempt) throw new Error("deploy_reconciliation_lookup_failed");
+
+  const official = Boolean(attempt.closed_at) && attempt.reconciliation_status === "complete";
+  const publication = attempt.publication;
+  const binding = attempt.callback_binding;
+  const rollbackReference = official && publication?.status === "published" && publication.netlify_deploy_id
+    ? {
+      execution_id: attempt.execution_id,
+      release_id: attempt.release_id,
+      source_commit_sha: attempt.source_commit_sha,
+      artifact_id: binding?.artifact_id ?? null,
+      netlify_site_id: attempt.netlify_site_id,
+      netlify_deploy_id: publication.netlify_deploy_id,
+    }
+    : null;
+  return {
+    publication,
+    reconciliation: {
+      status: official ? "complete" : attempt.reconciliation_status === "complete" ? "incomplete" : attempt.reconciliation_status,
+      reason: attempt.reconciliation_reason,
+      deploy_execution_id: attempt.execution_id,
+      github_run_id: binding?.github_run_id ?? null,
+      github_run_attempt: binding?.github_run_attempt ?? null,
+    },
+    official_close: { status: official ? "complete" : "pending", closed_at: attempt.closed_at },
+    dispatch_state: attempt.dispatch_state,
+    publish_authorized: attempt.publish_authorized,
+    observability: { status: attempt.observability_status },
+    retry: { count: attempt.retry_count, next_check_at: attempt.next_check_at },
+    rollback_reference: rollbackReference,
+  };
 }
 
 async function fetchGithubJson(
@@ -400,63 +448,6 @@ async function resolveWorkflowRunAndJobs({
   };
 }
 
-async function dispatchGithubWorkflow({
-  owner,
-  repo,
-  token,
-  workflowId,
-  workflowRef,
-  inputs,
-}: {
-  owner: string;
-  repo: string;
-  token: string;
-  workflowId: string;
-  workflowRef: string;
-  inputs: Record<string, string>;
-}) {
-  const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
-    {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "User-Agent": "referidos-versioning-edge",
-    },
-    body: JSON.stringify({
-      ref: workflowRef,
-      inputs,
-    }),
-  }
-  );
-
-  const text = await response.text();
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = text ? JSON.parse(text) : {};
-  } catch {
-    parsed = { raw: text };
-  }
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      message: asString(parsed.message, "github_workflow_dispatch_failed"),
-      payload: parsed,
-    };
-  }
-
-  return {
-    ok: true,
-    status: response.status,
-    message: "workflow_dispatched",
-    payload: parsed,
-  };
-}
-
 async function checkCommitInBranch({
   owner,
   repo,
@@ -678,6 +669,14 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
   }
 
+  let operationalState = null;
+  if (operation === "status" || operation === "reconciliation") {
+    try {
+      operationalState = await readOperationalState(requestRow);
+    } catch {
+      return jsonResponse({ ok: false, error: "deploy_reconciliation_lookup_failed" }, 503, cors);
+    }
+  }
   if (operation === "reconciliation") {
     return jsonResponse({
       ok: true,
@@ -685,7 +684,7 @@ serve(async (req) => {
       request_id: requestId,
       request_status: requestRow.status,
       deployment_status: requestRow.deployment_status,
-      ...readDeployReconciliation(requestRow.metadata, requestRow.deployment_id),
+      ...operationalState,
     }, 200, cors);
   }
 
@@ -744,8 +743,8 @@ serve(async (req) => {
     const runIdFromBody = asNumber(body.run_id, 0);
     const requestMetadata =
       requestRow.metadata && typeof requestRow.metadata === "object" ? requestRow.metadata : {};
-    const reconciliation = readDeployReconciliation(requestMetadata, requestRow.deployment_id);
-    const boundRunId = asNumber(reconciliation.reconciliation?.github_run_id, 0);
+    const reconciliation = operationalState;
+    const boundRunId = asNumber(reconciliation?.reconciliation?.github_run_id, 0);
     if (requestRow.deployment_id && requestMetadata.deploy_execution_id === requestRow.deployment_id && !boundRunId) {
       return jsonResponse({
         ok: true,
@@ -1058,110 +1057,91 @@ serve(async (req) => {
     );
   }
 
-  const deployExecutionId = `gha-${Date.now()}-${requestRow.id.slice(0, 8)}`;
-  const dispatchResult = await dispatchGithubWorkflow({
-    owner: githubOwner,
-    repo: githubRepo,
-    token: githubToken,
-    workflowId,
-    workflowRef,
-    inputs: {
-      request_id: requestRow.id,
-      product_key: requestRow.product_key,
-      env_key: requestRow.env_key,
-      semver: requestRow.version_label,
-      source_commit_sha: sourceCommitSha,
-      source_branch: sourceBranch,
-      target_branch: targetBranch,
-      callback_url: callbackUrl,
-      deploy_execution_id: deployExecutionId,
-      actor,
-    },
-  });
-
-  if (!dispatchResult.ok) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "github_workflow_dispatch_failed",
-        detail: dispatchResult.message,
-        github_context: {
-          owner: githubOwner,
-          repo: githubRepo,
-          workflow_id: workflowId,
-          workflow_ref: workflowRef,
-          auth_mode: githubAuthMode,
-        },
-        github: dispatchResult,
-      },
-      502,
-      cors
-    );
+  const productKey = requestRow.product_key as keyof typeof NETLIFY_TARGETS;
+  const envKey = requestRow.env_key as "staging" | "prod";
+  const siteKey = `NETLIFY_SITE_ID_${envVarKey(productKey)}_${envVarKey(envKey)}`;
+  const siteId = asString(Deno.env.get(siteKey)).toLowerCase();
+  const siteName = NETLIFY_TARGETS[productKey][envKey];
+  if (!UUID.test(siteId)) {
+    return jsonResponse({ ok: false, error: "deploy_site_not_configured", detail: `Configura ${siteKey} en OPS.` }, 503, cors);
   }
-
+  const deployExecutionId = `gha-${Date.now()}-${requestRow.id.slice(0, 8)}`;
+  const repository = `${githubOwner}/${githubRepo}`;
   const workflowLogsUrl = `https://github.com/${githubOwner}/${githubRepo}/actions/workflows/${workflowId}`;
-
-  const { data: deploymentRowId, error: deployErr } = await supabaseAdmin.rpc(
-    "versioning_execute_deploy_request",
+  const startedAt = new Date().toISOString();
+  const { data: reservation, error: deployErr } = await supabaseAdmin.rpc(
+    "versioning_reserve_deploy_attempt",
     {
       p_request_id: requestId,
+      p_execution_id: deployExecutionId,
       p_actor: actor,
-      p_status: "started",
-      p_deployment_id: deployExecutionId,
-      p_logs_url: workflowLogsUrl,
       p_metadata: {
         trigger: "admin_panel_pipeline",
-        deploy_mode: "github_artifact_exact",
-        deploy_execution_id: deployExecutionId,
-        callback_attempt: null,
-        publication: null,
-        ops_reconciliation: null,
-        github_run_id: null,
         force_admin_override: forceAdminOverride,
         source_commit_sha: sourceCommitSha,
+        netlify_site_id: siteId,
+        netlify_site_name: siteName,
+        logs_url: workflowLogsUrl,
         merge: mergeSummary,
         workflow: {
           id: workflowId,
           ref: workflowRef,
-          repository: `${githubOwner}/${githubRepo}`,
+          repository,
+          dispatched_at: startedAt,
+        },
+        dispatch_inputs: {
+          request_id: requestRow.id,
+          product_key: productKey,
+          env_key: envKey,
+          semver: requestRow.version_label,
+          source_commit_sha: sourceCommitSha,
+          source_branch: sourceBranch,
+          target_branch: targetBranch,
           callback_url: callbackUrl,
-          dispatched_at: new Date().toISOString(),
+          deploy_execution_id: deployExecutionId,
+          actor,
         },
         github_auth_mode: githubAuthMode,
-        github: dispatchResult.payload,
       },
     }
   );
 
-  if (deployErr) {
+  if (deployErr || reservation?.ok !== true || !reservation.attempt?.execution_id) {
     return jsonResponse(
       {
         ok: false,
-        error: "deploy_registration_failed",
-        detail: deployErr.message,
-        merge: mergeSummary,
-        github: dispatchResult,
+        error: asString(reservation?.error, "deploy_reservation_failed"),
+        detail: "OPS no pudo reservar un intento exclusivo. Consulta la solicitud antes de volver a intentar.",
       },
-      500,
+      deployErr ? 503 : 409,
       cors
     );
   }
 
+  const executionId = reservation.attempt.execution_id;
+  const dispatch = await dispatchReservedDeployAttempt({
+    supabase: supabaseAdmin, executionId, token: githubToken, repository,
+  }).catch(() => ({ state: "unknown", accepted: false }));
+  if (dispatch.state === "rejected") {
+    return jsonResponse({
+      ok: false, error: "github_workflow_dispatch_rejected", request_id: requestId, deployment_id: executionId,
+      detail: "GitHub rechazó el despacho. Consulta el intento registrado antes de solicitar otro.",
+    }, 409, cors);
+  }
   return jsonResponse(
     {
       ok: true,
       request_id: requestId,
-      deployment_row_id: deploymentRowId,
-      deployment_id: deployExecutionId,
+      deployment_row_id: reservation.deployment_row_id ?? reservation.attempt.deployment_row_id,
+      deployment_id: executionId,
+      dispatch_state: dispatch.state || "unknown",
       logs_url: workflowLogsUrl,
-      dispatch_started_at: new Date().toISOString(),
+      dispatch_started_at: startedAt,
       merge: mergeSummary,
       workflow: {
         id: workflowId,
         ref: workflowRef,
-        callback_url: callbackUrl,
-        status: dispatchResult.status,
-        dispatch_started_at: new Date().toISOString(),
+        dispatch_started_at: startedAt,
       },
       branches: {
         source: sourceBranch,

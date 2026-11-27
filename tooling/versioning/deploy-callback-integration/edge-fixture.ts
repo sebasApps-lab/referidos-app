@@ -23,6 +23,10 @@ export function jsonResponse(body: unknown, status: number, headers: HeadersInit
   return Response.json(body, { status, headers });
 }
 
+export function getGithubAuthConfig(): never {
+  throw new Error("Unexpected GitHub authentication in offline Edge fixture.");
+}
+
 export const supabaseAdmin = {
   from(table: string) {
     if (!database) throw new Error("A database fixture is required.");

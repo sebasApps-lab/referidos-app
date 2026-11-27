@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deployCallbackPayload, postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
+import { assertDeployCallbackAcknowledged, deployCallbackPayload, postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
 
 const OPS_URL = "https://ops.example.test";
 const ENDPOINT = `${OPS_URL}/functions/v1/versioning-deploy-callback`;
@@ -33,6 +33,30 @@ test("reports an uncertain Netlify attempt separately from an error before invok
   assert.equal(ambiguous.publication_status, "not_confirmed");
   assert.equal(ambiguous.deployment_id, env.DEPLOY_EXECUTION_ID);
   assert.equal(ambiguous.status, "failed");
+});
+
+test("persists the exact pre-publish config bytes and refuses reused or unbound authorization", () => {
+  const env = {
+    REQUEST_ID: "request", DEPLOY_EXECUTION_ID: "gha-100-request1", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1",
+    PRODUCT_KEY: "prelaunch_web", ENV_KEY: "staging", SEMVER: "0.3.4", SOURCE_COMMIT_SHA: "d".repeat(40),
+    RUNTIME_CONFIG_PAYLOAD_RAW: '{"z":1,"a":2}', RUNTIME_CONFIG_SHA256_RAW: "c".repeat(64),
+  };
+  const payload = deployCallbackPayload(env, { prepared: true });
+  assert.equal(payload.status, "prepared");
+  assert.equal(payload.publication_status, undefined);
+  assert.equal(payload.metadata.runtime_config.payload_json, env.RUNTIME_CONFIG_PAYLOAD_RAW);
+  assert.deepEqual(payload.metadata.runtime_config.payload, { z: 1, a: 2 });
+  assert.equal(payload.metadata.netlify_deploy_title, `versioning:prelaunch_web:staging:0.3.4:${env.SOURCE_COMMIT_SHA}:gha-100-request1:123`);
+  const ack = { request_id: env.REQUEST_ID, status: "prepared", duplicate: false, publication: null, publish_authorized: true,
+    reconciliation: { github_run_id: env.GITHUB_RUN_ID, github_run_attempt: "1", deploy_execution_id: env.DEPLOY_EXECUTION_ID } };
+  assert.doesNotThrow(() => assertDeployCallbackAcknowledged(ack, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged({ ...ack, duplicate: true }, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged({ ...ack, publish_authorized: false }, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged(ack, { ...env, GITHUB_RUN_ID: "125" }, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged(ack, env, "started"));
+  const report = deployCallbackPayload({ ...env, REPORTED_NETLIFY_DEPLOY_ID: "provider-hint" }, { deployInvoked: true });
+  assert.equal(report.publication_status, "not_confirmed");
+  assert.equal(report.metadata.reported_netlify_deploy_id, "provider-hint");
 });
 
 test("derives the fixed callback endpoint from the configured OPS origin", () => {
