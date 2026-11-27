@@ -22,7 +22,7 @@
 5. **Recuperación.** Un worker autenticado reclama un lote mediante leases con vencimiento. Guarda el resultado de cada etapa, programa una espera progresiva y limita los reintentos. Puede completar el primer despacho de una reserva intacta y reanudar un cierre tras reinicio. No vuelve a publicar un intento. Si la evidencia sigue siendo insuficiente o un deploy externo sustituyó al observado, conserva el bloqueo.
 6. **Operaciones secundarias.** La sincronización OBS se reintenta por separado después del cierre y su estado queda visible. El uploader comprueba el tenant antes de publicar, registra su resultado técnico y un fallo de carga de mapas no cambia el cierre oficial. El registro habitual de eventos OPS sigue respaldado por auditoría transaccional. Este flujo carece de un emisor independiente de notificaciones externas.
 
-[Migración de intentos durables](../apps/referidos-ops/supabase/migrations/20261126_000044_versioning_durable_deploy_attempts.sql) · [Guardas SQL](../apps/referidos-ops/supabase/migrations/20261126_000045_versioning_require_staging_closure.sql) · [Worker](../apps/referidos-ops/supabase/functions/versioning-deploy-reconcile/index.ts) · [Workflow de artefactos](../.github/workflows/versioning-deploy-artifact.yml)
+[Migración de intentos durables](../apps/referidos-ops/supabase/migrations/20261126_000044_versioning_durable_deploy_attempts.sql) · [Guardas SQL](../apps/referidos-ops/supabase/migrations/20261127_000045_versioning_require_staging_closure.sql) · [Worker](../apps/referidos-ops/supabase/functions/versioning-deploy-reconcile/index.ts) · [Workflow de artefactos](../.github/workflows/versioning-deploy-artifact.yml)
 
 Referidos PWA 0.2.2 tiene dos releases históricas sin número de build registrado. Su configuración conserva el SHA de origen como identificador de build. El uploader y OBS usan el mismo identificador publicado aunque OPS asigne un número de catálogo durante el cierre.
 
@@ -54,3 +54,5 @@ Referidos PWA 0.2.2 tiene dos releases históricas sin número de build registra
 - La activación requiere revisar los permisos, el destino y las versiones de funciones alojadas. Todavía falta validar la respuesta real de Netlify y el rollback del sitio de Staging. La primera activación del worker se limita a Staging. El cron, los secretos y los servicios alojados quedan sujetos a una aprobación posterior.
 
 **NO-GO para publicar en Staging en esta etapa.** Una vez revisado el PR, confirmar el contrato alojado en una ventana aprobada, el estado de migraciones y el deploy anterior saludable. La candidata sigue siendo **Prelaunch Web 0.3.4** con el ZIP verificado de Development. [Procedimiento de Staging y rollback](../docs/versioning/staging-rollout-and-rollback.md)
+
+La revisión posterior verificó el PR, la rama remota y la configuración pública de la candidata. [Prevalidación de activación y Staging](17-prevalidacion-activacion-ops-y-staging.md)

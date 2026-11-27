@@ -2,12 +2,24 @@
 
 Este procedimiento prepara la activación de `durable_v1` en el proyecto **Referidos OPS**. La primera prueba de publicación corresponde a Prelaunch en Staging. La migración, el cambio de funciones, el ajuste de GitHub y la publicación siguen sujetos a autorización. [Prueba de Staging y recuperación del sitio](staging-rollout-and-rollback.md)
 
+**Decisión actual de activación de OPS** · **NO-GO**. El ensayo local de las migraciones permite revisarlas, pero falta cotejar el inventario alojado, la versión de las funciones activas, los permisos y las operaciones en curso. OPS es compartido. El filtro `staging` limita el cron y el reconciliador. La migración lógica `000045` aplica la guarda a nuevas promociones de Production y el ejecutor durable atiende Staging y Production. Aplicar esos cambios a OPS compartido requiere una decisión explícita sobre ese impacto. Una prueba que exija aislar completamente Production necesita un OPS aislado o un cambio de alcance revisado.
+
 ## Comprobaciones antes de activar
 
 - Ejecuta los checks **Versioning offline** y **Versioning PostgreSQL**. El segundo levanta PostgreSQL 17, aplica el historial real de migraciones de versionado a una base desechable y ejecuta las regresiones SQL. El fixture aporta los roles de Supabase y las interfaces mínimas de Auth y Storage. [CI de versionado](../../.github/workflows/ci-versioning.yml) · [Configuración de OPS](../../apps/referidos-ops/supabase/config.toml) · [Runner de regresión](../../tooling/versioning/run-ops-postgres-tests.mjs)
 - Identifica los SHA que se desplegarán para el workflow de GitHub y las funciones Edge de OPS. Conserva las referencias anteriores y verifica el respaldo de la base de OPS. Registra las solicitudes abiertas, su estado en Actions, cualquier publicación activa confirmada en Netlify y, para Staging, el deploy que serviría como recuperación.
 - Acuerda una ventana sin nuevas solicitudes de publicación. Si existen ejecuciones previas, espera su cierre o verifica su resultado mediante las lecturas autorizadas de GitHub, Netlify y OPS. Una ejecución sin resultado confirmado mantiene la activación bloqueada hasta que se haya clasificado.
 - Comprueba los destinos y los permisos sin exponer secretos. GitHub usa el token de callback de OPS y las credenciales de cada entorno. El reconciliador de OPS necesita `VERSIONING_DEPLOY_RECONCILE_TOKEN`, `NETLIFY_AUTH_TOKEN` para consultar la evidencia y la configuración de GitHub de OPS para las reservas que todavía no han sido despachadas. La sincronización de observabilidad usa la configuración OPS del runtime de destino. [Contrato de configuración](../../versioning/env.contract.json) · [Función de conciliación](../../apps/referidos-ops/supabase/functions/versioning-deploy-reconcile/index.ts)
+
+| Evidencia a consultar | Quién puede proporcionarla |
+| --- | --- |
+| Inventario SQL de Referidos OPS (`ymhaveuksdzlfuecvkmx`), historial de migraciones, RPC, índices, triggers, grants, extensiones y operaciones abiertas. Inventario de versiones o identificadores de despliegue de `versioning-deploy-execute`, `versioning-deploy-callback` y, si existe, `versioning-deploy-reconcile`. | Operador de Supabase OPS con acceso a catálogo y metadatos. Exportar únicamente el resultado de lectura. Confirmar la procedencia del código Edge con el registro de despliegue, ya que el número de versión por sí solo no identifica el SHA. |
+| Workflow `versioning-deploy-artifact.yml`, rama por defecto, ref efectiva `VERSIONING_DEPLOY_WORKFLOW_REF` y el commit exacto que resuelve. Permisos efectivos de la identidad GitHub que usa OPS. | GitHub con lectura de Contents y Actions, y confirmación del administrador de que la identidad configurada puede despachar el workflow aprobado. Para secretos, revisar sólo nombres, alcance y coincidencia atestiguada por el custodio. |
+| Callback efectivo de OPS en `https://ymhaveuksdzlfuecvkmx.supabase.co/functions/v1/versioning-deploy-callback`, coincidencia del token entre Edge y Actions y origen de `SUPABASE_URL`. | Custodio de configuración de OPS y GitHub. Basta la confirmación de coincidencia. |
+| `NETLIFY_SITE_ID_PRELAUNCH_WEB_STAGING` efectivo en OPS y GitHub, `NETLIFY_AUTH_TOKEN` de OPS con acceso de lectura al sitio y credencial de Actions con permiso de publicar en ese mismo sitio. | Custodio de Netlify/GitHub/OPS. Entregar el ID de proyecto y evidencia de permisos o coincidencia. Mantener las credenciales en sus almacenes. |
+| `VERSIONING_RUNTIME_URL_STAGING` o su fallback `OBS_RELEASE_SYNC_URL_STAGING`, ref `iegjfeaadayfvqockwov`, versión del `obs-release-sync`, y alcance del proxy y de su token compartido. | Operador del runtime Staging y custodio de OPS. Confirmar metadatos y configuración seleccionada, sin registrar valores de claves. |
+
+Registrar para cada verificación el origen, entorno, hora, identidad efectiva y resultado. Un nombre de secret presente confirma que existe una entrada. Su valor, alcance y permisos requieren corroboración separada.
 
 Con una instancia local separada en un puerto distinto de 5432 se puede ejecutar la misma prueba SQL. Por ejemplo, con el clúster local aislado disponible en 55439:
 
@@ -19,12 +31,12 @@ node tooling/versioning/run-ops-postgres-tests.mjs
 
 ## Orden de activación
 
-1. Con la ventana de cambios abierta y sin nuevos despachos, confirma el proyecto y el historial de migraciones de **OPS**. Revisa el plan y aplica `20261126_000044` seguida de `20261126_000045` mediante el procedimiento aprobado de ese proyecto. Si quedan otras migraciones pendientes, identifica el lote y revísalo antes de aplicar. La prueba de Staging no requiere modificar el esquema o los datos del runtime de aplicación. [Intentos durables](../../apps/referidos-ops/supabase/migrations/20261126_000044_versioning_durable_deploy_attempts.sql) · [Guarda de promoción](../../apps/referidos-ops/supabase/migrations/20261126_000045_versioning_require_staging_closure.sql)
-2. Verifica que la tabla `version_deploy_attempts` y sus funciones están presentes, que los permisos de mutación corresponden al rol de servicio y que las solicitudes previas siguen consultables. Mantén el historial anterior disponible para comprobar operaciones iniciadas antes del cambio.
-3. Publica las funciones Edge de la misma revisión en OPS con el despacho aún suspendido. Publica también `obs-release-sync` en el runtime de Staging dentro de esa ventana aprobada. El callback debe reconocer intentos históricos y el protocolo durable. El reconciliador comprueba que el runtime OBS confirmó el mismo intento y artefacto. Mantén el reconciliador sin invocaciones hasta que el workflow y el ejecutor compatibles estén activos. Su endpoint acepta POST mediante `x-versioning-reconcile-token` y usa un token propio. [Ejecutor](../../apps/referidos-ops/supabase/functions/versioning-deploy-execute/index.ts) · [Callback](../../apps/referidos-ops/supabase/functions/versioning-deploy-callback/index.ts) · [Sincronización OBS](../../apps/referidos-app/supabase/functions/obs-release-sync/index.ts) · [Configuración Edge](../../apps/referidos-ops/supabase/config.toml)
-4. Verifica que `VERSIONING_DEPLOY_WORKFLOW_REF` apunta al workflow compatible. El workflow debe enlazar la reserva con solicitud, ejecución de GitHub, release y artefacto exactos. Debe recibir el acuse de `started` y después el permiso explícito de `prepared` antes de invocar Netlify. Si falta cualquiera, mantener cerrado el despacho de la prueba. [Workflow y guardas](../../.github/workflows/versioning-deploy-artifact.yml)
-5. Configura únicamente el alcance `staging` del reconciliador, verifica que sólo pueda reclamar intentos de ese entorno y activa el cron descrito más abajo cuando se autorice. El despacho usa en OPS los mismos Project ID que el workflow ya tiene en GitHub. Configura únicamente los destinos aprobados para esta prueba.
-6. Habilita una única prueba autorizada en Staging. Guarda el ID de solicitud, `execution_id`, run de Actions, artefacto, Project ID de Netlify y deploy activo. Comprueba que OPS, GitHub y Netlify describen el mismo intento. Una reparación de observabilidad se evalúa después de confirmar la publicación y el cierre principal.
+1. **Suspende y drena.** Designa un operador para `testing-goplip` y confirma con todos los operadores el cierre temporal de entradas del panel OPS, lanzamientos manuales de Actions, reejecuciones, hooks, auto-publicación de Netlify y restauraciones manuales de ese sitio. Si se requiere cambiar una integración o pausar técnicamente una automatización, autoriza esa acción y su alcance antes de la ventana. Deshabilitar globalmente el workflow compartido también afecta a Production. Espera a que las ejecuciones lanzadas terminen y concílialas con sus callbacks existentes. Comparar OPS, ejecuciones en cola o activas de GitHub y deploys activos o en cola de Netlify inmediatamente antes del corte. Un intento ambiguo, o una entrada de publicación que no se pueda congelar, detiene el corte.
+2. **Aplica el esquema de OPS.** Con el proyecto y el historial alojados cotejados, confirmar el respaldo y aplicar `20261126_000044` seguida de `20261127_000045` únicamente en el destino aprobado. Si quedan otras migraciones pendientes, identifica el lote y revísalo por separado. Verifica el historial y que la tabla, RPC y guardas nuevos existen, que las mutaciones corresponden a la identidad de servicio y que las solicitudes previas siguen consultables. El runtime de Staging mantiene su esquema. [Intentos durables](../../apps/referidos-ops/supabase/migrations/20261126_000044_versioning_durable_deploy_attempts.sql) · [Guarda de promoción](../../apps/referidos-ops/supabase/migrations/20261127_000045_versioning_require_staging_closure.sql)
+3. **Actualiza los receptores antes del emisor.** En OPS, activa primero el callback compatible con la fase durable y con el historial. En el runtime Staging autorizado, activa `obs-release-sync` de la misma revisión. Después publica `versioning-deploy-reconcile` en OPS con alcance Staging y sin invocaciones programadas. Comprueba identidad de los despliegues sin fabricar callbacks ni iniciar intentos. El endpoint del worker usa `x-versioning-reconcile-token` y un token independiente del callback. [Callback](../../apps/referidos-ops/supabase/functions/versioning-deploy-callback/index.ts) · [Sincronización OBS](../../apps/referidos-app/supabase/functions/obs-release-sync/index.ts) · [Configuración Edge](../../apps/referidos-ops/supabase/config.toml)
+4. **Fija workflow y emisor.** Verifica que la rama por defecto reconoce `versioning-deploy-artifact.yml`, y que la ref efectiva de despacho resuelve el SHA autorizado del workflow. Conserva el registro de la ref y SHA anteriores. La ref de ejecución del workflow y la rama destino cuya ascendencia se comprueba son dos valores distintos. Con el despacho todavía suspendido, activa `versioning-deploy-execute` de esa misma revisión. Comprueba el contrato de reserva, acuse de `started` y permiso explícito de `prepared`. [Ejecutor](../../apps/referidos-ops/supabase/functions/versioning-deploy-execute/index.ts) · [Workflow y guardas](../../.github/workflows/versioning-deploy-artifact.yml)
+5. **Autoriza la programación por separado.** Verifica el alcance `staging` y que el inventario de ese entorno sigue vacío. Instala el cron inactivo, si la programación está autorizada, y vuelve a confirmar el alcance, token separado y trazabilidad. Activa el job sólo después de autorizar ese paso. Valida un tick con cero intentos y comprueba que responde 200. El reconciliador puede despachar la primera ejecución de una reserva existente, por lo que el inventario vacío es condición del tick.
+6. **Separa el GO de Staging.** Cerrar estas comprobaciones valida la activación de OPS. Mantén suspendidas las publicaciones hasta la autorización de una única prueba `prelaunch_web/staging`. Durante la prueba conservar el ID de solicitud, `execution_id`, run de Actions, artefacto, Project ID de Netlify y deploy activo. [Prueba de Staging y rollback](staging-rollout-and-rollback.md)
 
 La promoción nueva hacia Producción exige un cierre durable de la release de Staging correspondiente. Un despliegue histórico registrado como exitoso puede conservarse para consulta. Si carece de cierre durable, no sirve para cumplir la guarda de una promoción nueva.
 
@@ -34,26 +46,49 @@ La operación `reconciliation` del ejecutor consulta una solicitud y reporta su 
 
 ### Programación futura en OPS
 
-Las migraciones no registran ni activan un cron. Después de autorización, verificar que OPS disponga de `pg_cron`, `pg_net` y Vault, y que se pueda inspeccionar el resultado del cron sin mostrar valores sensibles. Registrar en Vault la URL HTTPS exacta de la función de OPS con el nombre `ops_deploy_reconcile_url` y el token dedicado con el nombre `ops_deploy_reconcile_token`. El token de la función debe tener el mismo valor y ser distinto del token de callback.
+Las migraciones dejan la programación fuera del cambio de esquema. Después de autorización, verificar `pg_cron`, `pg_net` y Vault, y la visibilidad del historial de ejecución. OPS debe tener únicamente roles de conexión directa aptos para leer temporalmente los headers en la cola de `pg_net`. Vault protege el valor en reposo, y `pg_net` materializa el token durante el envío. Si existen roles de conexión no confiables, el cron con ese token queda en **NO-GO** y se debe revisar un programador autorizado que no use esa cola. [Supabase Cron y Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions) · [Visibilidad de la cola de pg_net](https://supabase.com/kb/troubleshooting/database-roles-can-read-request-headers-queued-by-pg_net-ad6357)
+
+El custodio configura `ops_deploy_reconcile_token` en Vault y confirma que coincide con `VERSIONING_DEPLOY_RECONCILE_TOKEN` de la función y que es distinto de `VERSIONING_DEPLOY_CALLBACK_TOKEN`. Usar el endpoint HTTPS fijo del OPS verificado y confirmar `VERSIONING_DEPLOY_RECONCILE_ENVS=staging`. La siguiente preparación queda pendiente de autorización y deja el job inactivo dentro de la misma transacción.
 
 ```sql
+BEGIN;
+DO $check$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'versioning-deploy-reconcile-staging') THEN
+    RAISE EXCEPTION 'deploy_reconcile_job_already_exists';
+  END IF;
+END;
+$check$;
 SELECT cron.schedule('versioning-deploy-reconcile-staging', '* * * * *', $job$
-  SELECT net.http_post(
-    url := settings.url,
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-versioning-reconcile-token', settings.token),
-    body := '{"env_key":"staging"}'::jsonb,
-    timeout_milliseconds := 60000
-  )
-  FROM (
-    SELECT
-      (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'ops_deploy_reconcile_url') AS url,
-      (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'ops_deploy_reconcile_token') AS token
-  ) AS settings
-  WHERE settings.url IS NOT NULL AND settings.token IS NOT NULL
+  DO $tick$
+  DECLARE
+    token_value text;
+    request_id bigint;
+  BEGIN
+    SELECT decrypted_secret INTO STRICT token_value
+    FROM vault.decrypted_secrets
+    WHERE name = 'ops_deploy_reconcile_token';
+
+    IF coalesce(length(btrim(token_value)), 0) = 0 THEN
+      RAISE EXCEPTION 'deploy_reconcile_token_unavailable';
+    END IF;
+
+    request_id := net.http_post(
+      url := 'https://ymhaveuksdzlfuecvkmx.supabase.co/functions/v1/versioning-deploy-reconcile',
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-versioning-reconcile-token', token_value),
+      body := '{"env_key":"staging"}'::jsonb,
+      timeout_milliseconds := 60000
+    );
+    RAISE LOG 'versioning_reconcile_staging_request_id %', request_id;
+  END;
+  $tick$;
 $job$);
+SELECT cron.alter_job(jobid, active := false)
+FROM cron.job WHERE jobname = 'versioning-deploy-reconcile-staging';
+COMMIT;
 ```
 
-Confirmar que cada tick devuelve `ok` y revisar los intentos cuyo contador agotó el presupuesto. Una caída de red o la ausencia de un resultado en GitHub y Netlify se conserva como evidencia insuficiente. El bloqueo se mantiene para investigación. [Supabase Cron y Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)
+Un futuro `cron.alter_job(..., active := true)` requiere que el operador confirme el ID y el único job de Staging de la ventana aprobada. Monitorear el historial del job y correlacionar el `request_id` registrado con sólo `id`, `status_code`, `timed_out` y `created` en `net._http_response`, más el resultado filtrado de la función en los logs de Edge. El éxito SQL de cron significa que se encoló el HTTP. La respuesta del worker y el estado del intento se verifican aparte. Alertar a un operador ante HTTP 401/403, fallos HTTP sostenidos, intentos estancados o un presupuesto agotado. El worker toma hasta tres intentos por lote con lease de 90 segundos y un máximo de 12 reclamaciones por fase. Las esperas del cierre crecen hasta 30 minutos y un estado sin evidencia conserva su bloqueo. [Respuestas de pg_net](https://supabase.com/docs/guides/database/extensions/pg_net#analyzing-responses) · [Código de conciliación](../../apps/referidos-ops/supabase/functions/_shared/deploy-reconciliation.mjs)
 
 | Evidencia | Acción del operador |
 | --- | --- |
@@ -68,7 +103,7 @@ El mismo intento debe conservar sus identificadores ante eventos duplicados, ret
 
 ## Reversión de la activación
 
-1. Si falla el cambio, suspende nuevos despachos y la programación futura con `SELECT cron.unschedule('versioning-deploy-reconcile-staging');` si estaba habilitada. Conserva el estado del sitio y de OPS, la lectura y los callbacks necesarios para los intentos que ya se iniciaron.
-2. Registra los intentos durables abiertos y verifica la publicación activa por sitio. Reconcilia o preserva con su bloqueo los casos ambiguos. Un workflow anterior puede desconocer las reservas durables y no se debe volver a habilitar mientras quede alguna sin resolver.
-3. Si hay que restaurar código, verifica que la revisión anterior de las funciones y del workflow sea compatible con las solicitudes existentes. Mantén la migración y sus filas como evidencia. Una reversión del esquema exige evaluación y autorización propias.
-4. Si la aplicación de Staging publicó una versión problemática, restaura el deploy previo exacto de **ese mismo sitio** con el procedimiento de Netlify. Verifica su Project ID, deploy publicado, configuración de runtime y comportamiento. Registra la restauración junto al intento original. [Recuperación de Staging](staging-rollout-and-rollback.md#recuperación-de-staging)
+1. Si falla el cambio, suspende las entradas de publicación y pausa sólo el cron autorizado de Staging mediante `cron.alter_job(job_id, active := false)`. Conserva la definición del job, el estado del sitio, los callbacks de ambos protocolos y la lectura de OPS. Comprueba si quedaron llamadas HTTP en curso y espera la expiración de cualquier lease relevante.
+2. Captura el inventario de intentos durables abiertos, sus fases, el run GitHub y la publicación activa por sitio. Cierra los que se puedan verificar con el protocolo compatible y conserva los bloqueos de los ambiguos. Rehabilitar el emisor antiguo con intentos durables abiertos puede crear publicaciones incompatibles.
+3. Si hay que volver al código anterior, y sólo después de resolver o aislar los intentos abiertos, restaura la ref del workflow y el ejecutor previos con el despacho todavía suspendido. Mantén disponible el callback compatible hasta drenar cualquier ejecución que pueda enviarle eventos. Conserva las migraciones y las filas como evidencia. Una reversión del esquema o de la guarda de promoción necesita un plan y permiso independientes.
+4. Si Staging llegó a publicar una versión problemática, elige con autorización el deploy saludable anterior del mismo sitio y aplica el procedimiento de Netlify. Documenta la restauración y conserva el intento original. Reabrir las entradas sólo después de verificar de nuevo el Project ID, estado activo, configuración, permisos y ausencia de intentos que dejarían el destino inconsistente. [Recuperación de Staging](staging-rollout-and-rollback.md#recuperación-de-staging)

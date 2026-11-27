@@ -17,7 +17,7 @@ function matches(value, pattern) {
 async function get(path, token, fetchImpl) {
   const response = await fetchImpl(`${API}${path}`, {
     method: "GET",
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "Cache-Control": "no-cache" },
     redirect: "error",
     signal: AbortSignal.timeout(5000),
   });
@@ -26,6 +26,21 @@ async function get(path, token, fetchImpl) {
 
 export function netlifyDeployTitle(binding, executionId) {
   return `versioning:${binding.product_key}:${binding.env_key}:${binding.semver}:${binding.source_commit_sha}:${executionId}:${binding.github_run_id}`;
+}
+
+export async function readNetlifyCurrentDeploy({ siteId, siteName, token, fetchImpl = fetch }) {
+  if (!matches(siteId, SITE_ID) || !matches(siteName, SITE_NAME) || !token) {
+    return { ok: false, reason: "netlify_configuration_unverified" };
+  }
+  try {
+    const site = await get(`/sites/${siteId}`, token, fetchImpl);
+    if (site?.id !== siteId || site.name !== siteName || !matches(site.published_deploy?.id, DEPLOY_ID)) {
+      return { ok: false, reason: "netlify_current_publication_unverified" };
+    }
+    return { ok: true, deployId: site.published_deploy.id, observedAt: new Date().toISOString() };
+  } catch {
+    return { ok: false, reason: "netlify_read_failed" };
+  }
 }
 
 /** Observe an exact deployment and the current publication. Discovery never creates a deploy. */
@@ -58,16 +73,16 @@ export async function readNetlifyPublication({ siteId, siteName, title, reported
     if (deploy?.id !== id || deploy.site_id !== siteId || deploy.title !== title) {
       return failure("netlify_deploy_identity_unverified");
     }
-    if (deploy.state !== "ready" || deploy.draft !== false || (deploy.context != null && deploy.context !== "production") ||
+    // Netlify may omit draft for an actual production publication.
+    const publishedType = deploy.draft === false || (!Object.hasOwn(deploy, "draft") && deploy.context === "production");
+    if (deploy.state !== "ready" || !publishedType || (deploy.context != null && deploy.context !== "production") ||
         !matches(deploy.published_at, API_TIMESTAMP) || !Number.isFinite(Date.parse(deploy.published_at))) {
       return failure("netlify_publication_unverified");
     }
     // Read again after fetching the exact deploy. A later publication must not be replaced as the OPS head.
-    const current = await get(sitePath, token, fetchImpl);
-    if (current?.id !== siteId || current.name !== siteName || !matches(current.published_deploy?.id, DEPLOY_ID)) {
-      return failure("netlify_current_publication_unverified");
-    }
-    const liveId = current.published_deploy.id;
+    const current = await readNetlifyCurrentDeploy({ siteId, siteName, token, fetchImpl });
+    if (!current.ok) return failure(current.reason);
+    const liveId = current.deployId;
     const reason = liveId === id ? null : "netlify_deploy_superseded";
     return {
       status: "published",
@@ -79,7 +94,7 @@ export async function readNetlifyPublication({ siteId, siteName, title, reported
         netlify_deploy_title: title,
         netlify_current_deploy_id: liveId,
         published_at: deploy.published_at,
-        observed_at: new Date().toISOString(),
+        observed_at: current.observedAt,
         ...(reason ? { reconciliation_block: reason } : {}),
       },
     };

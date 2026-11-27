@@ -88,8 +88,11 @@ export async function verifyNetlifyDestination({
       }
       const active = site.published_deploy;
       if (expectedDeployId == null) return { siteId, siteName: expectedName };
+      const publishedType = active?.draft === false || (active && !Object.hasOwn(active, "draft") &&
+        active.context === "production" && typeof active.published_at === "string" &&
+        Number.isFinite(Date.parse(active.published_at)));
       if (active?.id === expectedDeployId && active.site_id === siteId &&
-          active.state === "ready" && active.draft === false) {
+          active.state === "ready" && publishedType) {
         return { siteId, siteName: expectedName, deploymentId: expectedDeployId };
       }
     }

@@ -89,6 +89,18 @@ test("an inactive, draft, unfinished, or cross-site deploy is never confirmed", 
   }), /HTTP 401/);
 });
 
+test("accepts an omitted draft flag only for the exact published production deploy", async () => {
+  const { draft: _draft, ...active } = site.published_deploy;
+  const observed = { ...active, context: "production", published_at: "2026-11-26T18:00:00Z" };
+  const check = (published_deploy) => verifyNetlifyDestination({
+    ...env, attempts: 1, expectedDeployId: deploymentId, fetchImpl: jsonFetch({ ...site, published_deploy }),
+  });
+  assert.equal((await check(observed)).deploymentId, deploymentId);
+  for (const invalid of [active, { ...observed, draft: null }, { ...observed, context: "deploy-preview" }, { ...observed, published_at: null }]) {
+    await assert.rejects(check(invalid), /no confirmó el despliegue/);
+  }
+});
+
 test("requires a consistent ID in the output of the Netlify command", () => {
   assert.equal(readNetlifyDeployId({ deploy_id: deploymentId }), deploymentId);
   for (const value of [{}, { id: deploymentId, deploy_id: "other" }, { id: "a\nx=y" }]) {

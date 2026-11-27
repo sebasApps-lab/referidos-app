@@ -1,5 +1,5 @@
 -- An attempt belongs to one approved request. Older request and deployment rows are read as-is.
-begin;
+-- Supabase CLI applies the schema changes and records the migration in one transaction.
 
 create table public.version_deploy_attempts (
   execution_id text primary key check (execution_id ~ '^gha-[0-9]+-[a-f0-9]{8}$'),
@@ -730,5 +730,3 @@ grant execute on function public.versioning_reserve_deploy_attempt(uuid, text, t
   public.versioning_record_deploy_observability(text, uuid, text, text),
   public.versioning_assert_staging_deploy_closed(uuid)
 to service_role;
-
-commit;

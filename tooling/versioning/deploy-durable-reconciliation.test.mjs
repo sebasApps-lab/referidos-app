@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { handleDurableDeployCallback } from "../../apps/referidos-ops/supabase/functions/_shared/deploy-durable-callback.mjs";
-import { netlifyDeployTitle, readNetlifyPublication } from "../../apps/referidos-ops/supabase/functions/_shared/deploy-netlify-proof.mjs";
+import { netlifyDeployTitle, readNetlifyCurrentDeploy, readNetlifyPublication } from "../../apps/referidos-ops/supabase/functions/_shared/deploy-netlify-proof.mjs";
 import { reconcileDeployAttempt, runDeployReconciliation } from "../../apps/referidos-ops/supabase/functions/_shared/deploy-reconciliation.mjs";
 
 const requestId = "63884cdf-4c41-4bd0-87f1-44d5209bc82d";
@@ -141,12 +141,17 @@ function netlifyResponse({ sites = [], rows = [], deploy = {} } = {}) {
     assert.equal(origin, "https://api.netlify.com");
     assert.equal(init.method, "GET");
     assert.equal(init.redirect, "error");
+    assert.equal(init.headers["Cache-Control"], "no-cache");
     calls.push(pathname + search);
     if (pathname.endsWith(`/deploys/${deployId}`)) return Response.json(known);
     if (pathname.endsWith("/deploys")) return Response.json(rows);
     return Response.json({ id: siteId, name: siteName, published_deploy: { id: deployId, title }, ...sites.shift() });
   };
-  return { calls, observe: (reportedId) => readNetlifyPublication({ siteId, siteName, title, token: "mock", reportedId, fetchImpl }) };
+  return {
+    calls,
+    observe: (reportedId) => readNetlifyPublication({ siteId, siteName, title, token: "mock", reportedId, fetchImpl }),
+    observeCurrent: () => readNetlifyCurrentDeploy({ siteId, siteName, token: "mock", fetchImpl }),
+  };
 }
 
 test("provider proof requires exact project, marker, exact deploy record, and latest live ID", async () => {
@@ -159,6 +164,16 @@ test("provider proof requires exact project, marker, exact deploy record, and la
     assert.equal((await netlifyResponse({ deploy }).observe(deployId)).status, "not_confirmed");
   }
   assert.equal((await netlifyResponse({ sites: [{ name: "main" }] }).observe(deployId)).reason, "netlify_site_unverified");
+});
+
+test("Netlify may omit draft on an exact production publication", async () => {
+  assert.equal((await netlifyResponse({ deploy: { draft: undefined } }).observe(deployId)).status, "published");
+  for (const deploy of [
+    { draft: null }, { draft: undefined, context: undefined },
+    { draft: undefined, context: "deploy-preview" }, { draft: undefined, published_at: null },
+  ]) {
+    assert.equal((await netlifyResponse({ deploy }).observe(deployId)).status, "not_confirmed");
+  }
 });
 
 test("provider discovery finds the narrowly exact marker and blocks stale head updates", async () => {
@@ -182,6 +197,11 @@ function worker(row = attempt(), options = {}) {
       return await netlifyResponse().observe(input.reportedId);
     },
     async verifyArtifact() { order.push("verify_artifact"); return { ok: true }; },
+    async observeCurrentDeploy(input) {
+      order.push("read_current_deploy");
+      assert.deepEqual(input, { siteId, siteName, token: "mock" });
+      return await (options.current ? options.current(input) : netlifyResponse().observeCurrent());
+    },
     async syncObservability() { order.push("sync_obs"); return { ok: options.obs !== false }; },
   };
   return { ...env, order, dependencies, run: () => reconcileDeployAttempt(row, dependencies) };
@@ -190,10 +210,34 @@ function worker(row = attempt(), options = {}) {
 test("worker first records verified publication, finalizes once and isolates OBS failure", async () => {
   const env = worker(attempt(), { obs: false });
   assert.deepEqual(await env.run(), { status: "complete", observability: "failed" });
-  assert.deepEqual(env.order, ["read_provider", "verify_artifact", "sync_obs"]);
+  assert.deepEqual(env.order, ["read_provider", "verify_artifact", "read_current_deploy", "sync_obs"]);
   assert.deepEqual(env.calls.map(({ name }) => name), ["versioning_record_deploy_publication", "versioning_finalize_deploy_attempt",
     "versioning_record_deploy_observability"]);
   assert.ok(env.calls.every(({ args }) => args.p_lease_token === "lease"));
+});
+
+test("a change after the artifact check preserves publication evidence and prevents official closure", async () => {
+  const netlify = netlifyResponse({ sites: [{ published_deploy: { id: "different", title: "newer" } }] });
+  const env = worker(attempt(), { current: netlify.observeCurrent });
+  assert.deepEqual(await env.run(), { status: "incomplete", reason: "netlify_deploy_superseded" });
+  assert.deepEqual(env.order, ["read_provider", "verify_artifact", "read_current_deploy"]);
+  assert.deepEqual(netlify.calls, [`/api/v1/sites/${siteId}`]);
+  assert.deepEqual(env.calls.map(({ name }) => name), ["versioning_record_deploy_publication", "versioning_record_deploy_publication"]);
+  const [initial, updated] = env.calls.map(({ args }) => args.p_publication);
+  assert.equal(initial.netlify_deploy_id, deployId);
+  assert.equal(updated.netlify_deploy_id, deployId);
+  assert.equal(updated.published_at, initial.published_at);
+  assert.equal(updated.netlify_current_deploy_id, "different");
+  assert.equal(updated.reconciliation_block, "netlify_deploy_superseded");
+});
+
+test("failure to verify the last active deploy defers closure and leaves published evidence in OPS", async () => {
+  const netlify = netlifyResponse({ sites: [{ id: requestId }] });
+  const env = worker(attempt(), { current: netlify.observeCurrent });
+  assert.deepEqual(await env.run(), { status: "deferred", reason: "netlify_current_publication_unverified" });
+  assert.deepEqual(env.calls.map(({ name }) => name), ["versioning_record_deploy_publication", "versioning_release_deploy_reconciliation"]);
+  assert.equal(env.calls[0].args.p_publication.netlify_deploy_id, deployId);
+  assert.equal(env.calls[1].args.p_retry_after_seconds, 30);
 });
 
 test("worker never finalizes without verified current publication and retries with bounded backoff", async () => {

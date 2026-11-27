@@ -1,4 +1,4 @@
-import { netlifyDeployTitle, readNetlifyPublication } from "./deploy-netlify-proof.mjs";
+import { netlifyDeployTitle, readNetlifyCurrentDeploy, readNetlifyPublication } from "./deploy-netlify-proof.mjs";
 
 const ACTOR = "system:deploy-reconcile";
 const BATCH_SIZE = 3;
@@ -15,7 +15,7 @@ async function call(database, name, args) {
 }
 
 export async function reconcileDeployAttempt(attempt, { database, netlifyToken, dispatchReserved, observeGithub, verifyArtifact, syncObservability,
-  observeNetlify = readNetlifyPublication }) {
+  observeNetlify = readNetlifyPublication, observeCurrentDeploy = readNetlifyCurrentDeploy }) {
   const lease = { p_execution_id: attempt.execution_id, p_lease_token: attempt.lease_token };
   const binding = attempt.callback_binding;
   const spec = attempt.dispatch_spec;
@@ -80,6 +80,20 @@ export async function reconcileDeployAttempt(attempt, { database, netlifyToken, 
 
       const verification = await verifyArtifact(attempt);
       if (!verification.ok) return await retry(verification.reason ?? "callback_artifact_unverified");
+
+      // Narrow the cross-service race after persisting evidence and checking the artifact.
+      const current = await observeCurrentDeploy({ siteId: spec.netlify_site_id, siteName: spec.netlify_site_name, token: netlifyToken });
+      if (!current.ok) return await retry(current.reason);
+      if (current.deployId !== publication.netlify_deploy_id) {
+        const reason = "netlify_deploy_superseded";
+        const superseded = await call(database, "versioning_record_deploy_publication", {
+          ...lease, p_binding: binding, p_metadata: {}, p_publication: {
+            ...publication, netlify_current_deploy_id: current.deployId,
+            observed_at: current.observedAt, reconciliation_block: reason,
+          },
+        });
+        return superseded ? { status: "incomplete", reason } : await retry("publication_record_failed");
+      }
       const finalized = await call(database, "versioning_finalize_deploy_attempt", { ...lease, p_actor: ACTOR });
       if (!finalized) return await retry("finalize_deploy_failed");
     }

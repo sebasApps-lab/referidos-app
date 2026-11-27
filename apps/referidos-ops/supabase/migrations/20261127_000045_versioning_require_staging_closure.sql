@@ -1,4 +1,4 @@
-begin;
+-- Supabase CLI applies the schema changes and records the migration in one transaction.
 
 create function public.versioning_guard_production_promotion()
 returns trigger language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
@@ -79,5 +79,3 @@ create constraint trigger trg_versioning_guard_durable_request_projection
 after insert or update on public.version_deploy_requests
 deferrable initially deferred
 for each row execute function public.versioning_guard_durable_request_projection();
-
-commit;

@@ -25,12 +25,22 @@ if (process.env.VERSIONING_TEST_POSTGRES_PASSWORD) {
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const sqlDir = join(root, "tooling", "versioning", "sql");
 const migrationDir = join(root, "apps", "referidos-ops", "supabase", "migrations");
-const migrationFiles = readdirSync(migrationDir)
+const opsSqlFiles = readdirSync(migrationDir).filter((name) => name.endsWith(".sql"));
+const migrationVersions = new Map();
+for (const name of opsSqlFiles) {
+  const version = /^(\d+)_/.exec(name)?.[1];
+  if (!version) throw new Error(`OPS migration lacks a Supabase version prefix: ${name}`);
+  if (migrationVersions.has(version)) {
+    throw new Error(`Duplicate Supabase migration version ${version}: ${migrationVersions.get(version)} and ${name}`);
+  }
+  migrationVersions.set(version, name);
+}
+const migrationFiles = opsSqlFiles
   .filter((name) => /^\d{8}_\d+_(ops_)?versioning_.*\.sql$/.test(name))
   .sort();
 const expectedMigrations = [
   "20261126_000044_versioning_durable_deploy_attempts.sql",
-  "20261126_000045_versioning_require_staging_closure.sql",
+  "20261127_000045_versioning_require_staging_closure.sql",
 ];
 for (const migration of expectedMigrations) {
   if (!migrationFiles.includes(migration)) {
@@ -57,12 +67,32 @@ function psql(database, ...argumentsForPsql) {
   }
 }
 
-function query(database, statement) {
-  const result = spawnSync(psqlBinary, [...psqlArgs(database), "-At", "--command", statement], {
+function capture(database, ...args) {
+  const result = spawnSync(psqlBinary, [...psqlArgs(database), "-At", ...args], {
     env: environment, encoding: "utf8",
   });
   if (result.error || result.status !== 0) throw new Error(result.error?.message ?? result.stderr);
   return result.stdout.trim();
+}
+
+function query(database, statement) {
+  return capture(database, "--command", statement);
+}
+
+function checkReadOnlyPreflight(database, migrated) {
+  const output = capture(database, `--file=${join(sqlDir, "ops-durable-preflight.sql")}`);
+  const schema = JSON.parse(output.split(/\r?\n/, 1)[0]);
+  assert.deepEqual(schema.missing_columns, []);
+  assert.equal(schema.legacy_rpcs.every((rpc) => rpc.present && rpc.return_type_matches), true);
+  assert.equal(schema.artifact_head_conflict_target_present, true);
+  assert.equal(schema.durable_table_present, migrated);
+  assert.equal(schema.durable_guards.length, migrated ? 2 : 0);
+  if (migrated) {
+    assert.equal(schema.durable_table_rls && schema.durable_table_service_read, true);
+    assert.equal(schema.durable_table_service_mutation || schema.durable_table_auth_read || schema.durable_table_anon_read, false);
+    assert.equal(schema.durable_rpcs.every((rpc) => rpc.present && rpc.security_definer &&
+      rpc.service_role_execute && !rpc.authenticated_execute && !rpc.anon_execute), true);
+  }
 }
 
 function session(database, name) {
@@ -118,13 +148,19 @@ async function checkContention(database, ownerQuery, contenderQuery, expectedOwn
 const database = `versioning_test_${randomBytes(8).toString("hex")}`;
 psql("postgres", "--command", `CREATE DATABASE "${database}" TEMPLATE template0`);
 try {
-  const files = [
-    join(sqlDir, "ops-postgres-fixture.sql"),
-    ...migrationFiles.map((name) => join(migrationDir, name)),
+  psql(database, `--file=${join(sqlDir, "ops-postgres-fixture.sql")}`);
+  for (const migration of migrationFiles) {
+    if (migration === expectedMigrations[0]) checkReadOnlyPreflight(database, false);
+    const transaction = expectedMigrations.includes(migration) ? ["--single-transaction"] : [];
+    psql(database, ...transaction, `--file=${join(migrationDir, migration)}`);
+  }
+  checkReadOnlyPreflight(database, true);
+  console.log("Read-only OPS preflight passed before and after the two durable migrations.");
+  const regressionFiles = [
     join(sqlDir, "deploy-attempts.test.sql"),
     join(sqlDir, "promotion-guard.test.sql"),
   ];
-  psql(database, ...files.map((file) => `--file=${file}`));
+  psql(database, ...regressionFiles.map((file) => `--file=${file}`));
   console.log(`Applied ${migrationFiles.length} OPS migrations. Both SQL regression suites passed.`);
   psql(database, `--file=${join(sqlDir, "deploy-attempts-concurrency.fixture.sql")}`);
   await checkContention(database, "select versioning_fixture.reserve(1)", "select versioning_fixture.reserve(2)",
