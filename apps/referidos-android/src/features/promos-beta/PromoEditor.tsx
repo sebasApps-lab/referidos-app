@@ -1,38 +1,55 @@
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState, type RefObject } from "react";
+import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import PromoCard from "./PromoCard";
 import { palette, PromoButton } from "./PromoControls";
-import { colors, formatExpiration, limits, requiredFields, templates, type Promo, type PromoChange } from "./promoLibrary";
+import { colors, countCharacters, formatExpiration, limits, promoErrors, templates, type Promo, type PromoChange, type PromoTextField } from "./promoLibrary";
 
 type EditorProps = {
   promo: Promo;
   validation: boolean;
+  focusRequest: { field: PromoTextField } | null;
+  scroll: RefObject<ScrollView | null>;
+  personalizing: boolean;
+  personalize: () => void;
   busy: boolean;
   change: (change: PromoChange) => void;
   pick: (kind: "photo" | "date") => void;
 };
 
-function PromoField({ label, placeholder, value, onChangeText, maxLength, error, multiline = false }: {
+function PromoField({ label, placeholder, value, onChangeText, limit, error, input, container, next, multiline = false, busy }: {
   label: string;
   placeholder: string;
   value: string;
   onChangeText: (value: string) => void;
-  maxLength: number;
+  limit: number;
   error?: string;
+  input: RefObject<TextInput | null>;
+  container: RefObject<View | null>;
+  next?: () => void;
   multiline?: boolean;
+  busy: boolean;
 }) {
+  const length = countCharacters(value);
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+    <View ref={container} collapsable={false} style={styles.field}>
+      <View style={styles.fieldHeader}>
+        <Text style={styles.label}>{label}</Text>
+        <Text importantForAccessibility="no" style={[styles.counter, length > limit && styles.error]}>{length}/{limit}</Text>
+      </View>
       <TextInput
+        ref={input}
         accessibilityLabel={label}
+        accessibilityHint={error || `Máximo ${limit} caracteres.`}
         autoCapitalize="sentences"
         style={[styles.input, multiline && styles.multiline, Boolean(error) && styles.invalid]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#716582"
-        maxLength={maxLength}
+        editable={!busy}
+        returnKeyType={next ? "next" : multiline ? "default" : "done"}
+        submitBehavior={next ? "submit" : undefined}
+        onSubmitEditing={next}
         multiline={multiline}
       />
       {error && <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
@@ -40,32 +57,53 @@ function PromoField({ label, placeholder, value, onChangeText, maxLength, error,
   );
 }
 
-export default function PromoEditor({ promo, validation, busy, change, pick }: EditorProps) {
+export default function PromoEditor({ promo, validation, focusRequest, scroll, personalizing, personalize, busy, change, pick }: EditorProps) {
   const [details, setDetails] = useState(false);
-  const missing = requiredFields(promo);
+  const handledRequest = useRef<EditorProps["focusRequest"]>(null);
+  const content = useRef<View>(null);
+  const inputs = useRef({ title: React.createRef<TextInput>(), offer: React.createRef<TextInput>(),
+    businessName: React.createRef<TextInput>(), description: React.createRef<TextInput>() }).current;
+  const fields = useRef({ title: React.createRef<View>(), offer: React.createRef<View>(),
+    businessName: React.createRef<View>(), description: React.createRef<View>() }).current;
+  const errors = promoErrors(promo);
 
-  return (
-    <>
-      <View style={styles.previewHeader}>
-        <Text accessibilityRole="header" style={styles.heading}>Vista previa</Text>
-        <Text style={styles.previewHint}>Imagen cuadrada</Text>
-      </View>
-      <View style={styles.preview}>
-        <PromoCard promo={promo} />
-      </View>
+  useEffect(() => {
+    if (!focusRequest || personalizing || handledRequest.current === focusRequest) return;
+    const { field } = focusRequest;
+    if (field === "description" && !details) {
+      setDetails(true);
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const input = inputs[field].current;
+      const anchor = content.current;
+      const focus = () => {
+        handledRequest.current = focusRequest;
+        input?.focus();
+        const tag = findNodeHandle(input);
+        if (tag !== null) AccessibilityInfo.setAccessibilityFocus(tag);
+      };
+      if (!anchor || !fields[field].current) {
+        focus();
+        return;
+      }
+      fields[field].current.measureLayout(anchor, (_x, y) => {
+        scroll.current?.scrollTo({ y: Math.max(0, y - 8), animated: false });
+        focus();
+      }, focus);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [details, fields, focusRequest, inputs, personalizing, scroll]);
 
-      <View style={styles.panel}>
-        <Text accessibilityRole="header" style={styles.heading}>Tu oferta</Text>
-        <PromoField label="Título" placeholder="Ej. Combo de hamburguesa" value={promo.title}
-          onChangeText={(title) => change({ title })} maxLength={limits.title}
-          error={validation && missing.title ? "Escribe el título de tu promoción." : undefined} />
-        <PromoField label="Beneficio" placeholder="Ej. 2×1, 20% menos o bebida gratis" value={promo.offer}
-          onChangeText={(offer) => change({ offer })} maxLength={limits.offer}
-          error={validation && missing.offer ? "Escribe qué ofreces." : undefined} />
-        <PromoField label="Nombre del negocio" placeholder="Ej. Café Aurora" value={promo.businessName}
-          onChangeText={(businessName) => change({ businessName })} maxLength={limits.businessName} />
-      </View>
+  function fieldProps(field: PromoTextField) {
+    return {
+      value: promo[field], limit: limits[field], input: inputs[field], container: fields[field], busy,
+      error: validation || countCharacters(promo[field]) > limits[field] ? errors[field] : undefined,
+      onChangeText: (value: string) => change({ [field]: value }),
+    };
+  }
 
+  if (personalizing) return (
       <View style={styles.panel}>
         <Text accessibilityRole="header" style={styles.heading}>Estilo de la tarjeta</Text>
         <View style={styles.templateRow}>
@@ -73,11 +111,13 @@ export default function PromoEditor({ promo, validation, busy, change, pick }: E
             <Pressable
               key={option.id}
               accessibilityRole="radio"
-              accessibilityState={{ checked: promo.template === option.id }}
+              accessibilityLabel={option.label}
+              accessibilityState={{ checked: promo.template === option.id, disabled: busy }}
+              disabled={busy}
               onPress={() => change({ template: option.id })}
               style={[styles.template, promo.template === option.id && styles.templateActive]}
             >
-              <View style={[styles.templateIcon, styles[option.id]]}>
+              <View importantForAccessibility="no-hide-descendants" style={[styles.templateIcon, styles[option.id]]}>
                 <Text style={[styles.templateGlyph, option.id === "editorial" && styles.editorialGlyph]}>{option.id === "contrast" ? "≋" : "✦"}</Text>
               </View>
               <Text style={styles.templateLabel}>{option.label}</Text>
@@ -88,9 +128,9 @@ export default function PromoEditor({ promo, validation, busy, change, pick }: E
         <View style={styles.colorRow}>
           {colors.map((option) => (
             <Pressable key={option.id} accessibilityRole="radio" accessibilityLabel={option.label}
-              accessibilityState={{ checked: promo.color === option.id }}
+              accessibilityState={{ checked: promo.color === option.id, disabled: busy }} disabled={busy}
               onPress={() => change({ color: option.id })} style={styles.colorTouch}>
-              <View style={[styles.colorDot, { backgroundColor: option.swatch }, promo.color === option.id && styles.colorSelected]}>
+              <View importantForAccessibility="no-hide-descendants" style={[styles.colorDot, { backgroundColor: option.swatch }, promo.color === option.id && styles.colorSelected]}>
                 {promo.color === option.id && <Text style={styles.colorCheck}>✓</Text>}
               </View>
             </Pressable>
@@ -102,17 +142,37 @@ export default function PromoEditor({ promo, validation, busy, change, pick }: E
           {promo.photo && <PromoButton label="Quitar foto" kind="text" onPress={() => change({ photo: null })} disabled={busy} />}
         </View>
       </View>
+  );
+
+  return (
+    <View ref={content} collapsable={false} style={styles.content}>
+      <View style={styles.previewHeader}>
+        <Text accessibilityRole="header" style={styles.heading}>Vista previa</Text>
+        <PromoButton label="Personalizar" kind="secondary" onPress={personalize} disabled={busy} />
+      </View>
+      <View style={styles.preview}>
+        <PromoCard promo={promo} />
+      </View>
 
       <View style={styles.panel}>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }}
-          onPress={() => setDetails(!details)} style={styles.detailsToggle}>
+        <Text accessibilityRole="header" style={styles.heading}>Tu oferta</Text>
+        <PromoField label="Título" placeholder="Ej. Combo de hamburguesa" {...fieldProps("title")}
+          next={() => inputs.offer.current?.focus()} />
+        <PromoField label="Beneficio" placeholder="Ej. 2×1, 20% menos o bebida gratis" {...fieldProps("offer")}
+          next={() => inputs.businessName.current?.focus()} />
+        <PromoField label="Nombre del negocio" placeholder="Ej. Café Aurora" {...fieldProps("businessName")} />
+      </View>
+
+      <View style={styles.panel}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Detalles opcionales" accessibilityState={{ expanded: details, disabled: busy }}
+          disabled={busy} onPress={() => setDetails(!details)} style={styles.detailsToggle}>
           <Text style={styles.heading}>Detalles opcionales</Text>
           <Text style={styles.toggleMark} importantForAccessibility="no">{details ? "−" : "+"}</Text>
         </Pressable>
         {details && (
           <>
             <PromoField label="Descripción y condiciones" placeholder="Ej. Válida de lunes a viernes. Hasta agotar existencias."
-              value={promo.description} onChangeText={(description) => change({ description })} maxLength={limits.description} multiline />
+              {...fieldProps("description")} multiline />
             <Text style={styles.label}>Fecha de vencimiento</Text>
             <View style={styles.mediaRow}>
               <PromoButton label={formatExpiration(promo.expiration) || "Elegir fecha"} kind="secondary"
@@ -122,17 +182,19 @@ export default function PromoEditor({ promo, validation, busy, change, pick }: E
           </>
         )}
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  content: { gap: 13 },
   previewHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  previewHint: { fontSize: 12, color: palette.muted, flexShrink: 1, textAlign: "right" },
   preview: { width: "100%", maxWidth: 280, alignSelf: "center" },
   panel: { backgroundColor: palette.paper, borderRadius: 20, borderWidth: 1, borderColor: palette.line, padding: 15, gap: 12 },
   heading: { fontSize: 17, fontWeight: "800", color: palette.ink, flexShrink: 1 },
   field: { gap: 6 },
+  fieldHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
+  counter: { fontSize: 12, color: palette.muted },
   label: { fontSize: 13, fontWeight: "700", color: palette.ink },
   input: { minHeight: 48, borderWidth: 1, borderColor: palette.line, borderRadius: 12, backgroundColor: palette.bg, paddingHorizontal: 12, fontSize: 15, color: palette.ink },
   multiline: { minHeight: 86, paddingTop: 12, textAlignVertical: "top" },

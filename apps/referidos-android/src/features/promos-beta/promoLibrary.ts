@@ -12,6 +12,7 @@ export const colors = [
 ] as const;
 
 export const limits = { title: 64, offer: 42, description: 144, businessName: 42 };
+export type PromoTextField = keyof typeof limits;
 
 export type Promo = {
   id: string;
@@ -37,11 +38,19 @@ export type PromoLibrary = {
 export const storageKey = "@referidos-promos/library/v1";
 export const emptyLibrary: PromoLibrary = { version: 1, businessName: "", promos: [] };
 
-let nextId = 0;
+export function createPromoIds(namespace: string) {
+  let sequence = 0;
+  return (library: PromoLibrary) => {
+    const occupied = new Set(library.promos.map(({ id }) => id));
+    let id: string;
+    do { id = `${namespace}:${sequence++}`; } while (occupied.has(id));
+    return id;
+  };
+}
 
-export function newPromo(businessName: string, now = Date.now()): Promo {
+export function newPromo(id: string, businessName: string, now = Date.now()): Promo {
   return {
-    id: `${now}-${nextId++}`,
+    id,
     title: "",
     offer: "",
     description: "",
@@ -54,9 +63,8 @@ export function newPromo(businessName: string, now = Date.now()): Promo {
   };
 }
 
-export function duplicatePromo(promo: Promo, now = Date.now()): Promo {
-  const copy = newPromo(promo.businessName, now);
-  return { ...promo, id: copy.id, updatedAt: now };
+export function duplicatePromo(promo: Promo, id: string, now = Date.now()): Promo {
+  return { ...promo, id, updatedAt: now };
 }
 
 export function savePromo(library: PromoLibrary, promo: Promo, rememberBusiness = false): PromoLibrary {
@@ -71,19 +79,46 @@ export function removePromo(library: PromoLibrary, id: string): PromoLibrary {
   return { ...library, promos: library.promos.filter((promo) => promo.id !== id) };
 }
 
-export function requiredFields(promo: Promo) {
-  return { title: !promo.title.trim(), offer: !promo.offer.trim() };
+export function countCharacters(value: string) {
+  return Array.from(value).length;
+}
+
+export function promoErrors(promo: Promo) {
+  const errors: Partial<Record<PromoTextField, string>> = {};
+  for (const field of ["title", "offer", "businessName", "description"] as const) {
+    if (countCharacters(promo[field]) > limits[field]) {
+      errors[field] = `Reduce el texto a ${limits[field]} caracteres.`;
+    } else if (field === "title" && !promo.title.trim()) {
+      errors.title = "Escribe el título de tu promoción.";
+    } else if (field === "offer" && !promo.offer.trim()) {
+      errors.offer = "Escribe qué ofreces.";
+    }
+  }
+  return errors;
+}
+
+export function firstPromoError(promo: Promo): PromoTextField | undefined {
+  if (!promo.title.trim()) return "title";
+  if (!promo.offer.trim()) return "offer";
+  return (Object.keys(promoErrors(promo)) as PromoTextField[])[0];
 }
 
 export function isReady(promo: Promo) {
-  const incomplete = requiredFields(promo);
-  return !incomplete.title && !incomplete.offer;
+  return firstPromoError(promo) === undefined;
 }
 
 export function formatExpiration(value: string | null) {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
+}
+
+export function promoCardData(promo: Promo) {
+  const { template, color, photo, expiration } = promo;
+  return {
+    title: promo.title.trim(), offer: promo.offer.trim(), description: promo.description.trim(),
+    businessName: promo.businessName.trim(), template, color, photo, expirationLabel: formatExpiration(expiration),
+  };
 }
 
 export function photoNames(library: PromoLibrary) {
@@ -108,14 +143,50 @@ export function readLibrary(raw: string | null): PromoLibrary {
   ) {
     throw new Error("Invalid promotion library");
   }
-  return library;
+  const occupied = new Set(library.promos.map(({ id }) => id));
+  const seen = new Set<string>();
+  const promos = library.promos.map((promo) => {
+    if (!seen.has(promo.id)) {
+      seen.add(promo.id);
+      return promo;
+    }
+    // Keep both records if an older snapshot contains the same ID twice.
+    let suffix = 1;
+    while (occupied.has(`${promo.id}:${suffix}`)) suffix++;
+    const id = `${promo.id}:${suffix}`;
+    occupied.add(id);
+    return { ...promo, id };
+  });
+  return { ...library, promos };
 }
 
 export function createLibraryWriter(write: (value: string) => Promise<void>) {
-  let pending = Promise.resolve();
-  return (library: PromoLibrary) => {
-    const next = pending.then(() => write(JSON.stringify(library)));
-    pending = next.catch(() => {});
-    return next;
-  };
+  type Waiter = { resolve: () => void; reject: (error: unknown) => void };
+  let writing = false;
+  let pending: { library: PromoLibrary; waiters: Waiter[] } | undefined;
+
+  async function flush() {
+    writing = true;
+    while (pending) {
+      const { library, waiters } = pending;
+      pending = undefined;
+      try {
+        await write(JSON.stringify(library));
+        waiters.forEach(({ resolve }) => resolve());
+      } catch (error) {
+        waiters.forEach(({ reject }) => reject(error));
+      }
+    }
+    writing = false;
+  }
+
+  return (library: PromoLibrary) => new Promise<void>((resolve, reject) => {
+    if (pending) {
+      pending.library = library;
+      pending.waiters.push({ resolve, reject });
+    } else {
+      pending = { library, waiters: [{ resolve, reject }] };
+    }
+    if (!writing) void flush();
+  });
 }

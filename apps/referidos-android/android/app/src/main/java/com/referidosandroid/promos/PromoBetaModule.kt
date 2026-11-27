@@ -18,17 +18,19 @@ import java.io.File
 import java.io.IOException
 import java.util.Calendar
 import java.util.Locale
+import java.util.UUID
 
 @Suppress("DEPRECATION")
 internal class PromoBetaModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
-  private data class Pending(val promise: Promise, val file: File? = null)
+  private data class Pending(val request: Int, val promise: Promise, val file: File? = null)
 
   private var pending: Pending? = null
+  private val sessionId = UUID.randomUUID().toString()
 
   private val documentListener = object : BaseActivityEventListener() {
     override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
-      if (requestCode != PICK_PHOTO && requestCode != SAVE_DOCUMENT) return
       val operation = pending ?: return
+      if (requestCode != operation.request) return
       pending = null
       val uri = data?.data
       if (resultCode != Activity.RESULT_OK || uri == null) {
@@ -60,8 +62,14 @@ internal class PromoBetaModule(private val context: ReactApplicationContext) : R
 
   override fun getName() = "ReferidosPromoBeta"
 
+  override fun getConstants(): MutableMap<String, Any> = mutableMapOf("sessionId" to sessionId)
+
   override fun invalidate() {
     context.removeActivityEventListener(documentListener)
+    context.runOnUiQueueThread {
+      pending?.file?.delete()
+      pending = null
+    }
     super.invalidate()
   }
 
@@ -71,7 +79,7 @@ internal class PromoBetaModule(private val context: ReactApplicationContext) : R
       addCategory(Intent.CATEGORY_OPENABLE)
       type = "image/*"
     }
-    openDocument(intent, PICK_PHOTO, Pending(promise))
+    openDocument(intent, Pending(PICK_PHOTO, promise))
   }
 
   @ReactMethod
@@ -107,7 +115,7 @@ internal class PromoBetaModule(private val context: ReactApplicationContext) : R
     val card = PromoCardData.from(data)
     work(promise) {
       val file = PromoMedia.temporaryPng(context, card)
-      withActivity(promise) { activity ->
+      withActivity(promise, onFailure = { file.delete() }) { activity ->
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.promo-exports", file)
         val send = Intent(Intent.ACTION_SEND).apply {
           type = "image/png"
@@ -135,31 +143,31 @@ internal class PromoBetaModule(private val context: ReactApplicationContext) : R
           type = "image/png"
           putExtra(Intent.EXTRA_TITLE, "referidos-promocion.png")
         }
-        openDocument(intent, SAVE_DOCUMENT, Pending(promise, file))
+        openDocument(intent, Pending(SAVE_DOCUMENT, promise, file))
       }
     }
   }
 
-  private fun openDocument(intent: Intent, request: Int, operation: Pending) {
-    withActivity(operation.promise) { activity ->
+  private fun openDocument(intent: Intent, operation: Pending) {
+    withActivity(operation.promise, onFailure = { operation.file?.delete() }) { activity ->
       check(pending == null) { "A document picker is already open" }
       pending = operation
       try {
-        activity.startActivityForResult(intent, request)
+        activity.startActivityForResult(intent, operation.request)
       } catch (error: Exception) {
         pending = null
-        operation.file?.delete()
         throw error
       }
     }
   }
 
-  private fun withActivity(promise: Promise, action: (Activity) -> Unit) {
+  private fun withActivity(promise: Promise, onFailure: () -> Unit = {}, action: (Activity) -> Unit) {
     context.runOnUiQueueThread {
       try {
         val activity = currentActivity ?: throw IllegalStateException("The app is not in the foreground")
         action(activity)
       } catch (error: Exception) {
+        onFailure()
         promise.reject("promo_activity_failed", error)
       }
     }

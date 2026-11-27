@@ -22,8 +22,9 @@ import kotlin.math.roundToInt
 
 internal object PromoMedia {
   private const val PHOTO_SIZE = 1600
-  private const val EXPORT_AGE_MS = 24L * 60 * 60 * 1000
+  private const val CLEANUP_AGE_MS = 24L * 60 * 60 * 1000
   private val photoName = Regex("[a-f0-9-]{36}\\.jpg")
+  private val exportFileName = Regex("referidos-promo-[a-f0-9-]{36}\\.png")
   val worker = Executors.newSingleThreadExecutor()
   val previewWorker = Executors.newSingleThreadExecutor()
 
@@ -52,16 +53,16 @@ internal object PromoMedia {
     }
     val name = "${UUID.randomUUID()}.jpg"
     val file = checkNotNull(photoFile(context, name))
+    val staged = File(file.parentFile, "$name.part")
     try {
       file.parentFile?.mkdirs()
-      file.outputStream().use { output ->
+      staged.outputStream().use { output ->
         check(bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output))
       }
+      if (!staged.renameTo(file)) throw IOException("Cannot store photo")
       return name
-    } catch (error: Exception) {
-      file.delete()
-      throw error
     } finally {
+      staged.delete()
       bitmap.recycle()
     }
   }
@@ -79,32 +80,40 @@ internal object PromoMedia {
     }
     val decoded = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
       ?: throw IOException("Cannot decode photo")
-    val orientation = runCatching {
-      resolver.openInputStream(uri)?.use {
-        ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+    var result: Bitmap? = null
+    try {
+      val orientation = try {
+        resolver.openInputStream(uri)?.use {
+          ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }
+      } catch (_: IOException) {
+        null
       }
-    }.getOrNull()
-    val scale = minOf(1f, PHOTO_SIZE.toFloat() / max(decoded.width, decoded.height))
-    val transform = Matrix().apply {
-      setScale(scale, scale)
-      when (orientation) {
-        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> postScale(-1f, 1f)
-        ExifInterface.ORIENTATION_ROTATE_180 -> postRotate(180f)
-        ExifInterface.ORIENTATION_FLIP_VERTICAL -> postScale(1f, -1f)
-        ExifInterface.ORIENTATION_TRANSPOSE -> { postScale(-1f, 1f); postRotate(270f) }
-        ExifInterface.ORIENTATION_ROTATE_90 -> postRotate(90f)
-        ExifInterface.ORIENTATION_TRANSVERSE -> { postScale(-1f, 1f); postRotate(90f) }
-        ExifInterface.ORIENTATION_ROTATE_270 -> postRotate(270f)
+      val scale = minOf(1f, PHOTO_SIZE.toFloat() / max(decoded.width, decoded.height))
+      val transform = Matrix().apply {
+        setScale(scale, scale)
+        when (orientation) {
+          ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> postScale(-1f, 1f)
+          ExifInterface.ORIENTATION_ROTATE_180 -> postRotate(180f)
+          ExifInterface.ORIENTATION_FLIP_VERTICAL -> postScale(1f, -1f)
+          ExifInterface.ORIENTATION_TRANSPOSE -> { postScale(-1f, 1f); postRotate(270f) }
+          ExifInterface.ORIENTATION_ROTATE_90 -> postRotate(90f)
+          ExifInterface.ORIENTATION_TRANSVERSE -> { postScale(-1f, 1f); postRotate(90f) }
+          ExifInterface.ORIENTATION_ROTATE_270 -> postRotate(270f)
+        }
       }
+      result = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, transform, true)
+      return result
+    } finally {
+      if (result !== decoded) decoded.recycle()
     }
-    val result = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, transform, true)
-    if (result !== decoded) decoded.recycle()
-    return result
   }
 
   fun prunePhotos(context: Context, retained: Set<String>) {
+    val cutoff = System.currentTimeMillis() - CLEANUP_AGE_MS
     photos(context).listFiles()?.forEach { file ->
-      if (photoName.matches(file.name) && file.name !in retained) file.delete()
+      val name = file.name.removeSuffix(".part")
+      if (photoName.matches(name) && file.name !in retained && file.lastModified() in 1L until cutoff) file.delete()
     }
   }
 
@@ -112,27 +121,31 @@ internal object PromoMedia {
     val photo = readPhoto(context, card.photo)
     if (card.photo != null && photo == null) throw IOException("Missing photo")
     val size = PromoCardRenderer.SIZE
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     try {
-      PromoCardRenderer.draw(Canvas(bitmap), card, photo)
-      if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) throw IOException("Cannot encode PNG")
+      val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+      try {
+        PromoCardRenderer.draw(Canvas(bitmap), card, photo)
+        if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) throw IOException("Cannot encode PNG")
+      } finally {
+        bitmap.recycle()
+      }
     } finally {
-      bitmap.recycle()
       photo?.recycle()
     }
   }
 
   fun temporaryPng(context: Context, card: PromoCardData): File {
     val dir = File(context.cacheDir, "promo-exports").apply { mkdirs() }
-    val cutoff = System.currentTimeMillis() - EXPORT_AGE_MS
-    dir.listFiles()?.forEach { if (it.lastModified() < cutoff) it.delete() }
+    val cutoff = System.currentTimeMillis() - CLEANUP_AGE_MS
+    dir.listFiles()?.forEach { if (exportFileName.matches(it.name) && it.lastModified() < cutoff) it.delete() }
     val file = File(dir, exportName())
+    var complete = false
     try {
       file.outputStream().use { renderPng(context, card, it) }
+      complete = true
       return file
-    } catch (error: Exception) {
-      file.delete()
-      throw error
+    } finally {
+      if (!complete) file.delete()
     }
   }
 
@@ -147,14 +160,15 @@ internal object PromoMedia {
     }
     val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
       ?: throw IOException("Cannot create image")
+    var complete = false
     try {
       val output = resolver.openOutputStream(uri) ?: throw IOException("Cannot open image")
       output.use { renderPng(context, card, it) }
       val published = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
       if (resolver.update(uri, published, null, null) != 1) throw IOException("Cannot publish image")
-    } catch (error: Exception) {
-      runCatching { resolver.delete(uri, null, null) }
-      throw error
+      complete = true
+    } finally {
+      if (!complete) runCatching { resolver.delete(uri, null, null) }
     }
   }
 

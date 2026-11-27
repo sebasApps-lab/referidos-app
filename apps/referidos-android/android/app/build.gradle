@@ -99,12 +99,15 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.referidosandroid"
+    if (promosBeta) {
+        sourceSets.release.manifest.srcFile "src/promosBetaRelease/AndroidManifest.xml"
+    }
     defaultConfig {
         applicationId "com.referidosandroid"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode promosBeta ? 2 : 1
+        versionName promosBeta ? "1.1" : "1.0"
         buildConfigField "boolean", "PROMOS_BETA", promosBeta.toString()
         manifestPlaceholders = [
             referidosAppLabel: promosBeta ? "Referidos Promos" : "@string/app_name",
@@ -113,6 +116,9 @@ android {
         ]
         if (promosBeta) {
             applicationIdSuffix ".promosbeta"
+            ndk {
+                abiFilters.addAll(findProperty("reactNativeArchitectures").toString().split(",").collect { it.trim() })
+            }
         }
     }
     signingConfigs {

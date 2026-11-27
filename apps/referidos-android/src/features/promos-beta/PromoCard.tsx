@@ -1,17 +1,11 @@
 import React from "react";
 import { NativeModules, requireNativeComponent, StyleSheet, type ViewProps } from "react-native";
-import { formatExpiration, type Promo } from "./promoLibrary";
+import { promoCardData, type Promo } from "./promoLibrary";
 
-type CardData = Pick<Promo, "title" | "offer" | "description" | "businessName" | "template" | "color" | "photo"> & {
-  expirationLabel: string;
-};
-
-export function promoCardData(promo: Promo): CardData {
-  const { title, offer, description, businessName, template, color, photo, expiration } = promo;
-  return { title, offer, description, businessName, template, color, photo, expirationLabel: formatExpiration(expiration) };
-}
+type CardData = ReturnType<typeof promoCardData>;
 
 export const promoNative: {
+  sessionId: string;
   pickPhoto(): Promise<string | null>;
   pickDate(value: string | null): Promise<string | null>;
   saveImage(data: CardData): Promise<"gallery" | "document" | null>;
@@ -25,9 +19,9 @@ export default function PromoCard({ promo, decorative = false }: { promo: Promo;
   const data = { ...promoCardData(promo), thumbnail: decorative };
   const label = [
     "Vista previa de la promoción",
-    data.businessName || "Tu negocio",
-    data.title || "Tu próxima promoción",
-    data.offer || "20% de descuento",
+    data.businessName,
+    data.title,
+    data.offer,
     data.description,
     data.expirationLabel && `Válida hasta ${data.expirationLabel}`,
   ].filter(Boolean).join(". ");

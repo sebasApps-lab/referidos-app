@@ -13,8 +13,9 @@ export const palette = {
   danger: "#A82B47",
 };
 
-export function PromoButton({ label, onPress, kind = "primary", disabled = false, style }: {
+export function PromoButton({ label, accessibilityLabel = label, onPress, kind = "primary", disabled = false, style }: {
   label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
   kind?: "primary" | "secondary" | "text" | "danger";
   disabled?: boolean;
@@ -29,6 +30,7 @@ export function PromoButton({ label, onPress, kind = "primary", disabled = false
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}

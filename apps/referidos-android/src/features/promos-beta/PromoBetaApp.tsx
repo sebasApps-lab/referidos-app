@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert, BackHandler, Keyboard, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, BackHandler, Keyboard, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import PromoCard, { promoCardData, promoNative } from "./PromoCard";
+import PromoCard, { promoNative } from "./PromoCard";
 import { BrandMark, palette, PromoButton } from "./PromoControls";
 import PromoEditor from "./PromoEditor";
-import { createLibraryWriter, duplicatePromo, emptyLibrary, isReady, newPromo, photoNames, readLibrary, removePromo, savePromo, storageKey, type Promo, type PromoChange, type PromoLibrary } from "./promoLibrary";
+import { createLibraryWriter, createPromoIds, duplicatePromo, emptyLibrary, firstPromoError, isReady, newPromo, photoNames, promoCardData, readLibrary, removePromo, savePromo, storageKey, type Promo, type PromoChange, type PromoLibrary, type PromoTextField } from "./promoLibrary";
 
 type Screen = { view: "create" | "library" } | { view: "editor"; promo: Promo; origin: "create" | "library" };
 type Busy = "share" | "save" | "photo" | "date";
 type Notice = { text: string; error?: boolean };
 
 const example: Promo = {
-  ...newPromo("Café Aurora", 0),
+  ...newPromo("example", "Café Aurora", 0),
   title: "Tardes de café",
   offer: "2×1 en lattes",
   description: "Tu café favorito, ahora para compartir.",
@@ -30,6 +30,7 @@ export default function PromoBetaApp() {
 }
 
 function PromoWorkspace() {
+  const { height } = useWindowDimensions();
   const [screen, setScreen] = useState<Screen>({ view: "create" });
   const [library, setLibrary] = useState(emptyLibrary);
   const [loading, setLoading] = useState<"loading" | "ready" | "error">("loading");
@@ -37,10 +38,17 @@ function PromoWorkspace() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
   const [validation, setValidation] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{ field: PromoTextField } | null>(null);
+  const [personalizing, setPersonalizing] = useState(false);
+  const [query, setQuery] = useState("");
   const [keyboard, setKeyboard] = useState(false);
   const libraryRef = useRef(library);
   const saveId = useRef(0);
   const busyRef = useRef(false);
+  const screenRef = useRef(screen);
+  const offsets = useRef({ create: 0, library: 0, editor: 0 });
+  const scrollTarget = useRef<number | null>(null);
+  const [nextPromoId] = useState(() => createPromoIds(promoNative.sessionId));
   const [writeLibrary] = useState(() => createLibraryWriter((value) => AsyncStorage.setItem(storageKey, value)));
   const scroll = useRef<ScrollView>(null);
 
@@ -50,15 +58,21 @@ function PromoWorkspace() {
       const stored = readLibrary(await AsyncStorage.getItem(storageKey));
       libraryRef.current = stored;
       setLibrary(stored);
-      setLoading("ready");
       // The native worker runs this before any subsequent photo import.
       void promoNative.prunePhotos(photoNames(stored)).catch(() => {});
+      setLoading("ready");
     } catch {
       setLoading("error");
     }
   }, []);
 
   useEffect(() => { void loadLibrary(); }, [loadLibrary]);
+
+  useEffect(() => {
+    if (!notice || notice.error) return;
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     const show = Keyboard.addListener("keyboardDidShow", () => setKeyboard(true));
@@ -82,18 +96,55 @@ function PromoWorkspace() {
     Keyboard.dismiss();
     setNotice(null);
     setValidation(false);
+    setFocusRequest(null);
+    setPersonalizing(false);
+    if (next.view === "editor") offsets.current.editor = 0;
+    scrollTarget.current = offsets.current[next.view];
+    screenRef.current = next;
     setScreen(next);
   }, []);
 
+  const restoreScroll = useCallback(() => {
+    if (scrollTarget.current === null || !scroll.current) return;
+    scroll.current.scrollTo({ y: scrollTarget.current, animated: false });
+    scrollTarget.current = null;
+  }, []);
+
   useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (busyRef.current) return true;
-      if (screen.view === "create") return false;
-      navigate({ view: screen.view === "editor" ? screen.origin : "create" });
+    const frame = requestAnimationFrame(restoreScroll);
+    return () => cancelAnimationFrame(frame);
+  }, [personalizing, restoreScroll, screen]);
+
+  const changePersonalization = useCallback((show: boolean) => {
+    if (busyRef.current) return;
+    Keyboard.dismiss();
+    setNotice(null);
+    setFocusRequest(null);
+    scrollTarget.current = show ? 0 : offsets.current.editor;
+    setPersonalizing(show);
+  }, []);
+
+  const goBack = useCallback(() => {
+    if (busyRef.current) return true;
+    if (personalizing) {
+      changePersonalization(false);
       return true;
-    });
+    }
+    if (screen.view === "create") {
+      if (saveState === "error") {
+        Alert.alert("Cambios pendientes", "Reintenta el guardado antes de salir para conservar tus cambios.");
+        return true;
+      }
+      return saveState === "saving";
+    }
+    navigate({ view: screen.view === "editor" ? screen.origin : "create" });
+    return true;
+  }, [changePersonalization, navigate, personalizing, saveState, screen]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", goBack);
     return () => subscription.remove();
-  }, [navigate, screen]);
+  }, [goBack]);
 
   const origin = screen.view === "editor" ? screen.origin : screen.view;
   const draft = screen.view === "editor"
@@ -101,28 +152,33 @@ function PromoWorkspace() {
     : null;
 
   function start() {
-    navigate({ view: "editor", promo: newPromo(libraryRef.current.businessName), origin });
+    if (screenRef.current.view === "editor" || busyRef.current) return;
+    const current = libraryRef.current;
+    navigate({ view: "editor", promo: newPromo(nextPromoId(current), current.businessName), origin });
   }
 
   function update(promo: Promo, change: PromoChange) {
+    setNotice(null);
+    setFocusRequest(null);
     const latest = libraryRef.current.promos.find(({ id }) => id === promo.id) || promo;
     persist(savePromo(libraryRef.current, { ...latest, ...change, updatedAt: Date.now() }, change.businessName !== undefined));
   }
 
   function duplicate(promo: Promo) {
-    if (busyRef.current) return;
-    const copy = duplicatePromo(promo);
+    if (busyRef.current || screenRef.current.view !== "library") return;
+    const copy = duplicatePromo(promo, nextPromoId(libraryRef.current));
     persist(savePromo(libraryRef.current, copy));
     navigate({ view: "editor", promo: copy, origin: "library" });
     setNotice({ text: "Copia creada. Puedes editarla aquí." });
   }
 
   function confirmDelete(promo: Promo) {
+    if (busyRef.current) return;
+    setNotice(null);
     Alert.alert("¿Eliminar esta promoción?", promo.title.trim() || "Borrador sin título", [
       { text: "Cancelar", style: "cancel" },
       { text: "Eliminar", style: "destructive", onPress: () => {
         persist(removePromo(libraryRef.current, promo.id));
-        setNotice({ text: "Promoción eliminada." });
       } },
     ], { cancelable: true });
   }
@@ -156,18 +212,21 @@ function PromoWorkspace() {
   }
 
   function exportImage(promo: Promo, kind: "share" | "save") {
-    if (!isReady(promo)) {
+    if (busyRef.current) return;
+    const field = firstPromoError(promo);
+    if (field) {
       if (screen.view !== "editor") navigate({ view: "editor", promo, origin: "library" });
+      if (personalizing) changePersonalization(false);
+      scrollTarget.current = null;
       setValidation(true);
       setNotice(null);
-      if (screen.view === "editor") scroll.current?.scrollTo({ y: 0, animated: true });
+      setFocusRequest({ field });
       return;
     }
     const data = promoCardData(promo);
     void run(kind, async () => {
       if (kind === "share") {
         await promoNative.shareImage(data);
-        setNotice({ text: "Imagen preparada. Elige una app para compartirla." });
       } else {
         const destination = await promoNative.saveImage(data);
         if (destination) setNotice({ text: destination === "gallery" ? "PNG guardado en tu galería." : "PNG guardado en la ubicación elegida." });
@@ -178,9 +237,6 @@ function PromoWorkspace() {
   const isEditor = screen.view === "editor";
   const showNav = !keyboard && !isEditor && loading === "ready";
   const storedDraft = draft && library.promos.some(({ id }) => id === draft.id);
-  const displayedNotice = notice ?? (validation && draft && !isReady(draft)
-    ? { text: "Completa el título y el beneficio para exportar.", error: true }
-    : null);
 
   return (
     <View style={styles.workspace}>
@@ -188,8 +244,8 @@ function PromoWorkspace() {
         <View style={styles.topbarInner}>
           {isEditor ? (
             <>
-              <PromoButton label="‹ Volver" kind="text" onPress={() => navigate({ view: origin })} disabled={Boolean(busy)} />
-              <Text accessibilityRole="header" style={styles.editorTitle}>Editar promoción</Text>
+              <PromoButton label="‹ Volver" accessibilityLabel="Volver" kind="text" onPress={goBack} disabled={Boolean(busy)} />
+              <Text accessibilityRole="header" style={styles.editorTitle}>{personalizing ? "Personalizar promoción" : "Editar promoción"}</Text>
               <View style={styles.markSpacer} />
             </>
           ) : (
@@ -201,22 +257,32 @@ function PromoWorkspace() {
         </View>
       </View>
 
+      {draft && personalizing && (
+        <View style={styles.fixedPreview}>
+          <Text accessibilityRole="header" style={styles.fixedPreviewLabel}>Vista previa</Text>
+          <View style={{ width: Math.min(184, height * 0.26) }}><PromoCard promo={draft} /></View>
+        </View>
+      )}
       {loading !== "ready" ? (
         <View style={styles.loading}>
           <Text accessibilityLiveRegion="polite" style={styles.infoText}>
-            {loading === "loading" ? "Abriendo tus promociones…" : "No pudimos abrir el almacenamiento de promociones."}
+            {loading === "loading" ? "Abriendo tus promociones…" : "No pudimos leer tus promociones. Reintenta para acceder a los datos guardados."}
           </Text>
           {loading === "error" && <PromoButton label="Reintentar" onPress={() => void loadLibrary()} />}
         </View>
       ) : (
         <ScrollView key={screen.view === "editor" ? `editor-${screen.promo.id}` : screen.view} ref={scroll}
-          style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+          onContentSizeChange={restoreScroll} scrollEventThrottle={32} onScroll={({ nativeEvent }) => {
+            if (!personalizing) offsets.current[screen.view] = nativeEvent.contentOffset.y;
+          }}>
           {screen.view === "create" && <CreateHome last={library.promos[0]} onCreate={start}
             onResume={(promo) => navigate({ view: "editor", promo, origin: "create" })} />}
-          {screen.view === "library" && <Library promos={library.promos} busy={Boolean(busy)} onCreate={start}
+          {screen.view === "library" && <Library promos={library.promos} query={query} onQuery={setQuery} busy={Boolean(busy)} onCreate={start}
             onOpen={(promo) => navigate({ view: "editor", promo, origin: "library" })}
             onDuplicate={duplicate} onShare={(promo) => exportImage(promo, "share")} onDelete={confirmDelete} />}
-          {draft && <PromoEditor promo={draft} validation={validation} busy={Boolean(busy)}
+          {draft && <PromoEditor promo={draft} validation={validation} focusRequest={focusRequest} scroll={scroll}
+            personalizing={personalizing} personalize={() => changePersonalization(true)} busy={Boolean(busy)}
             change={(change) => update(draft, change)} pick={(kind) => pick(draft, kind)} />}
         </ScrollView>
       )}
@@ -227,7 +293,7 @@ function PromoWorkspace() {
           <PromoButton label="Reintentar" kind="text" onPress={() => persist(libraryRef.current)} />
         </View>
       )}
-      {displayedNotice && <View style={styles.notice}><Text accessibilityLiveRegion="polite" style={displayedNotice.error ? styles.errorText : styles.infoText}>{displayedNotice.text}</Text></View>}
+      {notice && <View style={styles.notice}><Text accessibilityLiveRegion="polite" style={notice.error ? styles.errorText : styles.infoText}>{notice.text}</Text></View>}
 
       {draft && !keyboard && (
         <View style={styles.actionBar}>
@@ -258,7 +324,7 @@ function NavTab({ label, icon, selected, disabled, onPress }: {
   return (
     <Pressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected, disabled }}
       disabled={disabled} onPress={onPress} style={[styles.tab, selected && styles.tabSelected]}>
-      <Text style={[styles.tabIcon, selected && styles.tabLabelSelected]}>{icon}</Text>
+      <Text importantForAccessibility="no" style={[styles.tabIcon, selected && styles.tabLabelSelected]}>{icon}</Text>
       <Text style={[styles.tabLabel, selected && styles.tabLabelSelected]}>{label}</Text>
     </Pressable>
   );
@@ -271,7 +337,7 @@ function CreateHome({ last, onCreate, onResume }: { last?: Promo; onCreate: () =
         <View style={styles.heroRing} importantForAccessibility="no" />
         <Text accessibilityRole="header" style={styles.headline}>Tu próxima oferta, lista para compartir</Text>
         <Text style={styles.heroCopy}>Escribe tu oferta, elige un estilo y compártela como imagen.</Text>
-        <Pressable accessibilityRole="button" onPress={onCreate} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Crear promoción" onPress={onCreate} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]}>
           <Text style={styles.heroButtonText}>Crear promoción</Text><Text style={styles.heroArrow} importantForAccessibility="no">→</Text>
         </Pressable>
       </View>
@@ -295,11 +361,10 @@ function CreateHome({ last, onCreate, onResume }: { last?: Promo; onCreate: () =
   );
 }
 
-function Library({ promos, busy, onCreate, onOpen, onDuplicate, onShare, onDelete }: {
-  promos: Promo[]; busy: boolean; onCreate: () => void;
+function Library({ promos, query, onQuery, busy, onCreate, onOpen, onDuplicate, onShare, onDelete }: {
+  promos: Promo[]; query: string; onQuery: (value: string) => void; busy: boolean; onCreate: () => void;
   onOpen: (promo: Promo) => void; onDuplicate: (promo: Promo) => void; onShare: (promo: Promo) => void; onDelete: (promo: Promo) => void;
 }) {
-  const [query, setQuery] = useState("");
   const search = query.trim().toLowerCase();
   const matches = promos.filter(({ title, offer, businessName }) => `${title} ${offer} ${businessName}`.toLowerCase().includes(search));
 
@@ -309,8 +374,8 @@ function Library({ promos, busy, onCreate, onOpen, onDuplicate, onShare, onDelet
         <Text accessibilityRole="header" style={styles.libraryTitle}>Mis promociones</Text>
         <Text style={styles.infoText}>Guardadas en este dispositivo.</Text>
       </View>
-      {promos.length > 4 && <TextInput accessibilityLabel="Buscar promociones" placeholder="Buscar promociones"
-        placeholderTextColor={palette.muted} value={query} onChangeText={setQuery} style={styles.search} />}
+      {(promos.length > 4 || query !== "") && <TextInput accessibilityLabel="Buscar promociones" placeholder="Buscar promociones"
+        placeholderTextColor={palette.muted} value={query} onChangeText={onQuery} style={styles.search} />}
       {promos.length === 0 ? (
         <View style={styles.empty}>
           <BrandMark />
@@ -346,6 +411,8 @@ function Library({ promos, busy, onCreate, onOpen, onDuplicate, onShare, onDelet
 }
 
 const styles = StyleSheet.create({
+  fixedPreview: { alignItems: "center", gap: 7, borderBottomWidth: 1, borderColor: palette.line, paddingVertical: 10 },
+  fixedPreviewLabel: { color: palette.ink, fontSize: 15, fontWeight: "800" },
   safe: { flex: 1, backgroundColor: palette.bg },
   workspace: { flex: 1, backgroundColor: palette.bg },
   topbar: { borderBottomWidth: 1, borderColor: palette.line, backgroundColor: palette.paper },

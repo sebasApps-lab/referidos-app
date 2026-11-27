@@ -12,7 +12,6 @@ import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
-import android.text.TextUtils
 import com.facebook.react.bridge.ReadableMap
 import kotlin.math.max
 
@@ -30,10 +29,10 @@ internal data class PromoCardData(
     fun from(map: ReadableMap): PromoCardData {
       fun read(key: String) = map.getString(key)?.trim().orEmpty()
       return PromoCardData(
-        title = read("title").ifBlank { "Tu próxima promoción" },
-        offer = read("offer").ifBlank { "20% de descuento" },
+        title = read("title"),
+        offer = read("offer"),
         description = read("description"),
-        businessName = read("businessName").ifBlank { "Tu negocio" },
+        businessName = read("businessName"),
         expirationLabel = read("expirationLabel"),
         template = read("template"),
         color = read("color"),
@@ -103,10 +102,12 @@ internal object PromoCardRenderer {
     paint.alpha = 255
 
     paint.color = highlight
-    canvas.drawPath(sparkle(94f, 99f, 20f), paint)
-    drawText(canvas, card.businessName, 128f, 78f, 830, 62, 36, 18, 1, primary, mediumTypeface)
+    if (card.businessName.isNotBlank()) {
+      canvas.drawPath(sparkle(94f, 99f, 20f), paint)
+      drawText(canvas, card.businessName, 128f, 78f, 830, 62, 36, 14, 1, primary, mediumTypeface)
+    }
 
-    val hasPhoto = photo != null
+    val hasPhoto = card.photo != null
     val contentWidth = if (hasPhoto) 488 else 924
     if (photo != null) {
       val corner = if (graphic) 22f else 48f
@@ -124,27 +125,27 @@ internal object PromoCardRenderer {
         photoBounds.centerX() + halfWidth, photoBounds.centerY() + halfHeight,
       ), paint)
       canvas.restore()
-    } else {
+    } else if (!hasPhoto) {
       paint.color = highlight
       canvas.drawPath(sparkle(950f, 727f, if (graphic) 30f else 24f), paint)
       canvas.drawPath(sparkle(889f, 730f, 10f), paint)
     }
 
     drawText(canvas, card.title, 76f, if (graphic) 488f else 198f, contentWidth, 171,
-      if (hasPhoto) 60 else 76, 21, if (hasPhoto) 3 else 2, primary, heavyTypeface)
+      if (hasPhoto) 60 else 76, 16, if (hasPhoto) 3 else 2, primary, heavyTypeface)
     drawText(canvas, card.offer, 72f, if (graphic) 190f else 378f, contentWidth, if (graphic) 276 else 310,
-      if (hasPhoto) 106 else 140, 27, if (hasPhoto) 3 else 2, highlight, heavyTypeface)
+      if (hasPhoto) 106 else 140, 18, if (hasPhoto) 3 else 2, highlight, heavyTypeface)
 
     if (card.description.isNotBlank()) {
-      drawText(canvas, card.description, 78f, 768f, 924, 145, 37, 21, 3, secondary, bodyTypeface)
+      drawText(canvas, card.description, 78f, 768f, 924, 145, 37, 16, 3, secondary, bodyTypeface)
     }
 
-    paint.color = primary
-    paint.alpha = 95
-    canvas.drawRect(78f, 928f, 1002f, 930f, paint)
-    paint.alpha = 255
-    val footer = if (card.expirationLabel.isBlank()) "PROMOCIÓN" else "Válida hasta ${card.expirationLabel}"
-    drawText(canvas, footer, 78f, 952f, 890, 60, 28, 23, 1, primary, mediumTypeface)
+    if (card.expirationLabel.isNotBlank()) {
+      paint.color = primary
+      paint.alpha = 95
+      canvas.drawRect(78f, 928f, 1002f, 930f, paint)
+      drawText(canvas, "Válida hasta ${card.expirationLabel}", 78f, 952f, 890, 60, 28, 23, 1, primary, mediumTypeface)
+    }
   }
 
   private fun sparkle(x: Float, y: Float, radius: Float) = Path().apply {
@@ -164,17 +165,17 @@ internal object PromoCardRenderer {
     canvas: Canvas, value: String, x: Float, y: Float, width: Int, height: Int,
     initialSize: Int, minimumSize: Int, maxLines: Int, color: Int, typeface: Typeface,
   ) {
+    if (value.isBlank()) return
     val text = value.replace(Regex("\\s+"), " ")
     val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
       this.color = color
       this.typeface = typeface
     }
-    fun layout(size: Int, truncate: Boolean = false): StaticLayout {
+    fun layout(size: Int): StaticLayout {
       paint.textSize = size.toFloat()
       return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
         .setAlignment(Layout.Alignment.ALIGN_NORMAL)
         .setIncludePad(false)
-        .apply { if (truncate) setMaxLines(maxLines).setEllipsize(TextUtils.TruncateAt.END) }
         .build()
     }
     var size = initialSize
@@ -183,9 +184,11 @@ internal object PromoCardRenderer {
       size = (size - 4).coerceAtLeast(minimumSize)
       fitted = layout(size)
     }
-    if (fitted.lineCount > maxLines) fitted = layout(size, truncate = true)
     canvas.save()
     canvas.translate(x, y)
+    // Scale unusually wide or tall text after wrapping, without dropping characters.
+    val scale = minOf(1f, height.toFloat() / fitted.height)
+    canvas.scale(scale, scale)
     fitted.draw(canvas)
     canvas.restore()
   }
