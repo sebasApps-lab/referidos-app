@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { uploadSourcemaps } from "./upload-sourcemaps.mjs";
+import { uploadSourcemaps, verifySourcemapTenant } from "./upload-sourcemaps.mjs";
 
 const tenant = { id: "dfb1d762-d80f-4c87-a21b-404908a092ab", name: "Migo & Referidos", status: "active" };
 const otherTenant = { id: "091a9c61-96d5-4b69-a94f-d5cf5f50f1c2", name: "Migo - Referidos", status: "active" };
@@ -145,6 +145,18 @@ function run(store, env) {
     createSupabase: () => store.supabase,
   });
 }
+
+test("preflight checks the exact tenant independently of any sourcemap writes", async () => {
+  const store = dataStore();
+  const env = { ...baseEnv, OBS_TENANT_ID: tenant.id, OBS_TENANT_NAME: tenant.name };
+  assert.deepEqual(await verifySourcemapTenant({ env, createSupabase: () => store.supabase }), { id: tenant.id, name: tenant.name });
+  await assert.rejects(verifySourcemapTenant({
+    env: { ...env, OBS_TENANT_NAME: "Other target" }, createSupabase: () => store.supabase,
+  }), /do not match/);
+  for (const [operation, recorded] of Object.entries(store.calls)) {
+    if (operation !== "tenants") assert.equal(recorded.length, 0);
+  }
+});
 
 function canonicalRelease(store, buildId, { tenantId = tenant.id, meta, date = pastDate } = {}) {
   const selector = { ...currentRelease, tenant_id: tenantId, build_id: buildId };

@@ -1,0 +1,110 @@
+{
+  "cutoff": "2026-11-26T05:24:15+00:00",
+  "captured_at": "2026-11-26T19:55:50.769196+00:00",
+  "artifacts": [
+    {
+      "id": "340e76f4-a244-409d-8d90-1fd4934df751",
+      "provider": "supabase_storage",
+      "bucket": "versioning-artifacts",
+      "path": "prelaunch_web/0.3.4/e9c64d1e9409/release-prelaunch_web-0.3.4-e9c64d1e9409.zip",
+      "owner_release_id": "0d1e110c-0241-46f8-bf45-5369dc820f43",
+      "source_commit_sha": "e9c64d1e94097fae92c28a89ea72732c970dfcce",
+      "sha256": "d629839a29da70f0d411514f0f04bc37285c2975c8d81a57147add1276cd20c8",
+      "size_bytes": 7542582
+    },
+    {
+      "id": "4d544330-960a-460b-8a4b-5c6f9cca50e0",
+      "provider": "supabase_storage",
+      "bucket": "versioning-artifacts",
+      "path": "referidos_app/0.1.7/092d02e5524a/release-referidos_app-0.1.7-092d02e5524a.zip",
+      "owner_release_id": "2e59eb04-2ceb-44c5-8844-a0e8629d4559",
+      "source_commit_sha": "092d02e5524a62474ff5400a0c2e2cf4b017f39b",
+      "sha256": "8ff1d86e42fb1b9879e3c6df9f12b84c96e1ea681e312e4226c2cebf470b8b3e",
+      "size_bytes": 17755654
+    },
+    {
+      "id": "ccc806f9-8996-496c-b0d0-898bac93c81e",
+      "provider": "supabase_storage",
+      "bucket": "versioning-artifacts",
+      "path": "referidos_app/0.2.2/189ff88c5ddb/release-referidos_app-0.2.2-189ff88c5ddb.zip",
+      "owner_release_id": "9778c452-1dc3-47e4-a061-047987d7268e",
+      "source_commit_sha": "189ff88c5ddbf33212df0c7aa706422aa57c2247",
+      "sha256": "b9722981a40d6fa5a03dcc6cfeb465bb535f1d67476c06c7f0b2dfd377566d31",
+      "size_bytes": 17760186
+    }
+  ],
+  "releases": [
+    {
+      "id": "0783a235-e786-4bb9-8277-ae58801597fc",
+      "product": "prelaunch_web",
+      "env": "staging",
+      "semver": "0.3.4",
+      "artifact_id": "340e76f4-a244-409d-8d90-1fd4934df751",
+      "predecessor_id": "0d1e110c-0241-46f8-bf45-5369dc820f43"
+    },
+    {
+      "id": "0a798af6-925f-4237-b898-73e897daad02",
+      "product": "prelaunch_web",
+      "env": "prod",
+      "semver": "0.3.4",
+      "artifact_id": "340e76f4-a244-409d-8d90-1fd4934df751",
+      "predecessor_id": "0783a235-e786-4bb9-8277-ae58801597fc"
+    },
+    {
+      "id": "0d1e110c-0241-46f8-bf45-5369dc820f43",
+      "product": "prelaunch_web",
+      "env": "dev",
+      "semver": "0.3.4",
+      "artifact_id": "340e76f4-a244-409d-8d90-1fd4934df751",
+      "predecessor_id": null
+    },
+    {
+      "id": "29ceb657-70c7-4b18-a77b-4c4260509f84",
+      "product": "referidos_app",
+      "env": "prod",
+      "semver": "0.2.2",
+      "artifact_id": "ccc806f9-8996-496c-b0d0-898bac93c81e",
+      "predecessor_id": "d1368165-9d49-4dd0-b281-45b13c3a0219"
+    },
+    {
+      "id": "2e59eb04-2ceb-44c5-8844-a0e8629d4559",
+      "product": "referidos_app",
+      "env": "dev",
+      "semver": "0.1.7",
+      "artifact_id": "4d544330-960a-460b-8a4b-5c6f9cca50e0",
+      "predecessor_id": null
+    },
+    {
+      "id": "3b02c3ec-86b4-4d5a-9af3-999f9f5b5bcf",
+      "product": "referidos_app",
+      "env": "prod",
+      "semver": "0.1.7",
+      "artifact_id": "4d544330-960a-460b-8a4b-5c6f9cca50e0",
+      "predecessor_id": "bcd73a1b-be56-4528-a46f-40c9787a2683"
+    },
+    {
+      "id": "9778c452-1dc3-47e4-a061-047987d7268e",
+      "product": "referidos_app",
+      "env": "dev",
+      "semver": "0.2.2",
+      "artifact_id": "ccc806f9-8996-496c-b0d0-898bac93c81e",
+      "predecessor_id": null
+    },
+    {
+      "id": "bcd73a1b-be56-4528-a46f-40c9787a2683",
+      "product": "referidos_app",
+      "env": "staging",
+      "semver": "0.1.7",
+      "artifact_id": "4d544330-960a-460b-8a4b-5c6f9cca50e0",
+      "predecessor_id": "2e59eb04-2ceb-44c5-8844-a0e8629d4559"
+    },
+    {
+      "id": "d1368165-9d49-4dd0-b281-45b13c3a0219",
+      "product": "referidos_app",
+      "env": "staging",
+      "semver": "0.2.2",
+      "artifact_id": "ccc806f9-8996-496c-b0d0-898bac93c81e",
+      "predecessor_id": "9778c452-1dc3-47e4-a061-047987d7268e"
+    }
+  ]
+}

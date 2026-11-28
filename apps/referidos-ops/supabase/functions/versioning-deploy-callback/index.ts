@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.193.0/http/server.ts";
 import { corsHeaders, jsonResponse, supabaseAdmin } from "../_shared/support.ts";
-import { callbackArtifactLookup, verifyCallbackArtifact } from "../_shared/deploy-callback-artifact.mjs";
+import { type DeployRequest, verifyArtifactForRequest } from "../_shared/deploy-artifact-check.ts";
+import { handleDurableDeployCallback } from "../_shared/deploy-durable-callback.mjs";
+import { runObsReleaseSync } from "../_shared/deploy-obs-sync.ts";
+import { classifyDeployCallback, readDeployReconciliation } from "../_shared/deploy-attempt.mjs";
 
 type JsonObject = Record<string, unknown>;
 
 const CALLBACK_HEADER = "x-versioning-callback-token";
-const DEFAULT_TENANT_HINT = "ReferidosAPP";
 
 function asString(value: unknown, fallback = "") {
   if (typeof value !== "string") return fallback;
@@ -28,338 +30,12 @@ function asUuid(value: unknown): string | null {
     : null;
 }
 
-function envVarKey(input: string): string {
-  return input.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
-}
-
 function corsWithCallbackHeader(origin: string | null) {
   const base = corsHeaders(origin);
   const current = base["Access-Control-Allow-Headers"] || "";
   return {
     ...base,
     "Access-Control-Allow-Headers": `${current}, ${CALLBACK_HEADER}`,
-  };
-}
-
-function mapProductToAppId(productKey: string) {
-  switch (productKey) {
-    case "referidos_app":
-      return "referidos-app";
-    case "prelaunch_web":
-      return "prelaunch";
-    case "android_app":
-      return "android-app";
-    default:
-      return productKey || "referidos-app";
-  }
-}
-
-function resolveObsReleaseSyncUrl(envKey: string) {
-  const envToken = envVarKey(envKey);
-  const explicit = asString(Deno.env.get(`OBS_RELEASE_SYNC_URL_${envToken}`));
-  if (explicit) return explicit;
-  const legacy = asString(Deno.env.get(`VERSIONING_RUNTIME_URL_${envToken}`));
-  if (legacy) return legacy;
-  return "";
-}
-
-async function registerWorkflowStarted({
-  requestId,
-  actor,
-  deploymentId,
-  logsUrl,
-  metadata,
-}: {
-  requestId: string;
-  actor: string;
-  deploymentId: string;
-  logsUrl: string;
-  metadata: JsonObject;
-}) {
-  const { data: baseRequest, error: baseRequestError } = await supabaseAdmin
-    .from("version_deploy_requests")
-    .select("id, status, tenant_id, release_id, env_id, deployment_id, metadata")
-    .eq("id", requestId)
-    .limit(1)
-    .maybeSingle<{
-      id: string;
-      status: string;
-      tenant_id: string;
-      release_id: string;
-      env_id: string;
-      deployment_id: string | null;
-      metadata: JsonObject | null;
-    }>();
-
-  if (baseRequestError || !baseRequest?.id) {
-    return {
-      ok: false,
-      error: "deploy_request_not_found",
-      detail: baseRequestError?.message || "No se encontro request para started callback.",
-    };
-  }
-
-  const mergedRequestMetadata = {
-    ...(asObject(baseRequest.metadata)),
-    ...metadata,
-  };
-  const deploymentIdFinal = deploymentId || asString(baseRequest.deployment_id);
-
-  const nextStatus = ["pending", "approved", "executed"].includes(asString(baseRequest.status))
-    ? "executed"
-    : asString(baseRequest.status, "executed");
-
-  const { error: requestUpdateError } = await supabaseAdmin
-    .from("version_deploy_requests")
-    .update({
-      status: nextStatus,
-      executed_by: actor,
-      executed_at: new Date().toISOString(),
-      deployment_id: deploymentIdFinal || null,
-      deployment_status: "started",
-      logs_url: logsUrl || null,
-      metadata: mergedRequestMetadata,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", requestId);
-
-  if (requestUpdateError) {
-    return {
-      ok: false,
-      error: "deploy_request_started_update_failed",
-      detail: requestUpdateError.message,
-    };
-  }
-
-  if (deploymentIdFinal) {
-    const { data: deploymentRow, error: deploymentLookupError } = await supabaseAdmin
-      .from("version_deployments")
-      .select("id, metadata")
-      .eq("tenant_id", baseRequest.tenant_id)
-      .eq("release_id", baseRequest.release_id)
-      .eq("deployment_id", deploymentIdFinal)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{ id: string; metadata: JsonObject | null }>();
-
-    if (!deploymentLookupError && deploymentRow?.id) {
-      const mergedDeploymentMetadata = {
-        ...(asObject(deploymentRow.metadata)),
-        ...metadata,
-      };
-      await supabaseAdmin
-        .from("version_deployments")
-        .update({
-          status: "started",
-          logs_url: logsUrl || null,
-          metadata: mergedDeploymentMetadata,
-        })
-        .eq("id", deploymentRow.id);
-    }
-  }
-
-  return {
-    ok: true,
-    deployment_id: deploymentIdFinal || null,
-    logs_url: logsUrl || null,
-  };
-}
-
-async function runObsReleaseSync({
-  requestId,
-  releaseId,
-  productKey,
-  envKey,
-  versionLabel,
-  deploymentId,
-  actor,
-}: {
-  requestId: string;
-  releaseId: string;
-  productKey: string;
-  envKey: string;
-  versionLabel: string;
-  deploymentId: string;
-  actor: string;
-}) {
-  const syncToken = asString(Deno.env.get("OBS_RELEASE_SYNC_TOKEN"));
-  if (!syncToken) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "missing_obs_release_sync_token",
-      detail: "Define OBS_RELEASE_SYNC_TOKEN en referidos-ops.",
-    };
-  }
-
-  const runtimeUrl = resolveObsReleaseSyncUrl(envKey);
-  if (!runtimeUrl) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "missing_obs_release_sync_url",
-      detail: `Define OBS_RELEASE_SYNC_URL_${envVarKey(envKey)} en referidos-ops.`,
-    };
-  }
-
-  const endpoint = `${runtimeUrl.replace(/\/+$/, "")}/functions/v1/obs-release-sync`;
-  const tenantHint = asString(Deno.env.get("OBS_RELEASE_SYNC_TENANT_HINT"), DEFAULT_TENANT_HINT);
-  const appId = mapProductToAppId(productKey);
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-obs-release-sync-token": syncToken,
-    },
-    body: JSON.stringify({
-      tenant_hint: tenantHint,
-      app_id: appId,
-      product_key: productKey,
-      env_key: envKey,
-      semver: versionLabel,
-      release_id: releaseId,
-      actor,
-      metadata: {
-        trigger: "versioning-deploy-callback",
-        request_id: requestId,
-        deployment_id: deploymentId || null,
-      },
-    }),
-  });
-
-  const raw = await response.text();
-  let payload: JsonObject = {};
-  try {
-    payload = raw ? (JSON.parse(raw) as JsonObject) : {};
-  } catch {
-    payload = { raw };
-  }
-
-  return {
-    ok: response.ok && payload.ok !== false,
-    skipped: false,
-    status: response.status,
-    url: endpoint,
-    detail: asString(payload.detail, response.ok ? "ok" : "obs_release_sync_failed"),
-    payload,
-  };
-}
-
-async function runStorageArtifactGc({
-  tenantId,
-  actor,
-  limit = 25,
-}: {
-  tenantId: string;
-  actor: string;
-  limit?: number;
-}) {
-  const normalizedTenant = asString(tenantId);
-  if (!normalizedTenant) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "missing_tenant_id",
-      detail: "No tenant_id available for artifact gc.",
-    };
-  }
-
-  const { data: artifactRows, error: artifactLookupError } = await supabaseAdmin
-    .from("version_release_artifacts")
-    .select("id, artifact_path, metadata, created_at")
-    .eq("tenant_id", normalizedTenant)
-    .eq("artifact_provider", "supabase_storage")
-    .not("artifact_path", "is", null)
-    .order("created_at", { ascending: true })
-    .limit(Math.max(limit * 6, 60));
-
-  if (artifactLookupError) {
-    return {
-      ok: false,
-      skipped: false,
-      reason: "artifact_lookup_failed",
-      detail: artifactLookupError.message,
-    };
-  }
-
-  const bucketDefault = asString(Deno.env.get("VERSIONING_ARTIFACTS_BUCKET"), "versioning-artifacts");
-  const deleted: Array<{ artifact_id: string; artifact_path: string; bucket: string }> = [];
-  const errors: Array<{ artifact_id: string; detail: string }> = [];
-  let keptByHead = 0;
-  let skippedDeleted = 0;
-
-  for (const row of artifactRows || []) {
-    if (deleted.length >= limit) break;
-
-    const artifactId = asString((row as JsonObject).id);
-    const artifactPath = asString((row as JsonObject).artifact_path);
-    if (!artifactId || !artifactPath) continue;
-
-    const metadata = asObject((row as JsonObject).metadata);
-    if (asString(metadata.storage_deleted_at)) {
-      skippedDeleted += 1;
-      continue;
-    }
-
-    const { data: headRow, error: headError } = await supabaseAdmin
-      .from("version_artifact_env_heads")
-      .select("id")
-      .eq("artifact_id", artifactId)
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-
-    if (headError) {
-      errors.push({ artifact_id: artifactId, detail: headError.message });
-      continue;
-    }
-    if (headRow?.id) {
-      keptByHead += 1;
-      continue;
-    }
-
-    const bucket = asString(metadata.storage_bucket, bucketDefault);
-    const { error: removeError } = await supabaseAdmin.storage.from(bucket).remove([artifactPath]);
-    if (removeError) {
-      errors.push({ artifact_id: artifactId, detail: removeError.message });
-      continue;
-    }
-
-    const nextMetadata: JsonObject = {
-      ...metadata,
-      storage_bucket: bucket,
-      storage_deleted_at: new Date().toISOString(),
-      storage_deleted_by: actor,
-      storage_delete_reason: "unreferenced_by_env_heads",
-    };
-    const { error: updateError } = await supabaseAdmin
-      .from("version_release_artifacts")
-      .update({
-        metadata: nextMetadata,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", artifactId);
-
-    if (updateError) {
-      errors.push({ artifact_id: artifactId, detail: updateError.message });
-      continue;
-    }
-
-    deleted.push({
-      artifact_id: artifactId,
-      artifact_path: artifactPath,
-      bucket,
-    });
-  }
-
-  return {
-    ok: errors.length === 0,
-    skipped: false,
-    deleted_count: deleted.length,
-    kept_by_head: keptByHead,
-    skipped_already_deleted: skippedDeleted,
-    errors,
-    deleted,
   };
 }
 
@@ -425,493 +101,369 @@ async function emitBuildEvent({
   }
 }
 
-serve(async (req) => {
-  const origin = req.headers.get("origin");
-  const cors = corsWithCallbackHeader(origin);
+async function claimRequest(request: DeployRequest, metadata: JsonObject, logsUrl: string) {
+  const { data, error } = await supabaseAdmin
+    .from("version_deploy_requests")
+    .update({ metadata, ...(logsUrl ? { logs_url: logsUrl } : {}) })
+    .eq("id", request.id)
+    .eq("updated_at", request.updated_at)
+    .eq("status", request.status)
+    .eq("deployment_status", request.deployment_status)
+    .eq("deployment_id", request.deployment_id)
+    .select("id")
+    .maybeSingle();
+  return { claimed: Boolean(data?.id), failed: Boolean(error) };
+}
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: cors });
+async function recordReconciliation(
+  requestId: string,
+  executionId: string,
+  metadata: JsonObject,
+  reason: string | null,
+) {
+  const reconciledMetadata = {
+    ...metadata,
+    ops_reconciliation: { status: reason ? "incomplete" : "complete", reason, updated_at: new Date().toISOString() },
+  };
+  const { data, error } = await supabaseAdmin.from("version_deploy_requests")
+    .update({ metadata: reconciledMetadata })
+    .eq("id", requestId)
+    .eq("deployment_id", executionId)
+    .eq("metadata->ops_reconciliation->>status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (error || !data?.id) {
+    console.error("deploy_reconciliation_record_failed", { request_id: requestId });
+    return metadata;
   }
-  if (req.method !== "POST") {
-    return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, cors);
+  return reconciledMetadata;
+}
+
+async function verifyRuntimeConfig(config: JsonObject, request: DeployRequest, metadata: JsonObject) {
+  const payload = asObject(config.payload);
+  const hash = asString(config.config_hash_sha256).toLowerCase();
+  if (config.config_key !== "app-config.js" || config.config_format !== "json" || !/^[a-f0-9]{64}$/.test(hash) ||
+      asString(payload.releaseId).toLowerCase() !== request.release_id ||
+      asString(payload.artifactId).toLowerCase() !== metadata.artifact_id ||
+      asString(payload.sourceCommitSha).toLowerCase() !== metadata.source_commit_sha || payload.appEnv !== request.env_key) {
+    return null;
   }
+
+  // The workflow hashes the compact JSON payload, not the JavaScript wrapper written to disk.
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(payload)));
+  const actualHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return actualHash === hash ? { payload, hash } : null;
+}
+
+async function reconcilePublishedRelease({
+  request,
+  requestId,
+  actor,
+  metadata,
+  runtimeConfig,
+  workflowRunId,
+  workflowRunNumber,
+  executionId,
+  netlifyDeployId,
+}: {
+  request: DeployRequest;
+  requestId: string;
+  actor: string;
+  metadata: JsonObject;
+  runtimeConfig: JsonObject;
+  workflowRunId: number;
+  workflowRunNumber: number;
+  executionId: string;
+  netlifyDeployId: string;
+}) {
+  const verifiedConfig = await verifyRuntimeConfig(runtimeConfig, request, metadata);
+  if (!verifiedConfig) return "runtime_config_unverified";
+  metadata.runtime_config = {
+    config_key: "app-config.js",
+    config_format: "json",
+    config_hash_sha256: verifiedConfig.hash,
+    payload: verifiedConfig.payload,
+  };
+
+  const { data: releaseMetadataRows, error: releaseMetadataError } = await supabaseAdmin.rpc(
+    "versioning_finalize_release_metadata",
+    {
+      p_request_id: requestId,
+      p_actor: actor,
+      p_pr_number: Number(metadata.pr_number) || null,
+      p_tag_name: asString(metadata.tag_name) || null,
+      p_release_notes_auto: asString(metadata.release_notes_auto) || null,
+      p_release_notes_final: asString(metadata.release_notes_final) || null,
+      p_ci_run_id: workflowRunId || null,
+      p_ci_run_number: workflowRunNumber || null,
+      p_metadata: metadata,
+    },
+  );
+  if (releaseMetadataError) return "finalize_release_metadata_failed";
+
+  const artifactId = asString(metadata.artifact_id);
+  const eventContext = {
+    tenantId: request.tenant_id,
+    releaseId: request.release_id,
+    deployRequestId: requestId,
+    artifactId,
+    actor,
+    workflowRunId,
+    workflowRunNumber,
+  };
+
+  await emitBuildEvent({
+    ...eventContext,
+    eventKey: "deploy-callback:" + executionId + ":release-metadata",
+    eventType: "release.metadata_finalized",
+    status: "success",
+    detail: "Metadatos de release registrados.",
+    metadata: { release_metadata: Array.isArray(releaseMetadataRows) ? releaseMetadataRows[0] : releaseMetadataRows },
+  });
+
+  const { error: artifactHeadError } = await supabaseAdmin.from("version_artifact_env_heads")
+    .upsert({
+      tenant_id: request.tenant_id,
+      product_id: request.product_id,
+      env_id: request.env_id,
+      release_id: request.release_id,
+      artifact_id: artifactId,
+      updated_by: actor,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "tenant_id,product_id,env_id" });
+  if (artifactHeadError) return "mark_env_artifact_head_failed";
+
+  const { error: artifactAuditError } = await supabaseAdmin.from("version_audit_log").insert({
+    tenant_id: request.tenant_id,
+    actor,
+    action: "mark_env_artifact_head",
+    entity_type: "version_artifact_env_heads",
+    entity_id: artifactId,
+    payload: {
+      release_id: request.release_id,
+      env_id: request.env_id,
+      semver: request.version_label,
+      source_commit_sha: metadata.source_commit_sha,
+      deploy_execution_id: executionId,
+    },
+  });
+  if (artifactAuditError) {
+    console.error("mark_env_artifact_head_audit_failed", { code: artifactAuditError.code, artifact_id: artifactId });
+  }
+
+  await emitBuildEvent({
+    ...eventContext,
+    eventKey: "deploy-callback:" + executionId + ":artifact-head",
+    eventType: "artifact.head_marked",
+    status: "success",
+    detail: "Artefacto exacto registrado para el entorno.",
+  });
+
+  const { data: configVersionId, error: configVersionError } = await supabaseAdmin.rpc(
+    "versioning_register_env_config_version",
+    {
+      p_release_id: request.release_id,
+      p_actor: actor,
+      p_config_key: "app-config.js",
+      p_config_format: "json",
+      p_config_payload: verifiedConfig.payload,
+      p_config_hash_sha256: verifiedConfig.hash,
+      p_source_commit_sha: asString(metadata.source_commit_sha),
+      p_artifact_id: artifactId,
+      p_metadata: { source: "versioning-deploy-artifact", request_id: requestId },
+    },
+  );
+  if (configVersionError) return "register_env_config_version_failed";
+
+  await emitBuildEvent({
+    ...eventContext,
+    eventKey: "deploy-callback:" + executionId + ":runtime-config-versioned",
+    eventType: "config.versioned",
+    status: "success",
+    detail: "Configuración por entorno registrada.",
+    metadata: { config_version_id: configVersionId },
+  });
+
+  try {
+    const obsSync = await runObsReleaseSync({
+      requestId,
+      releaseId: request.release_id,
+      productKey: request.product_key,
+      envKey: request.env_key,
+      versionLabel: request.version_label,
+      deploymentId: netlifyDeployId,
+      actor,
+    });
+    metadata.obs_release_sync = { ok: obsSync.ok, skipped: obsSync.skipped };
+    if (!obsSync.ok) return "obs_release_sync_incomplete";
+  } catch {
+    return "obs_release_sync_incomplete";
+  }
+
+  return null;
+}
+
+serve(async (req) => {
+  const cors = corsWithCallbackHeader(req.headers.get("origin"));
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, cors);
 
   const expectedToken = asString(Deno.env.get("VERSIONING_DEPLOY_CALLBACK_TOKEN"));
-  if (!expectedToken) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "missing_callback_token_config",
-        detail: "Define VERSIONING_DEPLOY_CALLBACK_TOKEN en Edge secrets.",
-      },
-      500,
-      cors
-    );
-  }
-
-  const receivedToken = asString(req.headers.get(CALLBACK_HEADER));
-  if (!receivedToken || receivedToken !== expectedToken) {
+  if (!expectedToken) return jsonResponse({ ok: false, error: "missing_callback_token_config" }, 500, cors);
+  if (asString(req.headers.get(CALLBACK_HEADER)) !== expectedToken) {
     return jsonResponse({ ok: false, error: "invalid_callback_token" }, 401, cors);
   }
 
-  const body = await req.json().catch(() => ({}));
-  const requestId = asString(body.request_id);
-  const actor = asString(body.actor, "github-actions");
-  const deploymentId = asString(body.deployment_id);
-  const logsUrl = asString(body.logs_url);
-  const status = asString(body.status).toLowerCase();
-  const metadata = asObject(body.metadata);
-
-  if (!requestId) {
-    return jsonResponse({ ok: false, error: "missing_request_id" }, 400, cors);
-  }
-  if (!["started", "success", "failed"].includes(status)) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "invalid_status",
-        detail: "status permitido: started | success | failed",
-      },
-      400,
-      cors
-    );
+  const body = asObject(await req.json().catch(() => ({})));
+  const requestId = asUuid(body.request_id);
+  const status = asString(body.status);
+  if (!requestId || !["started", "prepared", "success", "failed"].includes(status)) {
+    return jsonResponse({ ok: false, error: "invalid_callback_request" }, 400, cors);
   }
 
-  const { data: requestRow, error: requestLookupError } = await supabaseAdmin
+  const { data: request, error: requestError } = await supabaseAdmin
     .from("version_deploy_requests_labeled")
-    .select("id, tenant_id, release_id, product_id, product_key, env_id, env_key, version_label")
+    .select("id, tenant_id, product_id, product_key, release_id, env_id, env_key, version_label, status, deployment_status, deployment_id, updated_at, metadata")
     .eq("id", requestId)
-    .limit(1)
-    .maybeSingle<{
-      id: string;
-      tenant_id: string;
-      release_id: string;
-      product_id: string;
-      product_key: string;
-      env_id: string;
-      env_key: string;
-      version_label: string;
-    }>();
+    .maybeSingle<DeployRequest>();
+  if (requestError) return jsonResponse({ ok: false, error: "deploy_request_lookup_failed" }, 500, cors);
+  if (!request) return jsonResponse({ ok: false, error: "deploy_request_not_found" }, 404, cors);
 
-  if (requestLookupError || !requestRow) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "deploy_request_not_found",
-        detail: requestLookupError?.message || "No se encontro request.",
-      },
-      404,
-      cors
-    );
+  if (request.metadata?.deploy_attempt_protocol === "durable_v1") {
+    const result = await handleDurableDeployCallback({ database: supabaseAdmin, request, body, verifyArtifact: verifyArtifactForRequest });
+    return jsonResponse(result.body, result.status, cors);
   }
+  if (status === "prepared") return jsonResponse({ ok: false, error: "durable_attempt_required" }, 409, cors);
 
-  if (status === "started") {
-    const startedResult = await registerWorkflowStarted({
-      requestId,
-      actor,
-      deploymentId,
-      logsUrl,
-      metadata,
-    });
+  const decision = classifyDeployCallback(request, body);
+  const requestMetadata = asObject(request.metadata);
+  const response = (metadata: JsonObject, duplicate = false) => jsonResponse({
+    ok: true,
+    request_id: requestId,
+    status,
+    duplicate,
+    ...readDeployReconciliation(metadata, request.deployment_id),
+  }, 200, cors);
+  if (decision.kind === "reject") return jsonResponse({ ok: false, error: decision.error }, 409, cors);
+  if (decision.kind === "duplicate") return response(requestMetadata, true);
 
-    if (!startedResult.ok) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: startedResult.error || "register_workflow_started_failed",
-          detail: startedResult.detail || "No se pudo registrar run de workflow.",
-        },
-        500,
-        cors
-      );
-    }
+  const incomingMetadata = asObject(body.metadata);
+  const logsUrl = asString(body.logs_url);
+  const actor = "github-actions";
+  const workflowRunId = Number(decision.identity.github_run_id);
+  const workflowRunNumber = Number(incomingMetadata.github_run_number) || 0;
+  const eventContext = {
+    tenantId: request.tenant_id,
+    releaseId: request.release_id,
+    deployRequestId: requestId,
+    actor,
+    workflowRunId,
+    workflowRunNumber,
+  };
+
+  if (decision.kind === "bind") {
+    const verification = await verifyArtifactForRequest(request, decision.identity);
+    if (!verification.ok) return jsonResponse({ ok: false, error: verification.reason }, 409, cors);
+
+    const boundAttempt = {
+      ...decision.identity,
+      artifact_id: verification.artifactId,
+      direct_artifact: !decision.identity.artifact_id,
+    };
+    const nextMetadata = { ...requestMetadata, github_run_id: boundAttempt.github_run_id, callback_attempt: boundAttempt };
+    const claim = await claimRequest(request, nextMetadata, logsUrl);
+    if (claim.failed) return jsonResponse({ ok: false, error: "deploy_attempt_bind_failed" }, 500, cors);
+    if (!claim.claimed) return jsonResponse({ ok: false, error: "deploy_attempt_changed" }, 409, cors);
 
     await emitBuildEvent({
-      tenantId: asString(requestRow.tenant_id),
-      releaseId: asString(requestRow.release_id),
-      deployRequestId: requestId,
-      artifactId: asString(metadata.artifact_id),
-      eventKey: `deploy-callback:${requestId}:started`,
+      ...eventContext,
+      artifactId: verification.artifactId,
+      eventKey: "deploy-callback:" + decision.executionId + ":started",
       eventType: "deploy.workflow_started",
       status: "running",
-      actor,
-      detail: `Workflow de deploy iniciado para ${asString(requestRow.env_key)} ${asString(requestRow.version_label)}.`,
-      workflowRunId: Number(metadata.github_run_id ?? 0),
-      workflowRunNumber: Number(metadata.github_run_number ?? 0),
-      metadata,
+      detail: "Run y artefacto asociados al intento de publicación.",
     });
-
-    return jsonResponse(
-      {
-        ok: true,
-        request_id: requestId,
-        status,
-        deployment_id: startedResult.deployment_id,
-        logs_url: startedResult.logs_url,
-      },
-      200,
-      cors
-    );
+    return response(nextMetadata);
   }
 
-  let verifiedArtifact: { artifactId: string; sourceCommitSha: string } | null = null;
-  if (status === "success") {
-    const lookup = callbackArtifactLookup(metadata, requestRow.release_id);
-    if (!lookup) {
-      return jsonResponse({ ok: false, error: "invalid_callback_artifact_id" }, 400, cors);
-    }
-
-    const [releaseLookup, artifactLookup] = await Promise.all([
-      supabaseAdmin.from("version_releases")
-        .select("id, tenant_id, product_id, env_id, source_commit_sha")
-        .eq("id", requestRow.release_id)
-        .maybeSingle(),
-      supabaseAdmin.from("version_release_artifacts_labeled")
-        .select("id, tenant_id, product_id, product_key, release_id, version_label, semver, commit_sha, checksum_sha256, artifact_provider, metadata")
-        .eq(lookup.column, lookup.value)
-        .maybeSingle(),
-    ]);
-    if (releaseLookup.error || artifactLookup.error) {
-      return jsonResponse({ ok: false, error: "callback_artifact_lookup_failed" }, 500, cors);
-    }
-
-    const verification = verifyCallbackArtifact({
-      request: requestRow,
-      release: releaseLookup.data,
-      artifact: artifactLookup.data,
-      lookup,
-      metadata,
-    });
-    if (!verification.ok) {
-      return jsonResponse({
-        ok: false,
-        error: "callback_artifact_verification_failed",
-        detail: verification.reason,
-      }, 409, cors);
-    }
-
-    verifiedArtifact = verification;
-    metadata.artifact_id = verification.artifactId;
-    metadata.source_commit_sha = verification.sourceCommitSha;
-  }
-
-  let obsReleaseSyncResult: JsonObject | null = null;
-  const workflowRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
-  const workflowRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
-  await emitBuildEvent({
-    tenantId: asString(requestRow.tenant_id),
-    releaseId: asString(requestRow.release_id),
-    deployRequestId: requestId,
-    artifactId: asString(metadata.artifact_id),
-    eventKey: `deploy-callback:${requestId}:received:${status}`,
-    eventType: "deploy.callback_received",
-    status: status === "success" ? "running" : "failed",
-    actor,
-    detail: `Callback recibido para ${asString(requestRow.env_key)} ${asString(requestRow.version_label)}.`,
-    workflowRunId,
-    workflowRunNumber,
-    metadata,
-  });
-
-  if (verifiedArtifact) {
-    try {
-      obsReleaseSyncResult = await runObsReleaseSync({
-        requestId,
-        releaseId: asString(requestRow.release_id),
-        productKey: asString(requestRow.product_key),
-        envKey: asString(requestRow.env_key),
-        versionLabel: asString(requestRow.version_label),
-        deploymentId,
-        actor,
-      });
-    } catch (error) {
-      obsReleaseSyncResult = {
-        ok: false,
-        skipped: false,
-        reason: "obs_release_sync_exception",
-        detail: error instanceof Error ? error.message : "unknown_error",
-      };
-    }
-  }
-
-  const finalizeMetadata: JsonObject = {
-    ...metadata,
+  const { publication, executionId, identity } = decision;
+  const now = new Date().toISOString();
+  const reconciliation = publication.status === "not_confirmed"
+    ? { status: "incomplete", reason: "publication_not_confirmed", updated_at: now }
+    : { status: "pending", reason: null, updated_at: now };
+  const nextMetadata: JsonObject = {
+    ...requestMetadata,
+    ...identity,
+    workflow_outcome: asString(incomingMetadata.workflow_outcome),
+    github_run_number: workflowRunNumber || null,
+    github_run_url: asString(incomingMetadata.github_run_url) || null,
+    source_branch: asString(incomingMetadata.source_branch) || null,
+    target_branch: asString(incomingMetadata.target_branch) || null,
+    tag_name: asString(incomingMetadata.tag_name) || null,
+    tag_created: incomingMetadata.tag_created ?? null,
+    pr_number: incomingMetadata.pr_number ?? null,
+    release_notes_auto: asString(incomingMetadata.release_notes_auto) || null,
+    release_notes_final: asString(incomingMetadata.release_notes_final) || null,
+    artifact_name: asString(incomingMetadata.artifact_name) || null,
+    artifact_run_id: asString(incomingMetadata.artifact_run_id) || null,
+    artifact_repository: asString(incomingMetadata.artifact_repository) || null,
+    build_number: Number(incomingMetadata.build_number) || null,
+    channel: asString(incomingMetadata.channel) || null,
+    runtime_config: null,
+    publication: { ...publication, reported_at: now },
+    ops_reconciliation: reconciliation,
   };
-  if (obsReleaseSyncResult) {
-    finalizeMetadata.obs_release_sync = obsReleaseSyncResult;
-  }
+  const claim = await claimRequest(request, nextMetadata, logsUrl);
+  if (claim.failed) return jsonResponse({ ok: false, error: "deploy_evidence_record_failed" }, 500, cors);
+  if (!claim.claimed) return jsonResponse({ ok: false, error: "deploy_attempt_changed" }, 409, cors);
+  if (publication.status === "not_confirmed") return response(nextMetadata);
 
-  const { data, error } = await supabaseAdmin.rpc("versioning_finalize_deploy_request", {
-    p_request_id: requestId,
-    p_actor: actor,
-    p_status: status,
-    p_deployment_id: deploymentId || null,
-    p_logs_url: logsUrl || null,
-    p_metadata: finalizeMetadata,
-  });
-
-  if (error) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: "finalize_deploy_failed",
-        detail: error.message,
-        obs_release_sync: obsReleaseSyncResult,
-      },
-      500,
-      cors
-    );
-  }
-
-  await emitBuildEvent({
-    tenantId: asString(requestRow.tenant_id),
-    releaseId: asString(requestRow.release_id),
-    deployRequestId: requestId,
-    artifactId: asString(metadata.artifact_id),
-    eventKey: `deploy-callback:${requestId}:finalize:${status}`,
-    eventType: "deploy.request_finalized",
-    status: status === "success" ? "success" : "failed",
-    actor,
-    detail: status === "success" ? "Deploy finalizado correctamente." : "Deploy finalizado con error.",
-    workflowRunId,
-    workflowRunNumber,
-    metadata: finalizeMetadata,
-  });
-
-  let releaseMetadataResult: JsonObject | null = null;
-  let artifactHeadResult: JsonObject | null = null;
-  let artifactGcResult: JsonObject | null = null;
-  let envConfigResult: JsonObject | null = null;
-  if (verifiedArtifact) {
-    const prNumber = Number(
-      metadata.pr_number ?? metadata.pull_number ?? metadata.pull_request_number ?? 0
-    );
-    const ciRunId = Number(metadata.github_run_id ?? metadata.ci_run_id ?? 0);
-    const ciRunNumber = Number(metadata.github_run_number ?? metadata.ci_run_number ?? 0);
-    const tagName = asString(metadata.tag_name);
-    const releaseNotesAuto = asString(metadata.release_notes_auto);
-    const releaseNotesFinal = asString(metadata.release_notes_final);
-
-    const { data: releaseMetadataRows, error: releaseMetadataError } = await supabaseAdmin.rpc(
-      "versioning_finalize_release_metadata",
-      {
-        p_request_id: requestId,
-        p_actor: actor,
-        p_pr_number: Number.isFinite(prNumber) && prNumber > 0 ? prNumber : null,
-        p_tag_name: tagName || null,
-        p_release_notes_auto: releaseNotesAuto || null,
-        p_release_notes_final: releaseNotesFinal || null,
-        p_ci_run_id: Number.isFinite(ciRunId) && ciRunId > 0 ? ciRunId : null,
-        p_ci_run_number: Number.isFinite(ciRunNumber) && ciRunNumber > 0 ? ciRunNumber : null,
-        p_metadata: metadata,
+  let reason: string | null = null;
+  try {
+    const published = publication.status === "published";
+    if (published) {
+      const verified = await verifyArtifactForRequest(request, identity);
+      if (!verified.ok) {
+        return response(await recordReconciliation(requestId, executionId, nextMetadata, verified.reason));
       }
-    );
-
-    if (releaseMetadataError) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "finalize_release_metadata_failed",
-          detail: releaseMetadataError.message,
-          deployment_row_id: data || null,
-          obs_release_sync: obsReleaseSyncResult,
-        },
-        500,
-        cors
-      );
     }
 
-    if (Array.isArray(releaseMetadataRows)) {
-      releaseMetadataResult = (releaseMetadataRows[0] as JsonObject) || null;
-    } else {
-      releaseMetadataResult = (releaseMetadataRows as JsonObject) || null;
-    }
+    const { error } = await supabaseAdmin.rpc("versioning_finalize_deploy_request", {
+      p_request_id: requestId,
+      p_actor: actor,
+      p_status: published ? "success" : "failed",
+      p_deployment_id: executionId,
+      p_logs_url: logsUrl || null,
+      p_metadata: nextMetadata,
+    });
+    if (error) return response(await recordReconciliation(requestId, executionId, nextMetadata, "finalize_deploy_failed"));
 
     await emitBuildEvent({
-      tenantId: asString(requestRow.tenant_id),
-      releaseId: asString(requestRow.release_id),
-      deployRequestId: requestId,
-      artifactId: asString(metadata.artifact_id),
-      eventKey: `deploy-callback:${requestId}:release-metadata`,
-      eventType: "release.metadata_finalized",
-      status: "success",
-      actor,
-      detail: "Metadata de release finalizada.",
-      workflowRunId: ciRunId,
-      workflowRunNumber: ciRunNumber,
-      metadata: {
-        ...metadata,
-        release_metadata: releaseMetadataResult,
-      },
+      ...eventContext,
+      artifactId: identity.artifact_id,
+      eventKey: "deploy-callback:" + executionId + ":finalize",
+      eventType: "deploy.request_finalized",
+      status: published ? "success" : "failed",
+      detail: published ? "Publicación registrada." : "Intento cerrado antes de Netlify.",
     });
 
-    const { artifactId, sourceCommitSha } = verifiedArtifact;
-    const { error: artifactHeadError } = await supabaseAdmin
-      .from("version_artifact_env_heads")
-      .upsert({
-        tenant_id: requestRow.tenant_id,
-        product_id: requestRow.product_id,
-        env_id: requestRow.env_id,
-        release_id: requestRow.release_id,
-        artifact_id: artifactId,
-        updated_by: actor,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "tenant_id,product_id,env_id" });
-    if (artifactHeadError) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "mark_env_artifact_head_failed",
-          detail: artifactHeadError.message,
-          deployment_row_id: data || null,
-          release_metadata: releaseMetadataResult,
-          obs_release_sync: obsReleaseSyncResult,
-        },
-        500,
-        cors
-      );
-    }
-
-    const { error: artifactAuditError } = await supabaseAdmin.from("version_audit_log").insert({
-      tenant_id: requestRow.tenant_id,
-      actor,
-      action: "mark_env_artifact_head",
-      entity_type: "version_artifact_env_heads",
-      entity_id: artifactId,
-      payload: {
-        release_id: requestRow.release_id,
-        env_id: requestRow.env_id,
-        semver: requestRow.version_label,
-        source_commit_sha: sourceCommitSha,
-      },
-    });
-    if (artifactAuditError) {
-      console.error("mark_env_artifact_head_audit_failed", { code: artifactAuditError.code, artifact_id: artifactId });
-    }
-
-    artifactHeadResult = {
-      ok: true,
-      artifact_id: artifactId,
-      release_id: asString(requestRow.release_id),
-      env_key: asString(requestRow.env_key),
-    };
-
-    await emitBuildEvent({
-      tenantId: asString(requestRow.tenant_id),
-      releaseId: asString(requestRow.release_id),
-      deployRequestId: requestId,
-      artifactId,
-      eventKey: `deploy-callback:${requestId}:artifact-head`,
-      eventType: "artifact.head_marked",
-      status: "success",
-      actor,
-      detail: "Artifact marcado como head del entorno.",
-      workflowRunId: ciRunId,
-      workflowRunNumber: ciRunNumber,
-      metadata: {
-        ...metadata,
-        artifact_head: artifactHeadResult,
-      },
-    });
-
-    const runtimeConfig = asObject(metadata.runtime_config);
-    const runtimeConfigPayload = asObject(runtimeConfig.payload);
-    if (Object.keys(runtimeConfigPayload).length > 0) {
-      const runtimeConfigHash = asString(runtimeConfig.config_hash_sha256);
-      const runtimeConfigKey = asString(runtimeConfig.config_key, "app-config.js");
-      const runtimeConfigFormat = asString(runtimeConfig.config_format, "json");
-      const { data: configVersionId, error: configVersionError } = await supabaseAdmin.rpc(
-        "versioning_register_env_config_version",
-        {
-          p_release_id: asString(requestRow.release_id),
-          p_actor: actor,
-          p_config_key: runtimeConfigKey,
-          p_config_format: runtimeConfigFormat,
-          p_config_payload: runtimeConfigPayload,
-          p_config_hash_sha256: runtimeConfigHash || null,
-          p_source_commit_sha: sourceCommitSha,
-          p_artifact_id: artifactId,
-          p_metadata: {
-            source: "versioning-deploy-artifact",
-            request_id: requestId,
-            env_key: asString(requestRow.env_key),
-            version_label: asString(requestRow.version_label),
-          },
-        }
-      );
-      if (configVersionError) {
-        return jsonResponse(
-          {
-            ok: false,
-            error: "register_env_config_version_failed",
-            detail: configVersionError.message,
-            deployment_row_id: data || null,
-            release_metadata: releaseMetadataResult,
-            artifact_head: artifactHeadResult,
-            obs_release_sync: obsReleaseSyncResult,
-          },
-          500,
-          cors
-        );
-      }
-      envConfigResult = {
-        ok: true,
-        id: asString(configVersionId),
-        key: runtimeConfigKey,
-        hash: runtimeConfigHash || null,
-      };
-
-      await emitBuildEvent({
-        tenantId: asString(requestRow.tenant_id),
-        releaseId: asString(requestRow.release_id),
-        deployRequestId: requestId,
-        artifactId,
-        eventKey: `deploy-callback:${requestId}:runtime-config-versioned`,
-        eventType: "config.versioned",
-        status: "success",
+    if (published) {
+      reason = await reconcilePublishedRelease({
+        request,
+        requestId,
         actor,
-        detail: "Version de configuracion por entorno registrada.",
-        workflowRunId: ciRunId,
-        workflowRunNumber: ciRunNumber,
-        metadata: {
-          ...metadata,
-          runtime_config: {
-            ...runtimeConfig,
-            config_version_id: asString(configVersionId),
-          },
-        },
+        metadata: nextMetadata,
+        runtimeConfig: asObject(incomingMetadata.runtime_config),
+        workflowRunId,
+        workflowRunNumber,
+        executionId,
+        netlifyDeployId: publication.netlify_deploy_id || "",
       });
     }
-
-    try {
-      artifactGcResult = await runStorageArtifactGc({
-        tenantId: asString(requestRow.tenant_id),
-        actor,
-        limit: 25,
-      });
-    } catch (error) {
-      artifactGcResult = {
-        ok: false,
-        skipped: false,
-        reason: "artifact_gc_exception",
-        detail: error instanceof Error ? error.message : "unknown_error",
-      };
-    }
+  } catch (error) {
+    console.error("deploy_reconciliation_failed", { request_id: requestId, type: error instanceof Error ? error.name : "unknown" });
+    reason = "reconciliation_unexpected_failure";
   }
 
-  return jsonResponse(
-    {
-      ok: true,
-      request_id: requestId,
-      deployment_row_id: data || null,
-      status,
-      obs_release_sync: obsReleaseSyncResult,
-      release_metadata: releaseMetadataResult,
-      env_config: envConfigResult,
-      artifact_head: artifactHeadResult,
-      artifact_gc: artifactGcResult,
-    },
-    200,
-    cors
-  );
+  return response(await recordReconciliation(requestId, executionId, nextMetadata, reason));
 });

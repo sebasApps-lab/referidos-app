@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 
 export const REPO_ROOT = process.cwd();
 
@@ -112,42 +112,33 @@ export function runGitCommand(args, fallback = "") {
 }
 
 export function getChangedFilesWithStatus(baseRef, headRef) {
-  const from = baseRef || "HEAD~1";
-  const to = headRef || "HEAD";
-  const raw = runGitCommand(`diff --name-status --find-renames ${from}...${to}`);
+  const options = { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
+  const resolveCommit = (ref) => execFileSync("git", ["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], options).trim();
+  const from = resolveCommit(baseRef || "HEAD~1");
+  const to = resolveCommit(headRef || "HEAD");
+  const raw = execFileSync("git", ["diff", "--name-status", "--find-renames", "-z", from + "..." + to, "--"], options);
+  return parseChangedFilesWithStatus(raw);
+}
+
+export function parseChangedFilesWithStatus(raw) {
   if (!raw) return [];
-
+  if (!raw.endsWith("\0")) throw new Error("Incomplete Git name-status output");
+  const fields = raw.slice(0, -1).split("\0");
   const rows = [];
-  const lines = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  for (let index = 0; index < fields.length;) {
+    const statusCode = fields[index++]?.[0];
+    const filePath = fields[index++];
+    if (!statusCode || !filePath) throw new Error("Incomplete Git name-status record");
 
-  for (const line of lines) {
-    const parts = line.split(/\t+/).map((item) => item.trim());
-    if (parts.length < 2) continue;
-
-    const statusToken = String(parts[0] || "").toUpperCase();
-    const statusCode = statusToken[0] || "M";
-
-    if (statusCode === "R" && parts.length >= 3) {
-      const oldPath = toPosixPath(parts[1]);
-      const newPath = toPosixPath(parts[2]);
-      if (oldPath) rows.push({ path: oldPath, status: "D" });
-      if (newPath) rows.push({ path: newPath, status: "A" });
+    if (statusCode === "R" || statusCode === "C") {
+      const destination = fields[index++];
+      if (!destination) throw new Error("Missing Git rename or copy destination");
+      if (statusCode === "R") rows.push({ path: toPosixPath(filePath), status: "D" });
+      rows.push({ path: toPosixPath(destination), status: "A" });
       continue;
     }
-
-    if (statusCode === "C" && parts.length >= 3) {
-      const copiedPath = toPosixPath(parts[2]);
-      if (copiedPath) rows.push({ path: copiedPath, status: "A" });
-      continue;
-    }
-
-    const filePath = toPosixPath(parts[1]);
-    if (!filePath) continue;
     const normalizedStatus = ["A", "M", "D"].includes(statusCode) ? statusCode : "M";
-    rows.push({ path: filePath, status: normalizedStatus });
+    rows.push({ path: toPosixPath(filePath), status: normalizedStatus });
   }
 
   const statusRank = {

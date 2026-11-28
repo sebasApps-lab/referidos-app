@@ -48,6 +48,7 @@ import VersioningStage, { VersioningStageProgress } from "./VersioningStage";
 import VersioningReleaseExplorerPanel from "./VersioningReleaseExplorerPanel";
 import { runtimeConfig } from "../../config/runtimeConfig";
 import { resolveReleaseArtifact } from "./services/releaseArtifactDisplay";
+import { deploymentStateFromRequest } from "./services/deploymentStatus";
 import { getVersioningTarget, identifyVersioningRuntime, versioningOpsTarget } from "./services/versioningTargets";
 
 const ENV_OPTIONS = ["dev", "staging", "prod"];
@@ -206,24 +207,9 @@ function asRecord(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-function deploymentStateFromRequest(row) {
-  if (!row) return "not_deployed";
-  const requestStatus = String(row.status || "").toLowerCase();
-  const deploymentStatus = String(row.deployment_status || "").toLowerCase();
-
-  if (deploymentStatus === "success" || deploymentStatus === "deployed") return "deployed";
-  if (deploymentStatus === "failed" || requestStatus === "failed") return "failed";
-  if (deploymentStatus === "started") return "running";
-  if (requestStatus === "pending") return "pending";
-  if (requestStatus === "approved") return "approved";
-  if (requestStatus === "rejected") return "rejected";
-  if (requestStatus === "executed") return "unconfirmed";
-  return "not_deployed";
-}
-
 function deploymentStateBadgeClass(state) {
   if (state === "deployed") return "bg-emerald-100 text-emerald-700";
-  if (state === "running") return "bg-amber-100 text-amber-700";
+  if (["running", "published_incomplete", "unconfirmed"].includes(state)) return "bg-amber-100 text-amber-700";
   if (state === "pending") return "bg-amber-100 text-amber-700";
   if (state === "approved") return "bg-indigo-100 text-indigo-700";
   if (state === "failed") return "bg-red-100 text-red-700";
@@ -232,7 +218,9 @@ function deploymentStateBadgeClass(state) {
 }
 
 function deploymentStateLabel(state) {
-  if (state === "deployed") return "Publicación registrada";
+  if (state === "deployed") return "Publicación conciliada en OPS";
+  if (state === "historical") return "Registro de publicación histórico";
+  if (state === "published_incomplete") return "Publicado en Netlify · OPS pendiente";
   if (state === "running") return "En ejecución";
   if (state === "pending") return "Pendiente de aprobación";
   if (state === "approved") return "Aprobada para publicar";
@@ -1271,7 +1259,7 @@ export default function VersioningOverviewPanel() {
           requestRow?.logs_url || activeDeployTracking.logsUrl || ""
         ).trim();
         const deploymentId = String(
-          requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
+          requestMetadata.publication?.netlify_deploy_id || requestRow?.deployment_id || activeDeployTracking.deploymentId || "-"
         ).trim();
         const workflowRunId =
           Number(activeDeployTracking.runId || 0) || Number(requestMetadata.github_run_id || 0);
@@ -1294,6 +1282,9 @@ export default function VersioningOverviewPanel() {
 
         const run = workflowStatus?.run || null;
         const runState = run?.state || workflowStateToProgress(run?.status, run?.conclusion);
+        const automaticRecovery = requestMetadata.deploy_attempt_protocol === "durable_v1" &&
+          !["deployed", "failed", "rejected"].includes(deployState) &&
+          requestMetadata.ops_reconciliation?.needs_review !== true;
         const workflowLabel = run
           ? `Workflow ${workflowStateLabel(run)}${run?.run_number ? ` (#${run.run_number})` : ""}`
           : "Workflow pending";
@@ -1303,14 +1294,12 @@ export default function VersioningOverviewPanel() {
           activeDeployTracking.semver,
           createDeployProgress({
             status:
-              deployState === "failed" || runState === "error"
+              deployState === "deployed"
+                ? "success"
+                : deployState === "failed" || (runState === "error" && !automaticRecovery)
                 ? "error"
-                : deployState === "deployed"
-                  ? "success"
-                  : "running",
-            detail: `${workflowLabel}. Request=${String(requestRow?.status || "-")} deployment_status=${String(
-              requestRow?.deployment_status || "-"
-            )}.`,
+                : "running",
+            detail: `${workflowLabel}. ${deploymentStateLabel(deployState)}.`,
             stepStatus: {
               gate: "success",
               sync: "success",
@@ -1324,7 +1313,7 @@ export default function VersioningOverviewPanel() {
               verify:
                 deployState === "deployed"
                   ? "success"
-                  : deployState === "failed" || runState === "error"
+                  : deployState === "failed" || (runState === "error" && !automaticRecovery)
                     ? "error"
                     : "running",
             },
@@ -1353,19 +1342,30 @@ export default function VersioningOverviewPanel() {
           return;
         }
 
-        if (runState === "error") {
+        if (!automaticRecovery && (deployState === "published_incomplete" || (deployState === "unconfirmed" && requestMetadata.publication))) {
+          await finalizeDeployTracking({
+            requests,
+            status: "error",
+            detail: deployState === "published_incomplete"
+              ? `Netlify confirmó ${deploymentId}. OPS aún debe conciliar el intento. Consulta la evidencia antes de continuar.`
+              : "El resultado en Netlify sigue sin confirmar. Consulta el intento original antes de continuar.",
+            logsUrl,
+          });
+          return;
+        }
+
+        if (runState === "error" && !automaticRecovery) {
           await finalizeDeployTracking({
             requests,
             status: "error",
             detail:
-              `Workflow de deploy finalizado con error (${envKey || "-"} ${versionLabel || "-"}). ` +
-              `run=${run?.run_number || "-"} deployment_id=${deploymentId || "-"}.`,
+              `GitHub informó un error y falta la confirmación de publicación para ${versionLabel} en ${normalizeEnvLabel(envKey)}. Consulta el intento original.`,
             logsUrl: String(run?.html_url || logsUrl || "").trim(),
           });
           return;
         }
 
-        if (runState === "success") {
+        if (runState === "success" && !automaticRecovery) {
           const runUpdatedAt = Date.parse(String(run?.updated_at || ""));
           const callbackSettled =
             deployState === "deployed" || deployState === "failed" || deployState === "rejected";
@@ -1997,6 +1997,11 @@ export default function VersioningOverviewPanel() {
       setStageMessage(toEnv, semver, "Selecciona una version valida para promover.");
       return;
     }
+    if (fromEnv === "staging" && toEnv === "prod" && DEPLOYABLE_PRODUCTS.includes(activeProductKey) &&
+        deploymentStateFromRequest(getLatestDeployRequestForVersion("staging", semver)) !== "deployed") {
+      setStageMessage(toEnv, semver, "Esta versión necesita un cierre oficial en Staging antes de promoverla.");
+      return;
+    }
 
     const currentActionId = actionKey("promote", source, fromEnv, toEnv, semver);
     setPromotingActionId(currentActionId);
@@ -2337,7 +2342,7 @@ export default function VersioningOverviewPanel() {
     try {
       const existingRequest = getLatestDeployRequestForVersion(envKey, semver);
       const existingState = deploymentStateFromRequest(existingRequest);
-      if (existingState === "running" || existingState === "unconfirmed") {
+      if (["running", "unconfirmed", "published_incomplete"].includes(existingState)) {
         setApprovalMessage("Este intento requiere confirmación. Revisa GitHub y Netlify antes de volver a publicar.");
         openView("solicitudes");
         return;
@@ -3193,6 +3198,10 @@ export default function VersioningOverviewPanel() {
       stageNext = "Consultando las releases de esta etapa…";
     } else if (stageInventoryFailure) {
       stageNext = "No se pudo comprobar si esta versión ya está registrada. Actualiza los datos para continuar.";
+    } else if (publishEnv === "prod" && canDeploy && previousRelease &&
+        deploymentStateFromRequest(getLatestDeployRequestForVersion("staging", candidateVersion)) !== "deployed") {
+      stageNext = "Confirma la publicación y el cierre oficial de esta versión en Staging para promoverla.";
+      action = stageAction("Revisar Staging", () => goToStage("staging"));
     } else if (previousRelease && !getStageConflict(previousRelease)) {
       stageNext = `Esta versión aún no tiene release en ${normalizeEnvLabel(publishEnv)}. Puedes promoverla desde ${normalizeEnvLabel(beforeStage)}.`;
       action = stageAction(`Promover a ${normalizeEnvLabel(publishEnv)}`, () => requestPromoteVersion({
@@ -3218,8 +3227,16 @@ export default function VersioningOverviewPanel() {
     stageNext = "GitHub Actions está procesando la solicitud. Revisa el resultado antes de iniciar otro intento.";
     action = stageAction(activeDeployTracking ? "Siguiendo publicación…" : "Seguir publicación", () => followDeployRequest(stageRequest), productChangeLocked);
   } else if (stageState === "unconfirmed") {
-    stageNext = "El pipeline se inició, pero falta confirmar el resultado de la publicación.";
+    stageNext = stageRequest.metadata?.ops_reconciliation?.needs_review
+      ? "OPS necesita evidencia adicional. Revisa el intento original antes de continuar."
+      : "OPS sigue comprobando el resultado de este intento.";
     action = stageAction("Revisar solicitud", () => openView("solicitudes"));
+  } else if (stageState === "published_incomplete") {
+    stageNext = "Netlify confirmó la publicación. El cierre oficial sigue pendiente en OPS.";
+    action = stageAction("Revisar solicitud", () => openView("solicitudes"));
+  } else if (stageState === "historical") {
+    stageNext = "La publicación histórica se conserva. Una nueva publicación verificada permite obtener un cierre oficial.";
+    action = stageAction("Solicitar republicación", sendRelease, productChangeLocked);
   } else if (stageState === "deployed") {
     stageNext = `OPS registró una publicación exitosa de esta versión en ${normalizeEnvLabel(publishEnv)}.`;
     action = publishEnv === "staging" ? stageAction("Continuar a Producción", () => goToStage("prod"))
@@ -3726,8 +3743,17 @@ export default function VersioningOverviewPanel() {
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      <div>Status deploy: {row.deployment_status || "-"}</div>
-                      <div>ID: {row.deployment_id || "-"}</div>
+                      <div>{deploymentStateLabel(deploymentStateFromRequest(row))}</div>
+                      <div>Intento {row.deployment_id || "sin ID"}</div>
+                      {row.metadata?.publication?.netlify_deploy_id ? (
+                        <div>Netlify {row.metadata.publication.netlify_deploy_id}</div>
+                      ) : null}
+                      {row.metadata?.ops_reconciliation?.reason ? (
+                        <div>Conciliación {row.metadata.ops_reconciliation.reason}</div>
+                      ) : null}
+                      {row.metadata?.ops_observability?.status ? (
+                        <div>Observabilidad {row.metadata.ops_observability.status}</div>
+                      ) : null}
                       <div className="text-[11px] text-slate-500">
                         Ejecutado: {row.executed_at ? formatDate(row.executed_at) : "-"}
                       </div>

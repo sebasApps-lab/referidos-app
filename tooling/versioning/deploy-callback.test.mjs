@@ -1,10 +1,63 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
+import { assertDeployCallbackAcknowledged, deployCallbackPayload, postDeployCallback, resolveDeployCallbackUrl } from "./deploy-callback.mjs";
 
 const OPS_URL = "https://ops.example.test";
 const ENDPOINT = `${OPS_URL}/functions/v1/versioning-deploy-callback`;
 const TOKEN = "callback-test-token";
+
+test("keeps release and artifact identity bound across callback phases", () => {
+  const env = {
+    REQUEST_ID: "request", DEPLOY_EXECUTION_ID: "gha-100-request1", RELEASE_ID_RAW: "promoted-release",
+    ARTIFACT_ID_RAW: "original-artifact", ARTIFACT_SHA256_RAW: "checksum", GITHUB_RUN_ID: "123",
+    WORKFLOW_OUTCOME: "failure",
+  };
+  const started = deployCallbackPayload(env, { start: true });
+  const confirmed = deployCallbackPayload(env, { deployInvoked: true, deploymentId: "netlify-deploy" });
+  assert.equal(started.status, "started");
+  assert.equal(started.deployment_id, env.DEPLOY_EXECUTION_ID);
+  assert.equal(confirmed.status, "success");
+  assert.equal(confirmed.publication_status, "published");
+  assert.equal(confirmed.deployment_id, "netlify-deploy");
+  assert.equal(confirmed.deploy_execution_id, started.deploy_execution_id);
+  assert.equal(confirmed.metadata.workflow_outcome, "failure");
+  assert.equal(confirmed.metadata.artifact_id, started.metadata.artifact_id);
+  assert.equal(confirmed.metadata.release_id, started.metadata.release_id);
+});
+
+test("reports an uncertain Netlify attempt separately from an error before invoking it", () => {
+  const env = { DEPLOY_EXECUTION_ID: "gha-100-request1", WORKFLOW_OUTCOME: "failure" };
+  const beforeDeploy = deployCallbackPayload(env);
+  const ambiguous = deployCallbackPayload(env, { deployInvoked: true });
+  assert.equal(beforeDeploy.publication_status, "not_published");
+  assert.equal(ambiguous.publication_status, "not_confirmed");
+  assert.equal(ambiguous.deployment_id, env.DEPLOY_EXECUTION_ID);
+  assert.equal(ambiguous.status, "failed");
+});
+
+test("persists the exact pre-publish config bytes and refuses reused or unbound authorization", () => {
+  const env = {
+    REQUEST_ID: "request", DEPLOY_EXECUTION_ID: "gha-100-request1", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1",
+    PRODUCT_KEY: "prelaunch_web", ENV_KEY: "staging", SEMVER: "0.3.4", SOURCE_COMMIT_SHA: "d".repeat(40),
+    RUNTIME_CONFIG_PAYLOAD_RAW: '{"z":1,"a":2}', RUNTIME_CONFIG_SHA256_RAW: "c".repeat(64),
+  };
+  const payload = deployCallbackPayload(env, { prepared: true });
+  assert.equal(payload.status, "prepared");
+  assert.equal(payload.publication_status, undefined);
+  assert.equal(payload.metadata.runtime_config.payload_json, env.RUNTIME_CONFIG_PAYLOAD_RAW);
+  assert.deepEqual(payload.metadata.runtime_config.payload, { z: 1, a: 2 });
+  assert.equal(payload.metadata.netlify_deploy_title, `versioning:prelaunch_web:staging:0.3.4:${env.SOURCE_COMMIT_SHA}:gha-100-request1:123`);
+  const ack = { request_id: env.REQUEST_ID, status: "prepared", duplicate: false, publication: null, publish_authorized: true,
+    reconciliation: { github_run_id: env.GITHUB_RUN_ID, github_run_attempt: "1", deploy_execution_id: env.DEPLOY_EXECUTION_ID } };
+  assert.doesNotThrow(() => assertDeployCallbackAcknowledged(ack, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged({ ...ack, duplicate: true }, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged({ ...ack, publish_authorized: false }, env, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged(ack, { ...env, GITHUB_RUN_ID: "125" }, "prepared"));
+  assert.throws(() => assertDeployCallbackAcknowledged(ack, env, "started"));
+  const report = deployCallbackPayload({ ...env, REPORTED_NETLIFY_DEPLOY_ID: "provider-hint" }, { deployInvoked: true });
+  assert.equal(report.publication_status, "not_confirmed");
+  assert.equal(report.metadata.reported_netlify_deploy_id, "provider-hint");
+});
 
 test("derives the fixed callback endpoint from the configured OPS origin", () => {
   assert.equal(resolveDeployCallbackUrl(`${OPS_URL}/`), ENDPOINT);
