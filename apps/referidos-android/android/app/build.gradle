@@ -3,6 +3,35 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def promosBeta = (findProperty("referidosPromosBeta") ?: "false").toString().toBoolean()
+def promosBackend = findProperty("referidosPromosBackend")?.toString() ?: "offline"
+def promosConfigPath = findProperty("referidosPromosConfig")?.toString()
+if (!(promosBackend in ["offline", "dev"]) || (!promosBeta && promosBackend != "offline")) {
+    throw new GradleException("Promos backend must be offline, or dev on a Promos Beta build.")
+}
+def promosDev = promosBackend == "dev"
+if (promosDev != (promosConfigPath != null && !promosConfigPath.isBlank())) {
+    throw new GradleException("Set -PreferidosPromosConfig only for Promos DEV. DEV requires an explicit file.")
+}
+def promosDevAssets = layout.buildDirectory.dir("generated/promosDev/assets")
+
+if (promosDev) {
+    def configScript = file("../../tooling/promos-dev-config.mjs")
+    def configFile = rootProject.file(promosConfigPath)
+    def generateConfig = tasks.register("generatePromosDevConfig", Exec) {
+        inputs.files(configScript, configFile)
+        outputs.file(promosDevAssets.map { it.file("promos-backend.json") })
+        commandLine "node", configScript, "generate", configFile, promosDevAssets.get().asFile
+    }
+    tasks.configureEach {
+        if (name in ["preReleaseBuild", "mergeReleaseAssets"]) {
+            dependsOn generateConfig
+        }
+    }
+    // Only the standalone release is allowed to carry the explicit DEV configuration.
+    androidComponents.beforeVariants(androidComponents.selector().withBuildType("debug")) {
+        it.enable = false
+    }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -100,7 +129,12 @@ android {
 
     namespace "com.referidosandroid"
     if (promosBeta) {
-        sourceSets.release.manifest.srcFile "src/promosBetaRelease/AndroidManifest.xml"
+        sourceSets.release.manifest.srcFile(
+            promosDev ? "src/promosDevRelease/AndroidManifest.xml" : "src/promosBetaRelease/AndroidManifest.xml"
+        )
+        if (promosDev) {
+            sourceSets.release.assets.srcDir(promosDevAssets)
+        }
     }
     defaultConfig {
         applicationId "com.referidosandroid"
