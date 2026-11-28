@@ -127,6 +127,28 @@ SELECT jsonb_build_object(
       FROM supabase_migrations.schema_migrations
       WHERE version ~ '^[0-9]+$' AND version >= '20260219'
     $ledger$, false, false, '')))[1]::text, ',') END,
+  'history_000043', CASE WHEN has_table_privilege(ledger, 'SELECT') AND EXISTS (
+    SELECT 1 FROM pg_attribute WHERE attrelid = ledger AND attname = 'statements'
+      AND atttypid = 'text[]'::regtype AND NOT attisdropped
+  ) AND EXISTS (
+    SELECT 1 FROM pg_attribute WHERE attrelid = ledger AND attname = 'name' AND NOT attisdropped
+  ) THEN (xpath('string(/table/row/evidence)', query_to_xml($history$
+    SELECT jsonb_build_object(
+      'registered', count(*) = 1,
+      'name_matches', coalesce(bool_and(m.name = '000043_ops_telemetry_dlq_metadata_only'), false),
+      'fragment_count', max(cardinality(m.statements)),
+      'ordered_fingerprint_matches', coalesce(bool_and((
+        SELECT encode(sha256(convert_to(string_agg(
+          s.ordinality::text || ':' || octet_length(convert_to(s.sql, 'UTF8'))::text || ':' ||
+          encode(sha256(convert_to(s.sql, 'UTF8')), 'hex'),
+          chr(10) ORDER BY s.ordinality
+        ), 'UTF8')), 'hex')
+        FROM unnest(m.statements) WITH ORDINALITY AS s(sql, ordinality)
+      ) = '357f3fd067e8eaa1291c7b2cb62e3add759eaedeae814f94bb221790427980cf'), false)
+    )::text AS evidence
+    FROM supabase_migrations.schema_migrations m
+    WHERE m.version = '20260415'
+  $history$, false, false, '')))[1]::text::jsonb END,
   'extensions', COALESCE((SELECT jsonb_object_agg(extname, extversion)
     FROM pg_extension WHERE extname IN ('pg_cron', 'pg_net', 'supabase_vault')), '{}'::jsonb)
 ) AS ops_schema_preflight
@@ -265,5 +287,51 @@ SELECT jsonb_build_object(
   'required_versions', CASE WHEN EXISTS (SELECT 1 FROM candidate) THEN
     COALESCE((SELECT jsonb_agg(version ORDER BY version) FROM required_versions WHERE version IS NOT NULL), '[]'::jsonb) END
 ) AS candidate_runtime_gate_preflight;
+
+-- Catalog evidence only. The historical archive itself is never executed by this query.
+WITH rpc_names(signature) AS (
+  VALUES
+    ('public.ops_telemetry_ingest_batch(text,text,text,text,text,jsonb)'),
+    ('public.ops_telemetry_ingest_dlq_events_for_next_purge(text,integer,integer)'),
+    ('public.ops_telemetry_ingest_dlq_summary_for_next_purge()'),
+    ('public.ops_telemetry_ingest_dlq_groups_for_next_purge(integer)'),
+    ('public.ops_telemetry_ingest_dlq_purge_groups_upsert_row(text,text,text,text,timestamptz,timestamptz,integer,integer)'),
+    ('public.ops_telemetry_ingest_dlq_purge_groups_remove_row(text,text,text,text,timestamptz,integer,integer)')
+), rpc_catalog AS (
+  SELECT r.signature, p.oid IS NOT NULL AS present, p.prosecdef AS security_definer,
+    CASE WHEN r.signature = 'public.ops_telemetry_ingest_dlq_events_for_next_purge(text,integer,integer)'
+      THEN position(' payload_keys ' IN pg_get_function_result(p.oid)) > 0
+        AND position(' raw_event ' IN pg_get_function_result(p.oid)) = 0 END AS returns_metadata_only,
+    CASE WHEN p.oid IS NOT NULL THEN EXISTS (
+      SELECT 1 FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+      WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+    ) END AS public_execute,
+    has_function_privilege((SELECT oid FROM pg_roles WHERE rolname = 'anon'), p.oid, 'EXECUTE') AS anon_execute,
+    has_function_privilege((SELECT oid FROM pg_roles WHERE rolname = 'authenticated'), p.oid, 'EXECUTE') AS authenticated_execute,
+    has_function_privilege((SELECT oid FROM pg_roles WHERE rolname = 'service_role'), p.oid, 'EXECUTE') AS service_role_execute
+  FROM rpc_names r LEFT JOIN pg_proc p ON p.oid = to_regprocedure(r.signature)
+)
+SELECT jsonb_build_object(
+  'raw_event_column_present', EXISTS (
+    SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass('public.ops_telemetry_ingest_dlq')
+      AND attname = 'raw_event' AND NOT attisdropped
+  ),
+  'metadata_columns_present', (
+    SELECT count(*) = 13 FROM pg_attribute WHERE attrelid = to_regclass('public.ops_telemetry_ingest_dlq')
+      AND NOT attisdropped AND attname IN (
+        'source_table','source_row_id','source_app_id','event_type','retention_tier','occurred_at','ingest_mode',
+        'panel_key','payload_type','payload_keys','payload_key_count','payload_size_bytes','raw_event_size_bytes'
+      )
+  ),
+  'aggregate_trigger_enabled', EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgrelid = to_regclass('public.ops_telemetry_ingest_dlq')
+      AND tgname = 'trg_ops_telemetry_ingest_dlq_purge_groups_sync' AND tgenabled IN ('O', 'A') AND NOT tgisinternal
+  ),
+  'aggregate_size_columns_present', (
+    SELECT count(*) = 2 FROM pg_attribute WHERE attrelid = to_regclass('public.ops_telemetry_ingest_dlq_purge_groups')
+      AND NOT attisdropped AND attname IN ('total_raw_event_size_bytes','total_payload_size_bytes')
+  ),
+  'rpc_permissions', (SELECT jsonb_agg(r ORDER BY r.signature) FROM rpc_catalog r)
+) AS dlq_000043_catalog;
 
 ROLLBACK;
