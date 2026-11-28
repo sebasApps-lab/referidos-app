@@ -52,12 +52,14 @@ const expectedMigrations = [
   "20261126_000044_versioning_durable_deploy_attempts.sql",
   "20261127_000045_versioning_require_staging_closure.sql",
 ];
+const dlqCorrection = "20261128_000046_ops_telemetry_dlq_aggregate_and_rpc_security.sql";
 for (const migration of [...dlqPrerequisites, ...expectedMigrations]) {
   if (!migrationFiles.includes(migration)) {
     throw new Error(`Missing required OPS migration ${migration}.`);
   }
 }
 assert.equal(migrationVersions.get("20260415"), dlqGuard, "Exactly one active OPS file must represent version 20260415");
+assert.equal(migrationVersions.get("20261128"), dlqCorrection, "Missing required OPS DLQ correction 046");
 
 function psqlArgs(database) {
   return [
@@ -113,6 +115,43 @@ function historicalDlqStatements() {
   return orderedJson;
 }
 
+function historicalDlqSchemaFixture(orderedJson) {
+  const preamble = "-- 20260415_000043_ops_telemetry_dlq_metadata_only.sql\n" +
+    "-- Convert DLQ from full raw_event storage to compact failure metadata.\n\n";
+  const statements = JSON.parse(orderedJson);
+  assert.ok(statements[0].startsWith(preamble));
+  statements[0] = statements[0].slice(preamble.length);
+  const schemaPrefixes = new Map([
+    [0, "drop trigger if exists trg_ops_telemetry_ingest_dlq_purge_groups_sync "],
+    [2, "alter table public.ops_telemetry_ingest_dlq\n  add column"],
+    [4, "alter table public.ops_telemetry_ingest_dlq\n  alter column"],
+    [5, "alter table public.ops_telemetry_ingest_dlq\n  drop column"],
+    [6, "alter table public.ops_telemetry_ingest_dlq_purge_groups\n  add column"],
+    [7, "create or replace function public.ops_telemetry_ingest_batch("],
+    [8, "create or replace function public.ops_telemetry_ingest_dlq_purge_groups_upsert_row("],
+    [9, "create or replace function public.ops_telemetry_ingest_dlq_purge_groups_remove_row("],
+    [10, "create or replace function public.trg_ops_telemetry_ingest_dlq_purge_groups_sync()"],
+    [13, "create or replace function public.ops_telemetry_ingest_dlq_summary_for_next_purge()"],
+    [14, "create or replace function public.ops_telemetry_ingest_dlq_groups_for_next_purge("],
+    [15, "drop function if exists public.ops_telemetry_ingest_dlq_events_for_next_purge("],
+    [16, "create function public.ops_telemetry_ingest_dlq_events_for_next_purge("],
+    [17, "grant execute on function public.ops_telemetry_ingest_batch("],
+    [18, "grant execute on function public.ops_telemetry_ingest_dlq_purge_groups_upsert_row("],
+    [19, "grant execute on function public.ops_telemetry_ingest_dlq_purge_groups_remove_row("],
+  ]);
+  const fixture = statements.flatMap((statement, index) => {
+    const prefix = schemaPrefixes.get(index);
+    if (!prefix) {
+      assert.match(statement, /^(delete|update|truncate|insert) /);
+      return [];
+    }
+    assert.ok(statement.startsWith(prefix), `Unexpected 043 schema statement ${index + 1}`);
+    return [`${statement};`];
+  });
+  assert.equal(fixture.length, 16);
+  return fixture.join("\n") + "\n";
+}
+
 function dlqCatalog(database) {
   return JSON.parse(query(database, `
     select json_build_object(
@@ -130,6 +169,9 @@ function dlqCatalog(database) {
         and tgname = 'trg_ops_telemetry_ingest_dlq_purge_groups_sync' and tgenabled <> 'D'),
       'events_rpc_result', pg_get_function_result(p.oid),
       'events_rpc_security_definer', p.prosecdef,
+      'events_rpc_public_execute', exists (
+        select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+        where a.grantee = 0 and a.privilege_type = 'EXECUTE'),
       'events_rpc_service_role_direct_grant', exists (
         select 1 from aclexplode(p.proacl) a join pg_roles r on r.oid = a.grantee
         where r.rolname = 'service_role' and a.privilege_type = 'EXECUTE'),
@@ -153,8 +195,12 @@ function checkDlqHistory(database, orderedJson) {
   assert.match(result.stderr, /55000:.*ops_000043_requires_verified_history/);
   assert.deepEqual(dlqCatalog(database), before);
 
-  // Replay historic DDL only on the isolated, locked, empty tables verified by this fixture.
-  psql(database, "--single-transaction", `--file=${join(sqlDir, "ops-dlq-history-empty-guard.sql")}`, `--file=${dlqArchive}`);
+  // Reconstruct the historical schema without running its four data-changing statements.
+  const fixture = spawnSync(psqlBinary, [
+    ...psqlArgs(database), "--single-transaction", `--file=${join(sqlDir, "ops-dlq-history-empty-guard.sql")}`, "--file=-",
+  ], { env: environment, encoding: "utf8", input: historicalDlqSchemaFixture(orderedJson) });
+  if (fixture.error) throw fixture.error;
+  assert.equal(fixture.status, 0, fixture.stderr);
   const catalog = dlqCatalog(database);
   assert.equal(catalog.raw_column, false);
   assert.equal(catalog.metadata_columns, 13);
@@ -163,11 +209,12 @@ function checkDlqHistory(database, orderedJson) {
   assert.match(catalog.events_rpc_result, /payload_keys text\[\]/);
   assert.doesNotMatch(catalog.events_rpc_result, /\braw_event jsonb/);
   assert.equal(catalog.events_rpc_security_definer, true);
+  assert.equal(catalog.events_rpc_public_execute, true);
   assert.equal(catalog.events_rpc_service_role_direct_grant, false);
   assert.equal(catalog.events_rpc_anon_effective_execute, true);
   assert.equal(catalog.events_rpc_authenticated_effective_execute, true);
   assert.equal(catalog.events_rpc_service_role_effective_execute, true);
-  console.log("043 guard rejected a fresh ledger. Empty-table archive replay confirmed the historic catalog and fixture ACL exposure.");
+  console.log("043 guard rejected a fresh ledger. The schema-only fixture confirmed the historic catalog and fixture ACL exposure.");
 
   psql(database, "--single-transaction", `--file=${join(sqlDir, "ops-dlq-history-existing.fixture.sql")}`);
   const body = "$ops_000043_fixture_json$";
@@ -184,7 +231,7 @@ function checkDlqHistory(database, orderedJson) {
   const pending = [...migrationVersions]
     .filter(([version]) => version >= "20260415" && !applied.has(version))
     .map(([, name]) => name).sort();
-  assert.deepEqual(pending, expectedMigrations);
+  assert.deepEqual(pending, [...expectedMigrations, dlqCorrection]);
 }
 
 function dlqSnapshot(database) {
@@ -196,6 +243,62 @@ function dlqSnapshot(database) {
         from public.ops_telemetry_ingest_dlq_purge_groups g)
     );
   `);
+}
+
+async function checkDlqCorrection(database, historySnapshot) {
+  const correctionFile = `--file=${join(migrationDir, dlqCorrection)}`;
+  psql(database, "--command", `
+    grant execute on function public.ops_telemetry_ingest_dlq_events_for_next_purge(text,integer,integer)
+      to anon, authenticated;
+  `);
+  const priorCatalog = dlqCatalog(database);
+  const ambiguity = spawnSync(psqlBinary, [
+    ...psqlArgs(database), "--set=VERBOSITY=verbose", "--single-transaction", "--command",
+    `insert into public.ops_telemetry_ingest_dlq (source_project_ref, domain, reason, expires_at)
+     values ('fixture-046-ambiguity', 'observability', 'same trimmed reason', '2026-04-30 05:00Z'),
+            ('fixture-046-ambiguity', 'observability', 'same trimmed reason ', '2026-04-30 05:00Z')`,
+    correctionFile,
+  ], { env: environment, encoding: "utf8" });
+  if (ambiguity.error) throw ambiguity.error;
+  assert.equal(ambiguity.status, 3, ambiguity.stderr);
+  assert.match(ambiguity.stderr, /23505:.*ops_dlq_000046_expected_pkey/);
+  assert.equal(dlqSnapshot(database), historySnapshot, "An ambiguous 046 rebuild must preserve all durable rows");
+  assert.deepEqual(dlqCatalog(database), priorCatalog, "An ambiguous 046 rebuild must preserve the previous trigger and privileges");
+
+  psql(database, "--single-transaction", correctionFile);
+  const correctedSnapshot = dlqSnapshot(database);
+  const { dlq, ledger } = JSON.parse(correctedSnapshot);
+  const history = JSON.parse(historySnapshot);
+  assert.deepEqual(dlq, history.dlq, "046 must preserve historical DLQ events byte-for-byte");
+  assert.deepEqual(ledger, history.ledger, "046 must preserve the verified 043 ledger");
+  const catalog = dlqCatalog(database);
+  assert.equal(catalog.aggregate_trigger, true);
+  assert.equal(catalog.events_rpc_public_execute, false);
+  assert.equal(catalog.events_rpc_service_role_direct_grant, true);
+  assert.equal(catalog.events_rpc_service_role_effective_execute, true);
+  assert.equal(catalog.events_rpc_anon_effective_execute, false);
+  assert.equal(catalog.events_rpc_authenticated_effective_execute, false);
+
+  psql(database, "--single-transaction", correctionFile);
+  assert.equal(dlqSnapshot(database), correctedSnapshot, "046 must preserve exact historical rows, ledger and aggregates when reapplied");
+  assert.deepEqual(dlqCatalog(database), catalog, "046 must preserve its catalog and effective grants when reapplied");
+
+  const insert = (event, createdAt, expiresAt, rawBytes, payloadBytes) => `
+    insert into public.ops_telemetry_ingest_dlq
+      (source_project_ref, source_env_key, domain, reason, source_event_key, created_at, expires_at,
+       raw_event_size_bytes, payload_size_bytes)
+    values ('fixture-046-contention', 'staging', 'observability', 'fixture only', '${event}',
+      '${createdAt}', '${expiresAt}', ${rawBytes}, ${payloadBytes}) returning source_event_key
+  `;
+  assert.equal(query(database, insert("existing", "2026-04-17 07:00Z", "2026-04-30 05:00Z", 100, 10)), "existing");
+  await checkContention(database, insert("added", "2026-04-18 08:00Z", "2026-04-29 16:00Z", 200, 20), `
+    delete from public.ops_telemetry_ingest_dlq
+    where source_project_ref = 'fixture-046-contention' and source_event_key = 'existing'
+    returning source_event_key
+  `, "added", "existing");
+
+  capture(database, `--file=${join(sqlDir, "ops-dlq-aggregate-and-rpc-security.test.sql")}`);
+  console.log("046 rolled back an ambiguous rebuild and was idempotent on valid history. Aggregate DML, concurrent INSERT/DELETE and RPC privilege tests passed.");
 }
 
 function checkReadOnlyPreflight(database, migrated) {
@@ -269,7 +372,7 @@ const database = `versioning_test_${randomBytes(8).toString("hex")}`;
 psql("postgres", "--command", `CREATE DATABASE "${database}" TEMPLATE template0`);
 try {
   assert.equal(query(database, "select not exists (select 1 from pg_available_extensions where name = 'pg_cron');"), "t",
-    "Run the historical telemetry replay on disposable PostgreSQL without pg_cron");
+    "Run the historical telemetry fixture on disposable PostgreSQL without pg_cron");
   psql(database, `--file=${join(sqlDir, "ops-postgres-fixture.sql")}`);
   let historySnapshot;
   for (const migration of migrationFiles) {
@@ -285,12 +388,13 @@ try {
   console.log("044 and 045 preserved the registered 043 statements and synthetic DLQ rows.");
   checkReadOnlyPreflight(database, true);
   console.log("Read-only OPS preflight passed before and after the two durable migrations.");
+  await checkDlqCorrection(database, historySnapshot);
   const regressionFiles = [
     join(sqlDir, "deploy-attempts.test.sql"),
     join(sqlDir, "promotion-guard.test.sql"),
   ];
   psql(database, ...regressionFiles.map((file) => `--file=${file}`));
-  console.log(`Applied ${migrationFiles.length} OPS versioning/telemetry migrations and replayed archive 043 on empty tables. Both SQL regression suites passed.`);
+  console.log(`Applied ${migrationFiles.length + 1} OPS versioning/telemetry migrations and prepared the 043 schema fixture. Both OPS deploy regression suites passed.`);
   psql(database, `--file=${join(sqlDir, "deploy-attempts-concurrency.fixture.sql")}`);
   await checkContention(database, "select versioning_fixture.reserve(1)", "select versioning_fixture.reserve(2)",
     "reserved", "deploy_target_busy");
